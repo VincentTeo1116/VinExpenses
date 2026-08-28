@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes" />
+    <meta name="theme-color" content="#4f46e5" />
+    <title>Smart Expense Tracker</title>
+
+    <!-- PWA -->
+    <link rel="manifest" href="manifest.json" />
+    <link rel="apple-touch-icon" href="icons/icon-192.png" />
+
+    <!-- Supabase & Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+    <div class="app-container" id="app">
+        <!-- ===== AUTH SCREEN ===== -->
+        <div id="authScreen" class="screen active">
+            <div class="auth-box">
+                <div class="auth-logo"><i class="fas fa-wallet"></i></div>
+                <h2 id="authTitle">Welcome back 👋</h2>
+                <p class="sub" id="authSub">Sign in to keep tracking your spending</p>
+                <div id="loginForm">
+                    <div id="registerExtra" class="hidden">
+                        <div class="input-group">
+                            <label>Username</label>
+                            <div class="input-icon-wrap">
+                                <i class="fas fa-user"></i>
+                                <input type="text" id="userInput" placeholder="johndoe" autocomplete="username" />
+                            </div>
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <label>Email</label>
+                        <div class="input-icon-wrap">
+                            <i class="fas fa-envelope"></i>
+                            <input type="email" id="emailInput" placeholder="you@example.com" autocomplete="email" />
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <label>Password</label>
+                        <div class="input-icon-wrap">
+                            <i class="fas fa-lock"></i>
+                            <input type="password" id="passInput" placeholder="••••••••" autocomplete="current-password" />
+                            <button type="button" class="toggle-visibility" data-target="passInput" tabindex="-1">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div id="registerExtra2" class="hidden">
+                        <div class="input-group">
+                            <label>Confirm Password</label>
+                            <div class="input-icon-wrap">
+                                <i class="fas fa-lock"></i>
+                                <input type="password" id="confirmPass" placeholder="••••••••" autocomplete="new-password" />
+                                <button type="button" class="toggle-visibility" data-target="confirmPass" tabindex="-1">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <p class="field-hint"><i class="fas fa-circle-info"></i> We'll email you a verification link — no code to type.</p>
+                    </div>
+
+                    <button id="authActionBtn" class="btn btn-primary">
+                        <i class="fas fa-arrow-right-to-bracket"></i> Sign In
+                    </button>
+
+                    <div id="resendRow" class="resend-row hidden">
+                        Didn't get the email?
+                        <button id="resendBtn" class="link-btn">Resend it</button>
+                    </div>
+
+                    <div class="divider"><span>or</span></div>
+                    <button id="googleBtn" class="btn btn-outline">
+                        <i class="fab fa-google"></i> Continue with Google
+                    </button>
+                    <div class="auth-switch">
+                        <span id="toggleText">Don't have an account?</span>
+                        <button id="toggleAuthBtn" class="link-btn">Register</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== DASHBOARD SCREEN ===== -->
+        <div id="dashboardScreen" class="screen">
+            <div class="dashboard-grid">
+                <div class="dashboard-left">
+                    <div class="greeting">
+                        <h3>Hello, <span id="userNameDisplay">User</span></h3>
+                        <div class="greeting-right">
+                            <span><i class="far fa-calendar-alt"></i> <span id="currentMonth">May 2026</span></span>
+                            <button id="logoutBtn" class="logout-btn" title="Log out">
+                                <i class="fas fa-arrow-right-from-bracket"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="total-card">
+                        <div class="label">Total spent this month</div>
+                        <div class="amount" id="totalSpent">RM 0.00</div>
+                        <div class="sub">+ RM <span id="totalIncome">0.00</span> income this month</div>
+                    </div>
+                    <div class="section-title">Categories</div>
+                    <div class="category-grid" id="categoryGrid">
+                        <div class="category-item"><i class="fas fa-mug-hot"></i><div class="info"><div class="cat">Beverages</div><div class="val" id="cat-beverages">RM 0</div></div></div>
+                        <div class="category-item"><i class="fas fa-plane"></i><div class="info"><div class="cat">Travel</div><div class="val" id="cat-travel">RM 0</div></div></div>
+                        <div class="category-item"><i class="fas fa-film"></i><div class="info"><div class="cat">Entertain</div><div class="val" id="cat-entertain">RM 0</div></div></div>
+                        <div class="category-item"><i class="fas fa-briefcase"></i><div class="info"><div class="cat">Work</div><div class="val" id="cat-work">RM 0</div></div></div>
+                        <div class="category-item"><i class="fas fa-utensils"></i><div class="info"><div class="cat">Food</div><div class="val" id="cat-food">RM 0</div></div></div>
+                        <div class="category-item"><i class="fas fa-bag-shopping"></i><div class="info"><div class="cat">Shopping</div><div class="val" id="cat-shopping">RM 0</div></div></div>
+                    </div>
+                </div>
+
+                <div class="dashboard-right">
+                    <div class="chart-container">
+                        <div class="chart-row">
+                            <div class="chart-box">
+                                <canvas id="pieChart" width="200" height="200"></canvas>
+                            </div>
+                            <div class="chart-box">
+                                <canvas id="barChart" width="200" height="200"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="nav-bar">
+                <button class="nav-item active" data-screen="dashboard">
+                    <i class="fas fa-chart-pie"></i> Dashboard
+                </button>
+                <button class="nav-item" data-screen="expense">
+                    <i class="fas fa-calculator"></i> Expense
+                </button>
+                <button class="nav-item" data-screen="income">
+                    <i class="fas fa-wallet"></i> Income
+                </button>
+            </div>
+        </div>
+
+        <!-- ===== EXPENSE SCREEN ===== -->
+        <div id="expenseScreen" class="screen">
+            <h3 class="screen-title">Add Expense</h3>
+            <div class="form-card">
+                <div class="input-group">
+                    <label>Amount (RM)</label>
+                    <div class="input-icon-wrap">
+                        <i class="fas fa-coins"></i>
+                        <input type="number" id="expAmount" placeholder="0.00" step="0.01" inputmode="decimal" />
+                    </div>
+                </div>
+                <div class="row" style="margin-top: 20px;">
+                    <div class="input-group">
+                        <label>Category</label>
+                        <select id="expCategory">
+                            <option value="beverages">Beverages</option>
+                            <option value="travel">Travel</option>
+                            <option value="entertain">Entertain</option>
+                            <option value="work">Work</option>
+                            <option value="food">Food</option>
+                            <option value="shopping">Shopping</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label>Payment</label>
+                        <select id="expPayment">
+                            <option value="bank">Bank</option>
+                            <option value="card">Card</option>
+                            <option value="ewallet">E-Wallet</option>
+                        </select>
+                    </div>
+                </div>
+                <button id="saveExpenseBtn" class="btn btn-primary" style="margin-bottom: 30px;">
+                    <i class="fas fa-floppy-disk"></i> Save Expense
+                </button>
+            </div>
+            <div class="nav-bar">
+                <button class="nav-item" data-screen="dashboard"><i class="fas fa-chart-pie"></i> Dashboard</button>
+                <button class="nav-item active" data-screen="expense"><i class="fas fa-calculator"></i> Expense</button>
+                <button class="nav-item" data-screen="income"><i class="fas fa-wallet"></i> Income</button>
+            </div>
+        </div>
+
+        <!-- ===== INCOME SCREEN ===== -->
+        <div id="incomeScreen" class="screen">
+            <h3 class="screen-title">Add Income</h3>
+            <div class="form-card">
+                <div class="input-group">
+                    <label>Salary / Income (RM)</label>
+                    <div class="input-icon-wrap">
+                        <i class="fas fa-sack-dollar"></i>
+                        <input type="number" id="incomeAmount" placeholder="0.00" step="0.01" inputmode="decimal" />
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label>Source</label>
+                    <div class="input-icon-wrap">
+                        <i class="fas fa-building-columns"></i>
+                        <input type="text" id="incomeSource" placeholder="Salary, Freelance..." />
+                    </div>
+                </div>
+                <button id="saveIncomeBtn" class="btn btn-primary" style="margin-bottom: 30px;">
+                    <i class="fas fa-floppy-disk"></i> Save Income
+                </button>
+            </div>
+            <div class="nav-bar">
+                <button class="nav-item" data-screen="dashboard"><i class="fas fa-chart-pie"></i> Dashboard</button>
+                <button class="nav-item" data-screen="expense"><i class="fas fa-calculator"></i> Expense</button>
+                <button class="nav-item active" data-screen="income"><i class="fas fa-wallet"></i> Income</button>
+            </div>
+        </div>
+    </div> <!-- END app-container -->
+
+    <!-- ===== MODAL (moved outside .app-container) ===== -->
+    <div id="appModal" class="modal-overlay-full">
+        <div class="modal-container">
+            <div class="modal-icon" id="modalIcon"><i class="fas fa-circle-check"></i></div>
+            <div class="modal-title" id="modalTitle">Title</div>
+            <div class="modal-message" id="modalMessage">Message goes here.</div>
+            <div class="modal-warning hidden" id="modalWarning">
+                <i class="fas fa-triangle-exclamation"></i>
+                <span id="modalWarningText"></span>
+            </div>
+            <div class="modal-actions">
+                <button class="modal-btn modal-cancel hidden" id="modalCancelBtn">Cancel</button>
+                <button class="modal-btn modal-confirm" id="modalConfirmBtn">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
