@@ -61,30 +61,7 @@ python3 -m http.server 8000
 # open http://localhost:8000
 ```
 
-## 3. Push to GitHub
-
-```bash
-cd smart-expense-tracker
-git init
-git add .
-git commit -m "Smart expense tracker with Supabase auth"
-git branch -M main
-git remote add origin https://github.com/<your-username>/<your-repo>.git
-git push -u origin main
-```
-
-(Create the empty repo on GitHub first via **New repository**, then
-run the commands above from this folder.)
-
-### Free hosting straight from GitHub
-
-Once it's pushed, you can host it for free with **GitHub Pages**:
-**Repo → Settings → Pages → Deploy from branch → main → / (root)**.
-You'll get a URL like `https://<username>.github.io/<repo>/` — add
-that same URL to Supabase's **Redirect URLs** (step 1.3 above) so
-Google login works there too.
-
-## 4. Using it on mobile
+## 3. Using it on mobile
 
 The layout is already responsive (phone/tablet/desktop breakpoints
 are in `style.css`). Two ways to get an "app" experience:
