@@ -1,20 +1,8 @@
-// ================================================================
-// SMART EXPENSE TRACKER — app.js
-// Real Supabase Auth: password login + email-link verification
-// (click the link in your inbox — no code to type), Google OAuth,
-// and Postgres-backed data. All user-facing notices use the
-// reusable modal (showModal) instead of alert().
-// ================================================================
-
 // ---------- SUPABASE CONFIG ----------
 const SUPABASE_URL = 'https://koptwssojqjsqtkkmtuk.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtvcHR3c3NvanFqc3F0a2ttdHVrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2NDU5OTEsImV4cCI6MjEwMzIyMTk5MX0.3zEjfNVw1qsDA96Ru1EBnW2l_T_c0bm-8A9O9SZnJkk';
 
-// Capture BEFORE the Supabase client parses/clears the URL hash, so
-// we can tell an email-confirmation redirect apart from a normal
-// OAuth login redirect.
 const cameFromEmailConfirmation = window.location.hash.includes('type=signup');
-
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // ---------- STATE ----------
@@ -23,6 +11,10 @@ let isLoginMode = true;
 let lastRegisteredEmail = null;
 let expenses = [];
 let incomes = [];
+
+// Selected date for dashboard (defaults to today)
+let selectedDate = new Date();
+selectedDate.setHours(0, 0, 0, 0);
 
 const categories = ['beverages', 'travel', 'entertain', 'work', 'food', 'shopping'];
 
@@ -49,7 +41,12 @@ const resendBtn = $('resendBtn');
 const userNameDisplay = $('userNameDisplay');
 const totalSpent = $('totalSpent');
 const totalIncomeDisplay = $('totalIncome');
-const currentMonthDisplay = $('currentMonth');
+const selectedMonthDisplay = $('selectedMonthDisplay');
+const monthPicker = $('monthPicker');
+const monthPickerBtn = $('monthPickerBtn');
+const prevMonthBtn = $('prevMonthBtn');
+const nextMonthBtn = $('nextMonthBtn');
+const todayMonthBtn = $('todayMonthBtn');
 
 const expAmount = $('expAmount');
 const expCategory = $('expCategory');
@@ -60,9 +57,7 @@ const incomeAmount = $('incomeAmount');
 const incomeSource = $('incomeSource');
 const saveIncomeBtn = $('saveIncomeBtn');
 
-// ---------- REUSABLE MODAL ----------
-// showModal({ type, title, message, confirmText, cancelText, danger, onConfirm, onCancel })
-// type: 'success' | 'error' | 'warning' | 'info' | 'question'
+// ---------- MODAL ----------
 const modalOverlay = $('appModal');
 const modalIconWrap = $('modalIcon');
 const modalTitleEl = $('modalTitle');
@@ -146,10 +141,10 @@ function closeModal() {
 }
 
 // ---------- HELPERS ----------
-function isSameMonth(dateStr) {
+function isSameMonth(dateStr, refDate) {
     const d = new Date(dateStr);
-    const now = new Date();
-    return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+    const ref = refDate || selectedDate;
+    return d.getFullYear() === ref.getFullYear() && d.getMonth() === ref.getMonth();
 }
 
 function getTotalSpent() {
@@ -168,6 +163,16 @@ function getCategoryTotal(cat) {
         .reduce((s, e) => s + parseFloat(e.amount || 0), 0);
 }
 
+function formatMonthDisplay(date) {
+    return date.toLocaleString('default', { month: 'long', year: 'numeric' });
+}
+
+function formatMonthValue(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    return `${year}-${month}`;
+}
+
 function showScreen(screenId) {
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
     const target = document.getElementById(screenId);
@@ -183,6 +188,10 @@ function setActiveNav(screen) {
 function updateDashboard() {
     if (!currentUser) return;
 
+    // Update month display
+    selectedMonthDisplay.textContent = formatMonthDisplay(selectedDate);
+    monthPicker.value = formatMonthValue(selectedDate);
+
     totalSpent.textContent = `RM ${getTotalSpent().toFixed(2)}`;
     totalIncomeDisplay.textContent = getTotalIncome().toFixed(2);
 
@@ -193,10 +202,48 @@ function updateDashboard() {
 
     const meta = currentUser.user_metadata || {};
     userNameDisplay.textContent = meta.username || currentUser.email?.split('@')[0] || 'User';
-
-    const now = new Date();
-    currentMonthDisplay.textContent = now.toLocaleString('default', { month: 'long', year: 'numeric' });
 }
+
+// ---------- MONTH SELECTOR ----------
+function setSelectedMonth(year, month) {
+    selectedDate = new Date(year, month, 1);
+    selectedDate.setHours(0, 0, 0, 0);
+    updateDashboard();
+    renderCharts();
+}
+
+function goToPrevMonth() {
+    const year = selectedDate.getFullYear();
+    const month = selectedDate.getMonth() - 1;
+    setSelectedMonth(year, month);
+}
+
+function goToNextMonth() {
+    const year = selectedDate.getFullYear();
+    const month = selectedDate.getMonth() + 1;
+    setSelectedMonth(year, month);
+}
+
+function goToTodayMonth() {
+    const now = new Date();
+    setSelectedMonth(now.getFullYear(), now.getMonth());
+}
+
+// Month picker events
+prevMonthBtn.addEventListener('click', goToPrevMonth);
+nextMonthBtn.addEventListener('click', goToNextMonth);
+todayMonthBtn.addEventListener('click', goToTodayMonth);
+
+monthPickerBtn.addEventListener('click', () => {
+    monthPicker.showPicker ? monthPicker.showPicker() : monthPicker.click();
+});
+
+monthPicker.addEventListener('change', (e) => {
+    const [year, month] = e.target.value.split('-').map(Number);
+    if (!isNaN(year) && !isNaN(month)) {
+        setSelectedMonth(year, month - 1);
+    }
+});
 
 // ---------- CHART MANAGEMENT ----------
 let pieChartInstance = null;
@@ -207,12 +254,12 @@ function getCategoryColors() {
 }
 
 function getMonthlyTotals() {
-    const now = new Date();
     const months = [];
     const expensesData = [];
     const incomesData = [];
+    // Show 6 months ending at the selected month
     for (let i = 5; i >= 0; i--) {
-        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const d = new Date(selectedDate.getFullYear(), selectedDate.getMonth() - i, 1);
         const label = d.toLocaleString('default', { month: 'short' });
         months.push(label);
         const monthExp = expenses
@@ -238,11 +285,10 @@ function renderCharts() {
     const barCtx = document.getElementById('barChart')?.getContext('2d');
     if (!pieCtx || !barCtx) return;
 
-    // Destroy previous instances
     if (pieChartInstance) { pieChartInstance.destroy(); pieChartInstance = null; }
     if (barChartInstance) { barChartInstance.destroy(); barChartInstance = null; }
 
-    // ---- Pie chart: category spending this month ----
+    // ---- Pie chart: category spending for selected month ----
     const categoryTotals = categories.map(cat => getCategoryTotal(cat));
     const hasData = categoryTotals.some(v => v > 0);
     const pieData = hasData ? categoryTotals : [1];
@@ -269,7 +315,7 @@ function renderCharts() {
         }
     });
 
-    // ---- Bar chart: last 6 months expenses vs income ----
+    // ---- Bar chart: last 6 months ----
     const { months, expensesData, incomesData } = getMonthlyTotals();
     const hasBarData = expensesData.some(v => v > 0) || incomesData.some(v => v > 0);
     const barExp = hasBarData ? expensesData : [0];
@@ -318,16 +364,14 @@ updateDashboard = function() {
     originalUpdateDashboard();
     renderCharts();
 };
-// Also call renderCharts when data is fetched
-// We'll modify fetchAllData to call renderCharts after update
+
 const originalFetch = fetchAllData;
 fetchAllData = async function() {
     await originalFetch();
     renderCharts();
 };
-// Ensure charts are rendered on login
-// onLoginSuccess already calls fetchAllData which will trigger renderCharts.
 
+// ---------- BUSY STATE ----------
 function setBusy(button, busy, busyLabel) {
     if (!button) return;
     if (busy) {
@@ -388,7 +432,7 @@ document.querySelectorAll('.nav-item').forEach(btn => {
     });
 });
 
-// ---------- PASSWORD VISIBILITY TOGGLE ----------
+// ---------- PASSWORD VISIBILITY ----------
 document.querySelectorAll('.toggle-visibility').forEach(btn => {
     btn.addEventListener('click', () => {
         const target = $(btn.dataset.target);
@@ -441,7 +485,7 @@ function switchToLoginAfterVerification() {
     passInput.value = '';
 }
 
-// ---------- AUTH ACTION (login / register) ----------
+// ---------- AUTH ACTION ----------
 authActionBtn.addEventListener('click', async () => {
     const email = emailInput.value.trim();
     const password = passInput.value.trim();
@@ -453,7 +497,6 @@ authActionBtn.addEventListener('click', async () => {
         return showModal({ type: 'warning', title: 'Password required', message: 'Please enter your password.' });
     }
 
-    // ---------- LOGIN ----------
     if (isLoginMode) {
         setBusy(authActionBtn, true, 'Signing in...');
         try {
@@ -480,7 +523,6 @@ authActionBtn.addEventListener('click', async () => {
         return;
     }
 
-    // ---------- REGISTER ----------
     const username = userInput.value.trim();
     const confirm = confirmPass.value.trim();
 
@@ -507,8 +549,6 @@ authActionBtn.addEventListener('click', async () => {
 
         if (error) throw error;
 
-        // Supabase returns an empty identities array when the email
-        // already belongs to a confirmed account.
         if (data?.user?.identities?.length === 0) {
             showModal({
                 type: 'warning',
@@ -520,8 +560,6 @@ authActionBtn.addEventListener('click', async () => {
             return;
         }
 
-        // If email confirmation is disabled in the Supabase project,
-        // signUp already returns an active session — just log them in.
         if (data.session) {
             await onLoginSuccess(data.user);
             return;
@@ -550,7 +588,7 @@ authActionBtn.addEventListener('click', async () => {
     }
 });
 
-// ---------- RESEND VERIFICATION EMAIL ----------
+// ---------- RESEND ----------
 resendBtn.addEventListener('click', async () => {
     const email = lastRegisteredEmail || emailInput.value.trim();
     if (!email) {
@@ -616,7 +654,7 @@ if (logoutBtn) {
     });
 }
 
-// ---------- SESSION HANDLING ----------
+// ---------- SESSION ----------
 async function onLoginSuccess(user) {
     currentUser = user;
     emailInput.value = '';
@@ -631,10 +669,6 @@ async function onLoginSuccess(user) {
 supabaseClient.auth.onAuthStateChange(async (event, session) => {
     if (event === 'SIGNED_IN' && session?.user) {
         if (cameFromEmailConfirmation) {
-            // They just clicked the link in their email. Per the
-            // product's flow, we don't auto-drop them into the
-            // dashboard — sign the implicit session out and land
-            // them on the login screen instead.
             await supabaseClient.auth.signOut();
             history.replaceState(null, '', window.location.pathname);
             switchToLoginAfterVerification();
@@ -708,11 +742,11 @@ saveIncomeBtn.addEventListener('click', async () => {
 // ---------- INIT ----------
 (async function init() {
     const now = new Date();
-    currentMonthDisplay.textContent = now.toLocaleString('default', { month: 'long', year: 'numeric' });
+    selectedDate = new Date(now.getFullYear(), now.getMonth(), 1);
+    selectedDate.setHours(0, 0, 0, 0);
+    selectedMonthDisplay.textContent = formatMonthDisplay(selectedDate);
+    monthPicker.value = formatMonthValue(selectedDate);
 
-    // If we came from an email confirmation link, onAuthStateChange
-    // above will handle showing the "verified" modal + login screen,
-    // so skip the normal getSession auto-login here.
     if (cameFromEmailConfirmation) return;
 
     try {
@@ -724,7 +758,7 @@ saveIncomeBtn.addEventListener('click', async () => {
     }
 })();
 
-// ---------- PWA: register service worker ----------
+// ---------- PWA ----------
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
         navigator.serviceWorker.register('sw.js').catch(() => {});

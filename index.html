@@ -95,12 +95,32 @@
                     <div class="greeting">
                         <h3>Hello, <span id="userNameDisplay">User</span></h3>
                         <div class="greeting-right">
-                            <span><i class="far fa-calendar-alt"></i> <span id="currentMonth">May 2026</span></span>
                             <button id="logoutBtn" class="logout-btn" title="Log out">
                                 <i class="fas fa-arrow-right-from-bracket"></i>
                             </button>
                         </div>
                     </div>
+
+                    <!-- ===== MONTH SELECTOR ===== -->
+                    <div class="month-selector">
+                        <button id="prevMonthBtn" class="month-nav-btn" title="Previous month">
+                            <i class="fas fa-chevron-left"></i>
+                        </button>
+                        <div class="month-display">
+                            <span id="selectedMonthDisplay">August 2026</span>
+                            <input type="month" id="monthPicker" class="month-picker-hidden" />
+                            <button id="monthPickerBtn" class="month-picker-btn" title="Pick a month">
+                                <i class="fas fa-calendar-alt"></i>
+                            </button>
+                        </div>
+                        <button id="nextMonthBtn" class="month-nav-btn" title="Next month">
+                            <i class="fas fa-chevron-right"></i>
+                        </button>
+                        <button id="todayMonthBtn" class="month-today-btn" title="Go to current month">
+                            <i class="fas fa-rotate-right"></i>
+                        </button>
+                    </div>
+
                     <div class="total-card">
                         <div class="label">Total spent this month</div>
                         <div class="amount" id="totalSpent">RM 0.00</div>

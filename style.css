@@ -586,3 +586,116 @@ select:focus {
 select {
     background-color: rgba(255,255,255,0.8);
 }
+
+/* ===== MONTH SELECTOR ===== */
+.month-selector {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    background: rgba(255, 255, 255, 0.5);
+    backdrop-filter: blur(8px);
+    border-radius: 60px;
+    padding: 8px 16px;
+    margin-bottom: 18px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.03);
+}
+
+.month-display {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-primary);
+    min-width: 150px;
+    justify-content: center;
+}
+
+.month-nav-btn {
+    background: rgba(255, 255, 255, 0.6);
+    border: none;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.month-nav-btn:hover {
+    background: rgba(79, 70, 229, 0.1);
+    color: var(--primary);
+    transform: scale(1.05);
+}
+
+.month-picker-btn {
+    background: rgba(255, 255, 255, 0.6);
+    border: none;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.month-picker-btn:hover {
+    background: rgba(79, 70, 229, 0.1);
+    color: var(--primary);
+}
+
+.month-today-btn {
+    background: rgba(16, 185, 129, 0.15);
+    border: none;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    color: var(--success);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.month-today-btn:hover {
+    background: rgba(16, 185, 129, 0.25);
+    transform: scale(1.05);
+}
+
+.month-picker-hidden {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+    pointer-events: none;
+}
+
+@media (max-width: 480px) {
+    .month-selector {
+        padding: 6px 10px;
+        gap: 6px;
+        border-radius: 40px;
+    }
+    .month-display {
+        font-size: 14px;
+        min-width: 110px;
+    }
+    .month-nav-btn {
+        width: 30px;
+        height: 30px;
+    }
+    .month-picker-btn {
+        width: 30px;
+        height: 30px;
+    }
+    .month-today-btn {
+        width: 30px;
+        height: 30px;
+    }
+}
