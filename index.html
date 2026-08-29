@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes" />
     <meta name="theme-color" content="#4f46e5" />
+    <link rel="icon" href="icon.png" type="image/png">
     <title>Smart Expense Tracker</title>
 
     <!-- PWA -->
@@ -20,14 +21,73 @@
 </head>
 <body>
     <div class="app-container" id="app">
+        <!-- ===== TOP NAVIGATION ===== -->
+        <nav class="top-nav">
+            <div class="nav-brand">
+                <i class="fas fa-wallet"></i> ExpenseTracker
+            </div>
+            <div class="nav-links">
+                <button class="nav-item active" data-screen="dashboard">
+                    <i class="fas fa-chart-pie"></i> Dashboard
+                </button>
+                <button class="nav-item" data-screen="expense">
+                    <i class="fas fa-calculator"></i> Expense
+                </button>
+                <button class="nav-item" data-screen="income">
+                    <i class="fas fa-wallet"></i> Income
+                </button>
+                <button class="nav-item" data-screen="history">
+                    <i class="fas fa-clock-rotate-left"></i> History
+                </button>
+            </div>
+            <div class="nav-user">
+                <!-- <span id="userNameDisplay">User</span> -->
+                <button id="logoutBtn" class="logout-btn" title="Log out">
+                    <i class="fas fa-arrow-right-from-bracket"></i>
+                </button>
+            </div>
+        </nav>
+
         <!-- ===== AUTH SCREEN ===== -->
         <div id="authScreen" class="screen active">
             <div class="auth-box">
                 <div class="auth-logo"><i class="fas fa-wallet"></i></div>
                 <h2 id="authTitle">Welcome back 👋</h2>
                 <p class="sub" id="authSub">Sign in to keep tracking your spending</p>
+
+                <div class="auth-tabs" id="authTabs">
+                    <button class="auth-tab active" data-tab="login" id="loginTab">
+                        <i class="fas fa-arrow-right-to-bracket"></i> Login
+                    </button>
+                    <button class="auth-tab" data-tab="register" id="registerTab">
+                        <i class="fas fa-user-plus"></i> Register
+                    </button>
+                </div>
+
                 <div id="loginForm">
-                    <div id="registerExtra" class="hidden">
+                    <!-- Login Fields -->
+                    <div class="auth-form-wrap" id="loginFields">
+                        <div class="input-group">
+                            <label>Email</label>
+                            <div class="input-icon-wrap">
+                                <i class="fas fa-envelope"></i>
+                                <input type="email" id="emailInput" placeholder="you@example.com" autocomplete="email" />
+                            </div>
+                        </div>
+                        <div class="input-group">
+                            <label>Password</label>
+                            <div class="input-icon-wrap">
+                                <i class="fas fa-lock"></i>
+                                <input type="password" id="passInput" placeholder="••••••••" autocomplete="current-password" />
+                                <button type="button" class="toggle-visibility" data-target="passInput" tabindex="-1">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Register Fields -->
+                    <div class="auth-form-wrap collapsed" id="registerFields">
                         <div class="input-group">
                             <label>Username</label>
                             <div class="input-icon-wrap">
@@ -35,25 +95,23 @@
                                 <input type="text" id="userInput" placeholder="johndoe" autocomplete="username" />
                             </div>
                         </div>
-                    </div>
-                    <div class="input-group">
-                        <label>Email</label>
-                        <div class="input-icon-wrap">
-                            <i class="fas fa-envelope"></i>
-                            <input type="email" id="emailInput" placeholder="you@example.com" autocomplete="email" />
+                        <div class="input-group">
+                            <label>Email</label>
+                            <div class="input-icon-wrap">
+                                <i class="fas fa-envelope"></i>
+                                <input type="email" id="emailInput2" placeholder="you@example.com" autocomplete="email" />
+                            </div>
                         </div>
-                    </div>
-                    <div class="input-group">
-                        <label>Password</label>
-                        <div class="input-icon-wrap">
-                            <i class="fas fa-lock"></i>
-                            <input type="password" id="passInput" placeholder="••••••••" autocomplete="current-password" />
-                            <button type="button" class="toggle-visibility" data-target="passInput" tabindex="-1">
-                                <i class="fas fa-eye"></i>
-                            </button>
+                        <div class="input-group">
+                            <label>Password</label>
+                            <div class="input-icon-wrap">
+                                <i class="fas fa-lock"></i>
+                                <input type="password" id="passInput2" placeholder="Min. 6 characters" autocomplete="new-password" />
+                                <button type="button" class="toggle-visibility" data-target="passInput2" tabindex="-1">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </div>
                         </div>
-                    </div>
-                    <div id="registerExtra2" class="hidden">
                         <div class="input-group">
                             <label>Confirm Password</label>
                             <div class="input-icon-wrap">
@@ -77,14 +135,57 @@
                     </div>
 
                     <div class="divider"><span>or</span></div>
+
                     <button id="googleBtn" class="btn btn-outline">
                         <i class="fab fa-google"></i> Continue with Google
                     </button>
+
                     <div class="auth-switch">
                         <span id="toggleText">Don't have an account?</span>
                         <button id="toggleAuthBtn" class="link-btn">Register</button>
                     </div>
                 </div>
+            </div>
+        </div>
+
+        <!-- ===== SETUP SCREEN ===== -->
+        <div id="setupScreen" class="screen">
+            <div class="auth-box">
+                <div class="auth-logo"><i class="fas fa-user-plus"></i></div>
+                <h2>Complete your profile</h2>
+                <p class="sub">Set a username and password to finish your account setup.</p>
+
+                <div class="input-group">
+                    <label>Username</label>
+                    <div class="input-icon-wrap">
+                        <i class="fas fa-user"></i>
+                        <input type="text" id="setupUsername" placeholder="Choose a username" />
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label>Password</label>
+                    <div class="input-icon-wrap">
+                        <i class="fas fa-lock"></i>
+                        <input type="password" id="setupPassword" placeholder="Min. 6 characters" />
+                        <button type="button" class="toggle-visibility" data-target="setupPassword" tabindex="-1">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label>Confirm Password</label>
+                    <div class="input-icon-wrap">
+                        <i class="fas fa-lock"></i>
+                        <input type="password" id="setupConfirmPassword" placeholder="••••••••" />
+                        <button type="button" class="toggle-visibility" data-target="setupConfirmPassword" tabindex="-1">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <button id="setupCompleteBtn" class="btn btn-primary">
+                    <i class="fas fa-check"></i> Complete Setup
+                </button>
             </div>
         </div>
 
@@ -95,13 +196,10 @@
                     <div class="greeting">
                         <h3>Hello, <span id="userNameDisplay">User</span></h3>
                         <div class="greeting-right">
-                            <button id="logoutBtn" class="logout-btn" title="Log out">
-                                <i class="fas fa-arrow-right-from-bracket"></i>
-                            </button>
+                            <span><i class="far fa-calendar-alt"></i> <span id="currentMonthDisplay">August 2026</span></span>
                         </div>
                     </div>
 
-                    <!-- ===== MONTH SELECTOR ===== -->
                     <div class="month-selector">
                         <button id="prevMonthBtn" class="month-nav-btn" title="Previous month">
                             <i class="fas fa-chevron-left"></i>
@@ -126,6 +224,7 @@
                         <div class="amount" id="totalSpent">RM 0.00</div>
                         <div class="sub">+ RM <span id="totalIncome">0.00</span> income this month</div>
                     </div>
+
                     <div class="section-title">Categories</div>
                     <div class="category-grid" id="categoryGrid">
                         <div class="category-item"><i class="fas fa-mug-hot"></i><div class="info"><div class="cat">Beverages</div><div class="val" id="cat-beverages">RM 0</div></div></div>
@@ -140,27 +239,11 @@
                 <div class="dashboard-right">
                     <div class="chart-container">
                         <div class="chart-row">
-                            <div class="chart-box">
-                                <canvas id="pieChart" width="200" height="200"></canvas>
-                            </div>
-                            <div class="chart-box">
-                                <canvas id="barChart" width="200" height="200"></canvas>
-                            </div>
+                            <div class="chart-box"><canvas id="pieChart" width="200" height="200"></canvas></div>
+                            <div class="chart-box"><canvas id="barChart" width="200" height="200"></canvas></div>
                         </div>
                     </div>
                 </div>
-            </div>
-
-            <div class="nav-bar">
-                <button class="nav-item active" data-screen="dashboard">
-                    <i class="fas fa-chart-pie"></i> Dashboard
-                </button>
-                <button class="nav-item" data-screen="expense">
-                    <i class="fas fa-calculator"></i> Expense
-                </button>
-                <button class="nav-item" data-screen="income">
-                    <i class="fas fa-wallet"></i> Income
-                </button>
             </div>
         </div>
 
@@ -175,7 +258,7 @@
                         <input type="number" id="expAmount" placeholder="0.00" step="0.01" inputmode="decimal" />
                     </div>
                 </div>
-                <div class="row" style="margin-top: 20px;">
+                <div class="row">
                     <div class="input-group">
                         <label>Category</label>
                         <select id="expCategory">
@@ -196,14 +279,9 @@
                         </select>
                     </div>
                 </div>
-                <button id="saveExpenseBtn" class="btn btn-primary" style="margin-bottom: 30px;">
+                <button id="saveExpenseBtn" class="btn btn-primary">
                     <i class="fas fa-floppy-disk"></i> Save Expense
                 </button>
-            </div>
-            <div class="nav-bar">
-                <button class="nav-item" data-screen="dashboard"><i class="fas fa-chart-pie"></i> Dashboard</button>
-                <button class="nav-item active" data-screen="expense"><i class="fas fa-calculator"></i> Expense</button>
-                <button class="nav-item" data-screen="income"><i class="fas fa-wallet"></i> Income</button>
             </div>
         </div>
 
@@ -225,19 +303,33 @@
                         <input type="text" id="incomeSource" placeholder="Salary, Freelance..." />
                     </div>
                 </div>
-                <button id="saveIncomeBtn" class="btn btn-primary" style="margin-bottom: 30px;">
+                <button id="saveIncomeBtn" class="btn btn-primary">
                     <i class="fas fa-floppy-disk"></i> Save Income
                 </button>
             </div>
-            <div class="nav-bar">
-                <button class="nav-item" data-screen="dashboard"><i class="fas fa-chart-pie"></i> Dashboard</button>
-                <button class="nav-item" data-screen="expense"><i class="fas fa-calculator"></i> Expense</button>
-                <button class="nav-item active" data-screen="income"><i class="fas fa-wallet"></i> Income</button>
+        </div>
+
+        <!-- ===== HISTORY SCREEN ===== -->
+        <div id="historyScreen" class="screen">
+            <h3 class="screen-title">Transaction History</h3>
+            <div class="history-filters">
+                <select id="historyTypeFilter" class="filter-select">
+                    <option value="all">All</option>
+                    <option value="expense">Expenses</option>
+                    <option value="income">Income</option>
+                </select>
+                <input type="month" id="historyMonthFilter" class="filter-month" />
+                <button id="historyRefreshBtn" class="btn btn-primary btn-small">
+                    <i class="fas fa-rotate"></i> Refresh
+                </button>
+            </div>
+            <div id="historyList" class="history-list">
+                <div class="history-empty">No transactions yet.</div>
             </div>
         </div>
     </div> <!-- END app-container -->
 
-    <!-- ===== MODAL (moved outside .app-container) ===== -->
+    <!-- ===== MODAL ===== -->
     <div id="appModal" class="modal-overlay-full">
         <div class="modal-container">
             <div class="modal-icon" id="modalIcon"><i class="fas fa-circle-check"></i></div>
