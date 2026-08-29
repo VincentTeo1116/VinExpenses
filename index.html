@@ -23,24 +23,29 @@
     <div class="app-container" id="app">
         <nav class="top-nav">
             <div class="nav-brand">
-                <i class="fas fa-wallet"></i> ExpenseTracker
+                <i class="fas fa-wallet"></i>
+                <span class="brand-text">ExpenseTracker</span>
             </div>
             <div class="nav-links">
                 <button class="nav-item active" data-screen="dashboard">
-                    <i class="fas fa-chart-pie"></i> Dashboard
+                    <i class="fas fa-chart-pie"></i>
+                    <span class="nav-label">Dashboard</span>
                 </button>
                 <button class="nav-item" data-screen="expense">
-                    <i class="fas fa-calculator"></i> Expense
+                    <i class="fas fa-calculator"></i>
+                    <span class="nav-label">Expense</span>
                 </button>
                 <button class="nav-item" data-screen="income">
-                    <i class="fas fa-wallet"></i> Income
+                    <i class="fas fa-wallet"></i>
+                    <span class="nav-label">Income</span>
                 </button>
                 <button class="nav-item" data-screen="history">
-                    <i class="fas fa-clock-rotate-left"></i> History
+                    <i class="fas fa-clock-rotate-left"></i>
+                    <span class="nav-label">History</span>
                 </button>
             </div>
             <div class="nav-user">
-                <!-- <span id="userNameDisplay">User</span> -->
+                <!-- <span id="navUserName">User</span> -->
                 <button id="logoutBtn" class="logout-btn" title="Log out">
                     <i class="fas fa-arrow-right-from-bracket"></i>
                 </button>

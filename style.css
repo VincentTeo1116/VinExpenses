@@ -73,6 +73,57 @@ body {
     gap: 8px;
 }
 
+/* ---- Mobile: icons only (no text) ---- */
+@media (max-width: 600px) {
+    .nav-links .nav-item .nav-label {
+        display: none;
+    }
+
+    .nav-brand .brand-text {
+        display: none;
+    }
+    .nav-brand i {
+        font-size: 24px;
+        margin-right: 0;
+    }
+
+    .nav-user span {
+        display: none;
+    }
+
+    .nav-links .nav-item {
+        padding: 8px 12px;
+        font-size: 18px;  /* larger touch target */
+    }
+
+    .nav-links .nav-item i {
+        font-size: 20px;
+        margin: 0;
+    }
+
+    .top-nav {
+        padding: 6px 12px;
+        gap: 4px;
+        border-radius: 40px;
+    }
+
+    .nav-links {
+        gap: 2px;
+    }
+
+    .nav-user .logout-btn {
+        width: 36px;
+        height: 36px;
+    }
+}
+
+@media (min-width: 601px) and (max-width: 900px) {
+    .nav-links .nav-item {
+        padding: 8px 14px;
+        font-size: 13px;
+    }
+}
+
 .nav-brand {
     font-weight: 700;
     font-size: 18px;
