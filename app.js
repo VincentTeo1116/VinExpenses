@@ -49,6 +49,8 @@ const registerFields = $('registerFields');
 const emailInput2 = $('emailInput2');
 const passInput2 = $('passInput2');
 
+const topNav = document.querySelector('.top-nav');
+
 // Setup screen elements
 const setupUsername = $('setupUsername');
 const setupPassword = $('setupPassword');
@@ -185,6 +187,13 @@ function showScreen(screenId) {
     const target = document.getElementById(screenId);
     if (target) target.classList.add('active');
     if (screenId === 'dashboardScreen') updateDashboard();
+
+    // Toggle navigation visibility
+    if (screenId === 'authScreen' || screenId === 'setupScreen') {
+        topNav.classList.add('hidden-nav');
+    } else {
+        topNav.classList.remove('hidden-nav');
+    }
 }
 
 function setActiveNav(screen) {
@@ -693,6 +702,7 @@ if (logoutBtn) {
                 incomes = [];
                 emailInput.value = '';
                 passInput.value = '';
+                topNav.classList.add('hidden-nav');
                 showScreen('authScreen');
             }
         });
@@ -723,6 +733,7 @@ async function onLoginSuccess(user) {
     emailInput2.value = '';
     passInput2.value = '';
     resendRow.classList.add('hidden');
+    topNav.classList.remove('hidden-nav');
     await fetchAllData();
     showScreen('dashboardScreen');
 }
@@ -912,7 +923,11 @@ showScreen = function(screenId) {
     try {
         const { data: { session }, error } = await supabaseClient.auth.getSession();
         if (error) throw error;
-        if (session?.user) await onLoginSuccess(session.user);
+        if (session?.user) {
+            await onLoginSuccess(session.user);
+        } else {
+            topNav.classList.add('hidden-nav');
+        }
     } catch (err) {
         console.error('Init error:', err);
     }
