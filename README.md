@@ -31,6 +31,7 @@ dashboard. Plain HTML/CSS/JS — no build step.
   setup step with a username and password).
 - **Feedback** — toasts for quick confirmations; a single `showModal()` for
   errors and confirmations (no browser `alert()`), closable with Esc.
+- **Dark mode** — follows the phone/OS appearance automatically (light or dark), including the charts and status-bar colour.
 - **PWA** — installable, works offline for the UI (data needs a connection).
 
 ## 1. One-time Supabase setup

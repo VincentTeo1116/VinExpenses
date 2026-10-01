@@ -20,20 +20,20 @@ const CATEGORIES = [
     { key: 'food', label: 'Food', icon: 'fa-utensils', color: '#ef4444' },
     { key: 'shopping', label: 'Shopping', icon: 'fa-bag-shopping', color: '#8b5cf6' },
     { key: 'utilities', label: 'Utilities', icon: 'fa-bolt', color: '#0ea5e9' },
-    { key: 'car', label: 'Car', icon: 'fa-car', color: '#64748b' },
+    { key: 'car', label: 'Car', icon: 'fa-car', color: '#f97316' },
     { key: 'health', label: 'Health', icon: 'fa-heart-pulse', color: '#ec4899' },
-    { key: 'other', label: 'Other', icon: 'fa-ellipsis', color: '#94a3b8' }
+    { key: 'other', label: 'Other', icon: 'fa-ellipsis', color: '#6b7280' }
 ];
 const PAYMENTS = [
-    { key: 'bank', label: 'Bank', icon: 'fa-building-columns' },
-    { key: 'card', label: 'Card', icon: 'fa-credit-card' },
-    { key: 'ewallet', label: 'E-Wallet', icon: 'fa-mobile-screen' }
+    { key: 'bank', label: 'Bank', icon: 'fa-building-columns', color: '#4f46e5' },
+    { key: 'card', label: 'Card', icon: 'fa-credit-card', color: '#4f46e5' },
+    { key: 'ewallet', label: 'E-Wallet', icon: 'fa-mobile-screen', color: '#4f46e5' }
 ];
 const INCOME_SOURCES = [
-    { key: 'Salary', label: 'Salary', icon: 'fa-sack-dollar' },
-    { key: 'Freelance', label: 'Freelance', icon: 'fa-laptop-code' },
-    { key: 'Bonus', label: 'Bonus', icon: 'fa-gift' },
-    { key: 'Investment', label: 'Investment', icon: 'fa-chart-line' }
+    { key: 'Salary', label: 'Salary', icon: 'fa-sack-dollar', color: '#4f46e5' },
+    { key: 'Freelance', label: 'Freelance', icon: 'fa-laptop-code', color: '#4f46e5' },
+    { key: 'Bonus', label: 'Bonus', icon: 'fa-gift', color: '#4f46e5' },
+    { key: 'Investment', label: 'Investment', icon: 'fa-chart-line', color: '#4f46e5' }
 ];
 const catByKey = Object.fromEntries(CATEGORIES.map(c => [c.key, c]));
 const payByKey = Object.fromEntries(PAYMENTS.map(p => [p.key, p]));
@@ -487,6 +487,25 @@ function getMonthlyTotals() {
     return { months, expensesData, incomesData };
 }
 
+// Chart.js colours are set in JS, so they follow the system theme here
+const darkQuery = window.matchMedia('(prefers-color-scheme: dark)');
+
+function applyChartTheme() {
+    if (!window.Chart) return;
+    Chart.defaults.color = darkQuery.matches ? '#94a3b8' : '#666';
+    Chart.defaults.borderColor = darkQuery.matches ? 'rgba(148, 163, 184, 0.15)' : 'rgba(0, 0, 0, 0.1)';
+}
+
+function onThemeChange() {
+    applyChartTheme();
+    if (pieChartInstance) { pieChartInstance.destroy(); pieChartInstance = null; }
+    if (barChartInstance) { barChartInstance.destroy(); barChartInstance = null; }
+    if (currentUser && $('dashboardScreen').classList.contains('active')) renderCharts();
+}
+if (darkQuery.addEventListener) darkQuery.addEventListener('change', onThemeChange);
+else if (darkQuery.addListener) darkQuery.addListener(onThemeChange); // older Safari
+applyChartTheme();
+
 function renderCharts() {
     if (!window.Chart) return;
     const pieCanvas = $('pieChart');
@@ -502,7 +521,7 @@ function renderCharts() {
             data: hasData ? totals : [1],
             backgroundColor: hasData ? CATEGORIES.map(c => c.color) : ['#d1d5db'],
             borderWidth: 2,
-            borderColor: 'white'
+            borderColor: darkQuery.matches ? '#1e293b' : 'white'
         }]
     };
     if (pieChartInstance) {
