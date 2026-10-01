@@ -12,6 +12,7 @@ dashboard. Plain HTML/CSS/JS — no build step.
 | `style.css` | Responsive styling (phone → tablet → desktop) |
 | `app.js` | All logic: Supabase auth, data fetch/save/edit/delete, charts, navigation |
 | `supabase-schema.sql` | Tables + Row Level Security policies — run once in Supabase |
+| `migration-add-categories.sql` | Run once if your database already existed before the Utilities/Car/Health/Other categories |
 | `manifest.json`, `sw.js`, `icons/` | Makes the site installable as an app (PWA) |
 | `icon.png` | Browser tab favicon |
 

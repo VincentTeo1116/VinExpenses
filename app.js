@@ -18,7 +18,11 @@ const CATEGORIES = [
     { key: 'entertain', label: 'Entertain', icon: 'fa-film', color: '#f59e0b' },
     { key: 'work', label: 'Work', icon: 'fa-briefcase', color: '#10b981' },
     { key: 'food', label: 'Food', icon: 'fa-utensils', color: '#ef4444' },
-    { key: 'shopping', label: 'Shopping', icon: 'fa-bag-shopping', color: '#8b5cf6' }
+    { key: 'shopping', label: 'Shopping', icon: 'fa-bag-shopping', color: '#8b5cf6' },
+    { key: 'utilities', label: 'Utilities', icon: 'fa-bolt', color: '#0ea5e9' },
+    { key: 'car', label: 'Car', icon: 'fa-car', color: '#64748b' },
+    { key: 'health', label: 'Health', icon: 'fa-heart-pulse', color: '#ec4899' },
+    { key: 'other', label: 'Other', icon: 'fa-ellipsis', color: '#94a3b8' }
 ];
 const PAYMENTS = [
     { key: 'bank', label: 'Bank', icon: 'fa-building-columns' },
@@ -95,6 +99,8 @@ const viewAllBtn = $('viewAllBtn');
 
 const expAmount = $('expAmount');
 const expDate = $('expDate');
+const expNote = $('expNote');
+const expNoteLabel = $('expNoteLabel');
 const saveExpenseBtn = $('saveExpenseBtn');
 const incomeAmount = $('incomeAmount');
 const incomeSource = $('incomeSource');
@@ -116,6 +122,7 @@ const editDate = $('editDate');
 const editCategory = $('editCategory');
 const editPayment = $('editPayment');
 const editSource = $('editSource');
+const editNote = $('editNote');
 const editExpenseFields = $('editExpenseFields');
 const editIncomeFields = $('editIncomeFields');
 const editSaveBtn = $('editSaveBtn');
@@ -364,7 +371,9 @@ function transactionRowHtml(t, withActions) {
     const isIncome = t.type === 'income';
     const cat = catByKey[t.category];
     const icon = isIncome ? 'fa-arrow-trend-up' : (cat ? cat.icon : 'fa-receipt');
-    const title = isIncome ? (t.source || 'Salary') : (cat ? cat.label : t.category);
+    const baseTitle = isIncome ? (t.source || 'Salary') : (cat ? cat.label : t.category);
+    // For expenses, a note (e.g. what "Other" was) is shown next to the category
+    const title = !isIncome && t.note ? `${baseTitle} — ${t.note}` : baseTitle;
     const pay = payByKey[t.payment];
     const date = new Date(t.created_at).toLocaleDateString('en-MY', { day: '2-digit', month: 'short', year: 'numeric' });
     const detail = isIncome ? `Income • ${date}` : `${pay ? pay.label : 'N/A'} • ${date}`;
@@ -583,10 +592,12 @@ async function fetchAllData() {
     }
 }
 
-async function addExpense(amount, category, payment, createdAt) {
+async function addExpense(amount, category, payment, createdAt, note) {
+    const row = { user_id: currentUser.id, amount, category, payment, created_at: createdAt };
+    if (note) row.note = note; // only sent when used, so a missing `note` column only matters for noted expenses
     const { data, error } = await supabaseClient
         .from('expenses')
-        .insert([{ user_id: currentUser.id, amount, category, payment, created_at: createdAt }])
+        .insert([row])
         .select();
     if (error) throw error;
     if (data && data.length > 0) { expenses.push(data[0]); expenses.sort(byDateDesc); }
@@ -641,6 +652,9 @@ function bindChips(container, onSelect) {
 function renderExpenseChips() {
     renderChips($('expCategoryChips'), CATEGORIES, expCategoryValue);
     renderChips($('expPaymentChips'), PAYMENTS, expPaymentValue);
+    const isOther = expCategoryValue === 'other';
+    expNoteLabel.textContent = isOther ? 'Please specify (required)' : 'Note (optional)';
+    expNote.placeholder = isOther ? 'What was this expense for?' : 'e.g. Lunch with team';
 }
 bindChips($('expCategoryChips'), (key) => { expCategoryValue = key; renderExpenseChips(); });
 bindChips($('expPaymentChips'), (key) => { expPaymentValue = key; renderExpenseChips(); });
@@ -1004,12 +1018,18 @@ saveExpenseBtn.addEventListener('click', async () => {
         expAmount.focus();
         return showModal({ type: 'warning', title: 'Invalid amount', message: 'Please enter a valid amount greater than 0.' });
     }
+    const note = expNote.value.trim();
+    if (expCategoryValue === 'other' && !note) {
+        expNote.focus();
+        return showModal({ type: 'warning', title: 'Please specify', message: 'Tell us what this "Other" expense was for.' });
+    }
     const createdAt = dateInputToISO(expDate.value);
 
     setBusy(saveExpenseBtn, true, 'Saving...');
     try {
-        await addExpense(amount, expCategoryValue, expPaymentValue, createdAt);
+        await addExpense(amount, expCategoryValue, expPaymentValue, createdAt, note);
         expAmount.value = '';
+        expNote.value = '';
         expDate.value = toInputDate();
         const saved = new Date(createdAt);
         setSelectedMonth(saved.getFullYear(), saved.getMonth());
@@ -1099,7 +1119,7 @@ function renderHistory() {
         list = list.filter(t => {
             const hay = t.type === 'income'
                 ? `${t.source} income`
-                : `${catByKey[t.category]?.label || t.category} ${payByKey[t.payment]?.label || t.payment} expense`;
+                : `${catByKey[t.category]?.label || t.category} ${t.note || ''} ${payByKey[t.payment]?.label || t.payment} expense`;
             return hay.toLowerCase().includes(query);
         });
     }
@@ -1181,6 +1201,8 @@ function openEditModal(type, id) {
     } else {
         editCategory.value = rec.category;
         editPayment.value = rec.payment;
+        editNote.value = rec.note || '';
+        editing.hadNote = !!rec.note;
     }
 
     editModal.classList.add('active');
@@ -1207,10 +1229,20 @@ editSaveBtn.addEventListener('click', async () => {
         editAmount.focus();
         return showModal({ type: 'warning', title: 'Invalid amount', message: 'Please enter a valid amount greater than 0.' });
     }
-    const { type, id, createdAt } = editing;
+    const { type, id, createdAt, hadNote } = editing;
     const fields = { amount, created_at: dateInputToISO(editDate.value, new Date(createdAt)) };
-    if (type === 'income') fields.source = editSource.value.trim() || 'Salary';
-    else { fields.category = editCategory.value; fields.payment = editPayment.value; }
+    if (type === 'income') {
+        fields.source = editSource.value.trim() || 'Salary';
+    } else {
+        const note = editNote.value.trim();
+        if (editCategory.value === 'other' && !note) {
+            editNote.focus();
+            return showModal({ type: 'warning', title: 'Please specify', message: 'Tell us what this "Other" expense was for.' });
+        }
+        fields.category = editCategory.value;
+        fields.payment = editPayment.value;
+        if (note || hadNote) fields.note = note || null;
+    }
 
     setBusy(editSaveBtn, true, 'Saving...');
     try {
