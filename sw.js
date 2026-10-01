@@ -1,8 +1,18 @@
-// Minimal service worker: caches the app shell so the UI still loads
-// even without a network connection. Data operations still
-// need network access to reach Supabase.
-const CACHE_NAME = 'expense-tracker-v1';
-const SHELL_FILES = ['index.html', 'style.css', 'app.js', 'manifest.json'];
+// Service worker: keeps the app installable and the UI loadable offline.
+// Strategy: network-first (so a deploy is picked up immediately), falling
+// back to the cache when offline. Supabase API calls are never intercepted.
+// Bump CACHE_NAME whenever you want to force old caches to be dropped.
+const CACHE_NAME = 'expense-tracker-v2';
+const SHELL_FILES = [
+    './',
+    'index.html',
+    'style.css',
+    'app.js',
+    'manifest.json',
+    'icon.png',
+    'icons/icon-192.png',
+    'icons/icon-512.png'
+];
 
 self.addEventListener('install', (event) => {
     event.waitUntil(
@@ -21,10 +31,25 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-    // Network-first for Supabase API calls, cache-first for the app shell.
-    if (event.request.url.includes('supabase.co')) return;
+    const req = event.request;
+    if (req.method !== 'GET') return;
+    if (!req.url.startsWith('http')) return;
+    if (req.url.includes('supabase.co')) return;
 
     event.respondWith(
-        caches.match(event.request).then((cached) => cached || fetch(event.request))
+        fetch(req)
+            .then((res) => {
+                // Cache good same-origin and CDN (opaque) responses for offline use
+                if (res && (res.ok || res.type === 'opaque')) {
+                    const copy = res.clone();
+                    caches.open(CACHE_NAME).then((cache) => cache.put(req, copy));
+                }
+                return res;
+            })
+            .catch(() =>
+                caches.match(req).then((cached) =>
+                    cached || (req.mode === 'navigate' ? caches.match('index.html') : Response.error())
+                )
+            )
     );
 });

@@ -21,7 +21,7 @@
 </head>
 <body>
     <div class="app-container" id="app">
-        <nav class="top-nav">
+        <nav class="top-nav hidden-nav">
             <div class="nav-brand">
                 <i class="fas fa-wallet"></i>
                 <span class="brand-text">ExpenseTracker</span>
@@ -45,8 +45,7 @@
                 </button>
             </div>
             <div class="nav-user">
-                <!-- <span id="navUserName">User</span> -->
-                <button id="logoutBtn" class="logout-btn" title="Log out">
+                <button id="logoutBtn" class="logout-btn" title="Log out" aria-label="Log out">
                     <i class="fas fa-arrow-right-from-bracket"></i>
                 </button>
             </div>
@@ -72,18 +71,18 @@
                     <!-- Login Fields -->
                     <div class="auth-form-wrap" id="loginFields">
                         <div class="input-group">
-                            <label>Email</label>
+                            <label for="emailInput">Email</label>
                             <div class="input-icon-wrap">
                                 <i class="fas fa-envelope"></i>
                                 <input type="email" id="emailInput" placeholder="you@example.com" autocomplete="email" />
                             </div>
                         </div>
                         <div class="input-group">
-                            <label>Password</label>
+                            <label for="passInput">Password</label>
                             <div class="input-icon-wrap">
                                 <i class="fas fa-lock"></i>
                                 <input type="password" id="passInput" placeholder="••••••••" autocomplete="current-password" />
-                                <button type="button" class="toggle-visibility" data-target="passInput" tabindex="-1">
+                                <button type="button" class="toggle-visibility" data-target="passInput" tabindex="-1" aria-label="Show or hide password">
                                     <i class="fas fa-eye"></i>
                                 </button>
                             </div>
@@ -93,35 +92,36 @@
                     <!-- Register Fields -->
                     <div class="auth-form-wrap collapsed" id="registerFields">
                         <div class="input-group">
-                            <label>Username</label>
+                            <label for="userInput">Username</label>
                             <div class="input-icon-wrap">
                                 <i class="fas fa-user"></i>
                                 <input type="text" id="userInput" placeholder="johndoe" autocomplete="username" />
                             </div>
                         </div>
                         <div class="input-group">
-                            <label>Email</label>
+                            <label for="emailInput2">Email</label>
                             <div class="input-icon-wrap">
                                 <i class="fas fa-envelope"></i>
                                 <input type="email" id="emailInput2" placeholder="you@example.com" autocomplete="email" />
                             </div>
                         </div>
                         <div class="input-group">
-                            <label>Password</label>
+                            <label for="passInput2">Password</label>
                             <div class="input-icon-wrap">
                                 <i class="fas fa-lock"></i>
                                 <input type="password" id="passInput2" placeholder="Min. 6 characters" autocomplete="new-password" />
-                                <button type="button" class="toggle-visibility" data-target="passInput2" tabindex="-1">
+                                <button type="button" class="toggle-visibility" data-target="passInput2" tabindex="-1" aria-label="Show or hide password">
                                     <i class="fas fa-eye"></i>
                                 </button>
                             </div>
+                            <div class="strength" id="passStrength" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
                         </div>
                         <div class="input-group">
-                            <label>Confirm Password</label>
+                            <label for="confirmPass">Confirm Password</label>
                             <div class="input-icon-wrap">
                                 <i class="fas fa-lock"></i>
                                 <input type="password" id="confirmPass" placeholder="••••••••" autocomplete="new-password" />
-                                <button type="button" class="toggle-visibility" data-target="confirmPass" tabindex="-1">
+                                <button type="button" class="toggle-visibility" data-target="confirmPass" tabindex="-1" aria-label="Show or hide password">
                                     <i class="fas fa-eye"></i>
                                 </button>
                             </div>
@@ -143,11 +143,6 @@
                     <button id="googleBtn" class="btn btn-outline">
                         <i class="fab fa-google"></i> Continue with Google
                     </button>
-
-                    <div class="auth-switch">
-                        <span id="toggleText">Don't have an account?</span>
-                        <button id="toggleAuthBtn" class="link-btn">Register</button>
-                    </div>
                 </div>
             </div>
         </div>
@@ -160,28 +155,28 @@
                 <p class="sub">Set a username and password to finish your account setup.</p>
 
                 <div class="input-group">
-                    <label>Username</label>
+                    <label for="setupUsername">Username</label>
                     <div class="input-icon-wrap">
                         <i class="fas fa-user"></i>
-                        <input type="text" id="setupUsername" placeholder="Choose a username" />
+                        <input type="text" id="setupUsername" placeholder="Choose a username" autocomplete="username" />
                     </div>
                 </div>
                 <div class="input-group">
-                    <label>Password</label>
+                    <label for="setupPassword">Password</label>
                     <div class="input-icon-wrap">
                         <i class="fas fa-lock"></i>
-                        <input type="password" id="setupPassword" placeholder="Min. 6 characters" />
-                        <button type="button" class="toggle-visibility" data-target="setupPassword" tabindex="-1">
+                        <input type="password" id="setupPassword" placeholder="Min. 6 characters" autocomplete="new-password" />
+                        <button type="button" class="toggle-visibility" data-target="setupPassword" tabindex="-1" aria-label="Show or hide password">
                             <i class="fas fa-eye"></i>
                         </button>
                     </div>
                 </div>
                 <div class="input-group">
-                    <label>Confirm Password</label>
+                    <label for="setupConfirmPassword">Confirm Password</label>
                     <div class="input-icon-wrap">
                         <i class="fas fa-lock"></i>
-                        <input type="password" id="setupConfirmPassword" placeholder="••••••••" />
-                        <button type="button" class="toggle-visibility" data-target="setupConfirmPassword" tabindex="-1">
+                        <input type="password" id="setupConfirmPassword" placeholder="••••••••" autocomplete="new-password" />
+                        <button type="button" class="toggle-visibility" data-target="setupConfirmPassword" tabindex="-1" aria-label="Show or hide password">
                             <i class="fas fa-eye"></i>
                         </button>
                     </div>
@@ -198,46 +193,39 @@
             <div class="dashboard-grid">
                 <div class="dashboard-left">
                     <div class="greeting">
-                        <h3>Hello, <span id="userNameDisplay">User</span></h3>
-                        <div class="greeting-right">
-                            <span><i class="far fa-calendar-alt"></i> <span id="currentMonthDisplay">August 2026</span></span>
-                        </div>
+                        <h3>Hello, <span id="userNameDisplay" class="user-chip">User</span></h3>
                     </div>
 
                     <div class="month-selector">
-                        <button id="prevMonthBtn" class="month-nav-btn" title="Previous month">
+                        <button id="prevMonthBtn" class="month-nav-btn" title="Previous month" aria-label="Previous month">
                             <i class="fas fa-chevron-left"></i>
                         </button>
                         <div class="month-display">
                             <span id="selectedMonthDisplay">August 2026</span>
-                            <input type="month" id="monthPicker" class="month-picker-hidden" />
-                            <button id="monthPickerBtn" class="month-picker-btn" title="Pick a month">
+                            <input type="month" id="monthPicker" class="month-picker-hidden" tabindex="-1" />
+                            <button id="monthPickerBtn" class="month-picker-btn" title="Pick a month" aria-label="Pick a month">
                                 <i class="fas fa-calendar-alt"></i>
                             </button>
                         </div>
-                        <button id="nextMonthBtn" class="month-nav-btn" title="Next month">
+                        <button id="nextMonthBtn" class="month-nav-btn" title="Next month" aria-label="Next month">
                             <i class="fas fa-chevron-right"></i>
                         </button>
-                        <button id="todayMonthBtn" class="month-today-btn" title="Go to current month">
+                        <button id="todayMonthBtn" class="month-today-btn" title="Go to current month" aria-label="Go to current month">
                             <i class="fas fa-rotate-right"></i>
                         </button>
                     </div>
 
-                    <div class="total-card">
+                    <div class="total-card" id="totalCard">
                         <div class="label">Total spent this month</div>
                         <div class="amount" id="totalSpent">RM 0.00</div>
-                        <div class="sub">+ RM <span id="totalIncome">0.00</span> income this month</div>
+                        <div class="total-meta">
+                            <div class="meta-pill income"><i class="fas fa-arrow-trend-up"></i> Income <b id="totalIncome">RM 0.00</b></div>
+                            <div class="meta-pill" id="balancePill"><i class="fas fa-scale-balanced"></i> Balance <b id="totalBalance">RM 0.00</b></div>
+                        </div>
                     </div>
 
-                    <div class="section-title">Categories</div>
-                    <div class="category-grid" id="categoryGrid">
-                        <div class="category-item"><i class="fas fa-mug-hot"></i><div class="info"><div class="cat">Beverages</div><div class="val" id="cat-beverages">RM 0</div></div></div>
-                        <div class="category-item"><i class="fas fa-plane"></i><div class="info"><div class="cat">Travel</div><div class="val" id="cat-travel">RM 0</div></div></div>
-                        <div class="category-item"><i class="fas fa-film"></i><div class="info"><div class="cat">Entertain</div><div class="val" id="cat-entertain">RM 0</div></div></div>
-                        <div class="category-item"><i class="fas fa-briefcase"></i><div class="info"><div class="cat">Work</div><div class="val" id="cat-work">RM 0</div></div></div>
-                        <div class="category-item"><i class="fas fa-utensils"></i><div class="info"><div class="cat">Food</div><div class="val" id="cat-food">RM 0</div></div></div>
-                        <div class="category-item"><i class="fas fa-bag-shopping"></i><div class="info"><div class="cat">Shopping</div><div class="val" id="cat-shopping">RM 0</div></div></div>
-                    </div>
+                    <div class="section-title">Categories <small>tap one to see its transactions</small></div>
+                    <div class="category-grid" id="categoryGrid"></div>
                 </div>
 
                 <div class="dashboard-right">
@@ -246,6 +234,15 @@
                             <div class="chart-box"><canvas id="pieChart" width="200" height="200"></canvas></div>
                             <div class="chart-box"><canvas id="barChart" width="200" height="200"></canvas></div>
                         </div>
+                        <p class="chart-hint"><i class="fas fa-hand-pointer"></i> Tap a bar to jump to that month, or a pie slice to see its transactions.</p>
+                    </div>
+
+                    <div class="recent-card">
+                        <div class="recent-head">
+                            <div class="section-title">Recent activity</div>
+                            <button id="viewAllBtn" class="link-btn">View all <i class="fas fa-arrow-right"></i></button>
+                        </div>
+                        <div id="recentList" class="history-list compact"></div>
                     </div>
                 </div>
             </div>
@@ -256,31 +253,25 @@
             <h3 class="screen-title">Add Expense</h3>
             <div class="form-card">
                 <div class="input-group">
-                    <label>Amount (RM)</label>
+                    <label for="expAmount">Amount (RM)</label>
                     <div class="input-icon-wrap">
                         <i class="fas fa-coins"></i>
-                        <input type="number" id="expAmount" placeholder="0.00" step="0.01" inputmode="decimal" />
+                        <input type="number" id="expAmount" placeholder="0.00" step="0.01" min="0" inputmode="decimal" />
                     </div>
                 </div>
-                <div class="row">
-                    <div class="input-group">
-                        <label>Category</label>
-                        <select id="expCategory">
-                            <option value="beverages">Beverages</option>
-                            <option value="travel">Travel</option>
-                            <option value="entertain">Entertain</option>
-                            <option value="work">Work</option>
-                            <option value="food">Food</option>
-                            <option value="shopping">Shopping</option>
-                        </select>
-                    </div>
-                    <div class="input-group">
-                        <label>Payment</label>
-                        <select id="expPayment">
-                            <option value="bank">Bank</option>
-                            <option value="card">Card</option>
-                            <option value="ewallet">E-Wallet</option>
-                        </select>
+                <div class="input-group">
+                    <label>Category</label>
+                    <div class="chip-group" id="expCategoryChips"></div>
+                </div>
+                <div class="input-group">
+                    <label>Payment</label>
+                    <div class="chip-group" id="expPaymentChips"></div>
+                </div>
+                <div class="input-group">
+                    <label for="expDate">Date</label>
+                    <div class="input-icon-wrap">
+                        <i class="far fa-calendar"></i>
+                        <input type="date" id="expDate" />
                     </div>
                 </div>
                 <button id="saveExpenseBtn" class="btn btn-primary">
@@ -294,17 +285,25 @@
             <h3 class="screen-title">Add Income</h3>
             <div class="form-card">
                 <div class="input-group">
-                    <label>Salary / Income (RM)</label>
+                    <label for="incomeAmount">Salary / Income (RM)</label>
                     <div class="input-icon-wrap">
                         <i class="fas fa-sack-dollar"></i>
-                        <input type="number" id="incomeAmount" placeholder="0.00" step="0.01" inputmode="decimal" />
+                        <input type="number" id="incomeAmount" placeholder="0.00" step="0.01" min="0" inputmode="decimal" />
                     </div>
                 </div>
                 <div class="input-group">
-                    <label>Source</label>
-                    <div class="input-icon-wrap">
+                    <label for="incomeSource">Source</label>
+                    <div class="chip-group" id="incomeSourceChips"></div>
+                    <div class="input-icon-wrap" style="margin-top:10px">
                         <i class="fas fa-building-columns"></i>
-                        <input type="text" id="incomeSource" placeholder="Salary, Freelance..." />
+                        <input type="text" id="incomeSource" placeholder="Salary, Freelance..." maxlength="60" />
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label for="incomeDate">Date</label>
+                    <div class="input-icon-wrap">
+                        <i class="far fa-calendar"></i>
+                        <input type="date" id="incomeDate" />
                     </div>
                 </div>
                 <button id="saveIncomeBtn" class="btn btn-primary">
@@ -317,24 +316,31 @@
         <div id="historyScreen" class="screen">
             <h3 class="screen-title">Transaction History</h3>
             <div class="history-filters">
-                <select id="historyTypeFilter" class="filter-select">
+                <select id="historyTypeFilter" class="filter-select" aria-label="Type">
                     <option value="all">All</option>
                     <option value="expense">Expenses</option>
                     <option value="income">Income</option>
                 </select>
-                <input type="month" id="historyMonthFilter" class="filter-month" />
-                <button id="historyRefreshBtn" class="btn btn-primary btn-small">
-                    <i class="fas fa-rotate"></i> Refresh
+                <select id="historyCategoryFilter" class="filter-select" aria-label="Category"></select>
+                <input type="month" id="historyMonthFilter" class="filter-month" aria-label="Month" />
+                <div class="search-wrap">
+                    <i class="fas fa-magnifying-glass"></i>
+                    <input type="search" id="historySearch" placeholder="Search…" aria-label="Search" />
+                </div>
+                <button id="historyResetBtn" class="btn btn-outline btn-small" title="Clear filters">
+                    <i class="fas fa-filter-circle-xmark"></i> Reset
                 </button>
             </div>
+            <div id="historySummary" class="history-summary"></div>
             <div id="historyList" class="history-list">
                 <div class="history-empty">No transactions yet.</div>
             </div>
         </div>
     </div>
 
+    <!-- ===== MESSAGE / CONFIRM MODAL ===== -->
     <div id="appModal" class="modal-overlay-full">
-        <div class="modal-container">
+        <div class="modal-container" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
             <div class="modal-icon" id="modalIcon"><i class="fas fa-circle-check"></i></div>
             <div class="modal-title" id="modalTitle">Title</div>
             <div class="modal-message" id="modalMessage">Message goes here.</div>
@@ -348,6 +354,55 @@
             </div>
         </div>
     </div>
+
+    <!-- ===== EDIT TRANSACTION MODAL ===== -->
+    <div id="editModal" class="modal-overlay-full">
+        <div class="modal-container edit-container" role="dialog" aria-modal="true" aria-labelledby="editTitle">
+            <div class="modal-title" id="editTitle">Edit transaction</div>
+            <div class="edit-body">
+                <div class="input-group">
+                    <label for="editAmount">Amount (RM)</label>
+                    <div class="input-icon-wrap">
+                        <i class="fas fa-coins"></i>
+                        <input type="number" id="editAmount" step="0.01" min="0" inputmode="decimal" />
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label for="editDate">Date</label>
+                    <div class="input-icon-wrap">
+                        <i class="far fa-calendar"></i>
+                        <input type="date" id="editDate" />
+                    </div>
+                </div>
+                <div id="editExpenseFields">
+                    <div class="input-group">
+                        <label for="editCategory">Category</label>
+                        <select id="editCategory"></select>
+                    </div>
+                    <div class="input-group">
+                        <label for="editPayment">Payment</label>
+                        <select id="editPayment"></select>
+                    </div>
+                </div>
+                <div id="editIncomeFields" class="hidden">
+                    <div class="input-group">
+                        <label for="editSource">Source</label>
+                        <div class="input-icon-wrap">
+                            <i class="fas fa-building-columns"></i>
+                            <input type="text" id="editSource" maxlength="60" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="modal-btn modal-cancel" id="editCancelBtn">Cancel</button>
+                <button class="modal-btn modal-confirm" id="editSaveBtn">Save changes</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toasts -->
+    <div id="toastHost" class="toast-host" aria-live="polite"></div>
 
     <script src="app.js"></script>
 </body>
