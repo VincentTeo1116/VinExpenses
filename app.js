@@ -48,6 +48,12 @@ let isLoading = false;
 let expCategoryValue = CATEGORIES[0].key;
 let expPaymentValue = PAYMENTS[0].key;
 let editing = null; // { type, id }
+let recurring = [];
+let recurringLoadError = false;
+let recCategoryValue = 'utilities';
+let recPaymentValue = 'bank';
+let recFreqValue = 'monthly';
+let editingRecurringId = null;
 
 let selectedDate = new Date();
 selectedDate.setDate(1);
@@ -318,6 +324,7 @@ const SCREEN_BY_NAV = {
     dashboard: 'dashboardScreen',
     expense: 'expenseScreen',
     income: 'incomeScreen',
+    recurring: 'recurringScreen',
     history: 'historyScreen'
 };
 
@@ -335,6 +342,7 @@ function showScreen(screenId) {
 
     if (screenId === 'dashboardScreen') updateDashboard();
     if (screenId === 'historyScreen') renderHistory();
+    if (screenId === 'recurringScreen') renderRecurring();
     if (screenId === 'expenseScreen' && !expDate.value) expDate.value = toInputDate();
     if (screenId === 'incomeScreen' && !incomeDate.value) incomeDate.value = toInputDate();
     window.scrollTo({ top: 0, behavior: prefersReducedMotion ? 'auto' : 'smooth' });
@@ -427,6 +435,7 @@ function updateDashboard() {
 
     renderCategoryGrid();
     renderRecent();
+    renderUpcoming();
 
     const meta = currentUser.user_metadata || {};
     userNameDisplay.textContent = meta.username || meta.full_name || currentUser.email?.split('@')[0] || 'User';
@@ -590,10 +599,16 @@ async function fetchAllData() {
     isLoading = true;
     updateDashboard();
     try {
-        const [{ data: expData, error: expErr }, { data: incData, error: incErr }] = await Promise.all([
+        const [{ data: expData, error: expErr }, { data: incData, error: incErr }, { data: recData, error: recErr }] = await Promise.all([
             supabaseClient.from('expenses').select('*').order('created_at', { ascending: false }),
-            supabaseClient.from('incomes').select('*').order('created_at', { ascending: false })
+            supabaseClient.from('incomes').select('*').order('created_at', { ascending: false }),
+            supabaseClient.from('recurring_expenses').select('*').order('next_due', { ascending: true })
         ]);
+
+        // Recurring is optional: if its table isn't created yet, the rest of the app still works
+        recurringLoadError = !!recErr;
+        if (recErr) console.warn('Recurring expenses unavailable (run migration-add-recurring.sql):', recErr);
+        recurring = recData || [];
 
         if (expErr) console.error('Error fetching expenses:', expErr);
         if (incErr) console.error('Error fetching incomes:', incErr);
@@ -601,6 +616,7 @@ async function fetchAllData() {
 
         expenses = expData || [];
         incomes = incData || [];
+        await processRecurring();
     } catch (err) {
         console.error('Fetch data error:', err);
         showToast('error', 'Network problem while loading your data.');
@@ -970,6 +986,8 @@ function resetSession() {
     currentUser = null;
     expenses = [];
     incomes = [];
+    recurring = [];
+    cancelRecurringEdit();
     emailInput.value = '';
     passInput.value = '';
     switchAuthTab('login');
@@ -1277,6 +1295,413 @@ editSaveBtn.addEventListener('click', async () => {
         setBusy(editSaveBtn, false);
     }
 });
+
+// ---------- RECURRING EXPENSES ----------
+// Bills/subscriptions that repeat. When one falls due, an ordinary expense is added
+// automatically (and any dates missed while the app was closed are back-filled).
+const FREQUENCIES = [
+    { key: 'monthly', label: 'Monthly', icon: 'fa-calendar-days', color: '#4f46e5' },
+    { key: 'weekly', label: 'Weekly', icon: 'fa-calendar-week', color: '#4f46e5' },
+    { key: 'yearly', label: 'Yearly', icon: 'fa-calendar', color: '#4f46e5' }
+];
+const FREQ_LABEL = { monthly: 'Monthly', weekly: 'Weekly', yearly: 'Yearly' };
+const RECURRING_PRESETS = [
+    { name: 'Electricity', category: 'utilities', icon: 'fa-bolt' },
+    { name: 'Water', category: 'utilities', icon: 'fa-droplet' },
+    { name: 'Internet', category: 'utilities', icon: 'fa-wifi' },
+    { name: 'Apple subscription', category: 'entertain', icon: 'fa-cloud' },
+    { name: 'Netflix', category: 'entertain', icon: 'fa-film' },
+    { name: 'Spotify', category: 'entertain', icon: 'fa-music' },
+    { name: 'Rent', category: 'other', icon: 'fa-house' },
+    { name: 'Insurance', category: 'other', icon: 'fa-umbrella' },
+    { name: 'Car loan', category: 'car', icon: 'fa-car' },
+    { name: 'Gym', category: 'health', icon: 'fa-dumbbell' }
+];
+
+const recName = $('recName');
+const recAmount = $('recAmount');
+const recDate = $('recDate');
+const recDateLabel = $('recDateLabel');
+const saveRecurringBtn = $('saveRecurringBtn');
+const cancelRecurringBtn = $('cancelRecurringBtn');
+const recurringList = $('recurringList');
+const recurringSummary = $('recurringSummary');
+const recurringFormTitle = $('recurringFormTitle');
+const upcomingList = $('upcomingList');
+
+// Dates are handled as plain "YYYY-MM-DD" strings (no timezone maths), so they compare with < and >.
+function parseYMD(s) {
+    const [y, m, d] = s.split('-').map(Number);
+    return { y, m, d };
+}
+function fmtYMD(y, m, d) { return `${y}-${pad(m)}-${pad(d)}`; }
+function daysInMonth(y, m) { return new Date(y, m, 0).getDate(); }
+
+function advanceDue(dueStr, freq, anchorDay) {
+    let { y, m, d } = parseYMD(dueStr);
+    if (freq === 'weekly') {
+        const dt = new Date(y, m - 1, d + 7);
+        return fmtYMD(dt.getFullYear(), dt.getMonth() + 1, dt.getDate());
+    }
+    if (freq === 'yearly') {
+        y += 1;
+        return fmtYMD(y, m, Math.min(anchorDay, daysInMonth(y, m)));
+    }
+    m += 1;
+    if (m > 12) { m = 1; y += 1; }
+    return fmtYMD(y, m, Math.min(anchorDay, daysInMonth(y, m))); // e.g. the 31st becomes 28/30 in short months
+}
+
+function formatDueLabel(dateStr) {
+    const { y, m, d } = parseYMD(dateStr);
+    return new Date(y, m - 1, d).toLocaleDateString('en-MY', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+function daysUntil(dateStr) {
+    const a = parseYMD(dateStr);
+    const t = parseYMD(toInputDate());
+    return Math.round((Date.UTC(a.y, a.m - 1, a.d) - Date.UTC(t.y, t.m - 1, t.d)) / 86400000);
+}
+
+function dueLabel(dateStr) {
+    const n = daysUntil(dateStr);
+    if (n <= 0) return 'Due today';
+    if (n === 1) return 'Tomorrow';
+    return `In ${n} days`;
+}
+
+function monthlyEquivalent(r) {
+    const amt = parseFloat(r.amount || 0);
+    if (r.frequency === 'weekly') return amt * 52 / 12;
+    if (r.frequency === 'yearly') return amt / 12;
+    return amt;
+}
+
+function dueNoonISO(dateStr) {
+    const { y, m, d } = parseYMD(dateStr);
+    return new Date(y, m - 1, d, 12).toISOString();
+}
+
+let recurringBusy = false;
+
+// Adds an expense for every due date up to today. Returns how many expenses were added.
+async function processRecurring({ silent = false } = {}) {
+    if (!currentUser || recurringLoadError || recurringBusy) return 0;
+    const today = toInputDate();
+    const dueItems = recurring.filter(r => r.active && r.next_due <= today);
+    if (!dueItems.length) return 0;
+
+    recurringBusy = true;
+    let added = 0;
+    try {
+        for (const r of dueItems) {
+            const anchor = parseYMD(r.start_date).d;
+            const dues = [];
+            let next = r.next_due;
+            while (next <= today && dues.length < 36) {
+                dues.push(next);
+                next = advanceDue(next, r.frequency, anchor);
+            }
+
+            // Claim these dates first. If another device already did, nothing matches and we skip,
+            // which prevents the same bill being added twice.
+            const claim = await supabaseClient.from('recurring_expenses')
+                .update({ next_due: next }).eq('id', r.id).eq('next_due', r.next_due).select();
+            if (claim.error || !claim.data || !claim.data.length) continue;
+
+            const rows = dues.map(d => ({
+                user_id: currentUser.id,
+                amount: r.amount,
+                category: r.category,
+                payment: r.payment,
+                note: r.name,
+                created_at: dueNoonISO(d)
+            }));
+            const ins = await supabaseClient.from('expenses').insert(rows).select();
+            if (ins.error) {
+                console.error('Recurring insert failed, rolling back:', ins.error);
+                await supabaseClient.from('recurring_expenses').update({ next_due: r.next_due }).eq('id', r.id);
+                continue;
+            }
+            r.next_due = next;
+            expenses.push(...(ins.data || []));
+            added += (ins.data || []).length;
+        }
+    } catch (err) {
+        console.error('Recurring processing error:', err);
+    } finally {
+        recurringBusy = false;
+    }
+
+    if (added) {
+        expenses.sort(byDateDesc);
+        recurring.sort((a, b) => a.next_due.localeCompare(b.next_due));
+        updateDashboard();
+        if ($('historyScreen').classList.contains('active')) renderHistory();
+        if ($('recurringScreen').classList.contains('active')) renderRecurring();
+        if (!silent) showToast('info', `${added} recurring expense${added === 1 ? '' : 's'} added`);
+    }
+    return added;
+}
+
+async function updateRecurringRecord(id, fields) {
+    const { data, error } = await supabaseClient.from('recurring_expenses').update(fields).eq('id', id).select();
+    if (error) throw error;
+    if (!data || !data.length) throw new Error('That item could not be updated.');
+    const idx = recurring.findIndex(r => r.id === id);
+    if (idx >= 0) recurring[idx] = data[0];
+    recurring.sort((a, b) => a.next_due.localeCompare(b.next_due));
+}
+
+// ---- Form ----
+function renderRecurringChips() {
+    renderChips($('recCategoryChips'), CATEGORIES, recCategoryValue);
+    renderChips($('recPaymentChips'), PAYMENTS, recPaymentValue);
+    renderChips($('recFreqChips'), FREQUENCIES, recFreqValue);
+    renderChips($('recPresetChips'), RECURRING_PRESETS.map((p, i) => ({
+        key: String(i), label: p.name, icon: p.icon, color: (catByKey[p.category] || {}).color
+    })), null);
+}
+bindChips($('recCategoryChips'), (key) => { recCategoryValue = key; renderRecurringChips(); });
+bindChips($('recPaymentChips'), (key) => { recPaymentValue = key; renderRecurringChips(); });
+bindChips($('recFreqChips'), (key) => { recFreqValue = key; renderRecurringChips(); });
+bindChips($('recPresetChips'), (key) => {
+    const p = RECURRING_PRESETS[Number(key)];
+    if (!p) return;
+    recName.value = p.name;
+    recCategoryValue = p.category;
+    renderRecurringChips();
+    recAmount.focus();
+});
+
+function cancelRecurringEdit() {
+    editingRecurringId = null;
+    recName.value = '';
+    recAmount.value = '';
+    recDate.value = toInputDate();
+    recCategoryValue = 'utilities';
+    recPaymentValue = 'bank';
+    recFreqValue = 'monthly';
+    recurringFormTitle.textContent = 'Add recurring expense';
+    recDateLabel.textContent = 'First due date';
+    saveRecurringBtn.innerHTML = '<i class="fas fa-floppy-disk"></i> Save recurring';
+    cancelRecurringBtn.classList.add('hidden');
+    renderRecurringChips();
+}
+
+function startRecurringEdit(id) {
+    const r = recurring.find(x => x.id === id);
+    if (!r) return;
+    editingRecurringId = id;
+    recName.value = r.name;
+    recAmount.value = parseFloat(r.amount);
+    recDate.value = r.next_due;
+    recCategoryValue = r.category;
+    recPaymentValue = r.payment;
+    recFreqValue = r.frequency;
+    recurringFormTitle.textContent = 'Edit recurring expense';
+    recDateLabel.textContent = 'Next due date';
+    saveRecurringBtn.innerHTML = '<i class="fas fa-floppy-disk"></i> Update recurring';
+    cancelRecurringBtn.classList.remove('hidden');
+    renderRecurringChips();
+    window.scrollTo({ top: 0, behavior: prefersReducedMotion ? 'auto' : 'smooth' });
+    recName.focus();
+}
+
+saveRecurringBtn.addEventListener('click', async () => {
+    if (!currentUser) return showModal({ type: 'warning', title: 'Not signed in', message: 'Please log in first.' });
+
+    const name = recName.value.trim();
+    const amount = parseFloat(recAmount.value);
+    const date = recDate.value;
+    if (!name) {
+        recName.focus();
+        return showModal({ type: 'warning', title: 'Name required', message: 'What is this recurring expense? e.g. Electricity or Netflix.' });
+    }
+    if (isNaN(amount) || amount <= 0) {
+        recAmount.focus();
+        return showModal({ type: 'warning', title: 'Invalid amount', message: 'Please enter a valid amount greater than 0.' });
+    }
+    if (!date) {
+        return showModal({ type: 'warning', title: 'Date required', message: 'Please choose the first due date.' });
+    }
+
+    setBusy(saveRecurringBtn, true, 'Saving...');
+    try {
+        const fields = { name, amount, category: recCategoryValue, payment: recPaymentValue, frequency: recFreqValue, next_due: date };
+        if (editingRecurringId) {
+            const old = recurring.find(r => r.id === editingRecurringId);
+            if (!old || old.next_due !== date) fields.start_date = date; // new date re-anchors the schedule
+            await updateRecurringRecord(editingRecurringId, fields);
+        } else {
+            const { data, error } = await supabaseClient.from('recurring_expenses')
+                .insert([{ ...fields, start_date: date, user_id: currentUser.id }]).select();
+            if (error) throw error;
+            if (data && data.length) recurring.push(data[0]);
+            recurring.sort((a, b) => a.next_due.localeCompare(b.next_due));
+        }
+        const wasEditing = !!editingRecurringId;
+        cancelRecurringEdit();
+        // A date of today (or earlier) is posted right away
+        const added = await processRecurring({ silent: true });
+        renderRecurring();
+        updateDashboard();
+        showToast('success', (wasEditing ? 'Recurring updated' : 'Recurring saved') + (added ? ` — ${added} added to expenses` : ''));
+    } catch (err) {
+        console.error('Save recurring error:', err);
+        showModal({
+            type: 'error',
+            title: 'Couldn\'t save recurring expense',
+            message: recurringLoadError
+                ? 'The recurring table isn\'t set up yet. Run migration-add-recurring.sql in Supabase, then reload.'
+                : (err.message || 'Please try again.')
+        });
+    } finally {
+        setBusy(saveRecurringBtn, false);
+    }
+});
+cancelRecurringBtn.addEventListener('click', cancelRecurringEdit);
+[recName, recAmount].forEach(el => el.addEventListener('keydown', (e) => { if (e.key === 'Enter') saveRecurringBtn.click(); }));
+
+// ---- List ----
+function renderRecurring() {
+    const active = recurring.filter(r => r.active);
+    const monthly = active.reduce((s, r) => s + monthlyEquivalent(r), 0);
+
+    if (recurringLoadError) {
+        recurringSummary.innerHTML = '<div class="recurring-warn"><i class="fas fa-triangle-exclamation"></i> Recurring expenses aren\'t set up in your database yet. Run <b>migration-add-recurring.sql</b> in the Supabase SQL Editor, then reload.</div>';
+    } else if (recurring.length) {
+        recurringSummary.innerHTML = `<span><b>${active.length}</b> active</span>
+            <span>≈ <b>${formatMoney(monthly)}</b> / month</span>
+            <span>≈ <b>${formatMoney(monthly * 12)}</b> / year</span>`;
+    } else {
+        recurringSummary.innerHTML = '';
+    }
+
+    if (!recurring.length) {
+        recurringList.innerHTML = '<div class="history-empty"><i class="fas fa-repeat"></i><div>No recurring expenses yet.<br>Add your utilities and subscriptions and they\'ll post themselves.</div></div>';
+        return;
+    }
+
+    recurringList.innerHTML = recurring.map(r => {
+        const cat = catByKey[r.category];
+        const color = cat ? `style="--cat-color:${cat.color}"` : '';
+        const when = r.active ? `Next: ${formatDueLabel(r.next_due)} · ${dueLabel(r.next_due)}` : 'Paused';
+        return `
+        <div class="history-item recurring-item ${r.active ? '' : 'paused'}" data-id="${escapeHtml(r.id)}">
+            <div class="h-icon expense" ${color}><i class="fas ${cat ? cat.icon : 'fa-repeat'}"></i></div>
+            <div class="h-left">
+                <div class="h-title">${escapeHtml(r.name)}</div>
+                <div class="h-detail">${FREQ_LABEL[r.frequency] || r.frequency} · ${escapeHtml(when)}</div>
+            </div>
+            <div class="h-right">
+                <div class="h-amount expense">${formatMoney(r.amount)}</div>
+                <div class="h-actions">
+                    <button type="button" class="icon-btn" data-action="toggle" title="${r.active ? 'Pause' : 'Resume'}" aria-label="${r.active ? 'Pause' : 'Resume'}"><i class="fas ${r.active ? 'fa-pause' : 'fa-play'}"></i></button>
+                    <button type="button" class="icon-btn" data-action="edit" title="Edit" aria-label="Edit"><i class="fas fa-pen"></i></button>
+                    <button type="button" class="icon-btn danger" data-action="delete" title="Delete" aria-label="Delete"><i class="fas fa-trash-can"></i></button>
+                </div>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+recurringList.addEventListener('click', async (e) => {
+    const row = e.target.closest('.recurring-item');
+    if (!row) return;
+    const id = row.dataset.id;
+    const r = recurring.find(x => x.id === id);
+    if (!r) return;
+    const action = e.target.closest('[data-action]')?.dataset.action || 'edit';
+
+    if (action === 'edit') return startRecurringEdit(id);
+
+    if (action === 'toggle') {
+        try {
+            const fields = { active: !r.active };
+            if (!r.active) {
+                // Resuming: skip the dates missed while paused instead of back-filling them
+                let due = r.next_due;
+                const anchor = parseYMD(r.start_date).d;
+                const today = toInputDate();
+                let guard = 0;
+                while (due < today && guard++ < 1000) due = advanceDue(due, r.frequency, anchor);
+                fields.next_due = due;
+            }
+            await updateRecurringRecord(id, fields);
+            renderRecurring();
+            updateDashboard();
+            await processRecurring();
+            showToast('success', fields.active ? 'Resumed' : 'Paused');
+        } catch (err) {
+            console.error('Toggle recurring error:', err);
+            showModal({ type: 'error', title: 'Couldn\'t update', message: err.message || 'Please try again.' });
+        }
+        return;
+    }
+
+    if (action === 'delete') {
+        showModal({
+            type: 'warning',
+            title: 'Delete recurring item?',
+            message: `"${r.name}" will stop posting automatically. Expenses it already added are kept.`,
+            confirmText: 'Delete',
+            cancelText: 'Keep it',
+            danger: true,
+            onConfirm: async () => {
+                try {
+                    const { data, error } = await supabaseClient.from('recurring_expenses').delete().eq('id', id).select();
+                    if (error) throw error;
+                    if (!data || !data.length) throw new Error('That item could not be deleted.');
+                    recurring = recurring.filter(x => x.id !== id);
+                    if (editingRecurringId === id) cancelRecurringEdit();
+                    renderRecurring();
+                    updateDashboard();
+                    showToast('success', 'Recurring item deleted');
+                } catch (err) {
+                    console.error('Delete recurring error:', err);
+                    showModal({ type: 'error', title: 'Couldn\'t delete', message: err.message || 'Please try again.' });
+                }
+            }
+        });
+    }
+});
+
+// ---- Dashboard "Upcoming" card ----
+function renderUpcoming() {
+    const next = recurring.filter(r => r.active).sort((a, b) => a.next_due.localeCompare(b.next_due)).slice(0, 3);
+    if (!next.length) {
+        upcomingList.innerHTML = '<div class="history-empty small">No recurring bills yet — add your utilities and subscriptions.</div>';
+        return;
+    }
+    upcomingList.innerHTML = next.map(r => {
+        const cat = catByKey[r.category];
+        const soon = daysUntil(r.next_due) <= 3;
+        return `
+        <div class="history-item" data-id="${escapeHtml(r.id)}">
+            <div class="h-icon expense" ${cat ? `style="--cat-color:${cat.color}"` : ''}><i class="fas ${cat ? cat.icon : 'fa-repeat'}"></i></div>
+            <div class="h-left">
+                <div class="h-title">${escapeHtml(r.name)}</div>
+                <div class="h-detail"><span class="${soon ? 'due-soon' : ''}">${dueLabel(r.next_due)}</span> · ${formatDueLabel(r.next_due)}</div>
+            </div>
+            <div class="h-right"><div class="h-amount expense">${formatMoney(r.amount)}</div></div>
+        </div>`;
+    }).join('');
+}
+$('manageRecurringBtn').addEventListener('click', () => navigate('recurring'));
+upcomingList.addEventListener('click', (e) => {
+    const row = e.target.closest('.history-item');
+    if (!row) return navigate('recurring');
+    navigate('recurring');
+    startRecurringEdit(row.dataset.id);
+});
+
+// Catch bills that fell due while the app sat in the background (e.g. an installed PWA left open overnight)
+document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && currentUser) processRecurring();
+});
+
+cancelRecurringEdit(); // sets the form defaults and renders the chips
 
 // ---------- INIT ----------
 (async function init() {

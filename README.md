@@ -12,6 +12,7 @@ dashboard. Plain HTML/CSS/JS — no build step.
 | `style.css` | Responsive styling (phone → tablet → desktop) |
 | `app.js` | All logic: Supabase auth, data fetch/save/edit/delete, charts, navigation |
 | `supabase-schema.sql` | Tables + Row Level Security policies — run once in Supabase |
+| `migration-add-recurring.sql` | Run once to enable Recurring expenses (also run the categories migration first) |
 | `migration-add-categories.sql` | Run once if your database already existed before the Utilities/Car/Health/Other categories |
 | `manifest.json`, `sw.js`, `icons/` | Makes the site installable as an app (PWA) |
 | `icon.png` | Browser tab favicon |
@@ -24,6 +25,7 @@ dashboard. Plain HTML/CSS/JS — no build step.
   jump to that month.
 - **Add expense / income** — chip selectors for category, payment and income
   source, plus a date field so you can back-date entries.
+- **Recurring** — add bills and subscriptions (electricity, Netflix, Apple…) with a frequency and due date; they post as normal expenses automatically on each due date, including any missed while the app was closed. Pause, edit or delete them; the dashboard shows what's due next.
 - **History** — filter by type, category, month and free-text search; tap a
   row (or the pen) to edit, or the bin to delete.
 - **Auth** — email + password with verification link, resend link, password

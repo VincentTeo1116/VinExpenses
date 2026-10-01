@@ -41,6 +41,10 @@
                     <i class="fas fa-wallet"></i>
                     <span class="nav-label">Income</span>
                 </button>
+                <button class="nav-item" data-screen="recurring">
+                    <i class="fas fa-repeat"></i>
+                    <span class="nav-label">Recurring</span>
+                </button>
                 <button class="nav-item" data-screen="history">
                     <i class="fas fa-clock-rotate-left"></i>
                     <span class="nav-label">History</span>
@@ -241,6 +245,14 @@
 
                     <div class="recent-card">
                         <div class="recent-head">
+                            <div class="section-title">Upcoming bills</div>
+                            <button id="manageRecurringBtn" class="link-btn">Manage <i class="fas fa-arrow-right"></i></button>
+                        </div>
+                        <div id="upcomingList" class="history-list compact"></div>
+                    </div>
+
+                    <div class="recent-card">
+                        <div class="recent-head">
                             <div class="section-title">Recent activity</div>
                             <button id="viewAllBtn" class="link-btn">View all <i class="fas fa-arrow-right"></i></button>
                         </div>
@@ -318,6 +330,65 @@
                 <button id="saveIncomeBtn" class="btn btn-primary">
                     <i class="fas fa-floppy-disk"></i> Save Income
                 </button>
+            </div>
+        </div>
+
+        <!-- ===== RECURRING SCREEN ===== -->
+        <div id="recurringScreen" class="screen">
+            <h3 class="screen-title">Recurring Expenses</h3>
+            <p class="screen-sub">Bills and subscriptions that repeat. They're added to your expenses automatically on each due date.</p>
+            <div id="recurringSummary" class="history-summary"></div>
+
+            <div class="recurring-grid">
+                <div class="form-card">
+                    <div class="form-card-title" id="recurringFormTitle">Add recurring expense</div>
+                    <div class="input-group">
+                        <label>Quick pick</label>
+                        <div class="chip-group" id="recPresetChips"></div>
+                    </div>
+                    <div class="input-group">
+                        <label for="recName">Name</label>
+                        <div class="input-icon-wrap">
+                            <i class="fas fa-tag"></i>
+                            <input type="text" id="recName" placeholder="e.g. Electricity, Netflix" maxlength="60" />
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <label for="recAmount">Amount (RM)</label>
+                        <div class="input-icon-wrap">
+                            <i class="fas fa-coins"></i>
+                            <input type="number" id="recAmount" placeholder="0.00" step="0.01" min="0" inputmode="decimal" />
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <label>Repeats</label>
+                        <div class="chip-group" id="recFreqChips"></div>
+                    </div>
+                    <div class="input-group">
+                        <label>Category</label>
+                        <div class="chip-group" id="recCategoryChips"></div>
+                    </div>
+                    <div class="input-group">
+                        <label>Payment</label>
+                        <div class="chip-group" id="recPaymentChips"></div>
+                    </div>
+                    <div class="input-group">
+                        <label for="recDate" id="recDateLabel">First due date</label>
+                        <div class="input-icon-wrap">
+                            <i class="far fa-calendar"></i>
+                            <input type="date" id="recDate" />
+                        </div>
+                        <p class="field-hint" style="margin-top:8px"><i class="fas fa-circle-info"></i> A date in the past is back-filled up to today.</p>
+                    </div>
+                    <button id="saveRecurringBtn" class="btn btn-primary">
+                        <i class="fas fa-floppy-disk"></i> Save recurring
+                    </button>
+                    <button id="cancelRecurringBtn" class="btn btn-outline hidden">Cancel edit</button>
+                </div>
+
+                <div class="recurring-list-wrap">
+                    <div id="recurringList" class="history-list"></div>
+                </div>
             </div>
         </div>
 

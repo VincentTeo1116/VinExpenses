@@ -1246,3 +1246,22 @@ button { font-family: inherit; }
     .chip i { color: color-mix(in srgb, var(--chip-color) 55%, white); }
     .chip.active i { color: white; }
 }
+
+
+/* ---- Recurring expenses ---- */
+.screen-sub { font-size: 14px; color: var(--text-secondary); margin: 2px 0 12px; }
+.form-card-title { font-weight: 600; font-size: 16px; color: var(--text-primary); margin-bottom: 14px; }
+.recurring-grid { display: grid; grid-template-columns: 1fr; gap: 20px; align-items: start; }
+@media (min-width: 1024px) { .recurring-grid { grid-template-columns: minmax(380px, 1fr) 1.1fr; } .recurring-grid .form-card { margin-top: 0; max-width: none; } }
+.recurring-grid .form-card { margin-top: 8px; }
+.recurring-item.paused { opacity: 0.55; }
+.recurring-warn { background: rgba(245, 158, 11, 0.14); color: #92400e; border-radius: 14px; padding: 12px 14px; font-size: 13.5px; line-height: 1.5; width: 100%; }
+.recurring-warn i { margin-right: 6px; color: #f59e0b; }
+.due-soon { color: var(--warning); font-weight: 600; }
+.history-empty.small { padding: 18px 0; font-size: 13.5px; }
+.nav-links .nav-item i.fa-repeat { font-size: 15px; }
+@media (max-width: 700px) { .nav-links .nav-item { padding: 8px 8px; min-width: 40px; } }
+
+@media (prefers-color-scheme: dark) {
+    .recurring-warn { color: #fcd34d; background: rgba(245, 158, 11, 0.15); }
+}
