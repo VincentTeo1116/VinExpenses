@@ -1,9 +1,4 @@
-// ================================================================
-// SMART EXPENSE TRACKER — app.js
-// Supabase auth + per-user expenses/incomes, dashboard, history
-// ================================================================
-
-// ---------- SUPABASE CONFIG ----------
+// === SUPABASE CONFIG ===
 // Values come from .env via build-config.js, which generates config.js (window.APP_CONFIG).
 const APP_CONFIG = window.APP_CONFIG || {};
 const SUPABASE_URL = APP_CONFIG.SUPABASE_URL;
@@ -21,7 +16,7 @@ function backendUnavailable() {
         : { title: 'Can\'t reach the server', message: 'The sign-in library failed to load. Check your internet connection and reload.' };
 }
 
-// ---------- CONFIG ----------
+// === CONFIG ===
 const CATEGORIES = [
     { key: 'beverages', label: 'Beverages', icon: 'fa-mug-hot', color: '#4f46e5' },
     { key: 'travel', label: 'Travel', icon: 'fa-plane', color: '#06b6d4' },
@@ -49,7 +44,7 @@ const catByKey = Object.fromEntries(CATEGORIES.map(c => [c.key, c]));
 const payByKey = Object.fromEntries(PAYMENTS.map(p => [p.key, p]));
 const prefersReducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-// ---------- STATE ----------
+// === STATE ===
 let currentUser = null;
 let expenses = [];
 let incomes = [];
@@ -69,7 +64,7 @@ let selectedDate = new Date();
 selectedDate.setDate(1);
 selectedDate.setHours(0, 0, 0, 0);
 
-// ---------- DOM REFS ----------
+// === DOM REFS ===
 const $ = id => document.getElementById(id);
 const topNav = document.querySelector('.top-nav');
 
@@ -144,7 +139,7 @@ const editIncomeFields = $('editIncomeFields');
 const editSaveBtn = $('editSaveBtn');
 const editCancelBtn = $('editCancelBtn');
 
-// ---------- HELPERS ----------
+// === HELPERS ===
 const pad = n => String(n).padStart(2, '0');
 
 function escapeHtml(value) {
@@ -197,7 +192,7 @@ function getCategoryTotal(cat) {
 
 function byDateDesc(a, b) { return new Date(b.created_at) - new Date(a.created_at); }
 
-// ---------- MODAL ----------
+// === MODAL ===
 const modalOverlay = $('appModal');
 const modalIconWrap = $('modalIcon');
 const modalTitleEl = $('modalTitle');
@@ -266,7 +261,7 @@ function showModal({ type = 'info', title = '', message = '', warningText = '', 
     modalConfirmBtn.focus();
 }
 
-// ---------- TOAST ----------
+// === TOAST ===
 function showToast(type, message) {
     const host = $('toastHost');
     const icons = { success: 'fa-circle-check', error: 'fa-circle-xmark', info: 'fa-circle-info' };
@@ -289,7 +284,7 @@ document.addEventListener('keydown', (e) => {
     else if (dismissModal) dismissModal();
 });
 
-// ---------- BUSY STATE ----------
+// === BUSY STATE ===
 function setBusy(button, busy, busyLabel) {
     if (!button) return;
     if (busy) {
@@ -302,7 +297,7 @@ function setBusy(button, busy, busyLabel) {
     }
 }
 
-// ---------- ANIMATED NUMBERS ----------
+// === ANIMATED NUMBERS ===
 function animateAmount(el, target) {
     const from = parseFloat(el.dataset.value || 0);
     el.dataset.value = target;
@@ -329,7 +324,7 @@ function animateAmount(el, target) {
     }, duration + 50);
 }
 
-// ---------- NAVIGATION ----------
+// === NAVIGATION ===
 const SCREEN_BY_NAV = {
     dashboard: 'dashboardScreen',
     expense: 'expenseScreen',
@@ -367,7 +362,7 @@ document.querySelectorAll('.nav-item').forEach(btn => {
     btn.addEventListener('click', () => navigate(btn.dataset.screen));
 });
 
-// ---------- DASHBOARD ----------
+// === DASHBOARD ===
 function renderCategoryGrid() {
     const totals = CATEGORIES.map(c => getCategoryTotal(c.key));
     const grand = totals.reduce((a, b) => a + b, 0);
@@ -459,7 +454,7 @@ categoryGrid.addEventListener('click', (e) => {
 });
 viewAllBtn.addEventListener('click', () => openHistoryFiltered({ month: formatMonthValue(selectedDate) }));
 
-// ---------- MONTH SELECTOR ----------
+// === MONTH SELECTOR ===
 function setSelectedMonth(year, month) {
     selectedDate = new Date(year, month, 1);
     selectedDate.setHours(0, 0, 0, 0);
@@ -486,7 +481,7 @@ monthPicker.addEventListener('change', (e) => {
     if (!isNaN(year) && !isNaN(month)) setSelectedMonth(year, month - 1);
 });
 
-// ---------- CHARTS ----------
+// === CHARTS ===
 let pieChartInstance = null;
 let barChartInstance = null;
 let barMonthDates = [];
@@ -604,7 +599,7 @@ function renderCharts() {
     }
 }
 
-// ---------- SUPABASE DATA ----------
+// === SUPABASE DATA ===
 async function fetchAllData() {
     isLoading = true;
     updateDashboard();
@@ -677,7 +672,7 @@ async function deleteRecord(type, id) {
     else expenses = expenses.filter(r => r.id !== id);
 }
 
-// ---------- CHIP SELECTORS ----------
+// === CHIP SELECTORS ===
 function renderChips(container, items, selectedKey) {
     container.innerHTML = items.map(i => `
         <button type="button" class="chip ${i.key === selectedKey ? 'active' : ''}" data-key="${escapeHtml(i.key)}"
@@ -715,7 +710,7 @@ syncIncomeChips();
 expDate.value = toInputDate();
 incomeDate.value = toInputDate();
 
-// ---------- PASSWORD VISIBILITY & STRENGTH ----------
+// === PASSWORD VISIBILITY & STRENGTH ===
 document.querySelectorAll('.toggle-visibility').forEach(btn => {
     btn.addEventListener('click', () => {
         const target = $(btn.dataset.target);
@@ -741,7 +736,7 @@ passInput2.addEventListener('input', () => {
     passStrength.dataset.score = score;
 });
 
-// ---------- AUTH TABS ----------
+// === AUTH TABS ===
 let isLoginMode = true;
 
 function switchAuthTab(tab) {
@@ -781,7 +776,7 @@ registerTab.addEventListener('click', () => switchAuthTab('register'));
     el.addEventListener('keydown', (e) => { if (e.key === 'Enter') setupCompleteBtn.click(); });
 });
 
-// ---------- AUTH ACTION ----------
+// === AUTH ACTION ===
 async function handleAuthAction(email, password, isLogin) {
     if (!supabaseClient) {
         return showModal({ type: 'error', ...backendUnavailable() });
@@ -896,7 +891,7 @@ authActionBtn.addEventListener('click', () => {
     handleAuthAction(email, password, isLogin);
 });
 
-// ---------- RESEND ----------
+// === RESEND ===
 resendBtn.addEventListener('click', async () => {
     const email = lastRegisteredEmail || emailInput.value.trim();
     if (!email) {
@@ -919,7 +914,7 @@ resendBtn.addEventListener('click', async () => {
     }
 });
 
-// ---------- GOOGLE LOGIN ----------
+// === GOOGLE LOGIN ===
 googleBtn.addEventListener('click', async () => {
     if (!supabaseClient) {
         return showModal({ type: 'error', ...backendUnavailable() });
@@ -940,7 +935,7 @@ googleBtn.addEventListener('click', async () => {
     }
 });
 
-// ---------- SETUP COMPLETE (for new Google users) ----------
+// === SETUP COMPLETE (for new Google users) ===
 setupCompleteBtn.addEventListener('click', async () => {
     const username = setupUsername.value.trim();
     const password = setupPassword.value.trim();
@@ -976,7 +971,7 @@ setupCompleteBtn.addEventListener('click', async () => {
     }
 });
 
-// ---------- LOGOUT ----------
+// === LOGOUT ===
 logoutBtn.addEventListener('click', () => {
     showModal({
         type: 'question',
@@ -1004,7 +999,7 @@ function resetSession() {
     showScreen('authScreen');
 }
 
-// ---------- SESSION ----------
+// === SESSION ===
 function enterApp() {
     setActiveNav('dashboard');
     showScreen('dashboardScreen');
@@ -1056,7 +1051,7 @@ if (supabaseClient) {
     });
 }
 
-// ---------- EXPENSE ----------
+// === EXPENSE ===
 saveExpenseBtn.addEventListener('click', async () => {
     if (!currentUser) return showModal({ type: 'warning', title: 'Not signed in', message: 'Please log in first.' });
 
@@ -1091,7 +1086,7 @@ saveExpenseBtn.addEventListener('click', async () => {
 });
 expAmount.addEventListener('keydown', (e) => { if (e.key === 'Enter') saveExpenseBtn.click(); });
 
-// ---------- INCOME ----------
+// === INCOME ===
 saveIncomeBtn.addEventListener('click', async () => {
     if (!currentUser) return showModal({ type: 'warning', title: 'Not signed in', message: 'Please log in first.' });
 
@@ -1123,7 +1118,7 @@ saveIncomeBtn.addEventListener('click', async () => {
 });
 incomeAmount.addEventListener('keydown', (e) => { if (e.key === 'Enter') saveIncomeBtn.click(); });
 
-// ---------- HISTORY ----------
+// === HISTORY ===
 function fillSelect(select, items, allLabel) {
     select.innerHTML = (allLabel ? `<option value="">${allLabel}</option>` : '') +
         items.map(i => `<option value="${i.key}">${i.label}</option>`).join('');
@@ -1232,7 +1227,7 @@ function confirmDelete(type, id) {
     });
 }
 
-// ---------- EDIT MODAL ----------
+// === EDIT MODAL ===
 function openEditModal(type, id) {
     const rec = (type === 'income' ? incomes : expenses).find(r => r.id === id);
     if (!rec) return;
@@ -1306,7 +1301,7 @@ editSaveBtn.addEventListener('click', async () => {
     }
 });
 
-// ---------- RECURRING EXPENSES ----------
+// === RECURRING EXPENSES ===
 // Bills/subscriptions that repeat. When one falls due, an ordinary expense is added
 // automatically (and any dates missed while the app was closed are back-filled).
 const FREQUENCIES = [
@@ -1713,7 +1708,7 @@ document.addEventListener('visibilitychange', () => {
 
 cancelRecurringEdit(); // sets the form defaults and renders the chips
 
-// ---------- INIT ----------
+// === INIT ===
 (async function init() {
     selectedMonthDisplay.textContent = formatMonthDisplay(selectedDate);
     monthPicker.value = formatMonthValue(selectedDate);
@@ -1739,7 +1734,7 @@ cancelRecurringEdit(); // sets the form defaults and renders the chips
     }
 })();
 
-// ---------- PWA ----------
+// === PWA ===
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
         navigator.serviceWorker.register('sw.js').catch(() => {});

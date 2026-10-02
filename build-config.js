@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 // Generates config.js (loaded by index.html) from .env or from environment variables.
 //
-//   node build-config.js
+// node build-config.js
 //
-// Why this exists: this is a static site with no bundler, and browsers can't read
-// .env files. This script turns .env into a tiny config.js (gitignored) at build time.
+// WHY EXIST?: This is a static site with no bundler, and browsers can't read .env files. 
+// This script turns .env into a tiny config.js (gitignored) at build time.
 // In CI / hosting dashboards, set SUPABASE_URL and SUPABASE_ANON_KEY as environment
 // variables/secrets and run this script as the build step.
 
