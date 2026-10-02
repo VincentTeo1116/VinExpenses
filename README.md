@@ -10,6 +10,9 @@ dashboard. Plain HTML/CSS/JS — no build step.
 |---|---|
 | `index.html` | App markup — auth, setup, dashboard, expense, income, history, modals |
 | `style.css` | Responsive styling (phone → tablet → desktop) |
+| `.env` / `.env.example` | Your Supabase URL + anon key (`.env` is gitignored; copy `.env.example` to start) |
+| `build-config.js` | Turns `.env` into `config.js` (gitignored) — run it after editing `.env` |
+| `.github/workflows/deploy.yml` | Builds `config.js` from repo secrets and deploys to GitHub Pages |
 | `app.js` | All logic: Supabase auth, data fetch/save/edit/delete, charts, navigation |
 | `supabase-schema.sql` | Tables + Row Level Security policies — run once in Supabase |
 | `migration-add-recurring.sql` | Run once to enable Recurring expenses (also run the categories migration first) |
@@ -36,11 +39,32 @@ dashboard. Plain HTML/CSS/JS — no build step.
 - **Dark mode** — follows the phone/OS appearance automatically (light or dark), including the charts and status-bar colour.
 - **PWA** — installable, works offline for the UI (data needs a connection).
 
-## 1. One-time Supabase setup
+## 0. Configuration (`.env`)
 
-Your Supabase project URL and anon key are already wired into `app.js`.
-The anon key is *designed* to be public in client-side code — security
-comes from Row Level Security, not from hiding the key.
+Supabase settings live in `.env`, not in the code:
+
+```bash
+cp .env.example .env        # then fill in SUPABASE_URL and SUPABASE_ANON_KEY
+node build-config.js        # generates config.js, which index.html loads
+```
+
+Re-run `node build-config.js` whenever you change `.env`. `.env` and
+`config.js` are gitignored.
+
+> **Heads-up:** this is a static site, so whatever is in `config.js` is
+> visible to anyone who opens the page — `.env` keeps it out of git and makes
+> it easy to switch projects, but it does not make the key secret. That's fine
+> for the **anon** key (Row Level Security is what protects the data). **Never**
+> put the `service_role` key here; `build-config.js` refuses to build with it.
+
+**Deploying with GitHub Pages:** the workflow in `.github/workflows/deploy.yml`
+creates `config.js` from repository secrets. One-time setup: add
+`SUPABASE_URL` and `SUPABASE_ANON_KEY` under *Settings → Secrets and variables →
+Actions*, and set *Settings → Pages → Source* to **GitHub Actions**. (On
+Netlify/Vercel, set the same two environment variables and use
+`node build-config.js` as the build command.)
+
+## 1. One-time Supabase setup
 
 1. **Run the schema.** In Supabase: **SQL Editor → New query**, paste
    `supabase-schema.sql`, and run it. This creates the `expenses` and
@@ -66,6 +90,7 @@ comes from Row Level Security, not from hiding the key.
 ## 2. Run it locally
 
 ```bash
+node build-config.js        # once, if config.js doesn't exist yet
 python -m http.server 8000
 # open http://localhost:8000
 ```

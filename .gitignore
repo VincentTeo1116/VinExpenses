@@ -1,0 +1,35 @@
+# ---- Secrets & local config ----
+.env
+.env.*
+!.env.example
+
+# Generated from .env by build-config.js
+config.js
+
+# ---- Build output ----
+dist/
+build/
+
+# ---- Dependencies (if you ever add npm tooling) ----
+node_modules/
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ---- Logs & temp ----
+*.log
+*.tmp
+*.bak
+
+# ---- OS files ----
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ---- Editors / IDEs ----
+.vscode/
+.idea/
+*.swp
+
+# ---- Claude Code local-only settings ----
+.claude/settings.local.json

@@ -4,12 +4,22 @@
 // ================================================================
 
 // ---------- SUPABASE CONFIG ----------
-const SUPABASE_URL = 'https://koptwssojqjsqtkkmtuk.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtvcHR3c3NvanFqc3F0a2ttdHVrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2NDU5OTEsImV4cCI6MjEwMzIyMTk5MX0.3zEjfNVw1qsDA96Ru1EBnW2l_T_c0bm-8A9O9SZnJkk';
+// Values come from .env via build-config.js, which generates config.js (window.APP_CONFIG).
+const APP_CONFIG = window.APP_CONFIG || {};
+const SUPABASE_URL = APP_CONFIG.SUPABASE_URL;
+const SUPABASE_ANON_KEY = APP_CONFIG.SUPABASE_ANON_KEY;
+const configMissing = !SUPABASE_URL || !SUPABASE_ANON_KEY;
 
 const cameFromEmailConfirmation = window.location.hash.includes('type=signup');
 const hashError = new URLSearchParams(window.location.hash.replace(/^#/, '')).get('error_description');
-const supabaseClient = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+const supabaseClient = (window.supabase && !configMissing) ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+
+// Explains why the backend isn't available (missing config vs. library failed to load)
+function backendUnavailable() {
+    return configMissing
+        ? { title: 'App not configured', message: 'config.js is missing. Create a .env file (see .env.example) and run "node build-config.js", then reload.' }
+        : { title: 'Can\'t reach the server', message: 'The sign-in library failed to load. Check your internet connection and reload.' };
+}
 
 // ---------- CONFIG ----------
 const CATEGORIES = [
@@ -774,7 +784,7 @@ registerTab.addEventListener('click', () => switchAuthTab('register'));
 // ---------- AUTH ACTION ----------
 async function handleAuthAction(email, password, isLogin) {
     if (!supabaseClient) {
-        return showModal({ type: 'error', title: 'Can\'t reach the server', message: 'The sign-in library failed to load. Check your internet connection and reload.' });
+        return showModal({ type: 'error', ...backendUnavailable() });
     }
     if (!email || !email.includes('@')) {
         return showModal({ type: 'warning', title: 'Check your email', message: 'Please enter a valid email address.' });
@@ -912,7 +922,7 @@ resendBtn.addEventListener('click', async () => {
 // ---------- GOOGLE LOGIN ----------
 googleBtn.addEventListener('click', async () => {
     if (!supabaseClient) {
-        return showModal({ type: 'error', title: 'Can\'t reach the server', message: 'The sign-in library failed to load. Check your internet connection and reload.' });
+        return showModal({ type: 'error', ...backendUnavailable() });
     }
     try {
         const { error } = await supabaseClient.auth.signInWithOAuth({
@@ -1709,7 +1719,7 @@ cancelRecurringEdit(); // sets the form defaults and renders the chips
     monthPicker.value = formatMonthValue(selectedDate);
 
     if (!supabaseClient) {
-        showModal({ type: 'error', title: 'Can\'t reach the server', message: 'Some required libraries failed to load. Check your internet connection and reload the page.' });
+        showModal({ type: 'error', ...backendUnavailable() });
         return;
     }
 
