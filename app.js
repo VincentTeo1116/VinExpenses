@@ -6,6 +6,7 @@ const SUPABASE_ANON_KEY = APP_CONFIG.SUPABASE_ANON_KEY;
 const configMissing = !SUPABASE_URL || !SUPABASE_ANON_KEY;
 
 const cameFromEmailConfirmation = window.location.hash.includes('type=signup');
+let recoveryMode = window.location.hash.includes('type=recovery'); // opened from a reset-password email
 const hashError = new URLSearchParams(window.location.hash.replace(/^#/, '')).get('error_description');
 const supabaseClient = (window.supabase && !configMissing) ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
 
@@ -55,6 +56,8 @@ let expPaymentValue = PAYMENTS[0].key;
 let editing = null; // { type, id }
 let recurring = [];
 let recurringLoadError = false;
+let budgets = [];            // { id, category ('all' = overall), amount }
+let budgetsLoadError = false;
 let recCategoryValue = 'utilities';
 let recPaymentValue = 'bank';
 let recFreqValue = 'monthly';
@@ -66,7 +69,6 @@ selectedDate.setHours(0, 0, 0, 0);
 
 // === DOM REFS ===
 const $ = id => document.getElementById(id);
-const topNav = document.querySelector('.top-nav');
 
 const authTitle = $('authTitle');
 const authSub = $('authSub');
@@ -99,6 +101,15 @@ const totalIncomeDisplay = $('totalIncome');
 const totalBalance = $('totalBalance');
 const balancePill = $('balancePill');
 const categoryGrid = $('categoryGrid');
+const heroLabel = $('heroLabel');
+const spendDelta = $('spendDelta');
+const heroBar = $('heroBar');
+const heroBarWrap = $('heroBarWrap');
+const heroBarCaption = $('heroBarCaption');
+const donutTotal = $('donutTotal');
+
+const addSheet = $('addSheet');
+const accountSheet = $('accountSheet');
 const recentList = $('recentList');
 const selectedMonthDisplay = $('selectedMonthDisplay');
 const monthPicker = $('monthPicker');
@@ -213,8 +224,8 @@ const MODAL_ICONS = {
 let dismissModal = null;
 
 function syncBodyScroll() {
-    const anyOpen = modalOverlay.classList.contains('active') || editModal.classList.contains('active');
-    document.body.style.overflow = anyOpen ? 'hidden' : '';
+    // Lock page scroll while any dialog or sheet is open
+    document.body.style.overflow = document.querySelector('.modal-overlay-full.active') ? 'hidden' : '';
 }
 
 function closeModal() {
@@ -262,26 +273,52 @@ function showModal({ type = 'info', title = '', message = '', warningText = '', 
 }
 
 // === TOAST ===
-function showToast(type, message) {
+// opts: { actionLabel, onAction, duration } — an action (e.g. "Undo") keeps the toast up longer
+function showToast(type, message, opts = {}) {
     const host = $('toastHost');
     const icons = { success: 'fa-circle-check', error: 'fa-circle-xmark', info: 'fa-circle-info' };
     const el = document.createElement('div');
     el.className = `toast ${type}`;
     el.innerHTML = `<i class="fas ${icons[type] || icons.info}"></i><span></span>`;
     el.querySelector('span').textContent = message;
-    host.appendChild(el);
-    requestAnimationFrame(() => el.classList.add('show'));
-    setTimeout(() => {
+
+    const dismiss = () => {
         el.classList.remove('show');
         setTimeout(() => el.remove(), 300);
-    }, 2600);
+    };
+    if (opts.actionLabel && opts.onAction) {
+        el.classList.add('has-action');
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'toast-action';
+        btn.textContent = opts.actionLabel;
+        btn.addEventListener('click', () => { dismiss(); opts.onAction(); });
+        el.appendChild(btn);
+    }
+    host.appendChild(el);
+    requestAnimationFrame(() => el.classList.add('show'));
+    setTimeout(dismiss, opts.duration || (opts.actionLabel ? 6000 : 2600));
 }
 
-// Escape closes whichever dialog is open
+// Escape closes whichever dialog is open (the top-most one first)
 document.addEventListener('keydown', (e) => {
-    if (e.key !== 'Escape') return;
-    if (editModal.classList.contains('active')) closeEditModal();
-    else if (dismissModal) dismissModal();
+    if (e.key === 'Escape') {
+        if (dismissModal) dismissModal();
+        else if (editModal.classList.contains('active')) closeEditModal();
+        else if (addSheet.classList.contains('active')) closeAddSheet();
+        else if (accountSheet.classList.contains('active')) closeAccountSheet();
+        else if ($('budgetSheet').classList.contains('active')) closeBudgetSheet();
+        else if ($('resetSheet').classList.contains('active')) closeResetSheet();
+        return;
+    }
+    // "N" opens the quick-add sheet from anywhere (desktop shortcut)
+    const tag = (e.target.tagName || '').toLowerCase();
+    const typing = tag === 'input' || tag === 'textarea' || tag === 'select' || e.target.isContentEditable;
+    if (e.key.toLowerCase() === 'n' && !typing && !e.metaKey && !e.ctrlKey && !e.altKey
+        && currentUser && !document.querySelector('.modal-overlay-full.active')) {
+        e.preventDefault();
+        openAddSheet('expense');
+    }
 });
 
 // === BUSY STATE ===
@@ -327,14 +364,18 @@ function animateAmount(el, target) {
 // === NAVIGATION ===
 const SCREEN_BY_NAV = {
     dashboard: 'dashboardScreen',
-    expense: 'expenseScreen',
-    income: 'incomeScreen',
     recurring: 'recurringScreen',
     history: 'historyScreen'
 };
 
+// Sidebar and tab bar share the .nav-item class, so one call keeps both in sync
 function setActiveNav(screen) {
-    document.querySelectorAll('.nav-item').forEach(b => b.classList.toggle('active', b.dataset.screen === screen));
+    document.querySelectorAll('.nav-item').forEach(b => {
+        const on = b.dataset.screen === screen;
+        b.classList.toggle('active', on);
+        if (on) b.setAttribute('aria-current', 'page');
+        else b.removeAttribute('aria-current');
+    });
 }
 
 function showScreen(screenId) {
@@ -342,14 +383,13 @@ function showScreen(screenId) {
     const target = $(screenId);
     if (target) target.classList.add('active');
 
-    const isAuthLike = screenId === 'authScreen' || screenId === 'setupScreen';
-    topNav.classList.toggle('hidden-nav', isAuthLike);
+    // The sidebar / tab bar are hidden on the sign-in and setup screens
+    const isAuthLike = screenId === 'authScreen' || screenId === 'setupScreen' || screenId === 'resetPasswordScreen';
+    document.body.classList.toggle('is-auth', isAuthLike);
 
     if (screenId === 'dashboardScreen') updateDashboard();
     if (screenId === 'historyScreen') renderHistory();
     if (screenId === 'recurringScreen') renderRecurring();
-    if (screenId === 'expenseScreen' && !expDate.value) expDate.value = toInputDate();
-    if (screenId === 'incomeScreen' && !incomeDate.value) incomeDate.value = toInputDate();
     window.scrollTo({ top: 0, behavior: prefersReducedMotion ? 'auto' : 'smooth' });
 }
 
@@ -359,28 +399,122 @@ function navigate(nav) {
 }
 
 document.querySelectorAll('.nav-item').forEach(btn => {
-    btn.addEventListener('click', () => navigate(btn.dataset.screen));
+    btn.addEventListener('click', () => {
+        const dest = btn.dataset.screen;
+        if (dest === 'add') openAddSheet('expense');
+        else if (dest === 'account') openAccountSheet();
+        else navigate(dest);
+    });
 });
 
+// === SHEETS (add transaction, account) ===
+let addMode = 'expense';
+
+function setAddMode(mode) {
+    addMode = mode === 'income' ? 'income' : 'expense';
+    const isExpense = addMode === 'expense';
+    $('addTabExpense').classList.toggle('active', isExpense);
+    $('addTabIncome').classList.toggle('active', !isExpense);
+    $('addTabExpense').setAttribute('aria-selected', String(isExpense));
+    $('addTabIncome').setAttribute('aria-selected', String(!isExpense));
+    $('expensePane').classList.toggle('hidden', !isExpense);
+    $('incomePane').classList.toggle('hidden', isExpense);
+}
+
+function openAddSheet(mode = 'expense') {
+    if (!currentUser) return;
+    if (!expDate.value) expDate.value = toInputDate();
+    if (!incomeDate.value) incomeDate.value = toInputDate();
+    setAddMode(mode);
+    addSheet.classList.add('active');
+    syncBodyScroll();
+    // Amount first: the keyboard is ready as soon as the sheet opens
+    setTimeout(() => (addMode === 'expense' ? expAmount : incomeAmount).focus(), 60);
+}
+
+function closeAddSheet() {
+    addSheet.classList.remove('active');
+    syncBodyScroll();
+}
+
+function openAccountSheet() {
+    if (!currentUser) return;
+    accountSheet.classList.add('active');
+    syncBodyScroll();
+}
+
+function closeAccountSheet() {
+    accountSheet.classList.remove('active');
+    syncBodyScroll();
+}
+
+$('addTabExpense').addEventListener('click', () => { setAddMode('expense'); expAmount.focus(); });
+$('addTabIncome').addEventListener('click', () => { setAddMode('income'); incomeAmount.focus(); });
+$('addSheetClose').addEventListener('click', closeAddSheet);
+$('accountSheetClose').addEventListener('click', closeAccountSheet);
+addSheet.addEventListener('click', (e) => { if (e.target === addSheet) closeAddSheet(); });
+accountSheet.addEventListener('click', (e) => { if (e.target === accountSheet) closeAccountSheet(); });
+
 // === DASHBOARD ===
+// Ranked list of this month's spending (biggest first) — doubles as the donut's legend.
+// Categories with a budget also show progress towards their limit (amber at 80%, red when over).
 function renderCategoryGrid() {
-    const totals = CATEGORIES.map(c => getCategoryTotal(c.key));
-    const grand = totals.reduce((a, b) => a + b, 0);
-    categoryGrid.innerHTML = CATEGORIES.map((c, i) => {
-        const pct = grand > 0 ? (totals[i] / grand) * 100 : 0;
+    const rows = CATEGORIES
+        .map(c => ({ ...c, total: getCategoryTotal(c.key), budget: budgetFor(c.key) }))
+        .filter(c => c.total > 0 || c.budget > 0)
+        .sort((a, b) => (b.total - a.total) || (b.budget - a.budget));
+    const grand = rows.reduce((s, r) => s + r.total, 0);
+
+    if (!rows.length) {
+        categoryGrid.innerHTML = `
+            <div class="cat-empty">
+                <i class="fas fa-seedling"></i>
+                <div>No spending recorded for ${escapeHtml(formatMonthDisplay(selectedDate))} yet.</div>
+                <button type="button" class="btn btn-outline btn-small" data-action="add"><i class="fas fa-plus"></i> Add an expense</button>
+            </div>`;
+        return;
+    }
+
+    categoryGrid.innerHTML = rows.map(c => {
+        let barPct, note, state = '';
+        if (c.budget > 0) {
+            const used = c.total / c.budget;
+            state = used >= 1 ? 'over' : used >= 0.8 ? 'warn' : '';
+            barPct = Math.min(100, used * 100);
+            note = used >= 1
+                ? `Over by ${formatMoney(c.total - c.budget)}`
+                : `${(used * 100).toFixed(0)}% of ${formatMoney(c.budget)}`;
+        } else {
+            barPct = grand > 0 ? (c.total / grand) * 100 : 0;
+            note = `${barPct.toFixed(0)}%`;
+        }
         return `
-            <button type="button" class="category-item" data-cat="${c.key}" style="--cat-color:${c.color}">
-                <i class="fas ${c.icon}"></i>
-                <div class="info">
-                    <div class="cat">${c.label}<span class="pct">${pct.toFixed(0)}%</span></div>
-                    <div class="val">${formatMoney(totals[i])}</div>
-                    <div class="bar"><span style="width:${pct}%"></span></div>
-                </div>
+            <button type="button" class="cat-row ${state}" data-cat="${c.key}" style="--cat-color:${c.color}">
+                <span class="cat-ico"><i class="fas ${c.icon}"></i></span>
+                <span class="cat-main">
+                    <span class="cat-name">${c.label}</span>
+                    <span class="cat-bar${c.budget > 0 ? ' budgeted' : ''}"><span style="width:${barPct.toFixed(1)}%"></span></span>
+                </span>
+                <span class="cat-amt"><b>${formatMoney(c.total)}</b><small class="${state}">${note}</small></span>
             </button>`;
     }).join('');
 }
 
-function transactionRowHtml(t, withActions) {
+// "Today", "Yesterday", or "12 Oct" — easier to scan than a full date on every row
+function friendlyDate(iso) {
+    const d = new Date(iso);
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const that = new Date(d); that.setHours(0, 0, 0, 0);
+    const diff = Math.round((today - that) / 86400000);
+    if (diff === 0) return 'Today';
+    if (diff === 1) return 'Yesterday';
+    const opts = { day: 'numeric', month: 'short' };
+    if (d.getFullYear() !== today.getFullYear()) opts.year = 'numeric';
+    return d.toLocaleDateString('en-MY', opts);
+}
+
+// withActions: edit/delete buttons (desktop hover). showDate: false inside date-grouped lists.
+function transactionRowHtml(t, withActions, showDate = true) {
     const isIncome = t.type === 'income';
     const cat = catByKey[t.category];
     const icon = isIncome ? 'fa-arrow-trend-up' : (cat ? cat.icon : 'fa-receipt');
@@ -388,24 +522,32 @@ function transactionRowHtml(t, withActions) {
     // For expenses, a note (e.g. what "Other" was) is shown next to the category
     const title = !isIncome && t.note ? `${baseTitle} — ${t.note}` : baseTitle;
     const pay = payByKey[t.payment];
-    const date = new Date(t.created_at).toLocaleDateString('en-MY', { day: '2-digit', month: 'short', year: 'numeric' });
-    const detail = isIncome ? `Income • ${date}` : `${pay ? pay.label : 'N/A'} • ${date}`;
+    const parts = [isIncome ? 'Income' : (pay ? pay.label : 'N/A')];
+    if (showDate) parts.push(friendlyDate(t.created_at));
     const color = !isIncome && cat ? `style="--cat-color:${cat.color}"` : '';
-    return `
-        <div class="history-item" data-id="${escapeHtml(t.id)}" data-type="${t.type}">
+    const rowHtml = `
+        <div class="history-item${t._pending ? ' pending' : ''}" data-id="${escapeHtml(t.id)}" data-type="${t.type}"${withActions ? '' : ` tabindex="0" role="button" aria-label="Edit ${escapeHtml(title)}"`}>
             <div class="h-icon ${isIncome ? 'income' : 'expense'}" ${color}><i class="fas ${icon}"></i></div>
             <div class="h-left">
-                <div class="h-title">${escapeHtml(title)}</div>
-                <div class="h-detail">${escapeHtml(detail)}</div>
+                <div class="h-title">${escapeHtml(title)}${t._pending ? '<span class="pending-badge" title="Waiting to sync"><i class="fas fa-cloud-arrow-up"></i> Not synced</span>' : ''}</div>
+                <div class="h-detail">${escapeHtml(parts.join(' · '))}</div>
             </div>
             <div class="h-right">
                 <div class="h-amount ${isIncome ? 'income' : 'expense'}">${isIncome ? '+' : '−'} ${formatMoney(t.amount)}</div>
-                ${withActions ? `
-                <div class="h-actions">
-                    <button type="button" class="icon-btn" data-action="edit" title="Edit" aria-label="Edit"><i class="fas fa-pen"></i></button>
-                    <button type="button" class="icon-btn danger" data-action="delete" title="Delete" aria-label="Delete"><i class="fas fa-trash-can"></i></button>
-                </div>` : ''}
             </div>
+            ${withActions ? `
+            <div class="h-actions">
+                <button type="button" class="icon-btn" data-action="edit" title="Edit" aria-label="Edit"><i class="fas fa-pen"></i></button>
+                <button type="button" class="icon-btn danger" data-action="delete" title="Delete" aria-label="Delete"><i class="fas fa-trash-can"></i></button>
+            </div>` : ''}
+        </div>`;
+    if (!withActions) return rowHtml;
+    // History rows sit in a swipe container: right = duplicate, left = delete
+    return `
+        <div class="swipe-row">
+            <div class="swipe-bg dup"><i class="fas fa-copy"></i> Duplicate</div>
+            <div class="swipe-bg del">Delete <i class="fas fa-trash-can"></i></div>
+            ${rowHtml}
         </div>`;
 }
 
@@ -420,7 +562,85 @@ function renderRecent() {
     const recent = allTransactions().slice(0, 5);
     recentList.innerHTML = recent.length
         ? recent.map(t => transactionRowHtml(t, false)).join('')
-        : '<div class="history-empty">Nothing here yet — add your first expense!</div>';
+        : '<div class="history-empty small">Nothing here yet — tap <b>+</b> to add your first transaction.</div>';
+}
+
+// Spending-vs-last-month chip, "% of income used" bar, and the three insight tiles
+function renderHeroAndInsights(spent, income) {
+    const monthName = selectedDate.toLocaleString('default', { month: 'long' });
+    heroLabel.textContent = `Spent in ${monthName}`;
+    $('dashSubtitle').textContent = `Here's ${formatMonthDisplay(selectedDate)} at a glance`;
+
+    // vs the previous month
+    const prev = new Date(selectedDate.getFullYear(), selectedDate.getMonth() - 1, 1);
+    const prevSpent = sumAmount(expenses.filter(e => isSameMonth(e.created_at, prev)));
+    if (prevSpent > 0) {
+        const change = ((spent - prevSpent) / prevSpent) * 100;
+        const up = change > 0.5, down = change < -0.5;
+        spendDelta.className = `delta ${up ? 'up' : down ? 'down' : ''}`;
+        spendDelta.innerHTML = `<i class="fas ${up ? 'fa-arrow-up' : down ? 'fa-arrow-down' : 'fa-equals'}"></i> ${Math.abs(change).toFixed(0)}% vs ${prev.toLocaleString('default', { month: 'short' })}`;
+    } else {
+        spendDelta.className = 'delta hidden';
+    }
+
+    // progress bar: the overall budget if there is one, otherwise how much of the income is spent
+    const now = new Date();
+    const isCurrent = now.getFullYear() === selectedDate.getFullYear() && now.getMonth() === selectedDate.getMonth();
+    const isFuture = selectedDate > now;
+    const overall = budgetFor('all');
+    heroBarWrap.classList.remove('warn');
+    if (overall > 0) {
+        const used = (spent / overall) * 100;
+        heroBar.style.width = `${Math.min(100, used)}%`;
+        heroBarWrap.classList.toggle('over', used > 100);
+        heroBarWrap.classList.toggle('warn', used >= 80 && used <= 100);
+        heroBarCaption.textContent = used > 100
+            ? `Over your ${formatMoney(overall)} budget by ${formatMoney(spent - overall)}`
+            : `${formatMoney(overall - spent)} left of your ${formatMoney(overall)} budget`;
+    } else if (income > 0) {
+        const used = (spent / income) * 100;
+        heroBar.style.width = `${Math.min(100, used)}%`;
+        heroBarWrap.classList.toggle('over', used > 100);
+        heroBarCaption.textContent = used > 100
+            ? `Spent ${(used - 100).toFixed(0)}% more than you earned`
+            : `${used.toFixed(0)}% of your income used`;
+    } else {
+        heroBar.style.width = '0%';
+        heroBarWrap.classList.remove('over');
+        heroBarCaption.textContent = spent > 0 ? 'Add this month\'s income to see how much you\'ve used' : '';
+    }
+    renderSafeToSpend(spent, overall, isCurrent, isFuture);
+
+    // insights
+    const monthExpenses = expenses.filter(e => isSameMonth(e.created_at));
+    const days = isCurrent ? now.getDate() : daysInMonth(selectedDate.getFullYear(), selectedDate.getMonth() + 1);
+    $('insightDaily').textContent = formatMoney(isFuture ? 0 : spent / Math.max(1, days));
+    $('insightDailySub').textContent = isCurrent ? `over ${days} day${days === 1 ? '' : 's'} so far` : `over ${days} days`;
+
+    const topCat = CATEGORIES.map(c => ({ ...c, total: getCategoryTotal(c.key) })).sort((a, b) => b.total - a.total)[0];
+    const topIcon = $('insightTopIcon');
+    if (topCat && topCat.total > 0) {
+        $('insightTop').textContent = topCat.label;
+        $('insightTopSub').textContent = `${formatMoney(topCat.total)} · ${((topCat.total / spent) * 100).toFixed(0)}% of spending`;
+        topIcon.innerHTML = `<i class="fas ${topCat.icon}"></i>`;
+        topIcon.style.color = topCat.color;
+        topIcon.style.background = `color-mix(in srgb, ${topCat.color} 14%, var(--surface))`;
+    } else {
+        $('insightTop').textContent = '—';
+        $('insightTopSub').textContent = 'No spending yet';
+        topIcon.innerHTML = '<i class="fas fa-trophy"></i>';
+        topIcon.style.color = topIcon.style.background = '';
+    }
+
+    const biggest = monthExpenses.slice().sort((a, b) => parseFloat(b.amount) - parseFloat(a.amount))[0];
+    if (biggest) {
+        $('insightMax').textContent = formatMoney(biggest.amount);
+        const label = (catByKey[biggest.category]?.label || biggest.category) + (biggest.note ? ` — ${biggest.note}` : '');
+        $('insightMaxSub').textContent = `${label} · ${friendlyDate(biggest.created_at)}`;
+    } else {
+        $('insightMax').textContent = '—';
+        $('insightMaxSub').textContent = 'No spending yet';
+    }
 }
 
 function updateDashboard() {
@@ -437,20 +657,31 @@ function updateDashboard() {
     animateAmount(totalBalance, balance);
     balancePill.classList.toggle('negative', balance < 0);
     totalCard.classList.toggle('loading', isLoading);
+    donutTotal.textContent = formatMoney(spent).replace(/\.00$/, '');
 
+    renderHeroAndInsights(spent, income);
     renderCategoryGrid();
     renderRecent();
     renderUpcoming();
 
     const meta = currentUser.user_metadata || {};
-    userNameDisplay.textContent = meta.username || meta.full_name || currentUser.email?.split('@')[0] || 'User';
+    const name = meta.username || meta.full_name || currentUser.email?.split('@')[0] || 'User';
+    userNameDisplay.textContent = name;
+    $('sideName').textContent = name;
+    $('accountName').textContent = name;
+    $('accountEmail').textContent = currentUser.email || '';
+    const initial = (name.trim()[0] || 'U').toUpperCase();
+    $('sideAvatar').textContent = initial;
+    $('accountAvatar').textContent = initial;
 
+    persistLocal();
     if ($('dashboardScreen').classList.contains('active')) renderCharts();
 }
 
 categoryGrid.addEventListener('click', (e) => {
-    const tile = e.target.closest('.category-item');
-    if (tile) openHistoryFiltered({ type: 'expense', category: tile.dataset.cat, month: formatMonthValue(selectedDate) });
+    if (e.target.closest('[data-action="add"]')) return openAddSheet('expense');
+    const row = e.target.closest('.cat-row');
+    if (row) openHistoryFiltered({ type: 'expense', category: row.dataset.cat, month: formatMonthValue(selectedDate) });
 });
 viewAllBtn.addEventListener('click', () => openHistoryFiltered({ month: formatMonthValue(selectedDate) }));
 
@@ -504,10 +735,16 @@ function getMonthlyTotals() {
 // Chart.js colours are set in JS, so they follow the system theme here
 const darkQuery = window.matchMedia('(prefers-color-scheme: dark)');
 
+// Read a design token from CSS so the charts always match the current theme
+function cssVar(name) {
+    return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
+
 function applyChartTheme() {
     if (!window.Chart) return;
-    Chart.defaults.color = darkQuery.matches ? '#94a3b8' : '#666';
-    Chart.defaults.borderColor = darkQuery.matches ? 'rgba(148, 163, 184, 0.15)' : 'rgba(0, 0, 0, 0.1)';
+    Chart.defaults.color = cssVar('--muted') || '#5b6785';
+    Chart.defaults.borderColor = cssVar('--border') || '#e4e7f0';
+    Chart.defaults.font.family = "'Inter', sans-serif";
 }
 
 function onThemeChange() {
@@ -526,51 +763,58 @@ function renderCharts() {
     const barCanvas = $('barChart');
     if (!pieCanvas || !barCanvas) return;
 
-    // Pie
-    const totals = CATEGORIES.map(c => getCategoryTotal(c.key));
-    const hasData = totals.some(v => v > 0);
+    // Doughnut: only categories with spending; the ranked list beside it is the legend
+    const ranked = CATEGORIES
+        .map(c => ({ ...c, total: getCategoryTotal(c.key) }))
+        .filter(c => c.total > 0)
+        .sort((a, b) => b.total - a.total);
+    const hasData = ranked.length > 0;
+    const surface = cssVar('--surface') || '#ffffff';
     const pieData = {
-        labels: hasData ? CATEGORIES.map(c => c.label) : ['No data'],
+        labels: hasData ? ranked.map(c => c.label) : ['No data'],
         datasets: [{
-            data: hasData ? totals : [1],
-            backgroundColor: hasData ? CATEGORIES.map(c => c.color) : ['#d1d5db'],
-            borderWidth: 2,
-            borderColor: darkQuery.matches ? '#1e293b' : 'white'
+            data: hasData ? ranked.map(c => c.total) : [1],
+            backgroundColor: hasData ? ranked.map(c => c.color) : [cssVar('--surface-2') || '#e5e7eb'],
+            borderWidth: 3,
+            borderColor: surface,
+            hoverOffset: 6
         }]
     };
     if (pieChartInstance) {
         pieChartInstance.data = pieData;
+        pieChartInstance.pieKeys = ranked.map(c => c.key);
+        pieChartInstance.options.plugins.tooltip.enabled = hasData; // no tooltip on the empty ring
         pieChartInstance.update();
     } else {
         pieChartInstance = new Chart(pieCanvas.getContext('2d'), {
-            type: 'pie',
+            type: 'doughnut',
             data: pieData,
             options: {
                 responsive: true,
-                maintainAspectRatio: true,
+                maintainAspectRatio: false,
+                cutout: '70%',
                 plugins: {
-                    legend: { position: 'bottom', labels: { boxWidth: 12, padding: 8, font: { size: 11 } } },
-                    tooltip: { callbacks: { label: (ctx) => ctx.label === 'No data' ? 'No data yet' : formatMoney(ctx.parsed) } }
+                    legend: { display: false },
+                    tooltip: { enabled: hasData, callbacks: { label: (ctx) => `${ctx.label}: ${formatMoney(ctx.parsed)}` } }
                 },
-                onHover: (evt, els) => { evt.native.target.style.cursor = els.length && els[0].element ? 'pointer' : 'default'; },
+                onHover: (evt, els) => { evt.native.target.style.cursor = els.length && pieChartInstance.pieKeys?.length ? 'pointer' : 'default'; },
                 onClick: (evt, els) => {
                     if (!els.length) return;
-                    const cat = CATEGORIES[els[0].index];
-                    if (cat && pieChartInstance.data.labels[0] !== 'No data') {
-                        openHistoryFiltered({ type: 'expense', category: cat.key, month: formatMonthValue(selectedDate) });
-                    }
+                    const key = pieChartInstance.pieKeys && pieChartInstance.pieKeys[els[0].index];
+                    if (key) openHistoryFiltered({ type: 'expense', category: key, month: formatMonthValue(selectedDate) });
                 }
             }
         });
+        pieChartInstance.pieKeys = ranked.map(c => c.key);
     }
 
-    // Bar
+    // Bars: expenses vs income for the last six months
     const { months, expensesData, incomesData } = getMonthlyTotals();
     const barData = {
         labels: months,
         datasets: [
-            { label: 'Expenses', data: expensesData, backgroundColor: 'rgba(79, 70, 229, 0.7)', borderColor: '#4f46e5', borderWidth: 2, borderRadius: 6 },
-            { label: 'Income', data: incomesData, backgroundColor: 'rgba(16, 185, 129, 0.7)', borderColor: '#10b981', borderWidth: 2, borderRadius: 6 }
+            { label: 'Expenses', data: expensesData, backgroundColor: '#6366f1', borderRadius: 6, borderSkipped: false, maxBarThickness: 28 },
+            { label: 'Income', data: incomesData, backgroundColor: '#10b981', borderRadius: 6, borderSkipped: false, maxBarThickness: 28 }
         ]
     };
     if (barChartInstance) {
@@ -582,12 +826,16 @@ function renderCharts() {
             data: barData,
             options: {
                 responsive: true,
-                maintainAspectRatio: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
                 plugins: {
-                    legend: { position: 'top', labels: { boxWidth: 12, font: { size: 11 } } },
+                    legend: { position: 'top', align: 'end', labels: { usePointStyle: true, pointStyle: 'circle', boxWidth: 8, font: { size: 12 } } },
                     tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label}: ${formatMoney(ctx.parsed.y)}` } }
                 },
-                scales: { y: { beginAtZero: true, ticks: { callback: (val) => 'RM ' + val } } },
+                scales: {
+                    x: { grid: { display: false }, border: { display: false } },
+                    y: { beginAtZero: true, border: { display: false }, ticks: { maxTicksLimit: 5, callback: (val) => val >= 1000 ? (val / 1000) + 'k' : val } }
+                },
                 onHover: (evt, els) => { evt.native.target.style.cursor = els.length ? 'pointer' : 'default'; },
                 onClick: (evt, els) => {
                     if (!els.length) return;
@@ -600,31 +848,201 @@ function renderCharts() {
 }
 
 // === SUPABASE DATA ===
+// Records get a client-generated id, so a save that has to be retried (offline queue) is safe:
+// if the first attempt actually reached the server, the retry is a harmless duplicate-key error.
+const uuid = () => (window.crypto && crypto.randomUUID)
+    ? crypto.randomUUID()
+    : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+        const r = Math.random() * 16 | 0;
+        return (c === 'x' ? r : ((r & 0x3) | 0x8)).toString(16);
+    });
+
+function isNetworkError(err) {
+    if (!navigator.onLine) return true;
+    const msg = String((err && (err.message || err.details)) || err || '');
+    return /failed to fetch|networkerror|network request failed|load failed|fetch failed|timed? ?out|offline/i.test(msg);
+}
+
+function requireOnline(what) {
+    if (!navigator.onLine) throw new Error(`You're offline — ${what} needs a connection.`);
+}
+
+// --- Local copy of your data, so the app still opens (read-only-ish) without a connection ---
+const cacheKey = () => `et_cache_${currentUser.id}`;
+const queueKey = () => `et_queue_${currentUser.id}`;
+let cacheTimer = null;
+let servedFromCache = false;
+
+function persistLocal() {
+    if (!currentUser) return;
+    clearTimeout(cacheTimer);
+    cacheTimer = setTimeout(() => {
+        try {
+            localStorage.setItem(cacheKey(), JSON.stringify({ expenses, incomes, recurring, budgets }));
+        } catch (_) { /* storage full or blocked: the app still works online */ }
+    }, 300);
+}
+
+function loadLocal() {
+    try {
+        const raw = localStorage.getItem(cacheKey());
+        if (!raw) return false;
+        const c = JSON.parse(raw);
+        expenses = c.expenses || [];
+        incomes = c.incomes || [];
+        recurring = c.recurring || [];
+        budgets = c.budgets || [];
+        return true;
+    } catch (_) {
+        return false;
+    }
+}
+
+// --- Offline queue: new entries made without a connection wait here and sync later ---
+let syncQueue = []; // [{ table: 'expenses' | 'incomes', row }]
+let flushing = false;
+
+function loadQueue() {
+    try { syncQueue = JSON.parse(localStorage.getItem(queueKey()) || '[]'); } catch (_) { syncQueue = []; }
+    renderNetBanner();
+}
+
+function saveQueue() {
+    try { localStorage.setItem(queueKey(), JSON.stringify(syncQueue)); } catch (_) { /* ignore */ }
+    renderNetBanner();
+}
+
+function enqueue(table, row) {
+    syncQueue.push({ table, row });
+    saveQueue();
+}
+
+// Show queued entries in the lists (marked "not synced") after a fresh load from the server
+function mergePending() {
+    syncQueue.forEach(op => {
+        const list = op.table === 'incomes' ? incomes : expenses;
+        if (!list.some(r => r.id === op.row.id)) list.push({ ...op.row, _pending: true });
+    });
+    expenses.sort(byDateDesc);
+    incomes.sort(byDateDesc);
+}
+
+function renderNetBanner() {
+    const banner = $('netBanner');
+    if (!banner) return;
+    const n = syncQueue.length;
+    const offline = !navigator.onLine;
+    if (!offline && !n) {
+        banner.classList.add('hidden');
+        return;
+    }
+    banner.classList.remove('hidden');
+    banner.classList.toggle('online', !offline);
+    const waiting = n ? ` ${n} change${n === 1 ? '' : 's'} waiting to sync.` : '';
+    banner.innerHTML = offline
+        ? `<i class="fas fa-wifi"></i><span>You're offline — showing your saved data. New entries will sync when you're back.${waiting}</span>`
+        : `<i class="fas fa-rotate fa-spin"></i><span>Syncing ${n} change${n === 1 ? '' : 's'}…</span>`;
+}
+
+async function flushQueue({ silent = false } = {}) {
+    if (!currentUser || flushing || !navigator.onLine || !syncQueue.length) return;
+    flushing = true;
+    let synced = 0;
+    try {
+        while (syncQueue.length) {
+            const op = syncQueue[0];
+            const list = op.table === 'incomes' ? incomes : expenses;
+            let result;
+            try {
+                result = await supabaseClient.from(op.table).insert([op.row]).select();
+            } catch (err) {
+                result = { error: err };
+            }
+            const { data, error } = result;
+            if (error && isNetworkError(error)) break; // still offline: keep the rest for later
+
+            const idx = list.findIndex(r => r.id === op.row.id);
+            if (error && error.code !== '23505') {
+                // The server refused it (not a connection problem): drop it and say so
+                console.error('Sync rejected an entry:', error);
+                if (idx >= 0) list.splice(idx, 1);
+                showToast('error', `Couldn't sync an entry: ${error.message || 'rejected'}`);
+            } else {
+                // Saved now, or already saved by an earlier attempt (duplicate key)
+                const saved = data && data[0] ? data[0] : { ...op.row };
+                delete saved._pending;
+                if (idx >= 0) list[idx] = saved;
+                synced++;
+            }
+            syncQueue.shift();
+            saveQueue();
+        }
+    } finally {
+        flushing = false;
+        renderNetBanner();
+        expenses.sort(byDateDesc);
+        incomes.sort(byDateDesc);
+        updateDashboard();
+        if ($('historyScreen').classList.contains('active')) renderHistory();
+    }
+    if (synced && !silent) showToast('success', `Synced ${synced} change${synced === 1 ? '' : 's'}`);
+}
+
+window.addEventListener('offline', renderNetBanner);
+window.addEventListener('online', () => {
+    renderNetBanner();
+    if (!currentUser) return;
+    // If we were showing saved data, reload from the server (this also flushes the queue)
+    if (servedFromCache) fetchAllData();
+    else flushQueue();
+});
+
 async function fetchAllData() {
     isLoading = true;
+    loadQueue();
     updateDashboard();
     try {
-        const [{ data: expData, error: expErr }, { data: incData, error: incErr }, { data: recData, error: recErr }] = await Promise.all([
+        if (!navigator.onLine) throw new Error('offline');
+
+        const [exp, inc, rec, bud] = await Promise.all([
             supabaseClient.from('expenses').select('*').order('created_at', { ascending: false }),
             supabaseClient.from('incomes').select('*').order('created_at', { ascending: false }),
-            supabaseClient.from('recurring_expenses').select('*').order('next_due', { ascending: true })
+            supabaseClient.from('recurring_expenses').select('*').order('next_due', { ascending: true }),
+            supabaseClient.from('budgets').select('*')
         ]);
 
-        // Recurring is optional: if its table isn't created yet, the rest of the app still works
-        recurringLoadError = !!recErr;
-        if (recErr) console.warn('Recurring expenses unavailable (run migration-add-recurring.sql):', recErr);
-        recurring = recData || [];
+        const loadErr = exp.error || inc.error;
+        if (loadErr) {
+            if (isNetworkError(loadErr)) throw loadErr;
+            console.error('Error fetching data:', loadErr);
+            showToast('error', 'Could not load all your data. Pull to refresh or try again.');
+        }
 
-        if (expErr) console.error('Error fetching expenses:', expErr);
-        if (incErr) console.error('Error fetching incomes:', incErr);
-        if (expErr || incErr) showToast('error', 'Could not load all your data. Pull to refresh or try again.');
+        // Recurring and budgets are optional: if their tables aren't created yet, the rest still works
+        recurringLoadError = !!rec.error;
+        budgetsLoadError = !!bud.error;
+        if (rec.error) console.warn('Recurring expenses unavailable (run migration-add-recurring.sql):', rec.error);
+        if (bud.error) console.warn('Budgets unavailable (run migration-add-budgets.sql):', bud.error);
 
-        expenses = expData || [];
-        incomes = incData || [];
+        expenses = exp.data || [];
+        incomes = inc.data || [];
+        recurring = rec.data || [];
+        budgets = bud.data || [];
+        servedFromCache = false;
+
+        mergePending();
+        await flushQueue(); // tells you if offline entries were just synced
         await processRecurring();
     } catch (err) {
-        console.error('Fetch data error:', err);
-        showToast('error', 'Network problem while loading your data.');
+        if (isNetworkError(err)) {
+            const had = loadLocal();
+            servedFromCache = true;
+            mergePending();
+            showToast('info', had ? 'You\'re offline — showing your last saved data' : 'You\'re offline');
+        } else {
+            console.error('Fetch data error:', err);
+            showToast('error', 'Something went wrong while loading your data.');
+        }
     } finally {
         isLoading = false;
         updateDashboard();
@@ -632,42 +1050,85 @@ async function fetchAllData() {
     }
 }
 
-async function addExpense(amount, category, payment, createdAt, note) {
-    const row = { user_id: currentUser.id, amount, category, payment, created_at: createdAt };
-    if (note) row.note = note; // only sent when used, so a missing `note` column only matters for noted expenses
-    const { data, error } = await supabaseClient
-        .from('expenses')
-        .insert([row])
-        .select();
-    if (error) throw error;
-    if (data && data.length > 0) { expenses.push(data[0]); expenses.sort(byDateDesc); }
+// Create an expense/income. Works offline: the entry shows up at once, marked "not synced",
+// and is sent when the connection returns. Resolves to { queued }.
+async function createRecord(type, fields) {
+    const table = type === 'income' ? 'incomes' : 'expenses';
+    const list = type === 'income' ? incomes : expenses;
+    const row = { id: uuid(), user_id: currentUser.id, created_at: new Date().toISOString(), ...fields };
+
+    list.push({ ...row, _pending: true });
+    list.sort(byDateDesc);
+    const drop = () => {
+        const i = list.findIndex(r => r.id === row.id);
+        if (i >= 0) list.splice(i, 1);
+    };
+
+    if (navigator.onLine) {
+        try {
+            const { data, error } = await supabaseClient.from(table).insert([row]).select();
+            if (error) throw error;
+            const i = list.findIndex(r => r.id === row.id);
+            if (i >= 0) list[i] = (data && data[0]) ? data[0] : { ...row };
+            list.sort(byDateDesc);
+            return { queued: false, id: row.id };
+        } catch (err) {
+            if (!isNetworkError(err)) { drop(); throw err; }
+            // connection dropped mid-save: fall through and queue it
+        }
+    }
+    enqueue(table, row);
+    return { queued: true, id: row.id };
 }
 
-async function addIncome(amount, source, createdAt) {
-    const { data, error } = await supabaseClient
-        .from('incomes')
-        .insert([{ user_id: currentUser.id, amount, source, created_at: createdAt }])
-        .select();
-    if (error) throw error;
-    if (data && data.length > 0) { incomes.push(data[0]); incomes.sort(byDateDesc); }
+function addExpense(amount, category, payment, createdAt, note) {
+    const fields = { amount, category, payment, created_at: createdAt };
+    if (note) fields.note = note; // only sent when used, so a missing `note` column only matters for noted expenses
+    return createRecord('expense', fields);
+}
+
+function addIncome(amount, source, createdAt) {
+    return createRecord('income', { amount, source, created_at: createdAt });
 }
 
 async function updateRecord(type, id, fields) {
     const table = type === 'income' ? 'incomes' : 'expenses';
+    const list = type === 'income' ? incomes : expenses;
+    const idx = list.findIndex(r => r.id === id);
+
+    if (idx >= 0 && list[idx]._pending) {
+        // Not on the server yet: edit the local copy and the queued copy
+        list[idx] = { ...list[idx], ...fields };
+        list.sort(byDateDesc);
+        const op = syncQueue.find(o => o.row.id === id);
+        if (op) { op.row = { ...op.row, ...fields }; saveQueue(); }
+        return;
+    }
+
+    requireOnline('Editing an entry');
     const { data, error } = await supabaseClient.from(table).update(fields).eq('id', id).select();
     if (error) throw error;
     if (!data || data.length === 0) throw new Error('That entry could not be updated.');
-    const list = type === 'income' ? incomes : expenses;
-    const idx = list.findIndex(r => r.id === id);
-    if (idx >= 0) list[idx] = data[0];
+    const i = list.findIndex(r => r.id === id);
+    if (i >= 0) list[i] = data[0];
     list.sort(byDateDesc);
 }
 
 async function deleteRecord(type, id) {
     const table = type === 'income' ? 'incomes' : 'expenses';
-    const { data, error } = await supabaseClient.from(table).delete().eq('id', id).select();
-    if (error) throw error;
-    if (!data || data.length === 0) throw new Error('That entry could not be deleted.');
+    const list = type === 'income' ? incomes : expenses;
+    const rec = list.find(r => r.id === id);
+
+    if (rec && rec._pending) {
+        // Never reached the server: just forget it
+        syncQueue = syncQueue.filter(o => o.row.id !== id);
+        saveQueue();
+    } else {
+        requireOnline('Deleting an entry');
+        const { data, error } = await supabaseClient.from(table).delete().eq('id', id).select();
+        if (error) throw error;
+        if (!data || data.length === 0) throw new Error('That entry could not be deleted.');
+    }
     if (type === 'income') incomes = incomes.filter(r => r.id !== id);
     else expenses = expenses.filter(r => r.id !== id);
 }
@@ -976,11 +1437,14 @@ logoutBtn.addEventListener('click', () => {
     showModal({
         type: 'question',
         title: 'Log out?',
-        message: 'You can always sign back in with your email and password.',
+        message: syncQueue.length
+            ? `${syncQueue.length} change${syncQueue.length === 1 ? ' hasn\'t' : 's haven\'t'} synced yet. ${syncQueue.length === 1 ? 'It\'s' : 'They\'re'} kept on this device and will sync the next time you log in.`
+            : 'You can always sign back in with your email and password.',
         confirmText: 'Log out',
         cancelText: 'Stay',
         danger: true,
         onConfirm: async () => {
+            try { localStorage.removeItem(cacheKey()); } catch (_) { /* ignore */ } // don't leave your data on a shared device
             await supabaseClient.auth.signOut();
             resetSession();
         }
@@ -992,7 +1456,12 @@ function resetSession() {
     expenses = [];
     incomes = [];
     recurring = [];
+    budgets = [];
+    syncQueue = [];
     cancelRecurringEdit();
+    closeAddSheet();
+    closeAccountSheet();
+    closeBudgetSheet();
     emailInput.value = '';
     passInput.value = '';
     switchAuthTab('login');
@@ -1029,6 +1498,13 @@ if (supabaseClient) {
     supabaseClient.auth.onAuthStateChange((event, session) => {
         // Don't await Supabase calls directly inside this callback (can deadlock the client)
         setTimeout(async () => {
+            if (event === 'PASSWORD_RECOVERY' || (event === 'SIGNED_IN' && recoveryMode && session?.user)) {
+                recoveryMode = true;
+                $('newPassword').value = '';
+                $('newPasswordConfirm').value = '';
+                showScreen('resetPasswordScreen');
+                return;
+            }
             if (event === 'SIGNED_IN' && session?.user) {
                 if (cameFromEmailConfirmation) {
                     await supabaseClient.auth.signOut();
@@ -1069,14 +1545,17 @@ saveExpenseBtn.addEventListener('click', async () => {
 
     setBusy(saveExpenseBtn, true, 'Saving...');
     try {
-        await addExpense(amount, expCategoryValue, expPaymentValue, createdAt, note);
+        const { queued } = await addExpense(amount, expCategoryValue, expPaymentValue, createdAt, note);
         expAmount.value = '';
         expNote.value = '';
         expDate.value = toInputDate();
         const saved = new Date(createdAt);
         setSelectedMonth(saved.getFullYear(), saved.getMonth());
-        navigate('dashboard');
-        showToast('success', `Expense of ${formatMoney(amount)} saved`);
+        closeAddSheet();
+        showToast(queued ? 'info' : 'success', queued
+            ? `Saved offline — ${formatMoney(amount)} will sync when you're back online`
+            : `Expense of ${formatMoney(amount)} saved`);
+        checkBudgetAlerts(expCategoryValue, amount, createdAt);
     } catch (err) {
         console.error('Save expense error:', err);
         showModal({ type: 'error', title: 'Couldn\'t save expense', message: err.message || 'Please try again.' });
@@ -1100,15 +1579,17 @@ saveIncomeBtn.addEventListener('click', async () => {
 
     setBusy(saveIncomeBtn, true, 'Saving...');
     try {
-        await addIncome(amount, source, createdAt);
+        const { queued } = await addIncome(amount, source, createdAt);
         incomeAmount.value = '';
         incomeSource.value = '';
         incomeDate.value = toInputDate();
         syncIncomeChips();
         const saved = new Date(createdAt);
         setSelectedMonth(saved.getFullYear(), saved.getMonth());
-        navigate('dashboard');
-        showToast('success', `Income of ${formatMoney(amount)} saved`);
+        closeAddSheet();
+        showToast(queued ? 'info' : 'success', queued
+            ? `Saved offline — ${formatMoney(amount)} will sync when you're back online`
+            : `Income of ${formatMoney(amount)} saved`);
     } catch (err) {
         console.error('Save income error:', err);
         showModal({ type: 'error', title: 'Couldn\'t save income', message: err.message || 'Please try again.' });
@@ -1174,9 +1655,28 @@ function renderHistory() {
            <span class="expense">− ${formatMoney(exp)}</span>`
         : '';
 
-    historyList.innerHTML = list.length
-        ? list.map(t => transactionRowHtml(t, true)).join('')
-        : '<div class="history-empty"><i class="fas fa-inbox"></i><div>No transactions found for this filter.</div></div>';
+    if (!list.length) {
+        historyList.innerHTML = '<div class="history-empty"><i class="fas fa-inbox"></i><div>No transactions found for this filter.</div></div>';
+        return;
+    }
+
+    // Group by calendar day (the list is already newest-first)
+    const groups = [];
+    list.forEach(t => {
+        const key = toInputDate(t.created_at);
+        const last = groups[groups.length - 1];
+        if (last && last.key === key) last.items.push(t);
+        else groups.push({ key, label: friendlyDate(t.created_at), items: [t] });
+    });
+    historyList.innerHTML = groups.map(g => {
+        const spent = sumAmount(g.items.filter(t => t.type === 'expense'));
+        return `
+            <div class="day-head">
+                <span class="day-name">${escapeHtml(g.label)}</span>
+                <span class="day-total">${spent > 0 ? `Spent ${formatMoney(spent)}` : ''}</span>
+            </div>
+            <div class="day-group">${g.items.map(t => transactionRowHtml(t, true, false)).join('')}</div>`;
+    }).join('');
 }
 
 [historyTypeFilter, historyCategoryFilter, historyMonthFilter].forEach(el => el.addEventListener('change', renderHistory));
@@ -1190,11 +1690,12 @@ historyResetBtn.addEventListener('click', () => {
 });
 
 historyList.addEventListener('click', (e) => {
+    if (Date.now() < suppressClickUntil) return;
     const btn = e.target.closest('[data-action]');
     const row = e.target.closest('.history-item');
     if (!row) return;
     const { id, type } = row.dataset;
-    if (btn && btn.dataset.action === 'delete') confirmDelete(type, id);
+    if (btn && btn.dataset.action === 'delete') deleteWithUndo(type, id);
     else openEditModal(type, id); // clicking the row or the pen opens the editor
 });
 
@@ -1203,29 +1704,154 @@ recentList.addEventListener('click', (e) => {
     if (row) openEditModal(row.dataset.type, row.dataset.id);
 });
 
-function confirmDelete(type, id) {
-    const rec = (type === 'income' ? incomes : expenses).find(r => r.id === id);
+// Rows are focusable: Enter / Space opens the editor for keyboard users
+[historyList, recentList].forEach(list => list.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    const row = e.target.closest('.history-item');
+    if (row && e.target === row) {
+        e.preventDefault();
+        openEditModal(row.dataset.type, row.dataset.id);
+    }
+}));
+
+function refreshAfterChange() {
+    updateDashboard();
+    if ($('historyScreen').classList.contains('active')) renderHistory();
+}
+
+// Deletes straight away and offers Undo (faster and safer than a "are you sure?" dialog)
+async function deleteWithUndo(type, id) {
+    const list = type === 'income' ? incomes : expenses;
+    const rec = list.find(r => r.id === id);
     if (!rec) return;
-    showModal({
-        type: 'warning',
-        title: 'Delete this entry?',
-        message: `${type === 'income' ? 'Income' : 'Expense'} of ${formatMoney(rec.amount)} will be removed permanently.`,
-        confirmText: 'Delete',
-        cancelText: 'Keep it',
-        danger: true,
-        onConfirm: async () => {
+    const snapshot = { ...rec };
+
+    try {
+        await deleteRecord(type, id);
+    } catch (err) {
+        console.error('Delete error:', err);
+        showToast('error', err.message || 'Couldn\'t delete that entry');
+        renderHistory();
+        return;
+    }
+    refreshAfterChange();
+
+    showToast('success', `${type === 'income' ? 'Income' : 'Expense'} of ${formatMoney(snapshot.amount)} deleted`, {
+        actionLabel: 'Undo',
+        onAction: async () => {
             try {
-                await deleteRecord(type, id);
-                updateDashboard();
-                renderHistory();
-                showToast('success', 'Entry deleted');
+                const { user_id, _pending, ...fields } = snapshot; // same id and date, so it reappears exactly where it was
+                await createRecord(type, fields);
+                refreshAfterChange();
+                showToast('success', 'Restored');
             } catch (err) {
-                console.error('Delete error:', err);
-                showModal({ type: 'error', title: 'Couldn\'t delete', message: err.message || 'Please try again.' });
+                console.error('Undo error:', err);
+                showModal({ type: 'error', title: 'Couldn\'t restore', message: err.message || 'Please try again.' });
             }
         }
     });
 }
+
+async function duplicateRecord(type, id) {
+    const list = type === 'income' ? incomes : expenses;
+    const rec = list.find(r => r.id === id);
+    if (!rec) return;
+    const { id: _id, user_id, created_at, _pending, ...fields } = rec;
+
+    try {
+        const { id: newId, queued } = await createRecord(type, { ...fields, created_at: new Date().toISOString() });
+        refreshAfterChange();
+        showToast(queued ? 'info' : 'success', queued ? 'Duplicated — will sync when you\'re online' : 'Duplicated as today\'s entry', {
+            actionLabel: 'Undo',
+            onAction: async () => {
+                try { await deleteRecord(type, newId); refreshAfterChange(); }
+                catch (err) { showToast('error', err.message || 'Couldn\'t undo'); }
+            }
+        });
+    } catch (err) {
+        console.error('Duplicate error:', err);
+        showModal({ type: 'error', title: 'Couldn\'t duplicate', message: err.message || 'Please try again.' });
+    }
+}
+
+// === SWIPE ACTIONS (touch): swipe left to delete, swipe right to duplicate ===
+const swipe = { item: null, pid: null, startX: 0, startY: 0, dx: 0, active: false };
+let suppressClickUntil = 0;
+
+function swipeReset() {
+    swipe.item = null;
+    swipe.active = false;
+    swipe.dx = 0;
+}
+
+function swipeBackgrounds(item) {
+    const row = item.parentElement;
+    return { dup: row.querySelector('.swipe-bg.dup'), del: row.querySelector('.swipe-bg.del') };
+}
+
+historyList.addEventListener('pointerdown', (e) => {
+    if (e.pointerType === 'mouse') return; // desktop has hover buttons
+    const item = e.target.closest('.swipe-row .history-item');
+    if (!item || e.target.closest('button')) return;
+    swipe.item = item;
+    swipe.pid = e.pointerId;
+    swipe.startX = e.clientX;
+    swipe.startY = e.clientY;
+    swipe.dx = 0;
+    swipe.active = false;
+});
+
+historyList.addEventListener('pointermove', (e) => {
+    if (!swipe.item || e.pointerId !== swipe.pid) return;
+    const dx = e.clientX - swipe.startX;
+    const dy = e.clientY - swipe.startY;
+
+    if (!swipe.active) {
+        if (Math.abs(dy) > 12 && Math.abs(dy) > Math.abs(dx)) return swipeReset(); // it's a scroll
+        if (Math.abs(dx) < 10 || Math.abs(dx) < Math.abs(dy) * 1.4) return;
+        swipe.active = true;
+        swipe.item.classList.remove('settling');
+        try { swipe.item.setPointerCapture(e.pointerId); } catch (_) { /* synthetic pointer */ }
+    }
+
+    swipe.dx = dx;
+    swipe.item.style.transform = `translateX(${dx}px)`;
+    const bg = swipeBackgrounds(swipe.item);
+    bg.dup.style.opacity = dx > 0 ? Math.min(1, dx / 70) : 0;
+    bg.del.style.opacity = dx < 0 ? Math.min(1, -dx / 70) : 0;
+});
+
+function endSwipe(e) {
+    const item = swipe.item;
+    if (!item || e.pointerId !== swipe.pid) return;
+    const wasActive = swipe.active;
+    const dx = swipe.dx;
+    swipeReset();
+    if (!wasActive) return;
+
+    suppressClickUntil = Date.now() + 350; // the finger lifting must not also "tap" the row
+    const width = item.offsetWidth;
+    const threshold = Math.min(130, width * 0.35);
+    const bg = swipeBackgrounds(item);
+    const { id, type } = item.dataset;
+    item.classList.add('settling');
+
+    if (e.type !== 'pointercancel' && Math.abs(dx) >= threshold) {
+        if (dx < 0) {
+            item.style.transform = `translateX(${-width}px)`; // fly off, then delete
+            setTimeout(() => deleteWithUndo(type, id), 180);
+        } else {
+            item.style.transform = '';
+            bg.dup.style.opacity = 0;
+            duplicateRecord(type, id);
+        }
+    } else {
+        item.style.transform = '';
+        setTimeout(() => { bg.dup.style.opacity = 0; bg.del.style.opacity = 0; }, 220);
+    }
+}
+historyList.addEventListener('pointerup', endSwipe);
+historyList.addEventListener('pointercancel', endSwipe);
 
 // === EDIT MODAL ===
 function openEditModal(type, id) {
@@ -1259,6 +1885,12 @@ function closeEditModal() {
 }
 
 editCancelBtn.addEventListener('click', closeEditModal);
+$('editDeleteBtn').addEventListener('click', () => {
+    if (!editing) return;
+    const { type, id } = editing;
+    closeEditModal();
+    deleteWithUndo(type, id);
+});
 editModal.addEventListener('click', (e) => { if (e.target === editModal) closeEditModal(); });
 [editAmount, editDate, editSource].forEach(el => {
     el.addEventListener('keydown', (e) => { if (e.key === 'Enter') editSaveBtn.click(); });
@@ -1599,13 +2231,11 @@ function renderRecurring() {
                 <div class="h-title">${escapeHtml(r.name)}</div>
                 <div class="h-detail">${FREQ_LABEL[r.frequency] || r.frequency} · ${escapeHtml(when)}</div>
             </div>
-            <div class="h-right">
-                <div class="h-amount expense">${formatMoney(r.amount)}</div>
-                <div class="h-actions">
-                    <button type="button" class="icon-btn" data-action="toggle" title="${r.active ? 'Pause' : 'Resume'}" aria-label="${r.active ? 'Pause' : 'Resume'}"><i class="fas ${r.active ? 'fa-pause' : 'fa-play'}"></i></button>
-                    <button type="button" class="icon-btn" data-action="edit" title="Edit" aria-label="Edit"><i class="fas fa-pen"></i></button>
-                    <button type="button" class="icon-btn danger" data-action="delete" title="Delete" aria-label="Delete"><i class="fas fa-trash-can"></i></button>
-                </div>
+            <div class="h-right"><div class="h-amount expense">${formatMoney(r.amount)}</div></div>
+            <div class="h-actions">
+                <button type="button" class="icon-btn" data-action="toggle" title="${r.active ? 'Pause' : 'Resume'}" aria-label="${r.active ? 'Pause' : 'Resume'}"><i class="fas ${r.active ? 'fa-pause' : 'fa-play'}"></i></button>
+                <button type="button" class="icon-btn" data-action="edit" title="Edit" aria-label="Edit"><i class="fas fa-pen"></i></button>
+                <button type="button" class="icon-btn danger" data-action="delete" title="Delete" aria-label="Delete"><i class="fas fa-trash-can"></i></button>
             </div>
         </div>`;
     }).join('');
@@ -1708,6 +2338,235 @@ document.addEventListener('visibilitychange', () => {
 
 cancelRecurringEdit(); // sets the form defaults and renders the chips
 
+// === BUDGETS ===
+// Monthly limits per category plus an overall limit (stored under the category key 'all').
+const budgetSheet = $('budgetSheet');
+const budgetFields = $('budgetFields');
+const saveBudgetsBtn = $('saveBudgetsBtn');
+
+function budgetFor(key) {
+    const b = budgets.find(x => x.category === key);
+    return b ? parseFloat(b.amount) : 0;
+}
+
+function spendIn(ref, cat) {
+    return sumAmount(expenses.filter(e => isSameMonth(e.created_at, ref) && (!cat || e.category === cat)));
+}
+
+// What you can still spend per day without breaking the overall budget (current month only)
+function renderSafeToSpend(spent, overall, isCurrent, isFuture) {
+    const el = $('safeToSpend');
+    if (!overall) {
+        el.innerHTML = '<button type="button" class="hero-cta" data-action="budget"><i class="fas fa-bullseye"></i> Set a monthly budget to see what\'s safe to spend each day</button>';
+        return;
+    }
+    if (!isCurrent || isFuture) { el.innerHTML = ''; return; }
+
+    const now = new Date();
+    const daysLeft = daysInMonth(now.getFullYear(), now.getMonth() + 1) - now.getDate() + 1; // today counts
+    const remaining = overall - spent;
+    el.innerHTML = remaining > 0
+        ? `<div class="safe-card">
+               <div><div class="safe-label">Safe to spend today</div><div class="safe-value">${formatMoney(remaining / daysLeft)}</div></div>
+               <div class="safe-sub">${formatMoney(remaining)} left for ${daysLeft} day${daysLeft === 1 ? '' : 's'}</div>
+           </div>`
+        : `<div class="safe-card bad">
+               <div><div class="safe-label">Budget used up</div><div class="safe-value">${formatMoney(spent - overall)} over</div></div>
+               <div class="safe-sub">Hold off on extras until next month</div>
+           </div>`;
+}
+
+$('safeToSpend').addEventListener('click', (e) => { if (e.target.closest('[data-action="budget"]')) openBudgetSheet(); });
+$('budgetBtn').addEventListener('click', openBudgetSheet);
+
+function renderBudgetFields() {
+    const rows = [{ key: 'all', label: 'Overall budget', icon: 'fa-bullseye', color: 'var(--primary)' }, ...CATEGORIES];
+    budgetFields.innerHTML = rows.map(c => `
+        <label class="budget-row${c.key === 'all' ? ' overall' : ''}" style="--cat-color:${c.color}">
+            <span class="cat-ico"><i class="fas ${c.icon}"></i></span>
+            <span class="budget-name">${c.label}</span>
+            <span class="budget-input"><span>RM</span>
+                <input type="number" data-cat="${c.key}" min="0" step="1" inputmode="decimal" placeholder="No limit" value="${budgetFor(c.key) || ''}" aria-label="${c.label} budget in RM" />
+            </span>
+        </label>`).join('');
+}
+
+function openBudgetSheet() {
+    if (!currentUser) return;
+    renderBudgetFields();
+    $('budgetWarn').classList.toggle('hidden', !budgetsLoadError);
+    budgetSheet.classList.add('active');
+    syncBodyScroll();
+}
+
+function closeBudgetSheet() {
+    budgetSheet.classList.remove('active');
+    syncBodyScroll();
+}
+
+$('budgetSheetClose').addEventListener('click', closeBudgetSheet);
+budgetSheet.addEventListener('click', (e) => { if (e.target === budgetSheet) closeBudgetSheet(); });
+budgetFields.addEventListener('keydown', (e) => { if (e.key === 'Enter') saveBudgetsBtn.click(); });
+
+saveBudgetsBtn.addEventListener('click', async () => {
+    const upserts = [];
+    const removeIds = [];
+    budgetFields.querySelectorAll('input').forEach(inp => {
+        const key = inp.dataset.cat;
+        const val = parseFloat(inp.value);
+        const existing = budgets.find(b => b.category === key);
+        if (!isNaN(val) && val > 0) {
+            if (!existing || parseFloat(existing.amount) !== val) upserts.push({ user_id: currentUser.id, category: key, amount: val });
+        } else if (existing) {
+            removeIds.push(existing.id);
+        }
+    });
+    if (!upserts.length && !removeIds.length) {
+        closeBudgetSheet();
+        return showToast('info', 'No changes to save');
+    }
+
+    setBusy(saveBudgetsBtn, true, 'Saving...');
+    try {
+        requireOnline('Saving budgets');
+        if (upserts.length) {
+            const { data, error } = await supabaseClient.from('budgets').upsert(upserts, { onConflict: 'user_id,category' }).select();
+            if (error) throw error;
+            (data || []).forEach(row => {
+                const i = budgets.findIndex(b => b.category === row.category);
+                if (i >= 0) budgets[i] = row; else budgets.push(row);
+            });
+        }
+        if (removeIds.length) {
+            const { error } = await supabaseClient.from('budgets').delete().in('id', removeIds);
+            if (error) throw error;
+            budgets = budgets.filter(b => !removeIds.includes(b.id));
+        }
+        closeBudgetSheet();
+        updateDashboard();
+        showToast('success', 'Budgets saved');
+    } catch (err) {
+        console.error('Save budgets error:', err);
+        showModal({
+            type: 'error',
+            title: 'Couldn\'t save budgets',
+            message: budgetsLoadError
+                ? 'The budgets table isn\'t set up yet. Run migration-add-budgets.sql in Supabase, then reload.'
+                : (err.message || 'Please try again.')
+        });
+    } finally {
+        setBusy(saveBudgetsBtn, false);
+    }
+});
+
+// After saving an expense: warn when it pushes a category (or the overall budget) past 80% / 100%
+function checkBudgetAlerts(category, amount, createdAt) {
+    const ref = new Date(createdAt);
+    [{ key: category, name: `your ${(catByKey[category] || {}).label || category} budget` },
+     { key: 'all', name: 'your overall monthly budget' }].forEach(c => {
+        const limit = budgetFor(c.key);
+        if (!limit) return;
+        const after = spendIn(ref, c.key === 'all' ? null : c.key);
+        const before = after - amount;
+        if (before < limit && after >= limit) {
+            showToast('error', `You've gone over ${c.name}`, { duration: 4500 });
+        } else if (before < limit * 0.8 && after >= limit * 0.8) {
+            showToast('info', `You've used ${Math.round((after / limit) * 100)}% of ${c.name}`, { duration: 4500 });
+        }
+    });
+}
+
+// === FORGOT PASSWORD ===
+const resetSheet = $('resetSheet');
+const resetEmail = $('resetEmail');
+const resetSendBtn = $('resetSendBtn');
+
+function openResetSheet() {
+    resetEmail.value = emailInput.value.trim();
+    resetSheet.classList.add('active');
+    syncBodyScroll();
+    setTimeout(() => resetEmail.focus(), 60);
+}
+
+function closeResetSheet() {
+    resetSheet.classList.remove('active');
+    syncBodyScroll();
+}
+
+$('forgotBtn').addEventListener('click', openResetSheet);
+$('resetSheetClose').addEventListener('click', closeResetSheet);
+resetSheet.addEventListener('click', (e) => { if (e.target === resetSheet) closeResetSheet(); });
+resetEmail.addEventListener('keydown', (e) => { if (e.key === 'Enter') resetSendBtn.click(); });
+
+resetSendBtn.addEventListener('click', async () => {
+    if (!supabaseClient) return showModal({ type: 'error', ...backendUnavailable() });
+    const email = resetEmail.value.trim();
+    if (!email || !email.includes('@')) {
+        resetEmail.focus();
+        return showModal({ type: 'warning', title: 'Check your email', message: 'Please enter the email you signed up with.' });
+    }
+    setBusy(resetSendBtn, true, 'Sending...');
+    try {
+        const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
+            redirectTo: window.location.origin + window.location.pathname
+        });
+        if (error) throw error;
+        closeResetSheet();
+        // Same message whether or not the address has an account, so this can't be used to probe for accounts
+        showModal({
+            type: 'success',
+            title: 'Check your inbox',
+            message: `If an account exists for ${email}, a link to reset your password is on its way. It may take a minute — check your spam folder too.`
+        });
+    } catch (err) {
+        console.error('Reset password error:', err);
+        showModal({
+            type: 'error',
+            title: 'Couldn\'t send the link',
+            message: /rate|too many|seconds/i.test(err.message || '')
+                ? 'Too many requests. Please wait a minute and try again.'
+                : (isNetworkError(err) ? 'You appear to be offline. Please check your connection.' : (err.message || 'Please try again.'))
+        });
+    } finally {
+        setBusy(resetSendBtn, false);
+    }
+});
+
+// The page the emailed link opens: choose a new password
+$('newPasswordBtn').addEventListener('click', async () => {
+    const pw = $('newPassword').value.trim();
+    const confirm = $('newPasswordConfirm').value.trim();
+    if (pw.length < 6) {
+        return showModal({ type: 'warning', title: 'Weak password', message: 'Password must be at least 6 characters.' });
+    }
+    if (pw !== confirm) {
+        return showModal({ type: 'warning', title: 'Passwords don\'t match', message: 'Please make sure both password fields match.' });
+    }
+    setBusy($('newPasswordBtn'), true, 'Updating...');
+    try {
+        const { data, error } = await supabaseClient.auth.updateUser({ password: pw });
+        if (error) throw error;
+        recoveryMode = false;
+        history.replaceState(null, '', window.location.pathname);
+        showToast('success', 'Password updated — you\'re signed in');
+        await onLoginSuccess(data.user);
+    } catch (err) {
+        console.error('Update password error:', err);
+        showModal({ type: 'error', title: 'Couldn\'t update password', message: err.message || 'The link may have expired. Request a new one from the sign-in page.' });
+    } finally {
+        setBusy($('newPasswordBtn'), false);
+    }
+});
+$('newPasswordCancel').addEventListener('click', async () => {
+    recoveryMode = false;
+    history.replaceState(null, '', window.location.pathname);
+    await supabaseClient.auth.signOut();
+    currentUser = null;
+    switchAuthTab('login');
+    showScreen('authScreen');
+});
+[$('newPassword'), $('newPasswordConfirm')].forEach(el => el.addEventListener('keydown', (e) => { if (e.key === 'Enter') $('newPasswordBtn').click(); }));
+
 // === INIT ===
 (async function init() {
     selectedMonthDisplay.textContent = formatMonthDisplay(selectedDate);
@@ -1723,7 +2582,7 @@ cancelRecurringEdit(); // sets the form defaults and renders the chips
         showModal({ type: 'error', title: 'Link problem', message: hashError.replace(/\+/g, ' ') + ' Try signing in, or resend the verification email.' });
     }
 
-    if (cameFromEmailConfirmation) return; // handled by the auth listener
+    if (cameFromEmailConfirmation || recoveryMode) return; // handled by the auth listener
 
     try {
         const { data: { session }, error } = await supabaseClient.auth.getSession();

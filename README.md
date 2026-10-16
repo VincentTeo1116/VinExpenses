@@ -15,6 +15,7 @@ dashboard. Plain HTML/CSS/JS — no build step.
 | `.github/workflows/deploy.yml` | Builds `config.js` from repo secrets and deploys to GitHub Pages |
 | `app.js` | All logic: Supabase auth, data fetch/save/edit/delete, charts, navigation |
 | `supabase-schema.sql` | Tables + Row Level Security policies — run once in Supabase |
+| `migration-add-budgets.sql` | Run once to enable Budgets & "safe to spend today" |
 | `migration-add-recurring.sql` | Run once to enable Recurring expenses (also run the categories migration first) |
 | `migration-add-categories.sql` | Run once if your database already existed before the Utilities/Car/Health/Other categories |
 | `manifest.json`, `sw.js`, `icons/` | Makes the site installable as an app (PWA) |
@@ -22,21 +23,38 @@ dashboard. Plain HTML/CSS/JS — no build step.
 
 ## Features
 
-- **Dashboard** — month selector, total spent / income / balance (animated),
-  per-category share bars, pie chart, 6-month bar chart and recent activity.
-  Tap a category tile or pie slice to jump to its transactions; tap a bar to
-  jump to that month.
-- **Add expense / income** — chip selectors for category, payment and income
-  source, plus a date field so you can back-date entries.
-- **Recurring** — add bills and subscriptions (electricity, Netflix, Apple…) with a frequency and due date; they post as normal expenses automatically on each due date, including any missed while the app was closed. Pause, edit or delete them; the dashboard shows what's due next.
-- **History** — filter by type, category, month and free-text search; tap a
-  row (or the pen) to edit, or the bin to delete.
-- **Auth** — email + password with verification link, resend link, password
-  strength meter, Google sign-in (new Google users finish a short profile
-  setup step with a username and password).
-- **Feedback** — toasts for quick confirmations; a single `showModal()` for
-  errors and confirmations (no browser `alert()`), closable with Esc.
-- **Dark mode** — follows the phone/OS appearance automatically (light or dark), including the charts and status-bar colour.
+- **Quick add** — a big **+** button (bottom tab bar on phones, sidebar button or the
+  **N** key on desktop) opens one sheet with an Expense / Income switch, an
+  amount-first field, category/payment/source chips and a back-datable date.
+- **Dashboard** — spent this month with a change-vs-last-month chip and a
+  "% of income used" bar, plus daily average, top category and largest expense.
+  A category doughnut + ranked list (tap a category or slice to see its
+  transactions) and a 6-month trend (tap a bar to jump to that month).
+- **History** — grouped by day with a per-day total; filter by type, category and
+  month, and search. Tap a row to edit; **Delete** lives in the editor.
+- **Recurring** — add bills and subscriptions (electricity, Netflix, Apple…) with a
+  frequency and due date; they post as normal expenses automatically on each due
+  date, including any missed while the app was closed. Pause, edit or delete them;
+  the dashboard shows what's due next.
+- **Budgets** — set an overall monthly budget and/or a limit per category. Category
+  rows show progress (amber at 80%, red when over), the hero card shows how much is
+  left, and **"Safe to spend today"** divides what's left by the days remaining.
+  You get a heads-up toast when an expense pushes you past 80% or 100%.
+- **Swipe actions** (touch) — in History, swipe a row **left to delete** or **right to
+  duplicate** it as today's entry. Deleting shows an **Undo** toast instead of a
+  confirmation dialog.
+- **Works offline** — the app opens with your last saved data, and entries added
+  without a connection are kept on the device, marked "Not synced", and sent
+  automatically when you're back online. (Editing or deleting entries that are
+  already saved needs a connection.)
+- **Auth** — email + password with verification link, resend link, **forgot
+  password** (emailed reset link), password strength meter, Google sign-in (new
+  Google users finish a short profile setup).
+- **Look & feel** — one design-token system; responsive from phone to desktop
+  (tab bar -> sidebar at 1024px); follows the phone/OS light or dark setting,
+  including the charts and status-bar colour; respects reduced-motion.
+- **Feedback** — toasts for quick confirmations; `showModal()` for errors and
+  confirmations (no browser `alert()`); **Esc** closes any sheet or dialog.
 - **PWA** — installable, works offline for the UI (data needs a connection).
 
 ## 0. Configuration (`.env`)
@@ -66,8 +84,9 @@ Netlify/Vercel, set the same two environment variables and use
 
 ## 1. One-time Supabase setup
 
-1. **Run the schema.** In Supabase: **SQL Editor → New query**, paste
-   `supabase-schema.sql`, and run it. This creates the `expenses` and
+1. **Run the SQL.** In Supabase: **SQL Editor → New query**, paste
+   `supabase-schema.sql`, and run it. (Already set up before? Run just the
+   `migration-add-*.sql` files you haven't run yet — categories, recurring, budgets.) This creates the `expenses` and
    `incomes` tables and locks each row to its owner (select, insert,
    update and delete are all covered — edit/delete in History rely on this).
 
@@ -76,6 +95,10 @@ Netlify/Vercel, set the same two environment variables and use
    **link** (not an OTP). After registering, the person clicks the link in
    their inbox, lands on the **login** screen with an "Email verified" message
    and signs in with their password. A "Resend it" link covers lost emails.
+
+   **Forgot password** uses the same setup: your site URL must be in **Authentication →
+   URL Configuration → Redirect URLs**, because the reset email links back to the app.
+   (Supabase's built-in email sender is rate-limited; add custom SMTP for production.)
 
 3. **Enable Google sign-in (optional).**
    - In [Google Cloud Console](https://console.cloud.google.com/), create an

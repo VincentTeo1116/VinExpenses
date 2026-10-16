@@ -2,10 +2,11 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="description" content="Track your spending, income and recurring bills in one calm, fast place." />
     <meta name="color-scheme" content="light dark" />
-    <meta name="theme-color" content="#4f46e5" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#0b1120" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#f5f6fa" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0b1020" media="(prefers-color-scheme: dark)" />
     <link rel="icon" href="icon.png" type="image/png">
     <title>Smart Expense Tracker</title>
 
@@ -18,199 +19,260 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700;14..32,800&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="style.css" />
 </head>
-<body>
-    <div class="app-container" id="app">
-        <nav class="top-nav hidden-nav">
-            <div class="nav-brand">
-                <i class="fas fa-wallet"></i>
+<body class="is-auth">
+    <a class="skip-link" href="#main">Skip to content</a>
+
+    <div class="app-shell" id="app">
+
+        <!-- ===== SIDEBAR (desktop) ===== -->
+        <aside class="sidebar" aria-label="Main navigation">
+            <div class="brand">
+                <span class="brand-mark"><i class="fas fa-wallet"></i></span>
                 <span class="brand-text">ExpenseTracker</span>
             </div>
-            <div class="nav-links">
+
+            <button class="btn btn-primary sidebar-add nav-item" data-screen="add">
+                <i class="fas fa-plus"></i> New transaction
+                <kbd class="kbd" title="Keyboard shortcut">N</kbd>
+            </button>
+
+            <nav class="side-links">
                 <button class="nav-item active" data-screen="dashboard">
-                    <i class="fas fa-chart-pie"></i>
-                    <span class="nav-label">Dashboard</span>
-                </button>
-                <button class="nav-item" data-screen="expense">
-                    <i class="fas fa-calculator"></i>
-                    <span class="nav-label">Expense</span>
-                </button>
-                <button class="nav-item" data-screen="income">
-                    <i class="fas fa-wallet"></i>
-                    <span class="nav-label">Income</span>
-                </button>
-                <button class="nav-item" data-screen="recurring">
-                    <i class="fas fa-repeat"></i>
-                    <span class="nav-label">Recurring</span>
+                    <i class="fas fa-house"></i><span class="nav-label">Dashboard</span>
                 </button>
                 <button class="nav-item" data-screen="history">
-                    <i class="fas fa-clock-rotate-left"></i>
-                    <span class="nav-label">History</span>
+                    <i class="fas fa-clock-rotate-left"></i><span class="nav-label">History</span>
                 </button>
-            </div>
-            <div class="nav-user">
-                <button id="logoutBtn" class="logout-btn" title="Log out" aria-label="Log out">
-                    <i class="fas fa-arrow-right-from-bracket"></i>
+                <button class="nav-item" data-screen="recurring">
+                    <i class="fas fa-repeat"></i><span class="nav-label">Recurring</span>
                 </button>
-            </div>
-        </nav>
+            </nav>
 
-        <!-- ===== AUTH SCREEN ===== -->
-        <div id="authScreen" class="screen active">
-            <div class="auth-box">
-                <div class="auth-logo"><i class="fas fa-wallet"></i></div>
-                <h2 id="authTitle">Welcome back 👋</h2>
-                <p class="sub" id="authSub">Sign in to keep tracking your spending</p>
+            <button class="nav-item side-user" data-screen="account" aria-label="Account">
+                <span class="avatar" id="sideAvatar">U</span>
+                <span class="side-user-text">
+                    <span class="side-user-name" id="sideName">User</span>
+                    <span class="side-user-sub">Account &amp; log out</span>
+                </span>
+                <i class="fas fa-ellipsis"></i>
+            </button>
+        </aside>
 
-                <div class="auth-tabs" id="authTabs">
-                    <button class="auth-tab active" data-tab="login" id="loginTab">
-                        <i class="fas fa-arrow-right-to-bracket"></i> Login
-                    </button>
-                    <button class="auth-tab" data-tab="register" id="registerTab">
-                        <i class="fas fa-user-plus"></i> Register
-                    </button>
-                </div>
+        <!-- ===== MAIN ===== -->
+        <main class="main" id="main">
+            <!-- Offline / pending-sync notice -->
+            <div id="netBanner" class="net-banner hidden" role="status" aria-live="polite"></div>
 
-                <div id="loginForm">
-                    <!-- Login Fields -->
-                    <div class="auth-form-wrap" id="loginFields">
-                        <div class="input-group">
-                            <label for="emailInput">Email</label>
-                            <div class="input-icon-wrap">
-                                <i class="fas fa-envelope"></i>
-                                <input type="email" id="emailInput" placeholder="you@example.com" autocomplete="email" />
-                            </div>
+            <!-- ===== AUTH SCREEN ===== -->
+            <div id="authScreen" class="screen active">
+                <div class="auth-layout">
+                    <aside class="auth-hero" aria-hidden="true">
+                        <div class="auth-hero-inner">
+                            <span class="brand-mark lg"><i class="fas fa-wallet"></i></span>
+                            <h2>Know where every ringgit goes.</h2>
+                            <ul class="auth-points">
+                                <li><i class="fas fa-bolt"></i> Log an expense in two taps</li>
+                                <li><i class="fas fa-repeat"></i> Bills and subscriptions post themselves</li>
+                                <li><i class="fas fa-chart-pie"></i> Clear monthly insights, light or dark</li>
+                            </ul>
                         </div>
-                        <div class="input-group">
-                            <label for="passInput">Password</label>
-                            <div class="input-icon-wrap">
-                                <i class="fas fa-lock"></i>
-                                <input type="password" id="passInput" placeholder="••••••••" autocomplete="current-password" />
-                                <button type="button" class="toggle-visibility" data-target="passInput" tabindex="-1" aria-label="Show or hide password">
-                                    <i class="fas fa-eye"></i>
-                                </button>
+                    </aside>
+
+                    <div class="auth-box">
+                        <div class="auth-logo"><i class="fas fa-wallet"></i></div>
+                        <h1 id="authTitle">Welcome back 👋</h1>
+                        <p class="sub" id="authSub">Sign in to keep tracking your spending</p>
+
+                        <div class="auth-tabs segmented" id="authTabs">
+                            <button class="auth-tab active" data-tab="login" id="loginTab">
+                                <i class="fas fa-arrow-right-to-bracket"></i> Login
+                            </button>
+                            <button class="auth-tab" data-tab="register" id="registerTab">
+                                <i class="fas fa-user-plus"></i> Register
+                            </button>
+                        </div>
+
+                        <div id="loginForm">
+                            <!-- Login Fields -->
+                            <div class="auth-form-wrap" id="loginFields">
+                                <div class="input-group">
+                                    <label for="emailInput">Email</label>
+                                    <div class="input-icon-wrap">
+                                        <i class="fas fa-envelope"></i>
+                                        <input type="email" id="emailInput" placeholder="you@example.com" autocomplete="email" />
+                                    </div>
+                                </div>
+                                <div class="input-group">
+                                    <label for="passInput">Password</label>
+                                    <div class="input-icon-wrap">
+                                        <i class="fas fa-lock"></i>
+                                        <input type="password" id="passInput" placeholder="••••••••" autocomplete="current-password" />
+                                        <button type="button" class="toggle-visibility" data-target="passInput" tabindex="-1" aria-label="Show or hide password">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                    </div>
+                                    <div class="forgot-row"><button type="button" id="forgotBtn" class="link-btn">Forgot password?</button></div>
+                                </div>
                             </div>
+
+                            <!-- Register Fields -->
+                            <div class="auth-form-wrap collapsed" id="registerFields">
+                                <div class="input-group">
+                                    <label for="userInput">Username</label>
+                                    <div class="input-icon-wrap">
+                                        <i class="fas fa-user"></i>
+                                        <input type="text" id="userInput" placeholder="johndoe" autocomplete="username" />
+                                    </div>
+                                </div>
+                                <div class="input-group">
+                                    <label for="emailInput2">Email</label>
+                                    <div class="input-icon-wrap">
+                                        <i class="fas fa-envelope"></i>
+                                        <input type="email" id="emailInput2" placeholder="you@example.com" autocomplete="email" />
+                                    </div>
+                                </div>
+                                <div class="input-group">
+                                    <label for="passInput2">Password</label>
+                                    <div class="input-icon-wrap">
+                                        <i class="fas fa-lock"></i>
+                                        <input type="password" id="passInput2" placeholder="Min. 6 characters" autocomplete="new-password" />
+                                        <button type="button" class="toggle-visibility" data-target="passInput2" tabindex="-1" aria-label="Show or hide password">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                    </div>
+                                    <div class="strength" id="passStrength" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
+                                </div>
+                                <div class="input-group">
+                                    <label for="confirmPass">Confirm Password</label>
+                                    <div class="input-icon-wrap">
+                                        <i class="fas fa-lock"></i>
+                                        <input type="password" id="confirmPass" placeholder="••••••••" autocomplete="new-password" />
+                                        <button type="button" class="toggle-visibility" data-target="confirmPass" tabindex="-1" aria-label="Show or hide password">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <p class="field-hint"><i class="fas fa-circle-info"></i> We'll email you a verification link — no code to type.</p>
+                            </div>
+
+                            <button id="authActionBtn" class="btn btn-primary btn-block">
+                                <i class="fas fa-arrow-right-to-bracket"></i> Sign In
+                            </button>
+
+                            <div id="resendRow" class="resend-row hidden">
+                                Didn't get the email?
+                                <button id="resendBtn" class="link-btn">Resend it</button>
+                            </div>
+
+                            <div class="divider"><span>or</span></div>
+
+                            <button id="googleBtn" class="btn btn-outline btn-block">
+                                <i class="fab fa-google"></i> Continue with Google
+                            </button>
                         </div>
                     </div>
+                </div>
+            </div>
 
-                    <!-- Register Fields -->
-                    <div class="auth-form-wrap collapsed" id="registerFields">
+            <!-- ===== SETUP SCREEN ===== -->
+            <div id="setupScreen" class="screen">
+                <div class="auth-layout solo">
+                    <div class="auth-box">
+                        <div class="auth-logo"><i class="fas fa-user-plus"></i></div>
+                        <h1>Complete your profile</h1>
+                        <p class="sub">Set a username and password to finish your account setup.</p>
+
                         <div class="input-group">
-                            <label for="userInput">Username</label>
+                            <label for="setupUsername">Username</label>
                             <div class="input-icon-wrap">
                                 <i class="fas fa-user"></i>
-                                <input type="text" id="userInput" placeholder="johndoe" autocomplete="username" />
+                                <input type="text" id="setupUsername" placeholder="Choose a username" autocomplete="username" />
                             </div>
                         </div>
                         <div class="input-group">
-                            <label for="emailInput2">Email</label>
-                            <div class="input-icon-wrap">
-                                <i class="fas fa-envelope"></i>
-                                <input type="email" id="emailInput2" placeholder="you@example.com" autocomplete="email" />
-                            </div>
-                        </div>
-                        <div class="input-group">
-                            <label for="passInput2">Password</label>
+                            <label for="setupPassword">Password</label>
                             <div class="input-icon-wrap">
                                 <i class="fas fa-lock"></i>
-                                <input type="password" id="passInput2" placeholder="Min. 6 characters" autocomplete="new-password" />
-                                <button type="button" class="toggle-visibility" data-target="passInput2" tabindex="-1" aria-label="Show or hide password">
-                                    <i class="fas fa-eye"></i>
-                                </button>
-                            </div>
-                            <div class="strength" id="passStrength" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
-                        </div>
-                        <div class="input-group">
-                            <label for="confirmPass">Confirm Password</label>
-                            <div class="input-icon-wrap">
-                                <i class="fas fa-lock"></i>
-                                <input type="password" id="confirmPass" placeholder="••••••••" autocomplete="new-password" />
-                                <button type="button" class="toggle-visibility" data-target="confirmPass" tabindex="-1" aria-label="Show or hide password">
+                                <input type="password" id="setupPassword" placeholder="Min. 6 characters" autocomplete="new-password" />
+                                <button type="button" class="toggle-visibility" data-target="setupPassword" tabindex="-1" aria-label="Show or hide password">
                                     <i class="fas fa-eye"></i>
                                 </button>
                             </div>
                         </div>
-                        <p class="field-hint"><i class="fas fa-circle-info"></i> We'll email you a verification link — no code to type.</p>
-                    </div>
+                        <div class="input-group">
+                            <label for="setupConfirmPassword">Confirm Password</label>
+                            <div class="input-icon-wrap">
+                                <i class="fas fa-lock"></i>
+                                <input type="password" id="setupConfirmPassword" placeholder="••••••••" autocomplete="new-password" />
+                                <button type="button" class="toggle-visibility" data-target="setupConfirmPassword" tabindex="-1" aria-label="Show or hide password">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </div>
+                        </div>
 
-                    <button id="authActionBtn" class="btn btn-primary">
-                        <i class="fas fa-arrow-right-to-bracket"></i> Sign In
-                    </button>
-
-                    <div id="resendRow" class="resend-row hidden">
-                        Didn't get the email?
-                        <button id="resendBtn" class="link-btn">Resend it</button>
-                    </div>
-
-                    <div class="divider"><span>or</span></div>
-
-                    <button id="googleBtn" class="btn btn-outline">
-                        <i class="fab fa-google"></i> Continue with Google
-                    </button>
-                </div>
-            </div>
-        </div>
-
-        <!-- ===== SETUP SCREEN ===== -->
-        <div id="setupScreen" class="screen">
-            <div class="auth-box">
-                <div class="auth-logo"><i class="fas fa-user-plus"></i></div>
-                <h2>Complete your profile</h2>
-                <p class="sub">Set a username and password to finish your account setup.</p>
-
-                <div class="input-group">
-                    <label for="setupUsername">Username</label>
-                    <div class="input-icon-wrap">
-                        <i class="fas fa-user"></i>
-                        <input type="text" id="setupUsername" placeholder="Choose a username" autocomplete="username" />
-                    </div>
-                </div>
-                <div class="input-group">
-                    <label for="setupPassword">Password</label>
-                    <div class="input-icon-wrap">
-                        <i class="fas fa-lock"></i>
-                        <input type="password" id="setupPassword" placeholder="Min. 6 characters" autocomplete="new-password" />
-                        <button type="button" class="toggle-visibility" data-target="setupPassword" tabindex="-1" aria-label="Show or hide password">
-                            <i class="fas fa-eye"></i>
+                        <button id="setupCompleteBtn" class="btn btn-primary btn-block">
+                            <i class="fas fa-check"></i> Complete Setup
                         </button>
                     </div>
                 </div>
-                <div class="input-group">
-                    <label for="setupConfirmPassword">Confirm Password</label>
-                    <div class="input-icon-wrap">
-                        <i class="fas fa-lock"></i>
-                        <input type="password" id="setupConfirmPassword" placeholder="••••••••" autocomplete="new-password" />
-                        <button type="button" class="toggle-visibility" data-target="setupConfirmPassword" tabindex="-1" aria-label="Show or hide password">
-                            <i class="fas fa-eye"></i>
+            </div>
+
+            <!-- ===== NEW PASSWORD SCREEN (opened from the reset-password email link) ===== -->
+            <div id="resetPasswordScreen" class="screen">
+                <div class="auth-layout solo">
+                    <div class="auth-box">
+                        <div class="auth-logo"><i class="fas fa-key"></i></div>
+                        <h1>Set a new password</h1>
+                        <p class="sub">Choose a new password for your account.</p>
+
+                        <div class="input-group">
+                            <label for="newPassword">New password</label>
+                            <div class="input-icon-wrap">
+                                <i class="fas fa-lock"></i>
+                                <input type="password" id="newPassword" placeholder="Min. 6 characters" autocomplete="new-password" />
+                                <button type="button" class="toggle-visibility" data-target="newPassword" tabindex="-1" aria-label="Show or hide password">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="input-group">
+                            <label for="newPasswordConfirm">Confirm new password</label>
+                            <div class="input-icon-wrap">
+                                <i class="fas fa-lock"></i>
+                                <input type="password" id="newPasswordConfirm" placeholder="••••••••" autocomplete="new-password" />
+                                <button type="button" class="toggle-visibility" data-target="newPasswordConfirm" tabindex="-1" aria-label="Show or hide password">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <button id="newPasswordBtn" class="btn btn-primary btn-block">
+                            <i class="fas fa-check"></i> Update password
                         </button>
+                        <button id="newPasswordCancel" class="btn btn-ghost btn-block">Back to sign in</button>
                     </div>
                 </div>
-
-                <button id="setupCompleteBtn" class="btn btn-primary">
-                    <i class="fas fa-check"></i> Complete Setup
-                </button>
             </div>
-        </div>
 
-        <!-- ===== DASHBOARD SCREEN ===== -->
-        <div id="dashboardScreen" class="screen">
-            <div class="dashboard-grid">
-                <div class="dashboard-left">
-                    <div class="greeting">
-                        <h3>Hello, <span id="userNameDisplay" class="user-chip">User</span></h3>
+            <!-- ===== DASHBOARD SCREEN ===== -->
+            <div id="dashboardScreen" class="screen">
+                <header class="page-head">
+                    <div>
+                        <h1 class="page-title">Hello, <span id="userNameDisplay">User</span></h1>
+                        <p class="page-sub" id="dashSubtitle">Here's your month at a glance</p>
                     </div>
 
-                    <div class="month-selector">
+                    <div class="month-selector" role="group" aria-label="Month">
                         <button id="prevMonthBtn" class="month-nav-btn" title="Previous month" aria-label="Previous month">
                             <i class="fas fa-chevron-left"></i>
                         </button>
                         <div class="month-display">
-                            <span id="selectedMonthDisplay">August 2026</span>
+                            <span id="selectedMonthDisplay">October 2026</span>
                             <input type="month" id="monthPicker" class="month-picker-hidden" tabindex="-1" />
                             <button id="monthPickerBtn" class="month-picker-btn" title="Pick a month" aria-label="Pick a month">
-                                <i class="fas fa-calendar-alt"></i>
+                                <i class="fas fa-calendar-days"></i>
                             </button>
                         </div>
                         <button id="nextMonthBtn" class="month-nav-btn" title="Next month" aria-label="Next month">
@@ -220,59 +282,246 @@
                             <i class="fas fa-rotate-right"></i>
                         </button>
                     </div>
+                </header>
 
-                    <div class="total-card" id="totalCard">
-                        <div class="label">Total spent this month</div>
+                <div class="dash-grid">
+                    <!-- Hero -->
+                    <section class="hero-card" id="totalCard" aria-label="Spending summary">
+                        <div class="hero-top">
+                            <span class="label" id="heroLabel">Spent this month</span>
+                            <span class="delta hidden" id="spendDelta"></span>
+                        </div>
                         <div class="amount" id="totalSpent">RM 0.00</div>
+                        <div class="hero-bar" id="heroBarWrap" aria-hidden="true"><span id="heroBar"></span></div>
+                        <div class="hero-bar-caption" id="heroBarCaption"></div>
+                        <div class="safe-spend" id="safeToSpend"></div>
                         <div class="total-meta">
-                            <div class="meta-pill income"><i class="fas fa-arrow-trend-up"></i> Income <b id="totalIncome">RM 0.00</b></div>
+                            <div class="meta-pill"><i class="fas fa-arrow-trend-up"></i> Income <b id="totalIncome">RM 0.00</b></div>
                             <div class="meta-pill" id="balancePill"><i class="fas fa-scale-balanced"></i> Balance <b id="totalBalance">RM 0.00</b></div>
                         </div>
-                    </div>
+                    </section>
 
-                    <div class="section-title">Categories <small>tap one to see its transactions</small></div>
-                    <div class="category-grid" id="categoryGrid"></div>
-                </div>
-
-                <div class="dashboard-right">
-                    <div class="chart-container">
-                        <div class="chart-row">
-                            <div class="chart-box"><canvas id="pieChart" width="200" height="200"></canvas></div>
-                            <div class="chart-box"><canvas id="barChart" width="200" height="200"></canvas></div>
+                    <!-- Insights -->
+                    <section class="insights" aria-label="Insights">
+                        <div class="insight">
+                            <div class="insight-icon"><i class="fas fa-calendar-day"></i></div>
+                            <div>
+                                <div class="insight-label">Daily average</div>
+                                <div class="insight-value" id="insightDaily">RM 0.00</div>
+                                <div class="insight-sub" id="insightDailySub"></div>
+                            </div>
                         </div>
-                        <p class="chart-hint"><i class="fas fa-hand-pointer"></i> Tap a bar to jump to that month, or a pie slice to see its transactions.</p>
-                    </div>
+                        <div class="insight">
+                            <div class="insight-icon" id="insightTopIcon"><i class="fas fa-trophy"></i></div>
+                            <div>
+                                <div class="insight-label">Top category</div>
+                                <div class="insight-value" id="insightTop">—</div>
+                                <div class="insight-sub" id="insightTopSub"></div>
+                            </div>
+                        </div>
+                        <div class="insight">
+                            <div class="insight-icon"><i class="fas fa-money-bill-wave"></i></div>
+                            <div>
+                                <div class="insight-label">Largest expense</div>
+                                <div class="insight-value" id="insightMax">—</div>
+                                <div class="insight-sub" id="insightMaxSub"></div>
+                            </div>
+                        </div>
+                    </section>
 
-                    <div class="recent-card">
-                        <div class="recent-head">
-                            <div class="section-title">Upcoming bills</div>
+                    <!-- Breakdown -->
+                    <section class="card breakdown">
+                        <div class="card-head">
+                            <div>
+                                <h2 class="card-title">Spending by category</h2>
+                                <span class="card-hint">Tap one to see its transactions</span>
+                            </div>
+                            <button id="budgetBtn" class="btn btn-outline btn-small"><i class="fas fa-bullseye"></i> Budgets</button>
+                        </div>
+                        <div class="breakdown-body">
+                            <div class="donut">
+                                <canvas id="pieChart" aria-label="Spending by category chart" role="img"></canvas>
+                                <div class="donut-center">
+                                    <div class="donut-value" id="donutTotal">RM 0</div>
+                                    <div class="donut-label">spent</div>
+                                </div>
+                            </div>
+                            <div class="cat-list" id="categoryGrid"></div>
+                        </div>
+                    </section>
+
+                    <!-- Trend -->
+                    <section class="card trend">
+                        <div class="card-head">
+                            <h2 class="card-title">Last 6 months</h2>
+                            <span class="card-hint">Tap a bar to jump to that month</span>
+                        </div>
+                        <div class="chart-wrap"><canvas id="barChart" aria-label="Expenses and income by month" role="img"></canvas></div>
+                    </section>
+
+                    <!-- Upcoming -->
+                    <section class="card upcoming">
+                        <div class="card-head">
+                            <h2 class="card-title">Upcoming bills</h2>
                             <button id="manageRecurringBtn" class="link-btn">Manage <i class="fas fa-arrow-right"></i></button>
                         </div>
                         <div id="upcomingList" class="history-list compact"></div>
-                    </div>
+                    </section>
 
-                    <div class="recent-card">
-                        <div class="recent-head">
-                            <div class="section-title">Recent activity</div>
+                    <!-- Recent -->
+                    <section class="card recent">
+                        <div class="card-head">
+                            <h2 class="card-title">Recent activity</h2>
                             <button id="viewAllBtn" class="link-btn">View all <i class="fas fa-arrow-right"></i></button>
                         </div>
                         <div id="recentList" class="history-list compact"></div>
+                    </section>
+                </div>
+            </div>
+
+            <!-- ===== RECURRING SCREEN ===== -->
+            <div id="recurringScreen" class="screen">
+                <header class="page-head">
+                    <div>
+                        <h1 class="page-title">Recurring</h1>
+                        <p class="page-sub">Bills and subscriptions are added to your expenses automatically on each due date.</p>
+                    </div>
+                </header>
+                <div id="recurringSummary" class="history-summary"></div>
+
+                <div class="recurring-grid">
+                    <div class="card form-card">
+                        <h2 class="card-title" id="recurringFormTitle">Add recurring expense</h2>
+                        <div class="input-group">
+                            <label>Quick pick</label>
+                            <div class="chip-group" id="recPresetChips"></div>
+                        </div>
+                        <div class="input-group">
+                            <label for="recName">Name</label>
+                            <div class="input-icon-wrap">
+                                <i class="fas fa-tag"></i>
+                                <input type="text" id="recName" placeholder="e.g. Electricity, Netflix" maxlength="60" />
+                            </div>
+                        </div>
+                        <div class="input-group">
+                            <label for="recAmount">Amount (RM)</label>
+                            <div class="input-icon-wrap">
+                                <i class="fas fa-coins"></i>
+                                <input type="number" id="recAmount" placeholder="0.00" step="0.01" min="0" inputmode="decimal" />
+                            </div>
+                        </div>
+                        <div class="input-group">
+                            <label>Repeats</label>
+                            <div class="chip-group" id="recFreqChips"></div>
+                        </div>
+                        <div class="input-group">
+                            <label>Category</label>
+                            <div class="chip-group" id="recCategoryChips"></div>
+                        </div>
+                        <div class="input-group">
+                            <label>Payment</label>
+                            <div class="chip-group" id="recPaymentChips"></div>
+                        </div>
+                        <div class="input-group">
+                            <label for="recDate" id="recDateLabel">First due date</label>
+                            <div class="input-icon-wrap">
+                                <i class="far fa-calendar"></i>
+                                <input type="date" id="recDate" />
+                            </div>
+                            <p class="field-hint"><i class="fas fa-circle-info"></i> A date in the past is back-filled up to today.</p>
+                        </div>
+                        <button id="saveRecurringBtn" class="btn btn-primary btn-block">
+                            <i class="fas fa-floppy-disk"></i> Save recurring
+                        </button>
+                        <button id="cancelRecurringBtn" class="btn btn-ghost btn-block hidden">Cancel edit</button>
+                    </div>
+
+                    <div class="recurring-list-wrap">
+                        <div id="recurringList" class="history-list card-list"></div>
                     </div>
                 </div>
             </div>
-        </div>
 
-        <!-- ===== EXPENSE SCREEN ===== -->
-        <div id="expenseScreen" class="screen">
-            <h3 class="screen-title">Add Expense</h3>
-            <div class="form-card">
-                <div class="input-group">
-                    <label for="expAmount">Amount (RM)</label>
-                    <div class="input-icon-wrap">
-                        <i class="fas fa-coins"></i>
-                        <input type="number" id="expAmount" placeholder="0.00" step="0.01" min="0" inputmode="decimal" />
+            <!-- ===== HISTORY SCREEN ===== -->
+            <div id="historyScreen" class="screen">
+                <header class="page-head">
+                    <div>
+                        <h1 class="page-title">History</h1>
+                        <p class="page-sub">Every expense and income in one place</p>
+                    </div>
+                </header>
+
+                <div class="card filters-card">
+                    <div class="search-wrap">
+                        <i class="fas fa-magnifying-glass"></i>
+                        <input type="search" id="historySearch" placeholder="Search by category, note or source…" aria-label="Search" />
+                    </div>
+                    <div class="filter-row">
+                        <select id="historyTypeFilter" class="filter-select" aria-label="Type">
+                            <option value="all">All types</option>
+                            <option value="expense">Expenses</option>
+                            <option value="income">Income</option>
+                        </select>
+                        <select id="historyCategoryFilter" class="filter-select" aria-label="Category"></select>
+                        <input type="month" id="historyMonthFilter" class="filter-month" aria-label="Month" />
+                        <button id="historyResetBtn" class="btn btn-ghost btn-small" title="Clear filters">
+                            <i class="fas fa-filter-circle-xmark"></i> Reset
+                        </button>
                     </div>
                 </div>
+
+                <div id="historySummary" class="history-summary"></div>
+                <div id="historyList" class="history-list grouped">
+                    <div class="history-empty">No transactions yet.</div>
+                </div>
+            </div>
+        </main>
+
+        <!-- ===== TAB BAR (mobile) ===== -->
+        <nav class="tabbar" aria-label="Primary">
+            <button class="nav-item active" data-screen="dashboard">
+                <i class="fas fa-house"></i><span class="nav-label">Home</span>
+            </button>
+            <button class="nav-item" data-screen="history">
+                <i class="fas fa-clock-rotate-left"></i><span class="nav-label">History</span>
+            </button>
+            <button class="nav-item tab-fab" data-screen="add" aria-label="Add transaction">
+                <i class="fas fa-plus"></i>
+            </button>
+            <button class="nav-item" data-screen="recurring">
+                <i class="fas fa-repeat"></i><span class="nav-label">Recurring</span>
+            </button>
+            <button class="nav-item" data-screen="account">
+                <i class="fas fa-user"></i><span class="nav-label">Account</span>
+            </button>
+        </nav>
+    </div>
+
+    <!-- ===== ADD TRANSACTION SHEET ===== -->
+    <div id="addSheet" class="modal-overlay-full sheet-overlay">
+        <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="addSheetTitle">
+            <div class="sheet-grabber" aria-hidden="true"></div>
+            <div class="sheet-head">
+                <h2 id="addSheetTitle">New transaction</h2>
+                <button id="addSheetClose" class="icon-btn" aria-label="Close"><i class="fas fa-xmark"></i></button>
+            </div>
+
+            <div class="segmented" role="tablist" aria-label="Transaction type">
+                <button type="button" role="tab" class="seg-btn active expense" id="addTabExpense" data-type="expense" aria-selected="true">
+                    <i class="fas fa-arrow-trend-down"></i> Expense
+                </button>
+                <button type="button" role="tab" class="seg-btn income" id="addTabIncome" data-type="income" aria-selected="false">
+                    <i class="fas fa-arrow-trend-up"></i> Income
+                </button>
+            </div>
+
+            <!-- Expense -->
+            <div id="expensePane" class="sheet-pane">
+                <label class="amount-field" for="expAmount">
+                    <span class="amount-prefix">RM</span>
+                    <input type="number" id="expAmount" placeholder="0.00" step="0.01" min="0" inputmode="decimal" aria-label="Amount in RM" />
+                </label>
+
                 <div class="input-group">
                     <label>Category</label>
                     <div class="chip-group" id="expCategoryChips"></div>
@@ -281,43 +530,40 @@
                     <label>Payment</label>
                     <div class="chip-group" id="expPaymentChips"></div>
                 </div>
-                <div class="input-group">
-                    <label for="expNote" id="expNoteLabel">Note (optional)</label>
-                    <div class="input-icon-wrap">
-                        <i class="fas fa-pen"></i>
-                        <input type="text" id="expNote" placeholder="e.g. Lunch with team" maxlength="80" />
+                <div class="field-row">
+                    <div class="input-group">
+                        <label for="expDate">Date</label>
+                        <div class="input-icon-wrap">
+                            <i class="far fa-calendar"></i>
+                            <input type="date" id="expDate" />
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <label for="expNote" id="expNoteLabel">Note (optional)</label>
+                        <div class="input-icon-wrap">
+                            <i class="fas fa-pen"></i>
+                            <input type="text" id="expNote" placeholder="e.g. Lunch with team" maxlength="80" />
+                        </div>
                     </div>
                 </div>
-                <div class="input-group">
-                    <label for="expDate">Date</label>
-                    <div class="input-icon-wrap">
-                        <i class="far fa-calendar"></i>
-                        <input type="date" id="expDate" />
-                    </div>
-                </div>
-                <button id="saveExpenseBtn" class="btn btn-primary">
-                    <i class="fas fa-floppy-disk"></i> Save Expense
+                <button id="saveExpenseBtn" class="btn btn-primary btn-block btn-lg">
+                    <i class="fas fa-check"></i> Save expense
                 </button>
             </div>
-        </div>
 
-        <!-- ===== INCOME SCREEN ===== -->
-        <div id="incomeScreen" class="screen">
-            <h3 class="screen-title">Add Income</h3>
-            <div class="form-card">
-                <div class="input-group">
-                    <label for="incomeAmount">Salary / Income (RM)</label>
-                    <div class="input-icon-wrap">
-                        <i class="fas fa-sack-dollar"></i>
-                        <input type="number" id="incomeAmount" placeholder="0.00" step="0.01" min="0" inputmode="decimal" />
-                    </div>
-                </div>
+            <!-- Income -->
+            <div id="incomePane" class="sheet-pane hidden">
+                <label class="amount-field income" for="incomeAmount">
+                    <span class="amount-prefix">RM</span>
+                    <input type="number" id="incomeAmount" placeholder="0.00" step="0.01" min="0" inputmode="decimal" aria-label="Income amount in RM" />
+                </label>
+
                 <div class="input-group">
                     <label for="incomeSource">Source</label>
                     <div class="chip-group" id="incomeSourceChips"></div>
-                    <div class="input-icon-wrap" style="margin-top:10px">
+                    <div class="input-icon-wrap spaced">
                         <i class="fas fa-building-columns"></i>
-                        <input type="text" id="incomeSource" placeholder="Salary, Freelance..." maxlength="60" />
+                        <input type="text" id="incomeSource" placeholder="Salary, Freelance…" maxlength="60" />
                     </div>
                 </div>
                 <div class="input-group">
@@ -327,94 +573,71 @@
                         <input type="date" id="incomeDate" />
                     </div>
                 </div>
-                <button id="saveIncomeBtn" class="btn btn-primary">
-                    <i class="fas fa-floppy-disk"></i> Save Income
+                <button id="saveIncomeBtn" class="btn btn-primary btn-block btn-lg">
+                    <i class="fas fa-check"></i> Save income
                 </button>
             </div>
         </div>
+    </div>
 
-        <!-- ===== RECURRING SCREEN ===== -->
-        <div id="recurringScreen" class="screen">
-            <h3 class="screen-title">Recurring Expenses</h3>
-            <p class="screen-sub">Bills and subscriptions that repeat. They're added to your expenses automatically on each due date.</p>
-            <div id="recurringSummary" class="history-summary"></div>
-
-            <div class="recurring-grid">
-                <div class="form-card">
-                    <div class="form-card-title" id="recurringFormTitle">Add recurring expense</div>
-                    <div class="input-group">
-                        <label>Quick pick</label>
-                        <div class="chip-group" id="recPresetChips"></div>
-                    </div>
-                    <div class="input-group">
-                        <label for="recName">Name</label>
-                        <div class="input-icon-wrap">
-                            <i class="fas fa-tag"></i>
-                            <input type="text" id="recName" placeholder="e.g. Electricity, Netflix" maxlength="60" />
-                        </div>
-                    </div>
-                    <div class="input-group">
-                        <label for="recAmount">Amount (RM)</label>
-                        <div class="input-icon-wrap">
-                            <i class="fas fa-coins"></i>
-                            <input type="number" id="recAmount" placeholder="0.00" step="0.01" min="0" inputmode="decimal" />
-                        </div>
-                    </div>
-                    <div class="input-group">
-                        <label>Repeats</label>
-                        <div class="chip-group" id="recFreqChips"></div>
-                    </div>
-                    <div class="input-group">
-                        <label>Category</label>
-                        <div class="chip-group" id="recCategoryChips"></div>
-                    </div>
-                    <div class="input-group">
-                        <label>Payment</label>
-                        <div class="chip-group" id="recPaymentChips"></div>
-                    </div>
-                    <div class="input-group">
-                        <label for="recDate" id="recDateLabel">First due date</label>
-                        <div class="input-icon-wrap">
-                            <i class="far fa-calendar"></i>
-                            <input type="date" id="recDate" />
-                        </div>
-                        <p class="field-hint" style="margin-top:8px"><i class="fas fa-circle-info"></i> A date in the past is back-filled up to today.</p>
-                    </div>
-                    <button id="saveRecurringBtn" class="btn btn-primary">
-                        <i class="fas fa-floppy-disk"></i> Save recurring
-                    </button>
-                    <button id="cancelRecurringBtn" class="btn btn-outline hidden">Cancel edit</button>
-                </div>
-
-                <div class="recurring-list-wrap">
-                    <div id="recurringList" class="history-list"></div>
-                </div>
+    <!-- ===== BUDGETS SHEET ===== -->
+    <div id="budgetSheet" class="modal-overlay-full sheet-overlay">
+        <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="budgetSheetTitle">
+            <div class="sheet-grabber" aria-hidden="true"></div>
+            <div class="sheet-head">
+                <h2 id="budgetSheetTitle">Monthly budgets</h2>
+                <button id="budgetSheetClose" class="icon-btn" aria-label="Close"><i class="fas fa-xmark"></i></button>
             </div>
+            <p class="sheet-sub">Set a limit and it's tracked every month. Leave a field empty for no limit.</p>
+            <div id="budgetFields" class="budget-fields"></div>
+            <p id="budgetWarn" class="recurring-warn hidden"><i class="fas fa-triangle-exclamation"></i> Budgets aren't set up in your database yet. Run <b>migration-add-budgets.sql</b> in the Supabase SQL Editor, then reload.</p>
+            <button id="saveBudgetsBtn" class="btn btn-primary btn-block btn-lg">
+                <i class="fas fa-check"></i> Save budgets
+            </button>
         </div>
+    </div>
 
-        <!-- ===== HISTORY SCREEN ===== -->
-        <div id="historyScreen" class="screen">
-            <h3 class="screen-title">Transaction History</h3>
-            <div class="history-filters">
-                <select id="historyTypeFilter" class="filter-select" aria-label="Type">
-                    <option value="all">All</option>
-                    <option value="expense">Expenses</option>
-                    <option value="income">Income</option>
-                </select>
-                <select id="historyCategoryFilter" class="filter-select" aria-label="Category"></select>
-                <input type="month" id="historyMonthFilter" class="filter-month" aria-label="Month" />
-                <div class="search-wrap">
-                    <i class="fas fa-magnifying-glass"></i>
-                    <input type="search" id="historySearch" placeholder="Search…" aria-label="Search" />
+    <!-- ===== FORGOT PASSWORD SHEET ===== -->
+    <div id="resetSheet" class="modal-overlay-full sheet-overlay">
+        <div class="sheet narrow" role="dialog" aria-modal="true" aria-labelledby="resetSheetTitle">
+            <div class="sheet-grabber" aria-hidden="true"></div>
+            <div class="sheet-head">
+                <h2 id="resetSheetTitle">Reset your password</h2>
+                <button id="resetSheetClose" class="icon-btn" aria-label="Close"><i class="fas fa-xmark"></i></button>
+            </div>
+            <p class="sheet-sub">Enter your email and we'll send you a link to choose a new password.</p>
+            <div class="input-group">
+                <label for="resetEmail">Email</label>
+                <div class="input-icon-wrap">
+                    <i class="fas fa-envelope"></i>
+                    <input type="email" id="resetEmail" placeholder="you@example.com" autocomplete="email" />
                 </div>
-                <button id="historyResetBtn" class="btn btn-outline btn-small" title="Clear filters">
-                    <i class="fas fa-filter-circle-xmark"></i> Reset
-                </button>
             </div>
-            <div id="historySummary" class="history-summary"></div>
-            <div id="historyList" class="history-list">
-                <div class="history-empty">No transactions yet.</div>
+            <button id="resetSendBtn" class="btn btn-primary btn-block">
+                <i class="fas fa-paper-plane"></i> Send reset link
+            </button>
+        </div>
+    </div>
+
+    <!-- ===== ACCOUNT SHEET ===== -->
+    <div id="accountSheet" class="modal-overlay-full sheet-overlay">
+        <div class="sheet narrow" role="dialog" aria-modal="true" aria-labelledby="accountName">
+            <div class="sheet-grabber" aria-hidden="true"></div>
+            <div class="sheet-head">
+                <h2>Account</h2>
+                <button id="accountSheetClose" class="icon-btn" aria-label="Close"><i class="fas fa-xmark"></i></button>
             </div>
+            <div class="account-card">
+                <span class="avatar lg" id="accountAvatar">U</span>
+                <div>
+                    <div class="account-name" id="accountName">User</div>
+                    <div class="account-email" id="accountEmail"></div>
+                </div>
+            </div>
+            <p class="account-note"><i class="fas fa-circle-half-stroke"></i> The app follows your phone's light or dark setting automatically.</p>
+            <button id="logoutBtn" class="btn btn-danger-soft btn-block">
+                <i class="fas fa-arrow-right-from-bracket"></i> Log out
+            </button>
         </div>
     </div>
 
@@ -436,17 +659,18 @@
     </div>
 
     <!-- ===== EDIT TRANSACTION MODAL ===== -->
-    <div id="editModal" class="modal-overlay-full">
-        <div class="modal-container edit-container" role="dialog" aria-modal="true" aria-labelledby="editTitle">
-            <div class="modal-title" id="editTitle">Edit transaction</div>
+    <div id="editModal" class="modal-overlay-full sheet-overlay">
+        <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="editTitle">
+            <div class="sheet-grabber" aria-hidden="true"></div>
+            <div class="sheet-head">
+                <h2 id="editTitle">Edit transaction</h2>
+                <button id="editCancelBtn" class="icon-btn" aria-label="Close"><i class="fas fa-xmark"></i></button>
+            </div>
             <div class="edit-body">
-                <div class="input-group">
-                    <label for="editAmount">Amount (RM)</label>
-                    <div class="input-icon-wrap">
-                        <i class="fas fa-coins"></i>
-                        <input type="number" id="editAmount" step="0.01" min="0" inputmode="decimal" />
-                    </div>
-                </div>
+                <label class="amount-field" for="editAmount">
+                    <span class="amount-prefix">RM</span>
+                    <input type="number" id="editAmount" step="0.01" min="0" inputmode="decimal" aria-label="Amount in RM" />
+                </label>
                 <div class="input-group">
                     <label for="editDate">Date</label>
                     <div class="input-icon-wrap">
@@ -455,13 +679,15 @@
                     </div>
                 </div>
                 <div id="editExpenseFields">
-                    <div class="input-group">
-                        <label for="editCategory">Category</label>
-                        <select id="editCategory"></select>
-                    </div>
-                    <div class="input-group">
-                        <label for="editPayment">Payment</label>
-                        <select id="editPayment"></select>
+                    <div class="field-row">
+                        <div class="input-group">
+                            <label for="editCategory">Category</label>
+                            <select id="editCategory"></select>
+                        </div>
+                        <div class="input-group">
+                            <label for="editPayment">Payment</label>
+                            <select id="editPayment"></select>
+                        </div>
                     </div>
                     <div class="input-group">
                         <label for="editNote">Note (required for Other)</label>
@@ -481,8 +707,8 @@
                     </div>
                 </div>
             </div>
-            <div class="modal-actions">
-                <button class="modal-btn modal-cancel" id="editCancelBtn">Cancel</button>
+            <div class="modal-actions split">
+                <button class="modal-btn modal-danger-ghost" id="editDeleteBtn"><i class="fas fa-trash-can"></i> Delete</button>
                 <button class="modal-btn modal-confirm" id="editSaveBtn">Save changes</button>
             </div>
         </div>
