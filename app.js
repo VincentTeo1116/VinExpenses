@@ -5,6 +5,10 @@ const SUPABASE_URL = APP_CONFIG.SUPABASE_URL;
 const SUPABASE_ANON_KEY = APP_CONFIG.SUPABASE_ANON_KEY;
 const configMissing = !SUPABASE_URL || !SUPABASE_ANON_KEY;
 
+// Stamped with the commit id by the deploy workflow (see .github/workflows/deploy.yml)
+const APP_BUILD = '__BUILD__';
+const BUILD_PLACEHOLDER = '__BUILD' + '__'; // split so the stamping step can't rewrite it
+
 const cameFromEmailConfirmation = window.location.hash.includes('type=signup');
 let recoveryMode = window.location.hash.includes('type=recovery'); // opened from a reset-password email
 const hashError = new URLSearchParams(window.location.hash.replace(/^#/, '')).get('error_description');
@@ -468,6 +472,7 @@ function closeAddSheet() {
 
 function openAccountSheet() {
     if (!currentUser) return;
+    renderBuildInfo();
     accountSheet.classList.add('active');
     loadMonthlyReportPreference();
     loadDisplayPreferences();
@@ -3449,8 +3454,36 @@ $('newPasswordCancel').addEventListener('click', async () => {
 })();
 
 // === PWA ===
+// An installed iPhone app is suspended and resumed rather than reloaded, so it can sit on an old
+// version for days. Look for a new version every time the app comes back to the foreground, and
+// offer a one-tap reload once a new service worker has taken over.
 if ('serviceWorker' in navigator) {
+    const hadController = !!navigator.serviceWorker.controller; // false on the very first visit: nothing to refresh
+    let updatePrompted = false;
+
     window.addEventListener('load', () => {
-        navigator.serviceWorker.register('sw.js').catch(() => {});
+        navigator.serviceWorker.register('sw.js').then((reg) => {
+            const check = () => reg.update().catch(() => {});
+            document.addEventListener('visibilitychange', () => { if (!document.hidden) check(); });
+            setInterval(check, 30 * 60 * 1000);
+        }).catch(() => {});
     });
+
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (!hadController || updatePrompted) return;
+        updatePrompted = true;
+        showToast('info', 'A new version is ready', { actionLabel: 'Reload', onAction: () => location.reload(), duration: 20000 });
+    });
+}
+
+// Shows which build the JS and the stylesheet are from. If they differ, the phone is running a mix of old and new files.
+function renderBuildInfo() {
+    const el = $('buildInfo');
+    if (!el) return;
+    const label = (v) => (!v || v === BUILD_PLACEHOLDER) ? 'dev' : v;
+    const css = label((getComputedStyle(document.documentElement).getPropertyValue('--build') || '').replace(/["'\s]/g, ''));
+    const app = label(APP_BUILD);
+    el.textContent = app === css
+        ? `Version ${app}`
+        : `App ${app} · Styles ${css} — close and reopen the app to finish updating`;
 }

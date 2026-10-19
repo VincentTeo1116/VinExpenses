@@ -45,6 +45,10 @@ jobs:
           mkdir dist
           cp index.html app.js config.js style.css sw.js manifest.json icon.png dist/
           cp -r icons dist/icons
+          # Stamp this deploy with the commit id: it versions the CSS/JS URLs (cache busting),
+          # renames the service-worker cache, and is shown in the app's Account sheet.
+          BUILD="${GITHUB_SHA::7}"
+          sed -i "s/__BUILD__/${BUILD}/g" dist/index.html dist/app.js dist/style.css dist/sw.js
 
       - uses: actions/configure-pages@v5
 

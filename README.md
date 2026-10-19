@@ -210,9 +210,12 @@ and GitHub Pages secrets. They belong only in Supabase server-side secrets.
 phone and use "Add to Home Screen" (iOS Safari: Share → Add to Home Screen;
 Android Chrome: menu → Install app).
 
-The service worker is *network-first*, so deployed changes show up on the next
-load. If you ever need to force every device to drop its cache, bump
-`CACHE_NAME` in `sw.js`.
+The service worker is *network-first* and revalidates app files with the server on
+every load. Each deploy is stamped with its commit id (see `.github/workflows/deploy.yml`):
+the CSS/JS URLs are versioned, the service-worker cache is renamed, and the id is shown in
+**Account → Version**. An installed iPhone app resumes instead of reloading, so it checks for a
+new version each time it returns to the foreground and shows a **Reload** prompt. If Account
+shows `App x · Styles y` with different ids, close the app from the app switcher and reopen it.
 
 **B. Wrap as a native app** with [Capacitor](https://capacitorjs.com/):
 

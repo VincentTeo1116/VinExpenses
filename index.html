@@ -20,7 +20,7 @@
 
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
     <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700;14..32,800&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" href="style.css?v=__BUILD__" />
 </head>
 <body class="is-auth">
     <a class="skip-link" href="#main">Skip to content</a>
@@ -713,6 +713,7 @@
                 <p id="reportEmailStatus" class="field-hint" role="status">Reports are off until you turn them on.</p>
             </section>
             <button id="manageTaxonomyBtn" class="btn btn-outline btn-block account-manage-options"><i class="fas fa-sliders"></i> Manage categories &amp; payment methods</button>
+            <p class="build-info" id="buildInfo"></p>
             <button id="logoutBtn" class="btn btn-danger-soft btn-block">
                 <i class="fas fa-arrow-right-from-bracket"></i> Log out
             </button>
@@ -821,7 +822,7 @@
     <!-- Toasts -->
     <div id="toastHost" class="toast-host" aria-live="polite"></div>
 
-    <script src="config.js"></script> <!-- generated from .env by build-config.js -->
-    <script src="app.js"></script>
+    <script src="config.js?v=__BUILD__"></script> <!-- generated from .env by build-config.js -->
+    <script src="app.js?v=__BUILD__"></script>
 </body>
 </html>

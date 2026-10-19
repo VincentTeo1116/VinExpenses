@@ -2,7 +2,7 @@
 // Strategy: network-first (so a deploy is picked up immediately), falling
 // back to the cache when offline. Supabase API calls are never intercepted.
 // Bump CACHE_NAME whenever you want to force old caches to be dropped.
-const CACHE_NAME = 'expense-tracker-v9';
+const CACHE_NAME = 'expense-tracker-__BUILD__'; // stamped per deploy, so every release replaces the old cache
 const SHELL_FILES = [
     './',
     'index.html',
@@ -36,8 +36,12 @@ self.addEventListener('fetch', (event) => {
     if (!req.url.startsWith('http')) return;
     if (req.url.includes('supabase.co')) return;
 
+    // Same-origin files are revalidated with the server on every load. Without this, GitHub Pages'
+    // `max-age=600` header lets a phone keep serving a 10-minute-old stylesheet.
+    const sameOrigin = new URL(req.url).origin === self.location.origin;
+
     event.respondWith(
-        fetch(req)
+        fetch(req, sameOrigin ? { cache: 'no-cache' } : undefined)
             .then((res) => {
                 // Cache good same-origin and CDN (opaque) responses for offline use
                 if (res && (res.ok || res.type === 'opaque')) {

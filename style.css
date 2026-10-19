@@ -882,60 +882,114 @@ body.is-auth .net-banner { display: none; }
 }
 
 /* === Liquid Glass surfaces ===
-   Keep content surfaces nearly opaque for contrast; reserve the strongest
-   translucency and blur for floating navigation, sheets, and dialogs. */
+   Glass only reads as glass when (a) something colourful sits behind it, and (b) it has the
+   cues Apple's version has: a bright rim light, a hairline outline and a soft shadow.
+   Keep content surfaces nearly opaque for contrast; reserve translucency for floating chrome.
+
+   Colours here are plain rgba() on purpose. `background: var(--x)` followed by a second
+   declaration using color-mix() does NOT fall back on browsers without color-mix() (a var()
+   declaration is never rejected at parse time), so the old fallback silently produced a
+   transparent bar with no border. */
 :root {
+    --build: "__BUILD__";                         /* stamped by the deploy workflow; shown in Account */
+
+    --glass-top: rgba(255, 255, 255, 0.52);
+    --glass-bottom: rgba(244, 246, 255, 0.68);
+    --glass-sheet: rgba(255, 255, 255, 0.86);
+    --glass-toast: rgba(255, 255, 255, 0.74);
+    --glass-side: rgba(255, 255, 255, 0.84);
+    --glass-solid: #ffffff;                       /* used when blur is unavailable or reduced */
     --glass-edge: rgba(255, 255, 255, 0.62);
-}
-
-/* The floating mobile pill is structural styling, so keep it even on browsers
-   that do not implement backdrop-filter. The filter below adds the glass effect. */
-.tabbar {
-    left: 12px; right: 12px; bottom: calc(8px + var(--safe-bottom));
-    height: 64px; padding: 5px 8px;
-    border: 1px solid color-mix(in srgb, var(--primary) 14%, var(--glass-edge));
-    border-radius: 24px;
-    background: var(--surface);
-    background: linear-gradient(180deg,
-        color-mix(in srgb, var(--surface) 58%, transparent),
-        color-mix(in srgb, var(--surface) 76%, transparent));
-    box-shadow: 0 14px 38px rgba(17, 24, 39, 0.17), inset 0 1px 0 rgba(255, 255, 255, 0.72);
-}
-.tabbar .nav-item:not(.tab-fab).active { position: relative; background: var(--primary-soft); }
-
-@media (prefers-color-scheme: light) {
-    body { background: radial-gradient(ellipse at 92% 0%, rgba(124, 119, 244, 0.12), transparent 34%), var(--bg); }
+    --glass-rim: rgba(255, 255, 255, 0.95);       /* bright top edge */
+    --glass-rim-soft: rgba(255, 255, 255, 0.55);
+    --glass-hairline: rgba(15, 23, 42, 0.09);     /* thin dark outline: separates glass from white cards */
+    --glass-active: rgba(255, 255, 255, 0.82);    /* the selected tab's capsule */
+    --glass-shadow: 0 14px 34px rgba(31, 41, 90, 0.22), 0 2px 8px rgba(31, 41, 90, 0.10);
+    --ambient-a: rgba(124, 119, 244, 0.20);
+    --ambient-b: rgba(236, 72, 153, 0.14);
+    --ambient-c: rgba(6, 182, 212, 0.16);
 }
 @media (prefers-color-scheme: dark) {
-    :root { --glass-edge: rgba(255, 255, 255, 0.12); }
-    body { background: radial-gradient(ellipse at 92% 0%, rgba(93, 83, 220, 0.16), transparent 36%), var(--bg); }
+    :root {
+        --glass-top: rgba(40, 52, 92, 0.50);
+        --glass-bottom: rgba(19, 26, 46, 0.68);
+        --glass-sheet: rgba(19, 26, 46, 0.88);
+        --glass-toast: rgba(232, 235, 245, 0.88);
+        --glass-side: rgba(19, 26, 46, 0.84);
+        --glass-solid: #131a2e;
+        --glass-edge: rgba(255, 255, 255, 0.12);
+        --glass-rim: rgba(255, 255, 255, 0.30);
+        --glass-rim-soft: rgba(255, 255, 255, 0.14);
+        --glass-hairline: rgba(0, 0, 0, 0.45);
+        --glass-active: rgba(255, 255, 255, 0.15);
+        --glass-shadow: 0 16px 38px rgba(0, 0, 0, 0.55), 0 2px 8px rgba(0, 0, 0, 0.35);
+        --ambient-a: rgba(93, 83, 220, 0.24);
+        --ambient-b: rgba(190, 50, 130, 0.14);
+        --ambient-c: rgba(6, 150, 190, 0.16);
+    }
 }
 
-@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+/* A fixed wash of colour behind everything, like a wallpaper, so the blur always has something
+   to bend. (background-attachment: fixed is ignored on iOS, so this is a fixed pseudo-element.) */
+body::before {
+    content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+    background:
+        radial-gradient(ellipse 70% 40% at 100% 0%, var(--ambient-a), transparent 70%),
+        radial-gradient(ellipse 60% 38% at 0% 100%, var(--ambient-b), transparent 70%),
+        radial-gradient(ellipse 60% 38% at 100% 100%, var(--ambient-c), transparent 70%);
+}
+
+/* The floating pill. Solid by default; becomes glass only where backdrop-filter works. */
+.tabbar {
+    left: 12px; right: 12px; bottom: calc(8px + var(--safe-bottom));
+    height: 66px; padding: 5px 8px; border-radius: 28px;
+    background: var(--glass-solid);
+    border: 1px solid var(--glass-rim-soft);
+    box-shadow:
+        var(--glass-shadow),
+        0 0 0 1px var(--glass-hairline),
+        inset 0 1.5px 1px var(--glass-rim),
+        inset 0 -1px 1px rgba(79, 70, 229, 0.12),
+        inset 0 0 20px rgba(255, 255, 255, 0.22);
+}
+.tabbar .nav-item:not(.tab-fab).active {
+    position: relative; background: var(--glass-active);
+    box-shadow: inset 0 1px 1px var(--glass-rim), 0 3px 10px rgba(31, 41, 90, 0.14);
+}
+.tabbar .tab-fab { border: 3px solid var(--glass-rim-soft); }
+
+@supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
     .tabbar {
-        backdrop-filter: blur(32px) saturate(1.8);
-        -webkit-backdrop-filter: blur(32px) saturate(1.8);
+        background: linear-gradient(180deg, var(--glass-top), var(--glass-bottom));
+        -webkit-backdrop-filter: blur(22px) saturate(1.9) brightness(1.05);
+        backdrop-filter: blur(22px) saturate(1.9) brightness(1.05);
     }
-    .tabbar .tab-fab { border-color: color-mix(in srgb, var(--surface) 74%, transparent); }
     .sheet, .modal-container {
-        background: color-mix(in srgb, var(--surface) 86%, transparent);
+        background: var(--glass-sheet);
         border: 1px solid var(--glass-edge);
-        backdrop-filter: blur(30px) saturate(1.45);
         -webkit-backdrop-filter: blur(30px) saturate(1.45);
-        box-shadow: 0 28px 90px rgba(8, 12, 28, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.58);
+        backdrop-filter: blur(30px) saturate(1.45);
+        box-shadow: 0 28px 90px rgba(8, 12, 28, 0.28), inset 0 1px 0 var(--glass-rim);
     }
-    .modal-overlay-full { background: rgba(8, 12, 28, 0.36); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
-    .toast { background: color-mix(in srgb, var(--surface) 70%, transparent); color: var(--text); border: 1px solid var(--glass-edge); backdrop-filter: blur(22px) saturate(1.5); -webkit-backdrop-filter: blur(22px) saturate(1.5); box-shadow: 0 12px 34px rgba(8, 12, 28, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.52); }
+    .modal-overlay-full { background: rgba(8, 12, 28, 0.36); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); }
+    .toast {
+        background: var(--glass-toast); color: var(--text); border: 1px solid var(--glass-edge);
+        -webkit-backdrop-filter: blur(22px) saturate(1.5); backdrop-filter: blur(22px) saturate(1.5);
+        box-shadow: 0 12px 34px rgba(8, 12, 28, 0.18), inset 0 1px 0 var(--glass-rim);
+    }
     .toast.success i { color: var(--success); }
     .toast.error i { color: var(--danger); }
     .toast.info i { color: var(--primary); }
-    .sidebar { background: color-mix(in srgb, var(--surface) 82%, transparent); border-right-color: var(--glass-edge); }
+    .sidebar { background: var(--glass-side); border-right-color: var(--glass-edge); }
 }
 
 @media (max-width: 639px) {
     .sheet-overlay .sheet { border-radius: 26px 26px 0 0; }
 }
 
+/* Honour the OS "Reduce Transparency" setting where the browser exposes it */
 @media (prefers-reduced-transparency: reduce) {
-    .tabbar, .sidebar, .sheet, .modal-container, .toast { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; background: var(--surface); }
+    .tabbar, .sidebar, .sheet, .modal-container, .toast { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; background: var(--glass-solid) !important; }
 }
+
+.build-info { margin-top: var(--s-3); text-align: center; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
