@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en-MY">
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
@@ -257,7 +257,7 @@
             </div>
 
             <!-- ===== DASHBOARD SCREEN ===== -->
-            <div id="dashboardScreen" class="screen">
+            <div id="dashboardScreen" class="screen" aria-busy="false">
                 <header class="page-head">
                     <div>
                         <h1 class="page-title">Hello, <span id="userNameDisplay">User</span></h1>
@@ -366,10 +366,10 @@
                     <!-- Upcoming -->
                     <section class="card upcoming">
                         <div class="card-head">
-                            <h2 class="card-title">Upcoming bills</h2>
+                        <h2 class="card-title">Upcoming recurring</h2>
                             <button id="manageRecurringBtn" class="link-btn">Manage <i class="fas fa-arrow-right"></i></button>
                         </div>
-                        <div id="upcomingList" class="history-list compact"></div>
+                        <div id="upcomingList" class="history-list compact" aria-label="Upcoming recurring items" aria-live="polite"></div>
                     </section>
 
                     <!-- Recent -->
@@ -397,20 +397,27 @@
                 <header class="page-head">
                     <div>
                         <h1 class="page-title">Recurring</h1>
-                        <p class="page-sub">Bills and subscriptions are added to your expenses automatically on each due date.</p>
+                        <p class="page-sub">Schedule regular bills or income. Entries post the next time you open the app on or after the due date.</p>
                     </div>
                 </header>
-                <div id="recurringSummary" class="history-summary"></div>
+                <div id="recurringSummary" class="history-summary" role="status" aria-live="polite"></div>
 
                 <div class="recurring-grid">
                     <div class="card form-card">
                         <h2 class="card-title" id="recurringFormTitle">Add recurring expense</h2>
                         <div class="input-group">
+                            <label>Repeats as</label>
+                            <div class="segmented recurring-type-tabs" role="group" aria-label="Recurring transaction type">
+                                <button id="recTypeExpense" type="button" class="seg-btn active expense" aria-pressed="true"><i class="fas fa-arrow-trend-down" aria-hidden="true"></i> Expense</button>
+                                <button id="recTypeIncome" type="button" class="seg-btn income" aria-pressed="false"><i class="fas fa-arrow-trend-up" aria-hidden="true"></i> Income</button>
+                            </div>
+                        </div>
+                        <div class="input-group" id="recPresetGroup">
                             <label>Quick pick</label>
                             <div class="chip-group" id="recPresetChips"></div>
                         </div>
                         <div class="input-group">
-                            <label for="recName">Name</label>
+                            <label for="recName" id="recNameLabel">Name</label>
                             <div class="input-icon-wrap">
                                 <i class="fas fa-tag"></i>
                                 <input type="text" id="recName" placeholder="e.g. Electricity, Netflix" maxlength="60" />
@@ -427,13 +434,15 @@
                             <label>Repeats</label>
                             <div class="chip-group" id="recFreqChips"></div>
                         </div>
-                        <div class="input-group">
-                            <label>Category</label>
-                            <div class="chip-group" id="recCategoryChips"></div>
-                        </div>
-                        <div class="input-group">
-                            <label>Payment</label>
-                            <div class="chip-group" id="recPaymentChips"></div>
+                        <div id="recExpenseFields">
+                            <div class="input-group">
+                                <label>Category</label>
+                                <div class="chip-group" id="recCategoryChips"></div>
+                            </div>
+                            <div class="input-group">
+                                <label>Payment method</label>
+                                <div class="chip-group" id="recPaymentChips"></div>
+                            </div>
                         </div>
                         <div class="input-group">
                             <label for="recDate" id="recDateLabel">First due date</label>
@@ -489,13 +498,13 @@
                     </div>
                 </div>
 
-                <div id="historySummary" class="history-summary"></div>
+                <div id="historySummary" class="history-summary" role="status" aria-live="polite"></div>
                 <div class="history-export-actions">
                     <button id="historyCsvBtn" type="button" class="btn btn-outline btn-small"><i class="fas fa-file-csv"></i> Export CSV</button>
                     <button id="historyReportBtn" type="button" class="btn btn-outline btn-small"><i class="fas fa-file-lines"></i> Monthly report</button>
                 </div>
                 <p class="history-swipe-hint"><i class="fas fa-arrows-left-right"></i> Swipe right to duplicate · swipe left to delete</p>
-                <div id="historyList" class="history-list grouped">
+                <div id="historyList" class="history-list grouped" aria-label="Transaction history" aria-live="polite" aria-busy="false">
                     <div class="history-empty">No transactions yet.</div>
                 </div>
             </div>
@@ -567,11 +576,11 @@
 
                 <div class="input-group">
                     <label>Category</label>
-                    <div class="chip-group" id="expCategoryChips"></div>
+                    <div class="chip-group" id="expCategoryChips" aria-label="Expense category"></div>
                 </div>
                 <div class="input-group">
                     <label>Payment</label>
-                    <div class="chip-group" id="expPaymentChips"></div>
+                    <div class="chip-group" id="expPaymentChips" aria-label="Payment method"></div>
                 </div>
                 <div class="field-row">
                     <div class="input-group">
@@ -633,7 +642,7 @@
             </div>
             <p class="sheet-sub">Set a limit and it's tracked every month. Leave a field empty for no limit.</p>
             <div id="budgetFields" class="budget-fields"></div>
-            <p id="budgetWarn" class="recurring-warn hidden"><i class="fas fa-triangle-exclamation"></i> Budgets aren't set up in your database yet. Run <b>migration-add-budgets.sql</b> in the Supabase SQL Editor, then reload.</p>
+            <p id="budgetWarn" class="recurring-warn hidden"><i class="fas fa-triangle-exclamation"></i> Budgets aren't set up in your database yet. Run <b>supabase-schema.sql</b> in the Supabase SQL Editor, then reload.</p>
             <button id="saveBudgetsBtn" class="btn btn-primary btn-block btn-lg">
                 <i class="fas fa-check"></i> Save budgets
             </button>
@@ -678,6 +687,19 @@
                 </div>
             </div>
             <p class="account-note"><i class="fas fa-circle-half-stroke"></i> The app follows your phone's light or dark setting automatically.</p>
+            <section class="report-email-settings display-preferences" aria-labelledby="displayPreferencesTitle">
+                <div class="report-email-heading"><div><h3 id="displayPreferencesTitle">Display preferences</h3><p>Currency is fixed to Malaysian Ringgit (RM).</p></div></div>
+                <div class="input-group">
+                    <label for="dateFormatSelect">Date format</label>
+                    <select id="dateFormatSelect" class="filter-select">
+                        <option value="dmy_short">19 Oct 2026</option>
+                        <option value="dmy">19/10/2026</option>
+                        <option value="ymd">2026-10-19</option>
+                    </select>
+                </div>
+                <button id="saveDisplayPreferencesBtn" type="button" class="btn btn-outline btn-block"><i class="fas fa-floppy-disk"></i> Save display preferences</button>
+                <p id="displayPreferencesStatus" class="field-hint" role="status">Dates use the Malaysia format.</p>
+            </section>
             <section class="report-email-settings" aria-labelledby="reportEmailTitle">
                 <div class="report-email-heading">
                     <div><h3 id="reportEmailTitle">Monthly report email</h3><p>Receive last month’s spending summary on the first day of each month.</p></div>
@@ -690,9 +712,32 @@
                 <button id="saveReportEmailBtn" class="btn btn-outline btn-block"><i class="fas fa-floppy-disk"></i> Save report preference</button>
                 <p id="reportEmailStatus" class="field-hint" role="status">Reports are off until you turn them on.</p>
             </section>
+            <button id="manageTaxonomyBtn" class="btn btn-outline btn-block account-manage-options"><i class="fas fa-sliders"></i> Manage categories &amp; payment methods</button>
             <button id="logoutBtn" class="btn btn-danger-soft btn-block">
                 <i class="fas fa-arrow-right-from-bracket"></i> Log out
             </button>
+        </div>
+    </div>
+
+    <!-- ===== CATEGORY & PAYMENT SETTINGS ===== -->
+    <div id="taxonomySheet" class="modal-overlay-full sheet-overlay">
+        <div class="sheet narrow" role="dialog" aria-modal="true" aria-labelledby="taxonomyTitle">
+            <div class="sheet-grabber" aria-hidden="true"></div>
+            <div class="sheet-head">
+                <h2 id="taxonomyTitle">Spending options</h2>
+                <button id="taxonomyCloseBtn" class="icon-btn" aria-label="Close spending options"><i class="fas fa-xmark"></i></button>
+            </div>
+            <p class="sheet-sub">Rename built-in options or add your own. Inactive options stay on past transactions.</p>
+            <div class="segmented taxonomy-tabs" role="tablist" aria-label="Spending option type">
+                <button id="taxonomyCategoryTab" type="button" role="tab" aria-selected="true" class="seg-btn active">Categories</button>
+                <button id="taxonomyPaymentTab" type="button" role="tab" aria-selected="false" class="seg-btn">Payment methods</button>
+            </div>
+            <div class="taxonomy-add-row">
+                <div class="input-icon-wrap"><i class="fas fa-plus"></i><input id="taxonomyNameInput" type="text" maxlength="32" placeholder="New category name" aria-label="New spending option name" /></div>
+                <button id="taxonomySaveBtn" type="button" class="btn btn-primary">Add</button>
+            </div>
+            <p id="taxonomyStatus" class="field-hint" role="status"></p>
+            <div id="taxonomyList" class="taxonomy-list" aria-live="polite"></div>
         </div>
     </div>
 

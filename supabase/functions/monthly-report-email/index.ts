@@ -83,18 +83,23 @@ Deno.serve(async (request: Request) => {
       if (preference.sent_for_month === `${reportMonth}-01`) { skipped++; continue; }
       const userId = String(preference.user_id);
       try {
-        const [expenseResponse, incomeResponse] = await Promise.all([
+        const [expenseResponse, incomeResponse, categoryResponse] = await Promise.all([
           supabaseRest(`expenses?select=amount,category,created_at&user_id=eq.${encodeURIComponent(userId)}&created_at=gte.${encodeURIComponent(start)}&created_at=lt.${encodeURIComponent(end)}`, serviceKey),
           supabaseRest(`incomes?select=amount,created_at&user_id=eq.${encodeURIComponent(userId)}&created_at=gte.${encodeURIComponent(start)}&created_at=lt.${encodeURIComponent(end)}`, serviceKey),
+          supabaseRest(`user_categories?select=category_key,label&user_id=eq.${encodeURIComponent(userId)}`, serviceKey),
         ]);
         if (!expenseResponse.ok || !incomeResponse.ok) throw new Error("Could not load transaction totals");
-        const [expenses, incomes] = await Promise.all([expenseResponse.json(), incomeResponse.json()]);
+        const [expenses, incomes, categoryRows] = await Promise.all([
+          expenseResponse.json(), incomeResponse.json(),
+          categoryResponse.ok ? categoryResponse.json() : Promise.resolve([]),
+        ]);
+        const categoryLabels = new Map(categoryRows.map((row: { category_key: string; label: string }) => [row.category_key, row.label] as const));
         const expenseTotal = expenses.reduce((sum: number, row: { amount: string | number }) => sum + Number(row.amount), 0);
         const incomeTotal = incomes.reduce((sum: number, row: { amount: string | number }) => sum + Number(row.amount), 0);
         const byCategory = new Map<string, number>();
         for (const expense of expenses) byCategory.set(expense.category, (byCategory.get(expense.category) || 0) + Number(expense.amount));
         const categoryRows = [...byCategory.entries()].sort((a, b) => b[1] - a[1])
-          .map(([category, amount]) => `<tr><td style="padding:9px 0;border-bottom:1px solid #e8eaf0">${escapeHtml(category)}</td><td style="padding:9px 0;border-bottom:1px solid #e8eaf0;text-align:right">${escapeHtml(ringgit(amount))}</td></tr>`).join("");
+          .map(([category, amount]) => `<tr><td style="padding:9px 0;border-bottom:1px solid #e8eaf0">${escapeHtml(categoryLabels.get(category) || category)}</td><td style="padding:9px 0;border-bottom:1px solid #e8eaf0;text-align:right">${escapeHtml(ringgit(amount))}</td></tr>`).join("");
         const label = reportMonthDate.toLocaleDateString("en-MY", { month: "long", year: "numeric", timeZone: "UTC" });
         const html = `<!doctype html><html><body style="margin:0;background:#f5f6fb;font-family:Arial,sans-serif;color:#172033"><div style="max-width:600px;margin:28px auto;padding:28px;background:#fff;border-radius:18px"><p style="margin:0 0 8px;color:#5652d9;font-weight:bold">VINEXPENSES MONTHLY REPORT</p><h1 style="margin:0 0 22px;font-size:24px">${escapeHtml(label)}</h1><table role="presentation" style="width:100%;border-collapse:collapse"><tr><td style="padding:14px;background:#f5f6fb;border-radius:10px"><div style="font-size:12px;color:#667085">Income</div><strong style="font-size:20px">${escapeHtml(ringgit(incomeTotal))}</strong></td><td style="width:10px"></td><td style="padding:14px;background:#f5f6fb;border-radius:10px"><div style="font-size:12px;color:#667085">Expenses</div><strong style="font-size:20px">${escapeHtml(ringgit(expenseTotal))}</strong></td></tr></table><p style="margin:18px 0 22px;padding:14px;background:#f5f6fb;border-radius:10px">Net for the month: <strong>${escapeHtml(ringgit(incomeTotal - expenseTotal))}</strong><br><span style="color:#667085;font-size:13px">${expenses.length} expenses · ${incomes.length} income records</span></p><h2 style="font-size:16px">Spending by category</h2><table style="width:100%;border-collapse:collapse">${categoryRows || '<tr><td style="padding:9px 0;color:#667085">No expenses recorded this month.</td></tr>'}</table><p style="margin-top:24px;color:#667085;font-size:12px">You’re receiving this because monthly report emails are enabled in your VinExpenses account. Change your preference in the Account menu.</p></div></body></html>`;
 

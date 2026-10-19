@@ -14,15 +14,9 @@ dashboard. Plain HTML/CSS/JS — no build step.
 | `build-config.js` | Turns `.env` into `config.js` (gitignored) — run it after editing `.env` |
 | `.github/workflows/deploy.yml` | Builds `config.js` from repo secrets and deploys to GitHub Pages |
 | `app.js` | All logic: Supabase auth, data fetch/save/edit/delete, charts, navigation |
-| `supabase-schema.sql` | Tables + Row Level Security policies — run once in Supabase |
-| `migration-add-budgets.sql` | Run once to enable Budgets & "safe to spend today" |
-| `migration-add-merchants.sql` | Run once to add merchant names to expenses |
-| `migration-add-recurring.sql` | Run once to enable Recurring expenses (also run the categories migration first) |
-| `migration-monthly-report-email.sql` | Run once to store private monthly report email preferences |
-| `schedule-monthly-report-email.sql` | Run once to schedule the monthly email job after configuring secrets |
+| `supabase-schema.sql` | Complete, rerunnable SQL setup for base tables and all database features |
 | `supabase/functions/receipt-ocr/` | Private OCR.space proxy used by receipt scanning |
 | `supabase/functions/monthly-report-email/` | Scheduled monthly spending report sender |
-| `migration-add-categories.sql` | Run once if your database already existed before the Utilities/Car/Health/Other categories |
 | `manifest.json`, `sw.js`, `icons/` | Makes the site installable as an app (PWA) |
 | `icon.png` | Browser tab favicon |
 
@@ -50,10 +44,9 @@ dashboard. Plain HTML/CSS/JS — no build step.
   transactions) and a 6-month trend (tap a bar to jump to that month).
 - **History** — grouped by day with a per-day total; filter by type, category and
   month, and search. Tap a row to edit; **Delete** lives in the editor.
-- **Recurring** — add bills and subscriptions (electricity, Netflix, Apple…) with a
-  frequency and due date; they post as normal expenses automatically on each due
-  date, including any missed while the app was closed. Pause, edit or delete them;
-  the dashboard shows what's due next.
+- **Recurring** — schedule bills, subscriptions, salary, and other regular income. Due entries post to History the next time you open the app on or after the due date; missed dates are back-filled. Pause, edit, or delete schedules.
+- **Personal spending options** — rename built-in categories and payment methods, add your own, or deactivate an option. Past transactions remain readable after deactivation.
+- **Professional polish** — display amounts consistently in MYR (RM); choose `19 Oct 2026`, `19/10/2026`, or ISO date format in Account; escape user-defined labels; announce key updates to assistive technology; and provide clearer empty and loading states.
 - **Budgets** — set an overall monthly budget and/or a limit per category. Category
   rows show progress (amber at 80%, red when over), the hero card shows how much is
   left, and **"Safe to spend today"** divides what's left by the days remaining.
@@ -102,12 +95,15 @@ Netlify/Vercel, set the same two environment variables and use
 
 ## 1. One-time Supabase setup
 
-1. **Run the SQL.** In Supabase: **SQL Editor → New query**, paste
-   `supabase-schema.sql`, and run it. (Already set up before? Run just the
-   migration files you haven't run yet — categories, recurring, budgets, and
-   `migration-monthly-report-email.sql` for monthly email preferences.) This creates the `expenses` and
-   `incomes` tables and locks each row to its owner (select, insert,
-   update and delete are all covered — edit/delete in History rely on this).
+1. **Run the SQL.** In Supabase, open **SQL Editor → New query**, paste the
+   entire `supabase-schema.sql` file, and run it. This is the single database
+   setup for both a new project and an existing project. It creates or upgrades
+   tables for expenses, income, merchants, budgets, recurring items, personal
+   categories/payment methods, date preferences, and monthly report settings.
+   Existing records and category/payment keys are kept. It also enables the
+   monthly email scheduler automatically if its required Vault secrets already
+   exist; otherwise, rerun this same file after configuring those secrets.
+   Currency remains MYR (RM).
 
 2. **Make sure email confirmation is on.** **Authentication → Providers →
    Email → Confirm email**. The app uses Supabase's default confirmation
@@ -168,9 +164,8 @@ only requests it on a button tap, caches results for the current browser session
 and shows the required attribution. To switch to a compatible provider, set the
 `PLACE_REVERSE_URL` Edge Function secret to its reverse endpoint.
 
-For existing databases, also run `migration-add-merchants.sql` once in the
-Supabase SQL Editor. Fresh databases get the merchant column from
-`supabase-schema.sql`.
+The merchant column and index are included in `supabase-schema.sql` for fresh
+and existing databases.
 
 ## 4. Enable monthly report emails
 
@@ -180,8 +175,7 @@ switch off stops future sends. The email contains monthly income, expenses,
 net, record counts, and spending by category; it does not include individual
 transactions or receipt images.
 
-1. Run `migration-monthly-report-email.sql` in the Supabase SQL Editor (skip if
-   you already included the updated `supabase-schema.sql`).
+1. The monthly report preference table is included in `supabase-schema.sql`.
 2. Create a [Resend](https://resend.com/) account, verify a sender domain, and
    choose a sender such as `VinExpenses <reports@yourdomain.com>`. Resend's
    current free tier lists 3,000 emails per month and 100 per day; sending from
@@ -201,8 +195,8 @@ transactions or receipt images.
    `https://YOUR_PROJECT_REF.supabase.co`, `publishable_key` set to your
    Supabase anon/publishable key, and `monthly_report_cron_secret` set to the
    exact same value as the Edge Function secret.
-6. Open `schedule-monthly-report-email.sql` and run it in the SQL Editor. The
-   job checks hourly; the sender only sends on the first day in Kuala Lumpur,
+6. Run `supabase-schema.sql` again in the SQL Editor. Once the Vault secrets
+   exist, it installs the scheduler. The job checks hourly; the sender only sends on the first day in Kuala Lumpur,
    and skips any user already sent that month's report. Hourly checks allow
    retries during that day if the email provider is temporarily unavailable.
 

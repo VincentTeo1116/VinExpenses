@@ -18,7 +18,7 @@ function backendUnavailable() {
 }
 
 // === CONFIG ===
-const CATEGORIES = [
+const DEFAULT_CATEGORIES = [
     { key: 'beverages', label: 'Beverages', icon: 'fa-mug-hot', color: '#4f46e5' },
     { key: 'travel', label: 'Travel', icon: 'fa-plane', color: '#06b6d4' },
     { key: 'entertain', label: 'Entertain', icon: 'fa-film', color: '#f59e0b' },
@@ -30,7 +30,7 @@ const CATEGORIES = [
     { key: 'health', label: 'Health', icon: 'fa-heart-pulse', color: '#ec4899' },
     { key: 'other', label: 'Other', icon: 'fa-ellipsis', color: '#6b7280' }
 ];
-const PAYMENTS = [
+const DEFAULT_PAYMENTS = [
     { key: 'bank', label: 'Bank', icon: 'fa-building-columns', color: '#4f46e5' },
     { key: 'card', label: 'Card', icon: 'fa-credit-card', color: '#4f46e5' },
     { key: 'ewallet', label: 'E-Wallet', icon: 'fa-mobile-screen', color: '#4f46e5' }
@@ -41,8 +41,13 @@ const INCOME_SOURCES = [
     { key: 'Bonus', label: 'Bonus', icon: 'fa-gift', color: '#4f46e5' },
     { key: 'Investment', label: 'Investment', icon: 'fa-chart-line', color: '#4f46e5' }
 ];
-const catByKey = Object.fromEntries(CATEGORIES.map(c => [c.key, c]));
-const payByKey = Object.fromEntries(PAYMENTS.map(p => [p.key, p]));
+let CATEGORIES = DEFAULT_CATEGORIES.map(item => ({ ...item, active: true }));
+let PAYMENTS = DEFAULT_PAYMENTS.map(item => ({ ...item, active: true }));
+let catByKey = Object.fromEntries(CATEGORIES.map(c => [c.key, c]));
+let payByKey = Object.fromEntries(PAYMENTS.map(p => [p.key, p]));
+const activeTaxonomy = items => items.filter(item => item.active !== false);
+const safeIcon = value => /^fa-[a-z0-9-]+$/.test(value || '') ? value : 'fa-tag';
+const safeColor = value => /^#[0-9a-f]{3,8}$/i.test(value || '') ? value : 'var(--primary)';
 const prefersReducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 // === STATE ===
@@ -57,6 +62,10 @@ let editing = null; // { type, id }
 let visibleHistoryTransactions = [];
 let recurring = [];
 let recurringLoadError = false;
+let recurringIncomes = [];
+let recurringIncomeLoadError = false;
+let taxonomyLoadError = false;
+let dateFormat = 'dmy_short';
 let budgets = [];            // { id, category ('all' = overall), amount }
 let budgetsLoadError = false;
 let recCategoryValue = 'utilities';
@@ -173,7 +182,7 @@ function formatMoney(n) {
 }
 
 function formatMonthDisplay(date) {
-    return date.toLocaleString('default', { month: 'long', year: 'numeric' });
+    return date.toLocaleString('en-MY', { month: 'long', year: 'numeric' });
 }
 
 function formatMonthValue(date) {
@@ -183,6 +192,16 @@ function formatMonthValue(date) {
 function toInputDate(value) {
     const d = value ? new Date(value) : new Date();
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+function formatDateDisplay(value, { includeYear = true } = {}) {
+    const dateString = typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : toInputDate(value);
+    const [year, month, day] = dateString.split('-').map(Number);
+    if (dateFormat === 'ymd') return dateString;
+    if (dateFormat === 'dmy') return `${pad(day)}/${pad(month)}/${year}`;
+    const options = { day: 'numeric', month: 'short' };
+    if (includeYear) options.year = 'numeric';
+    return new Date(year, month - 1, day).toLocaleDateString('en-MY', options);
 }
 
 // Combine a yyyy-mm-dd input value with the time-of-day of `base`, so
@@ -313,6 +332,7 @@ function showToast(type, message, opts = {}) {
 document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
         if (dismissModal) dismissModal();
+        else if ($('taxonomySheet').classList.contains('active')) closeTaxonomyManager();
         else if (editModal.classList.contains('active')) closeEditModal();
         else if (addSheet.classList.contains('active')) closeAddSheet();
         else if (accountSheet.classList.contains('active')) closeAccountSheet();
@@ -450,8 +470,55 @@ function openAccountSheet() {
     if (!currentUser) return;
     accountSheet.classList.add('active');
     loadMonthlyReportPreference();
+    loadDisplayPreferences();
     syncBodyScroll();
 }
+
+function setDisplayPreferenceStatus(message, error = false) {
+    $('displayPreferencesStatus').textContent = message;
+    $('displayPreferencesStatus').classList.toggle('error', error);
+}
+
+function refreshDateDisplays() {
+    if (!currentUser) return;
+    updateDashboard();
+    if ($('historyScreen').classList.contains('active')) renderHistory();
+    if ($('recurringScreen').classList.contains('active')) renderRecurring();
+}
+
+async function loadDisplayPreferences() {
+    $('dateFormatSelect').value = dateFormat;
+    if (!supabaseClient || !navigator.onLine) return;
+    const { data, error } = await supabaseClient.from('user_preferences')
+        .select('date_format').eq('user_id', currentUser.id).maybeSingle();
+    if (error) {
+        setDisplayPreferenceStatus('Run migration-user-preferences.sql in Supabase to save date preferences.', true);
+        return;
+    }
+    const savedFormat = data?.date_format || 'dmy_short';
+    const changed = dateFormat !== savedFormat;
+    dateFormat = savedFormat;
+    $('dateFormatSelect').value = dateFormat;
+    setDisplayPreferenceStatus('Amounts are always shown in MYR (RM).');
+    if (changed) refreshDateDisplays();
+}
+
+$('saveDisplayPreferencesBtn').addEventListener('click', async () => {
+    if (!currentUser || !supabaseClient) return showToast('error', 'Sign in to save display preferences.');
+    const selected = $('dateFormatSelect').value;
+    if (!['dmy_short', 'dmy', 'ymd'].includes(selected)) return setDisplayPreferenceStatus('Choose one of the available date formats.', true);
+    const { error } = await supabaseClient.from('user_preferences').upsert({
+        user_id: currentUser.id, date_format: selected, updated_at: new Date().toISOString()
+    }, { onConflict: 'user_id' });
+    if (error) {
+        console.error('Could not save display preferences:', error);
+        return setDisplayPreferenceStatus('Could not save. Run migration-user-preferences.sql and try again.', true);
+    }
+    dateFormat = selected;
+    refreshDateDisplays();
+    setDisplayPreferenceStatus('Date format saved. Amounts remain in MYR (RM).');
+    showToast('success', 'Display preferences saved');
+});
 
 function setReportPreferenceStatus(message, isError = false) {
     const status = $('reportEmailStatus');
@@ -469,7 +536,7 @@ async function loadMonthlyReportPreference() {
     const { data, error } = await supabaseClient.from('monthly_report_preferences')
         .select('recipient_email, enabled, sent_for_month').eq('user_id', currentUser.id).maybeSingle();
     if (error) {
-        setReportPreferenceStatus('Run migration-monthly-report-email.sql in Supabase to enable email reports.', true);
+        setReportPreferenceStatus('Run supabase-schema.sql in Supabase to enable email reports.', true);
         return;
     }
     monthlyReportPreference = data || { recipient_email: currentUser.email || '', enabled: false, sent_for_month: null };
@@ -495,7 +562,7 @@ $('saveReportEmailBtn').addEventListener('click', async () => {
     setBusy(button, false);
     if (error) {
         console.error('Could not save monthly report preference:', error);
-        setReportPreferenceStatus('Could not save. Run migration-monthly-report-email.sql and try again.', true);
+        setReportPreferenceStatus('Could not save. Run supabase-schema.sql and try again.', true);
         return;
     }
     monthlyReportPreference = data;
@@ -507,6 +574,117 @@ function closeAccountSheet() {
     accountSheet.classList.remove('active');
     syncBodyScroll();
 }
+
+let taxonomyKind = 'category';
+let taxonomyEditingKey = null;
+function taxonomyItems() { return taxonomyKind === 'category' ? CATEGORIES : PAYMENTS; }
+function taxonomyStatus(message, error = false) {
+    $('taxonomyStatus').textContent = message;
+    $('taxonomyStatus').classList.toggle('error', error);
+}
+function renderTaxonomyManager() {
+    const categoryMode = taxonomyKind === 'category';
+    $('taxonomyCategoryTab').classList.toggle('active', categoryMode);
+    $('taxonomyCategoryTab').setAttribute('aria-selected', String(categoryMode));
+    $('taxonomyPaymentTab').classList.toggle('active', !categoryMode);
+    $('taxonomyPaymentTab').setAttribute('aria-selected', String(!categoryMode));
+    $('taxonomyNameInput').placeholder = categoryMode ? 'New category name' : 'New payment method';
+    $('taxonomyNameInput').setAttribute('aria-label', categoryMode ? 'Category name' : 'Payment method name');
+    $('taxonomySaveBtn').textContent = taxonomyEditingKey ? 'Save name' : 'Add';
+    $('taxonomyList').innerHTML = taxonomyItems().map(item => `
+        <div class="taxonomy-row ${item.active ? '' : 'inactive'}" data-key="${escapeHtml(item.key)}">
+            <span class="taxonomy-row-icon" style="--chip-color:${safeColor(item.color)}"><i class="fas ${safeIcon(item.icon)}" aria-hidden="true"></i></span>
+            <span class="taxonomy-row-name"><b>${escapeHtml(item.label)}</b><small>${item.is_builtin ? 'Built-in' : 'Custom'}${item.active ? '' : ' · Inactive'}</small></span>
+            <button type="button" class="icon-btn" data-tax-action="edit" aria-label="Rename ${escapeHtml(item.label)}" title="Rename"><i class="fas fa-pen" aria-hidden="true"></i></button>
+            <button type="button" class="icon-btn" data-tax-action="toggle" aria-label="${item.active ? 'Deactivate' : 'Reactivate'} ${escapeHtml(item.label)}" title="${item.active ? 'Deactivate' : 'Reactivate'}"><i class="fas ${item.active ? 'fa-eye-slash' : 'fa-rotate-left'}" aria-hidden="true"></i></button>
+        </div>`).join('') || '<div class="history-empty small">No options yet.</div>';
+}
+function openTaxonomyManager() {
+    taxonomyEditingKey = null;
+    $('taxonomyNameInput').value = '';
+    $('taxonomySheet').classList.add('active');
+    taxonomyStatus(taxonomyLoadError ? 'Run migration-custom-categories-payments.sql in Supabase to manage these options.' : 'Changes apply to your account. Inactive options remain visible on past records.', taxonomyLoadError);
+    renderTaxonomyManager();
+    syncBodyScroll();
+    $('taxonomyNameInput').focus();
+}
+function closeTaxonomyManager() {
+    $('taxonomySheet').classList.remove('active');
+    taxonomyEditingKey = null;
+    syncBodyScroll();
+}
+$('manageTaxonomyBtn').addEventListener('click', openTaxonomyManager);
+$('taxonomyCloseBtn').addEventListener('click', closeTaxonomyManager);
+$('taxonomySheet').addEventListener('click', event => { if (event.target === $('taxonomySheet')) closeTaxonomyManager(); });
+$('taxonomyCategoryTab').addEventListener('click', () => { taxonomyKind = 'category'; taxonomyEditingKey = null; $('taxonomyNameInput').value = ''; renderTaxonomyManager(); });
+$('taxonomyPaymentTab').addEventListener('click', () => { taxonomyKind = 'payment'; taxonomyEditingKey = null; $('taxonomyNameInput').value = ''; renderTaxonomyManager(); });
+$('taxonomySaveBtn').addEventListener('click', async () => {
+    if (!currentUser || taxonomyLoadError) return taxonomyStatus('Set up the custom categories/payment migration first.', true);
+    const name = $('taxonomyNameInput').value.trim();
+    if (!name) { taxonomyStatus('Enter a name first.', true); $('taxonomyNameInput').focus(); return; }
+    const duplicate = taxonomyItems().some(item => item.key !== taxonomyEditingKey && item.label.toLocaleLowerCase() === name.toLocaleLowerCase());
+    if (duplicate) { taxonomyStatus('An option with that name already exists.', true); return; }
+    const items = taxonomyItems();
+    const editing = items.find(item => item.key === taxonomyEditingKey);
+    const table = taxonomyKind === 'category' ? 'user_categories' : 'user_payment_methods';
+    const keyColumn = taxonomyKind === 'category' ? 'category_key' : 'payment_key';
+    const itemKey = editing?.key || `${taxonomyKind === 'category' ? 'cat' : 'pay'}_${uuid()}`;
+    const payload = {
+        user_id: currentUser.id,
+        [keyColumn]: itemKey,
+        label: name,
+        icon: editing?.icon || (taxonomyKind === 'category' ? 'fa-tag' : 'fa-wallet'),
+        color: editing?.color || (taxonomyKind === 'category' ? '#6b7280' : '#4f46e5'),
+        active: editing?.active ?? true,
+        is_builtin: editing?.is_builtin ?? false,
+        sort_order: editing?.sort_order ?? items.length + 10
+    };
+    setBusy($('taxonomySaveBtn'), true, 'Saving...');
+    try {
+        const { error } = await supabaseClient.from(table).upsert(payload, { onConflict: `user_id,${keyColumn}` });
+        if (error) throw error;
+    } catch (error) {
+        console.error('Taxonomy save failed:', error);
+        taxonomyStatus('Could not save this option. Check your database migration and connection.', true);
+        return;
+    } finally {
+        setBusy($('taxonomySaveBtn'), false);
+    }
+    taxonomyEditingKey = null;
+    $('taxonomyNameInput').value = '';
+    await loadUserTaxonomy();
+    renderTaxonomyManager();
+    updateDashboard();
+    if ($('historyScreen').classList.contains('active')) renderHistory();
+    if ($('recurringScreen').classList.contains('active')) renderRecurring();
+    taxonomyStatus(editing ? 'Name updated. Past transactions keep their link to this option.' : 'Option added.');
+});
+$('taxonomyNameInput').addEventListener('keydown', event => { if (event.key === 'Enter') $('taxonomySaveBtn').click(); });
+$('taxonomyList').addEventListener('click', async event => {
+    const button = event.target.closest('[data-tax-action]');
+    const row = event.target.closest('.taxonomy-row');
+    if (!button || !row || taxonomyLoadError) return;
+    const item = taxonomyItems().find(option => option.key === row.dataset.key);
+    if (!item) return;
+    if (button.dataset.taxAction === 'edit') {
+        taxonomyEditingKey = item.key;
+        $('taxonomyNameInput').value = item.label;
+        renderTaxonomyManager();
+        $('taxonomyNameInput').focus();
+        return;
+    }
+    if (item.active && activeTaxonomy(taxonomyItems()).length <= 1) return taxonomyStatus('Keep at least one active option.', true);
+    const table = taxonomyKind === 'category' ? 'user_categories' : 'user_payment_methods';
+    const keyColumn = taxonomyKind === 'category' ? 'category_key' : 'payment_key';
+    const { error } = await supabaseClient.from(table).update({ active: !item.active }).eq('user_id', currentUser.id).eq(keyColumn, item.key);
+    if (error) { taxonomyStatus('Could not update this option. Please try again.', true); return; }
+    await loadUserTaxonomy();
+    renderTaxonomyManager();
+    renderExpenseChips();
+    renderRecurringChips();
+    updateDashboard();
+    taxonomyStatus(item.active ? 'Option deactivated. Past transactions are unchanged.' : 'Option reactivated.');
+});
 
 $('addTabExpense').addEventListener('click', () => { setAddMode('expense'); expAmount.focus(); });
 $('addTabIncome').addEventListener('click', () => { setAddMode('income'); incomeAmount.focus(); });
@@ -549,10 +727,10 @@ function renderCategoryGrid() {
             note = `${barPct.toFixed(0)}%`;
         }
         return `
-            <button type="button" class="cat-row ${state}" data-cat="${c.key}" style="--cat-color:${c.color}">
-                <span class="cat-ico"><i class="fas ${c.icon}"></i></span>
+            <button type="button" class="cat-row ${state}" data-cat="${escapeHtml(c.key)}" style="--cat-color:${safeColor(c.color)}">
+                <span class="cat-ico"><i class="fas ${safeIcon(c.icon)}" aria-hidden="true"></i></span>
                 <span class="cat-main">
-                    <span class="cat-name">${c.label}</span>
+                    <span class="cat-name">${escapeHtml(c.label)}</span>
                     <span class="cat-bar${c.budget > 0 ? ' budgeted' : ''}"><span style="width:${barPct.toFixed(1)}%"></span></span>
                 </span>
                 <span class="cat-amt"><b>${formatMoney(c.total)}</b><small class="${state}">${note}</small></span>
@@ -568,9 +746,7 @@ function friendlyDate(iso) {
     const diff = Math.round((today - that) / 86400000);
     if (diff === 0) return 'Today';
     if (diff === 1) return 'Yesterday';
-    const opts = { day: 'numeric', month: 'short' };
-    if (d.getFullYear() !== today.getFullYear()) opts.year = 'numeric';
-    return d.toLocaleDateString('en-MY', opts);
+    return formatDateDisplay(iso, { includeYear: d.getFullYear() !== today.getFullYear() });
 }
 
 // withActions: edit/delete buttons (desktop hover). showDate: false inside date-grouped lists.
@@ -585,10 +761,10 @@ function transactionRowHtml(t, withActions, showDate = true) {
     const parts = isIncome ? ['Income'] : [cat ? cat.label : t.category, pay ? pay.label : 'N/A'];
     if (!isIncome && t.note) parts.push(t.note);
     if (showDate) parts.push(friendlyDate(t.created_at));
-    const color = !isIncome && cat ? `style="--cat-color:${cat.color}"` : '';
+    const color = !isIncome && cat ? `style="--cat-color:${safeColor(cat.color)}"` : '';
     const rowHtml = `
         <div class="history-item${t._pending ? ' pending' : ''}" data-id="${escapeHtml(t.id)}" data-type="${t.type}"${withActions ? '' : ` tabindex="0" role="button" aria-label="Edit ${escapeHtml(title)}"`}>
-            <div class="h-icon ${isIncome ? 'income' : 'expense'}" ${color}><i class="fas ${icon}"></i></div>
+            <div class="h-icon ${isIncome ? 'income' : 'expense'}" ${color}><i class="fas ${safeIcon(icon)}" aria-hidden="true"></i></div>
             <div class="h-left">
                 <div class="h-title">${escapeHtml(title)}${t._pending ? '<span class="pending-badge" title="Waiting to sync"><i class="fas fa-cloud-arrow-up"></i> Not synced</span>' : ''}</div>
                 <div class="h-detail">${escapeHtml(parts.join(' · '))}</div>
@@ -955,7 +1131,7 @@ $('expenseTemplates').addEventListener('click', (event) => {
 
 // Spending-vs-last-month chip, "% of income used" bar, and the three insight tiles
 function renderHeroAndInsights(spent, income) {
-    const monthName = selectedDate.toLocaleString('default', { month: 'long' });
+    const monthName = selectedDate.toLocaleString('en-MY', { month: 'long' });
     heroLabel.textContent = `Spent in ${monthName}`;
     $('dashSubtitle').textContent = `Here's ${formatMonthDisplay(selectedDate)} at a glance`;
 
@@ -966,7 +1142,7 @@ function renderHeroAndInsights(spent, income) {
         const change = ((spent - prevSpent) / prevSpent) * 100;
         const up = change > 0.5, down = change < -0.5;
         spendDelta.className = `delta ${up ? 'up' : down ? 'down' : ''}`;
-        spendDelta.innerHTML = `<i class="fas ${up ? 'fa-arrow-up' : down ? 'fa-arrow-down' : 'fa-equals'}"></i> ${Math.abs(change).toFixed(0)}% vs ${prev.toLocaleString('default', { month: 'short' })}`;
+        spendDelta.innerHTML = `<i class="fas ${up ? 'fa-arrow-up' : down ? 'fa-arrow-down' : 'fa-equals'}"></i> ${Math.abs(change).toFixed(0)}% vs ${prev.toLocaleString('en-MY', { month: 'short' })}`;
     } else {
         spendDelta.className = 'delta hidden';
     }
@@ -1122,7 +1298,7 @@ function getMonthlyTotals() {
     for (let i = 5; i >= 0; i--) {
         const d = new Date(selectedDate.getFullYear(), selectedDate.getMonth() - i, 1);
         barMonthDates.push(d);
-        months.push(d.toLocaleString('default', { month: 'short' }));
+        months.push(d.toLocaleString('en-MY', { month: 'short' }));
         expensesData.push(sumAmount(expenses.filter(e => isSameMonth(e.created_at, d))));
         incomesData.push(sumAmount(incomes.filter(n => isSameMonth(n.created_at, d))));
     }
@@ -1171,7 +1347,7 @@ function renderCharts() {
         labels: hasData ? ranked.map(c => c.label) : ['No data'],
         datasets: [{
             data: hasData ? ranked.map(c => c.total) : [1],
-            backgroundColor: hasData ? ranked.map(c => c.color) : [cssVar('--surface-2') || '#e5e7eb'],
+            backgroundColor: hasData ? ranked.map(c => safeColor(c.color)) : [cssVar('--surface-2') || '#e5e7eb'],
             borderWidth: 3,
             borderColor: surface,
             hoverOffset: 6
@@ -1341,6 +1517,57 @@ function renderNetBanner() {
         : `<i class="fas fa-rotate fa-spin"></i><span>Syncing ${n} change${n === 1 ? '' : 's'}…</span>`;
 }
 
+function resetTaxonomyDefaults() {
+    CATEGORIES = DEFAULT_CATEGORIES.map(item => ({ ...item, active: true, is_builtin: true }));
+    PAYMENTS = DEFAULT_PAYMENTS.map(item => ({ ...item, active: true, is_builtin: true }));
+    catByKey = Object.fromEntries(CATEGORIES.map(item => [item.key, item]));
+    payByKey = Object.fromEntries(PAYMENTS.map(item => [item.key, item]));
+}
+
+async function loadUserTaxonomy() {
+    if (!currentUser || !supabaseClient) return;
+    const [categoryResult, paymentResult] = await Promise.all([
+        supabaseClient.from('user_categories').select('*').eq('user_id', currentUser.id).order('sort_order'),
+        supabaseClient.from('user_payment_methods').select('*').eq('user_id', currentUser.id).order('sort_order')
+    ]);
+    if (categoryResult.error || paymentResult.error) {
+        taxonomyLoadError = true;
+        resetTaxonomyDefaults();
+        console.warn('Custom categories/payment methods unavailable (run migration-custom-categories-payments.sql).');
+        return;
+    }
+    taxonomyLoadError = false;
+    let categoryRows = categoryResult.data || [];
+    let paymentRows = paymentResult.data || [];
+    const missingCategories = DEFAULT_CATEGORIES.filter(item => !categoryRows.some(row => row.category_key === item.key))
+        .map((item, index) => ({ user_id: currentUser.id, category_key: item.key, label: item.label, icon: item.icon, color: item.color, active: true, is_builtin: true, sort_order: index }));
+    const missingPayments = DEFAULT_PAYMENTS.filter(item => !paymentRows.some(row => row.payment_key === item.key))
+        .map((item, index) => ({ user_id: currentUser.id, payment_key: item.key, label: item.label, icon: item.icon, color: item.color, active: true, is_builtin: true, sort_order: index }));
+    if (missingCategories.length) {
+        const { error } = await supabaseClient.from('user_categories').upsert(missingCategories, { onConflict: 'user_id,category_key' });
+        if (!error) categoryRows = (await supabaseClient.from('user_categories').select('*').eq('user_id', currentUser.id).order('sort_order')).data || categoryRows;
+    }
+    if (missingPayments.length) {
+        const { error } = await supabaseClient.from('user_payment_methods').upsert(missingPayments, { onConflict: 'user_id,payment_key' });
+        if (!error) paymentRows = (await supabaseClient.from('user_payment_methods').select('*').eq('user_id', currentUser.id).order('sort_order')).data || paymentRows;
+    }
+    CATEGORIES = categoryRows.map(row => ({ key: row.category_key, label: row.label, icon: row.icon, color: row.color, active: row.active, is_builtin: row.is_builtin, sort_order: row.sort_order }));
+    PAYMENTS = paymentRows.map(row => ({ key: row.payment_key, label: row.label, icon: row.icon, color: row.color, active: row.active, is_builtin: row.is_builtin, sort_order: row.sort_order }));
+    catByKey = Object.fromEntries(CATEGORIES.map(item => [item.key, item]));
+    payByKey = Object.fromEntries(PAYMENTS.map(item => [item.key, item]));
+    if (!activeTaxonomy(CATEGORIES).some(item => item.key === expCategoryValue)) expCategoryValue = activeTaxonomy(CATEGORIES)[0]?.key || 'other';
+    if (!activeTaxonomy(PAYMENTS).some(item => item.key === expPaymentValue)) expPaymentValue = activeTaxonomy(PAYMENTS)[0]?.key || 'bank';
+    if (!activeTaxonomy(CATEGORIES).some(item => item.key === recCategoryValue)) recCategoryValue = activeTaxonomy(CATEGORIES)[0]?.key || 'other';
+    if (!activeTaxonomy(PAYMENTS).some(item => item.key === recPaymentValue)) recPaymentValue = activeTaxonomy(PAYMENTS)[0]?.key || 'bank';
+    renderExpenseChips();
+    if (typeof renderRecurringChips === 'function') renderRecurringChips();
+    if (typeof fillSelect === 'function') {
+        fillSelect(historyCategoryFilter, CATEGORIES, 'All categories');
+        fillSelect(editCategory, CATEGORIES);
+        fillSelect(editPayment, PAYMENTS);
+    }
+}
+
 async function flushQueue({ silent = false } = {}) {
     if (!currentUser || flushing || !navigator.onLine || !syncQueue.length) return;
     flushing = true;
@@ -1396,15 +1623,18 @@ window.addEventListener('online', () => {
 
 async function fetchAllData() {
     isLoading = true;
+    $('dashboardScreen').setAttribute('aria-busy', 'true');
+    historyList.setAttribute('aria-busy', 'true');
     loadQueue();
     updateDashboard();
     try {
         if (!navigator.onLine) throw new Error('offline');
 
-        const [exp, inc, rec, bud] = await Promise.all([
+        const [exp, inc, rec, recInc, bud] = await Promise.all([
             supabaseClient.from('expenses').select('*').order('created_at', { ascending: false }),
             supabaseClient.from('incomes').select('*').order('created_at', { ascending: false }),
             supabaseClient.from('recurring_expenses').select('*').order('next_due', { ascending: true }),
+            supabaseClient.from('recurring_incomes').select('*').order('next_due', { ascending: true }),
             supabaseClient.from('budgets').select('*')
         ]);
 
@@ -1417,14 +1647,19 @@ async function fetchAllData() {
 
         // Recurring and budgets are optional: if their tables aren't created yet, the rest still works
         recurringLoadError = !!rec.error;
+        recurringIncomeLoadError = !!recInc.error;
         budgetsLoadError = !!bud.error;
-        if (rec.error) console.warn('Recurring expenses unavailable (run migration-add-recurring.sql):', rec.error);
-        if (bud.error) console.warn('Budgets unavailable (run migration-add-budgets.sql):', bud.error);
+        if (rec.error) console.warn('Recurring expenses unavailable (run supabase-schema.sql):', rec.error);
+        if (recInc.error) console.warn('Recurring income unavailable (run supabase-schema.sql):', recInc.error);
+        if (bud.error) console.warn('Budgets unavailable (run supabase-schema.sql):', bud.error);
 
         expenses = exp.data || [];
         incomes = inc.data || [];
         recurring = rec.data || [];
+        recurringIncomes = recInc.data || [];
         budgets = bud.data || [];
+        await loadUserTaxonomy();
+        await loadDisplayPreferences();
         servedFromCache = false;
 
         mergePending();
@@ -1442,6 +1677,8 @@ async function fetchAllData() {
         }
     } finally {
         isLoading = false;
+        $('dashboardScreen').setAttribute('aria-busy', 'false');
+        historyList.setAttribute('aria-busy', 'false');
         updateDashboard();
         if ($('historyScreen').classList.contains('active')) renderHistory();
     }
@@ -1535,8 +1772,8 @@ async function deleteRecord(type, id) {
 function renderChips(container, items, selectedKey) {
     container.innerHTML = items.map(i => `
         <button type="button" class="chip ${i.key === selectedKey ? 'active' : ''}" data-key="${escapeHtml(i.key)}"
-                style="--chip-color:${i.color || 'var(--primary)'}" aria-pressed="${i.key === selectedKey}">
-            <i class="fas ${i.icon}"></i><span>${i.label}</span>
+                style="--chip-color:${safeColor(i.color)}" aria-pressed="${i.key === selectedKey}">
+            <i class="fas ${safeIcon(i.icon)}" aria-hidden="true"></i><span>${escapeHtml(i.label)}</span>
         </button>`).join('');
 }
 
@@ -1549,8 +1786,8 @@ function bindChips(container, onSelect) {
 }
 
 function renderExpenseChips() {
-    renderChips($('expCategoryChips'), CATEGORIES, expCategoryValue);
-    renderChips($('expPaymentChips'), PAYMENTS, expPaymentValue);
+    renderChips($('expCategoryChips'), activeTaxonomy(CATEGORIES), expCategoryValue);
+    renderChips($('expPaymentChips'), activeTaxonomy(PAYMENTS), expPaymentValue);
     const isOther = expCategoryValue === 'other';
     expNoteLabel.textContent = isOther ? 'Please specify (required)' : 'Note (optional)';
     expNote.placeholder = isOther ? 'What was this expense for?' : 'e.g. Lunch with team';
@@ -1854,9 +2091,14 @@ function resetSession() {
     expenses = [];
     incomes = [];
     recurring = [];
+    recurringIncomes = [];
     budgets = [];
+    monthlyReportPreference = null;
+    dateFormat = 'dmy_short';
+    resetTaxonomyDefaults();
     syncQueue = [];
     cancelRecurringEdit();
+    closeTaxonomyManager();
     closeAddSheet();
     closeAccountSheet();
     closeBudgetSheet();
@@ -1873,7 +2115,10 @@ function enterApp() {
 }
 
 async function onLoginSuccess(user) {
-    if (currentUser?.id !== user.id) monthlyReportPreference = null;
+    if (currentUser?.id !== user.id) {
+        monthlyReportPreference = null;
+        dateFormat = 'dmy_short';
+    }
     currentUser = user;
 
     // Users who signed up with email always have a username. Anyone without one
@@ -2003,7 +2248,7 @@ incomeAmount.addEventListener('keydown', (e) => { if (e.key === 'Enter') saveInc
 // === HISTORY ===
 function fillSelect(select, items, allLabel) {
     select.innerHTML = (allLabel ? `<option value="">${allLabel}</option>` : '') +
-        items.map(i => `<option value="${i.key}">${i.label}</option>`).join('');
+        items.map(i => `<option value="${escapeHtml(i.key)}">${escapeHtml(i.label)}${i.active === false ? ' (inactive)' : ''}</option>`).join('');
 }
 fillSelect(historyCategoryFilter, CATEGORIES, 'All categories');
 fillSelect(editCategory, CATEGORIES);
@@ -2020,6 +2265,7 @@ function openHistoryFiltered({ type = 'all', category = '', month = '' } = {}) {
 
 function renderHistory() {
     if (!currentUser) return;
+    historyList.setAttribute('aria-busy', String(isLoading));
 
     const type = historyTypeFilter.value;
     const category = historyCategoryFilter.value;
@@ -2072,7 +2318,9 @@ function renderHistory() {
         : '';
 
     if (!list.length) {
-        historyList.innerHTML = '<div class="history-empty"><i class="fas fa-inbox"></i><div>No transactions found for this filter.</div></div>';
+        historyList.innerHTML = isLoading
+            ? '<div class="history-empty" role="status"><i class="fas fa-spinner fa-spin" aria-hidden="true"></i><div>Loading your transactions…</div></div>'
+            : '<div class="history-empty"><i class="fas fa-inbox" aria-hidden="true"></i><div>No transactions found for this filter.</div></div>';
         return;
     }
 
@@ -2468,6 +2716,24 @@ const recurringList = $('recurringList');
 const recurringSummary = $('recurringSummary');
 const recurringFormTitle = $('recurringFormTitle');
 const upcomingList = $('upcomingList');
+let recurringType = 'expense';
+
+function setRecurringType(type) {
+    recurringType = type;
+    const isExpense = type === 'expense';
+    $('recTypeExpense').classList.toggle('active', isExpense);
+    $('recTypeExpense').setAttribute('aria-pressed', String(isExpense));
+    $('recTypeIncome').classList.toggle('active', !isExpense);
+    $('recTypeIncome').setAttribute('aria-pressed', String(!isExpense));
+    $('recExpenseFields').classList.toggle('hidden', !isExpense);
+    $('recPresetGroup').classList.toggle('hidden', !isExpense);
+    $('recNameLabel').textContent = isExpense ? 'Name' : 'Income source';
+    recName.placeholder = isExpense ? 'e.g. Electricity, Netflix' : 'e.g. Salary, Freelance';
+    recName.parentElement.querySelector('i').className = `fas ${isExpense ? 'fa-tag' : 'fa-sack-dollar'}`;
+    renderRecurringChips();
+}
+$('recTypeExpense').addEventListener('click', () => setRecurringType('expense'));
+$('recTypeIncome').addEventListener('click', () => setRecurringType('income'));
 
 // Dates are handled as plain "YYYY-MM-DD" strings (no timezone maths), so they compare with < and >.
 function parseYMD(s) {
@@ -2493,8 +2759,7 @@ function advanceDue(dueStr, freq, anchorDay) {
 }
 
 function formatDueLabel(dateStr) {
-    const { y, m, d } = parseYMD(dateStr);
-    return new Date(y, m - 1, d).toLocaleDateString('en-MY', { day: '2-digit', month: 'short', year: 'numeric' });
+    return formatDateDisplay(dateStr);
 }
 
 function daysUntil(dateStr) {
@@ -2523,13 +2788,13 @@ function dueNoonISO(dateStr) {
 }
 
 let recurringBusy = false;
+let recurringIncomeBusy = false;
 
-// Adds an expense for every due date up to today. Returns how many expenses were added.
+// Posts due expense and income schedules into the normal transaction history.
 async function processRecurring({ silent = false } = {}) {
-    if (!currentUser || recurringLoadError || recurringBusy) return 0;
+    if (!currentUser || recurringBusy) return 0;
     const today = toInputDate();
-    const dueItems = recurring.filter(r => r.active && r.next_due <= today);
-    if (!dueItems.length) return 0;
+    const dueItems = recurringLoadError ? [] : recurring.filter(r => r.active && r.next_due <= today);
 
     recurringBusy = true;
     let added = 0;
@@ -2574,14 +2839,62 @@ async function processRecurring({ silent = false } = {}) {
         recurringBusy = false;
     }
 
+    const incomeAdded = await processRecurringIncome();
     if (added) {
         expenses.sort(byDateDesc);
         recurring.sort((a, b) => a.next_due.localeCompare(b.next_due));
+    }
+    if (incomeAdded) incomes.sort(byDateDesc);
+    if (added || incomeAdded) {
         updateDashboard();
         if ($('historyScreen').classList.contains('active')) renderHistory();
         if ($('recurringScreen').classList.contains('active')) renderRecurring();
-        if (!silent) showToast('info', `${added} recurring expense${added === 1 ? '' : 's'} added`);
+        if (!silent) showToast('info', `${added + incomeAdded} recurring entr${added + incomeAdded === 1 ? 'y' : 'ies'} added`);
     }
+    return added + incomeAdded;
+}
+
+async function processRecurringIncome() {
+    if (!currentUser || recurringIncomeLoadError || recurringIncomeBusy) return 0;
+    const today = toInputDate();
+    const dueItems = recurringIncomes.filter(item => item.active && item.next_due <= today);
+    if (!dueItems.length) return 0;
+    recurringIncomeBusy = true;
+    let added = 0;
+    try {
+        for (const item of dueItems) {
+            const anchor = parseYMD(item.start_date).d;
+            const dueDates = [];
+            let next = item.next_due;
+            while (next <= today && dueDates.length < 36) {
+                dueDates.push(next);
+                next = advanceDue(next, item.frequency, anchor);
+            }
+            const claim = await supabaseClient.from('recurring_incomes')
+                .update({ next_due: next }).eq('id', item.id).eq('next_due', item.next_due).select();
+            if (claim.error || !claim.data?.length) continue;
+            const rows = dueDates.map(date => ({
+                user_id: currentUser.id,
+                amount: item.amount,
+                source: item.source,
+                created_at: dueNoonISO(date)
+            }));
+            const inserted = await supabaseClient.from('incomes').insert(rows).select();
+            if (inserted.error) {
+                console.error('Recurring income insert failed, rolling back:', inserted.error);
+                await supabaseClient.from('recurring_incomes').update({ next_due: item.next_due }).eq('id', item.id);
+                continue;
+            }
+            item.next_due = next;
+            incomes.push(...(inserted.data || []));
+            added += inserted.data?.length || 0;
+        }
+    } catch (error) {
+        console.error('Recurring income processing error:', error);
+    } finally {
+        recurringIncomeBusy = false;
+    }
+    if (added) recurringIncomes.sort((a, b) => a.next_due.localeCompare(b.next_due));
     return added;
 }
 
@@ -2594,10 +2907,19 @@ async function updateRecurringRecord(id, fields) {
     recurring.sort((a, b) => a.next_due.localeCompare(b.next_due));
 }
 
+async function updateRecurringIncomeRecord(id, fields) {
+    const { data, error } = await supabaseClient.from('recurring_incomes').update(fields).eq('id', id).select();
+    if (error) throw error;
+    if (!data || !data.length) throw new Error('That recurring income could not be updated.');
+    const idx = recurringIncomes.findIndex(item => item.id === id);
+    if (idx >= 0) recurringIncomes[idx] = data[0];
+    recurringIncomes.sort((a, b) => a.next_due.localeCompare(b.next_due));
+}
+
 // ---- Form ----
 function renderRecurringChips() {
-    renderChips($('recCategoryChips'), CATEGORIES, recCategoryValue);
-    renderChips($('recPaymentChips'), PAYMENTS, recPaymentValue);
+    renderChips($('recCategoryChips'), activeTaxonomy(CATEGORIES), recCategoryValue);
+    renderChips($('recPaymentChips'), activeTaxonomy(PAYMENTS), recPaymentValue);
     renderChips($('recFreqChips'), FREQUENCIES, recFreqValue);
     renderChips($('recPresetChips'), RECURRING_PRESETS.map((p, i) => ({
         key: String(i), label: p.name, icon: p.icon, color: (catByKey[p.category] || {}).color
@@ -2617,11 +2939,14 @@ bindChips($('recPresetChips'), (key) => {
 
 function cancelRecurringEdit() {
     editingRecurringId = null;
+    $('recTypeExpense').disabled = false;
+    $('recTypeIncome').disabled = false;
+    setRecurringType('expense');
     recName.value = '';
     recAmount.value = '';
     recDate.value = toInputDate();
-    recCategoryValue = 'utilities';
-    recPaymentValue = 'bank';
+    recCategoryValue = activeTaxonomy(CATEGORIES).some(item => item.key === 'utilities') ? 'utilities' : (activeTaxonomy(CATEGORIES)[0]?.key || 'other');
+    recPaymentValue = activeTaxonomy(PAYMENTS).some(item => item.key === 'bank') ? 'bank' : (activeTaxonomy(PAYMENTS)[0]?.key || 'card');
     recFreqValue = 'monthly';
     recurringFormTitle.textContent = 'Add recurring expense';
     recDateLabel.textContent = 'First due date';
@@ -2630,17 +2955,23 @@ function cancelRecurringEdit() {
     renderRecurringChips();
 }
 
-function startRecurringEdit(id) {
-    const r = recurring.find(x => x.id === id);
+function startRecurringEdit(id, kind = 'expense') {
+    const list = kind === 'income' ? recurringIncomes : recurring;
+    const r = list.find(x => x.id === id);
     if (!r) return;
     editingRecurringId = id;
-    recName.value = r.name;
+    $('recTypeExpense').disabled = true;
+    $('recTypeIncome').disabled = true;
+    setRecurringType(kind);
+    recName.value = kind === 'income' ? r.source : r.name;
     recAmount.value = parseFloat(r.amount);
     recDate.value = r.next_due;
-    recCategoryValue = r.category;
-    recPaymentValue = r.payment;
+    if (kind === 'expense') {
+        recCategoryValue = r.category;
+        recPaymentValue = r.payment;
+    }
     recFreqValue = r.frequency;
-    recurringFormTitle.textContent = 'Edit recurring expense';
+    recurringFormTitle.textContent = kind === 'income' ? 'Edit recurring income' : 'Edit recurring expense';
     recDateLabel.textContent = 'Next due date';
     saveRecurringBtn.innerHTML = '<i class="fas fa-floppy-disk"></i> Update recurring';
     cancelRecurringBtn.classList.remove('hidden');
@@ -2653,11 +2984,12 @@ saveRecurringBtn.addEventListener('click', async () => {
     if (!currentUser) return showModal({ type: 'warning', title: 'Not signed in', message: 'Please log in first.' });
 
     const name = recName.value.trim();
+    const kind = recurringType;
     const amount = parseFloat(recAmount.value);
     const date = recDate.value;
     if (!name) {
         recName.focus();
-        return showModal({ type: 'warning', title: 'Name required', message: 'What is this recurring expense? e.g. Electricity or Netflix.' });
+        return showModal({ type: 'warning', title: 'Name required', message: kind === 'income' ? 'Enter the income source, such as Salary.' : 'Name this recurring expense, such as Electricity or Netflix.' });
     }
     if (isNaN(amount) || amount <= 0) {
         recAmount.focus();
@@ -2669,17 +3001,20 @@ saveRecurringBtn.addEventListener('click', async () => {
 
     setBusy(saveRecurringBtn, true, 'Saving...');
     try {
-        const fields = { name, amount, category: recCategoryValue, payment: recPaymentValue, frequency: recFreqValue, next_due: date };
+        const fields = kind === 'income'
+            ? { source: name, amount, frequency: recFreqValue, next_due: date }
+            : { name, amount, category: recCategoryValue, payment: recPaymentValue, frequency: recFreqValue, next_due: date };
         if (editingRecurringId) {
-            const old = recurring.find(r => r.id === editingRecurringId);
+            const old = (kind === 'income' ? recurringIncomes : recurring).find(r => r.id === editingRecurringId);
             if (!old || old.next_due !== date) fields.start_date = date; // new date re-anchors the schedule
-            await updateRecurringRecord(editingRecurringId, fields);
+            if (kind === 'income') await updateRecurringIncomeRecord(editingRecurringId, fields);
+            else await updateRecurringRecord(editingRecurringId, fields);
         } else {
-            const { data, error } = await supabaseClient.from('recurring_expenses')
+            const { data, error } = await supabaseClient.from(kind === 'income' ? 'recurring_incomes' : 'recurring_expenses')
                 .insert([{ ...fields, start_date: date, user_id: currentUser.id }]).select();
             if (error) throw error;
-            if (data && data.length) recurring.push(data[0]);
-            recurring.sort((a, b) => a.next_due.localeCompare(b.next_due));
+            if (data && data.length) (kind === 'income' ? recurringIncomes : recurring).push(data[0]);
+            (kind === 'income' ? recurringIncomes : recurring).sort((a, b) => a.next_due.localeCompare(b.next_due));
         }
         const wasEditing = !!editingRecurringId;
         cancelRecurringEdit();
@@ -2687,15 +3022,17 @@ saveRecurringBtn.addEventListener('click', async () => {
         const added = await processRecurring({ silent: true });
         renderRecurring();
         updateDashboard();
-        showToast('success', (wasEditing ? 'Recurring updated' : 'Recurring saved') + (added ? ` — ${added} added to expenses` : ''));
+        showToast('success', (wasEditing ? 'Recurring updated' : 'Recurring saved') + (added ? ': ' + added + ' transaction(s) posted' : ''));
     } catch (err) {
         console.error('Save recurring error:', err);
         showModal({
             type: 'error',
-            title: 'Couldn\'t save recurring expense',
-            message: recurringLoadError
-                ? 'The recurring table isn\'t set up yet. Run migration-add-recurring.sql in Supabase, then reload.'
-                : (err.message || 'Please try again.')
+            title: `Couldn't save recurring ${kind}`,
+            message: kind === 'income' && recurringIncomeLoadError
+                ? 'Run supabase-schema.sql in Supabase, then reload.'
+                : (recurringLoadError && kind === 'expense'
+                    ? 'Run supabase-schema.sql in Supabase, then reload.'
+                    : (err.message || 'Please try again.'))
         });
     } finally {
         setBusy(saveRecurringBtn, false);
@@ -2706,40 +3043,49 @@ cancelRecurringBtn.addEventListener('click', cancelRecurringEdit);
 
 // ---- List ----
 function renderRecurring() {
-    const active = recurring.filter(r => r.active);
-    const monthly = active.reduce((s, r) => s + monthlyEquivalent(r), 0);
+    const activeExpenses = recurring.filter(item => item.active);
+    const activeIncomes = recurringIncomes.filter(item => item.active);
+    const expenseMonthly = activeExpenses.reduce((sum, item) => sum + monthlyEquivalent(item), 0);
+    const incomeMonthly = activeIncomes.reduce((sum, item) => sum + monthlyEquivalent(item), 0);
+    const allItems = [
+        ...recurring.map(item => ({ ...item, kind: 'expense', title: item.name })),
+        ...recurringIncomes.map(item => ({ ...item, kind: 'income', title: item.source }))
+    ].sort((a, b) => a.next_due.localeCompare(b.next_due));
+    const active = [...activeExpenses, ...activeIncomes];
+    const monthly = expenseMonthly + incomeMonthly;
 
     if (recurringLoadError) {
-        recurringSummary.innerHTML = '<div class="recurring-warn"><i class="fas fa-triangle-exclamation"></i> Recurring expenses aren\'t set up in your database yet. Run <b>migration-add-recurring.sql</b> in the Supabase SQL Editor, then reload.</div>';
-    } else if (recurring.length) {
+        recurringSummary.innerHTML = '<div class="recurring-warn"><i class="fas fa-triangle-exclamation"></i> Recurring expenses aren\'t set up in your database yet. Run <b>supabase-schema.sql</b> in the Supabase SQL Editor, then reload.</div>';
+    } else if (recurring.length || recurringIncomes.length) {
         recurringSummary.innerHTML = `<span><b>${active.length}</b> active</span>
             <span>≈ <b>${formatMoney(monthly)}</b> / month</span>
             <span>≈ <b>${formatMoney(monthly * 12)}</b> / year</span>`;
     } else {
         recurringSummary.innerHTML = '';
     }
+    if (recurringIncomeLoadError) {
+        recurringSummary.insertAdjacentHTML('afterbegin', '<div class="recurring-warn"><i class="fas fa-circle-info" aria-hidden="true"></i> Run supabase-schema.sql to enable recurring income.</div>');
+    }
 
-    if (!recurring.length) {
-        recurringList.innerHTML = '<div class="history-empty"><i class="fas fa-repeat"></i><div>No recurring expenses yet.<br>Add your utilities and subscriptions and they\'ll post themselves.</div></div>';
+    if (!allItems.length) {
+        recurringList.innerHTML = '<div class="history-empty"><i class="fas fa-repeat" aria-hidden="true"></i><div>No recurring items yet.<br>Add a regular bill or income above.</div></div>';
         return;
     }
 
-    recurringList.innerHTML = recurring.map(r => {
-        const cat = catByKey[r.category];
-        const color = cat ? `style="--cat-color:${cat.color}"` : '';
-        const when = r.active ? `Next: ${formatDueLabel(r.next_due)} · ${dueLabel(r.next_due)}` : 'Paused';
-        return `
-        <div class="history-item recurring-item ${r.active ? '' : 'paused'}" data-id="${escapeHtml(r.id)}">
-            <div class="h-icon expense" ${color}><i class="fas ${cat ? cat.icon : 'fa-repeat'}"></i></div>
-            <div class="h-left">
-                <div class="h-title">${escapeHtml(r.name)}</div>
-                <div class="h-detail">${FREQ_LABEL[r.frequency] || r.frequency} · ${escapeHtml(when)}</div>
-            </div>
-            <div class="h-right"><div class="h-amount expense">${formatMoney(r.amount)}</div></div>
+    recurringList.innerHTML = allItems.map(item => {
+        const isIncome = item.kind === 'income';
+        const category = isIncome ? null : catByKey[item.category];
+        const itemTitle = item.title || 'Recurring item';
+        const color = category ? `style="--cat-color:${safeColor(category.color)}"` : '';
+        const when = item.active ? `Next: ${formatDueLabel(item.next_due)} · ${dueLabel(item.next_due)}` : 'Paused';
+        return `<div class="history-item recurring-item ${item.active ? '' : 'paused'}" data-id="${escapeHtml(item.id)}" data-kind="${item.kind}">
+            <div class="h-icon ${item.kind}" ${color}><i class="fas ${isIncome ? 'fa-arrow-trend-up' : safeIcon(category?.icon || 'fa-repeat')}" aria-hidden="true"></i></div>
+            <div class="h-left"><div class="h-title">${escapeHtml(itemTitle)}</div><div class="h-detail">${isIncome ? 'Income' : escapeHtml(category?.label || item.category)} · ${FREQ_LABEL[item.frequency] || item.frequency} · ${escapeHtml(when)}</div></div>
+            <div class="h-right"><div class="h-amount ${item.kind}">${isIncome ? '+' : '−'} ${formatMoney(item.amount)}</div></div>
             <div class="h-actions">
-                <button type="button" class="icon-btn" data-action="toggle" title="${r.active ? 'Pause' : 'Resume'}" aria-label="${r.active ? 'Pause' : 'Resume'}"><i class="fas ${r.active ? 'fa-pause' : 'fa-play'}"></i></button>
-                <button type="button" class="icon-btn" data-action="edit" title="Edit" aria-label="Edit"><i class="fas fa-pen"></i></button>
-                <button type="button" class="icon-btn danger" data-action="delete" title="Delete" aria-label="Delete"><i class="fas fa-trash-can"></i></button>
+                <button type="button" class="icon-btn" data-action="toggle" aria-label="${item.active ? 'Pause' : 'Resume'} ${escapeHtml(itemTitle)}"><i class="fas ${item.active ? 'fa-pause' : 'fa-play'}" aria-hidden="true"></i></button>
+                <button type="button" class="icon-btn" data-action="edit" aria-label="Edit ${escapeHtml(itemTitle)}"><i class="fas fa-pen" aria-hidden="true"></i></button>
+                <button type="button" class="icon-btn danger" data-action="delete" aria-label="Delete ${escapeHtml(itemTitle)}"><i class="fas fa-trash-can" aria-hidden="true"></i></button>
             </div>
         </div>`;
     }).join('');
@@ -2749,11 +3095,13 @@ recurringList.addEventListener('click', async (e) => {
     const row = e.target.closest('.recurring-item');
     if (!row) return;
     const id = row.dataset.id;
-    const r = recurring.find(x => x.id === id);
+    const kind = row.dataset.kind || 'expense';
+    const list = kind === 'income' ? recurringIncomes : recurring;
+    const r = list.find(x => x.id === id);
     if (!r) return;
     const action = e.target.closest('[data-action]')?.dataset.action || 'edit';
 
-    if (action === 'edit') return startRecurringEdit(id);
+    if (action === 'edit') return startRecurringEdit(id, kind);
 
     if (action === 'toggle') {
         try {
@@ -2767,7 +3115,8 @@ recurringList.addEventListener('click', async (e) => {
                 while (due < today && guard++ < 1000) due = advanceDue(due, r.frequency, anchor);
                 fields.next_due = due;
             }
-            await updateRecurringRecord(id, fields);
+            if (kind === 'income') await updateRecurringIncomeRecord(id, fields);
+            else await updateRecurringRecord(id, fields);
             renderRecurring();
             updateDashboard();
             await processRecurring();
@@ -2783,16 +3132,17 @@ recurringList.addEventListener('click', async (e) => {
         showModal({
             type: 'warning',
             title: 'Delete recurring item?',
-            message: `"${r.name}" will stop posting automatically. Expenses it already added are kept.`,
+            message: `"${kind === 'income' ? r.source : r.name}" will stop posting automatically. Transactions it already added are kept.`,
             confirmText: 'Delete',
             cancelText: 'Keep it',
             danger: true,
             onConfirm: async () => {
                 try {
-                    const { data, error } = await supabaseClient.from('recurring_expenses').delete().eq('id', id).select();
+                    const { data, error } = await supabaseClient.from(kind === 'income' ? 'recurring_incomes' : 'recurring_expenses').delete().eq('id', id).select();
                     if (error) throw error;
                     if (!data || !data.length) throw new Error('That item could not be deleted.');
-                    recurring = recurring.filter(x => x.id !== id);
+                    if (kind === 'income') recurringIncomes = recurringIncomes.filter(x => x.id !== id);
+                    else recurring = recurring.filter(x => x.id !== id);
                     if (editingRecurringId === id) cancelRecurringEdit();
                     renderRecurring();
                     updateDashboard();
@@ -2808,22 +3158,22 @@ recurringList.addEventListener('click', async (e) => {
 
 // ---- Dashboard "Upcoming" card ----
 function renderUpcoming() {
-    const next = recurring.filter(r => r.active).sort((a, b) => a.next_due.localeCompare(b.next_due)).slice(0, 3);
+    const next = [
+        ...recurring.filter(item => item.active).map(item => ({ ...item, kind: 'expense', title: item.name })),
+        ...recurringIncomes.filter(item => item.active).map(item => ({ ...item, kind: 'income', title: item.source }))
+    ].sort((a, b) => a.next_due.localeCompare(b.next_due)).slice(0, 3);
     if (!next.length) {
         upcomingList.innerHTML = '<div class="history-empty small">No recurring bills yet — add your utilities and subscriptions.</div>';
         return;
     }
-    upcomingList.innerHTML = next.map(r => {
-        const cat = catByKey[r.category];
-        const soon = daysUntil(r.next_due) <= 3;
-        return `
-        <div class="history-item" data-id="${escapeHtml(r.id)}">
-            <div class="h-icon expense" ${cat ? `style="--cat-color:${cat.color}"` : ''}><i class="fas ${cat ? cat.icon : 'fa-repeat'}"></i></div>
-            <div class="h-left">
-                <div class="h-title">${escapeHtml(r.name)}</div>
-                <div class="h-detail"><span class="${soon ? 'due-soon' : ''}">${dueLabel(r.next_due)}</span> · ${formatDueLabel(r.next_due)}</div>
-            </div>
-            <div class="h-right"><div class="h-amount expense">${formatMoney(r.amount)}</div></div>
+    upcomingList.innerHTML = next.map(item => {
+        const isIncome = item.kind === 'income';
+        const category = isIncome ? null : catByKey[item.category];
+        const soon = daysUntil(item.next_due) <= 3;
+        return `<div class="history-item" data-id="${escapeHtml(item.id)}" data-kind="${item.kind}">
+            <div class="h-icon ${item.kind}" ${category ? `style="--cat-color:${safeColor(category.color)}"` : ''}><i class="fas ${isIncome ? 'fa-arrow-trend-up' : safeIcon(category?.icon || 'fa-repeat')}" aria-hidden="true"></i></div>
+            <div class="h-left"><div class="h-title">${escapeHtml(item.title)}</div><div class="h-detail"><span class="${soon ? 'due-soon' : ''}">${dueLabel(item.next_due)}</span> · ${formatDueLabel(item.next_due)}</div></div>
+            <div class="h-right"><div class="h-amount ${item.kind}">${isIncome ? '+' : '−'} ${formatMoney(item.amount)}</div></div>
         </div>`;
     }).join('');
 }
@@ -2832,7 +3182,7 @@ upcomingList.addEventListener('click', (e) => {
     const row = e.target.closest('.history-item');
     if (!row) return navigate('recurring');
     navigate('recurring');
-    startRecurringEdit(row.dataset.id);
+    startRecurringEdit(row.dataset.id, row.dataset.kind || 'expense');
 });
 
 // Catch bills that fell due while the app sat in the background (e.g. an installed PWA left open overnight)
@@ -2884,13 +3234,14 @@ $('safeToSpend').addEventListener('click', (e) => { if (e.target.closest('[data-
 $('budgetBtn').addEventListener('click', openBudgetSheet);
 
 function renderBudgetFields() {
-    const rows = [{ key: 'all', label: 'Overall budget', icon: 'fa-bullseye', color: 'var(--primary)' }, ...CATEGORIES];
+    const budgetCategories = CATEGORIES.filter(category => category.active !== false || budgetFor(category.key) > 0);
+    const rows = [{ key: 'all', label: 'Overall budget', icon: 'fa-bullseye', color: 'var(--primary)' }, ...budgetCategories];
     budgetFields.innerHTML = rows.map(c => `
-        <label class="budget-row${c.key === 'all' ? ' overall' : ''}" style="--cat-color:${c.color}">
-            <span class="cat-ico"><i class="fas ${c.icon}"></i></span>
-            <span class="budget-name">${c.label}</span>
+        <label class="budget-row${c.key === 'all' ? ' overall' : ''}" style="--cat-color:${safeColor(c.color)}">
+            <span class="cat-ico"><i class="fas ${safeIcon(c.icon)}" aria-hidden="true"></i></span>
+            <span class="budget-name">${escapeHtml(c.label)}${c.active === false ? ' (inactive)' : ''}</span>
             <span class="budget-input"><span>RM</span>
-                <input type="number" data-cat="${c.key}" min="0" step="1" inputmode="decimal" placeholder="No limit" value="${budgetFor(c.key) || ''}" aria-label="${c.label} budget in RM" />
+                <input type="number" data-cat="${escapeHtml(c.key)}" min="0" step="1" inputmode="decimal" placeholder="No limit" value="${budgetFor(c.key) || ''}" aria-label="${escapeHtml(c.label)} budget in RM" />
             </span>
         </label>`).join('');
 }
@@ -2955,7 +3306,7 @@ saveBudgetsBtn.addEventListener('click', async () => {
             type: 'error',
             title: 'Couldn\'t save budgets',
             message: budgetsLoadError
-                ? 'The budgets table isn\'t set up yet. Run migration-add-budgets.sql in Supabase, then reload.'
+                ? 'The budgets table isn\'t set up yet. Run supabase-schema.sql in Supabase, then reload.'
                 : (err.message || 'Please try again.')
         });
     } finally {

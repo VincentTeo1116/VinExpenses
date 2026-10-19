@@ -692,6 +692,33 @@ option { background: var(--surface); color: var(--text); }
 .report-email-settings .input-group { margin-bottom: 12px; }
 .report-email-settings .field-hint { margin-bottom: 0; }
 .report-email-settings .field-hint.error { color: var(--danger); }
+.account-manage-options { margin-bottom: var(--s-4); }
+.taxonomy-tabs { margin: 0 0 14px; }
+.taxonomy-tabs .seg-btn { flex: 1; justify-content: center; }
+.taxonomy-add-row { display: flex; align-items: center; gap: 8px; }
+.taxonomy-add-row .input-icon-wrap { flex: 1; min-width: 0; }
+.taxonomy-add-row input { min-width: 0; }
+.taxonomy-list { display: grid; gap: 6px; max-height: min(44vh, 380px); margin-top: 8px; overflow-y: auto; overscroll-behavior: contain; }
+.taxonomy-row { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 8px; border: 1px solid var(--border); border-radius: var(--r-md); background: var(--surface); }
+.taxonomy-row.inactive { opacity: .65; }
+.taxonomy-row-icon { display: grid; flex: 0 0 34px; width: 34px; height: 34px; place-items: center; border-radius: 11px; background: var(--surface-2); color: var(--chip-color); }
+.taxonomy-row-name { display: flex; flex: 1; flex-direction: column; min-width: 0; gap: 2px; }
+.taxonomy-row-name b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+.taxonomy-row-name small { color: var(--muted); font-size: 11px; }
+.taxonomy-row .icon-btn { flex: 0 0 36px; width: 36px; height: 36px; }
+.recurring-type-tabs { width: 100%; }
+.recurring-type-tabs .seg-btn { flex: 1; justify-content: center; }
+#recurringSummary .recurring-warn { flex-basis: 100%; }
+.recurring-item .h-actions { display: flex; }
+.recurring-item.paused { opacity: .68; }
+.history-list[aria-busy="true"] { min-height: 100px; }
+.field-row .input-group { min-width: 0; }
+@media (max-width: 600px) {
+    .taxonomy-add-row .btn { min-height: 44px; padding-inline: 14px; }
+    .taxonomy-list { max-height: 38vh; }
+    .recurring-item { flex-wrap: wrap; }
+    .recurring-item .h-actions { margin-left: auto; }
+}
 .switch-label { position: relative; flex: 0 0 auto; width: 48px; height: 28px; cursor: pointer; }
 .switch-label input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
 .switch-track { position: absolute; inset: 0; border-radius: 999px; background: var(--border); transition: background .18s ease; pointer-events: none; }
