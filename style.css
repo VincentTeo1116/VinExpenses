@@ -880,3 +880,56 @@ body.is-auth .net-banner { display: none; }
     .toast-action { background: rgba(15, 23, 42, 0.1); }
     .toast-action:hover { background: rgba(15, 23, 42, 0.2); }
 }
+
+/* === Liquid Glass surfaces ===
+   Keep content surfaces nearly opaque for contrast; reserve the strongest
+   translucency and blur for floating navigation, sheets, and dialogs. */
+:root {
+    --glass-edge: rgba(255, 255, 255, 0.62);
+}
+
+@media (prefers-color-scheme: light) {
+    body { background: radial-gradient(ellipse at 92% 0%, rgba(124, 119, 244, 0.12), transparent 34%), var(--bg); }
+}
+@media (prefers-color-scheme: dark) {
+    :root { --glass-edge: rgba(255, 255, 255, 0.12); }
+    body { background: radial-gradient(ellipse at 92% 0%, rgba(93, 83, 220, 0.16), transparent 36%), var(--bg); }
+}
+
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    .tabbar {
+        left: 12px; right: 12px; bottom: calc(8px + var(--safe-bottom));
+        height: 64px; padding: 5px 8px;
+        border: 1px solid var(--glass-edge); border-radius: 24px;
+        background: color-mix(in srgb, var(--surface) 70%, transparent);
+        backdrop-filter: blur(28px) saturate(1.65);
+        -webkit-backdrop-filter: blur(28px) saturate(1.65);
+        box-shadow: 0 12px 34px rgba(17, 24, 39, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.55);
+    }
+    .tabbar .nav-item:not(.tab-fab).active {
+        position: relative;
+        background: color-mix(in srgb, var(--primary-soft) 78%, transparent);
+    }
+    .tabbar .tab-fab { border-color: color-mix(in srgb, var(--surface) 74%, transparent); }
+    .sheet, .modal-container {
+        background: color-mix(in srgb, var(--surface) 86%, transparent);
+        border: 1px solid var(--glass-edge);
+        backdrop-filter: blur(30px) saturate(1.45);
+        -webkit-backdrop-filter: blur(30px) saturate(1.45);
+        box-shadow: 0 28px 90px rgba(8, 12, 28, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.58);
+    }
+    .modal-overlay-full { background: rgba(8, 12, 28, 0.36); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+    .toast { background: color-mix(in srgb, var(--surface) 70%, transparent); color: var(--text); border: 1px solid var(--glass-edge); backdrop-filter: blur(22px) saturate(1.5); -webkit-backdrop-filter: blur(22px) saturate(1.5); box-shadow: 0 12px 34px rgba(8, 12, 28, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.52); }
+    .toast.success i { color: var(--success); }
+    .toast.error i { color: var(--danger); }
+    .toast.info i { color: var(--primary); }
+    .sidebar { background: color-mix(in srgb, var(--surface) 82%, transparent); border-right-color: var(--glass-edge); }
+}
+
+@media (max-width: 639px) {
+    .sheet-overlay .sheet { border-radius: 26px 26px 0 0; }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+    .tabbar, .sidebar, .sheet, .modal-container, .toast { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; background: var(--surface); }
+}
