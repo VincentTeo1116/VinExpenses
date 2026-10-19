@@ -888,6 +888,23 @@ body.is-auth .net-banner { display: none; }
     --glass-edge: rgba(255, 255, 255, 0.62);
 }
 
+/* The floating mobile pill is structural styling, so keep it even on browsers
+   that do not implement backdrop-filter. The filter below adds the glass effect. */
+@media (max-width: 1023px) {
+    .tabbar {
+        left: 12px; right: 12px; bottom: calc(8px + var(--safe-bottom));
+        height: 64px; padding: 5px 8px;
+        border: 1px solid var(--glass-edge); border-radius: 24px;
+        background: var(--surface);
+        background: color-mix(in srgb, var(--surface) 76%, transparent);
+        box-shadow: 0 12px 34px rgba(17, 24, 39, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.55);
+    }
+    .tabbar .nav-item:not(.tab-fab).active {
+        position: relative;
+        background: var(--primary-soft);
+    }
+}
+
 @media (prefers-color-scheme: light) {
     body { background: radial-gradient(ellipse at 92% 0%, rgba(124, 119, 244, 0.12), transparent 34%), var(--bg); }
 }
