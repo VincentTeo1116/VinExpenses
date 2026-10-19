@@ -560,6 +560,27 @@ option { background: var(--surface); color: var(--text); }
 .history-summary .expense { color: var(--text); font-weight: 600; }
 .history-summary:empty { display: none; }
 
+/* History: compact monthly context and native-feeling grouped rows */
+.history-overview { display: grid; grid-template-columns: 1.15fr 1fr; gap: 16px; align-items: center; margin: 0 0 16px; padding: 20px 22px; color: #fff; border-radius: 22px; background: linear-gradient(135deg, #4f46e5 0%, #6865ed 58%, #7c77f4 100%); box-shadow: 0 12px 28px rgba(79,70,229,.2); }
+.history-overview-main { display: flex; flex-direction: column; gap: 3px; }
+.history-overview-label { font-size: 12px; font-weight: 600; opacity: .78; }
+.history-overview-main strong { font-size: clamp(25px, 5vw, 34px); line-height: 1.15; letter-spacing: -.04em; font-variant-numeric: tabular-nums; }
+.history-overview-main > span:last-child { font-size: 12px; opacity: .74; }
+.history-overview-stats { display: grid; gap: 9px; justify-items: end; }
+.history-overview-stats div { display: flex; justify-content: flex-end; gap: 8px; width: 100%; font-size: 12px; }
+.history-overview-stats span { opacity: .74; }
+.history-overview-stats b { font-variant-numeric: tabular-nums; }
+.history-swipe-hint { margin: -2px 4px 12px; color: var(--muted); font-size: 11.5px; text-align: right; }
+.history-swipe-hint i { margin-right: 4px; }
+.history-add { flex-shrink: 0; }
+.day-group { padding: 3px 10px; border-radius: 18px; }
+.day-head { margin: 22px 5px 9px; }
+.day-name { font-size: 13px; letter-spacing: .01em; }
+.history-item { min-height: 66px; gap: 12px; padding: 11px 5px; }
+.history-item:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
+.h-icon { border-radius: 14px; }
+.h-detail { margin-top: 3px; }
+
 .history-empty { text-align: center; color: var(--muted); padding: var(--s-8) var(--s-4); }
 .history-empty i { display: block; font-size: 32px; margin-bottom: 10px; color: var(--border); }
 .history-empty.small { padding: var(--s-4); font-size: 13.5px; }
@@ -748,15 +769,27 @@ body.is-auth .net-banner { display: none; }
 .history-item.pending { opacity: 0.85; }
 
 /* swipe to delete / duplicate */
-.swipe-row { position: relative; overflow: hidden; border-bottom: 1px solid var(--border); }
+.swipe-row { position: relative; overflow: hidden; border-bottom: 1px solid var(--border); border-radius: 13px; }
 .swipe-row:last-child { border-bottom: none; }
 .swipe-row .history-item { border-bottom: none; background: var(--surface); position: relative; z-index: 1; touch-action: pan-y; will-change: transform; }
 .swipe-row .history-item.settling { transition: transform 0.22s var(--ease); }
-.swipe-bg { position: absolute; inset: 0; display: flex; align-items: center; padding: 0 22px; color: #fff; font-weight: 700; font-size: 13px; gap: 8px; opacity: 0; }
+.swipe-bg { position: absolute; inset: 0; display: flex; align-items: center; padding: 0 8px; color: #fff; font-weight: 700; font-size: 13px; gap: 8px; opacity: 0; transition: opacity .12s ease; }
 .swipe-bg.dup { background: var(--brand); justify-content: flex-start; }
 .swipe-bg.del { background: var(--danger); justify-content: flex-end; }
 .swipe-bg i { font-size: 18px; }
+.swipe-action { display: flex; width: 92px; height: 100%; min-height: 64px; flex-direction: column; align-items: center; justify-content: center; gap: 5px; color: #fff; font: inherit; font-size: 11px; font-weight: 700; background: transparent; border: 0; cursor: pointer; }
+.swipe-action i { font-size: 17px; }
+.swipe-row.is-open .history-item { transition: transform .2s var(--ease); }
 @media (hover: hover) and (pointer: fine) { .swipe-row .history-item { touch-action: auto; } }
+
+@media (max-width: 600px) {
+    .history-add { width: 42px; min-width: 42px; height: 42px; padding: 0; border-radius: 14px; font-size: 0; }
+    .history-add i { font-size: 15px; }
+    .history-overview { grid-template-columns: 1fr auto; gap: 8px; padding: 17px 18px; border-radius: 20px; }
+    .history-overview-stats { gap: 7px; }
+    .history-overview-stats div { flex-direction: column; align-items: flex-end; gap: 1px; }
+    .history-swipe-hint { text-align: center; }
+}
 
 /* toast with an action (Undo) */
 .toast.has-action { pointer-events: auto; padding-right: 8px; }

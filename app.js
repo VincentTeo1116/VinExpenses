@@ -545,8 +545,8 @@ function transactionRowHtml(t, withActions, showDate = true) {
     // History rows sit in a swipe container: right = duplicate, left = delete
     return `
         <div class="swipe-row">
-            <div class="swipe-bg dup"><i class="fas fa-copy"></i> Duplicate</div>
-            <div class="swipe-bg del">Delete <i class="fas fa-trash-can"></i></div>
+            <div class="swipe-bg dup"><button type="button" class="swipe-action" data-swipe-action="duplicate" aria-label="Duplicate transaction"><i class="fas fa-copy"></i><span>Duplicate</span></button></div>
+            <div class="swipe-bg del"><button type="button" class="swipe-action" data-swipe-action="delete" aria-label="Delete transaction"><span>Delete</span><i class="fas fa-trash-can"></i></button></div>
             ${rowHtml}
         </div>`;
 }
@@ -1629,6 +1629,19 @@ function renderHistory() {
     historyCategoryFilter.disabled = type === 'income';
 
     let list = allTransactions();
+    const overviewMonth = historyMonthFilter.value || formatMonthValue(selectedDate);
+    const [overviewYear, overviewMon] = overviewMonth.split('-').map(Number);
+    const monthTransactions = allTransactions().filter(t => {
+        const d = new Date(t.created_at);
+        return d.getFullYear() === overviewYear && d.getMonth() === overviewMon - 1;
+    });
+    const monthIncome = sumAmount(monthTransactions.filter(t => t.type === 'income'));
+    const monthExpense = sumAmount(monthTransactions.filter(t => t.type === 'expense'));
+    document.querySelector('.history-overview-label').textContent = `Spent in ${new Date(overviewYear, overviewMon - 1, 1).toLocaleDateString('en-MY', { month: 'long' })}`;
+    $('historyMonthSpend').textContent = formatMoney(monthExpense);
+    $('historyMonthIncome').textContent = formatMoney(monthIncome);
+    $('historyMonthExpense').textContent = formatMoney(monthExpense);
+    $('historyMonthMeta').textContent = `${monthTransactions.length} transaction${monthTransactions.length === 1 ? '' : 's'} · ${new Date(overviewYear, overviewMon - 1, 1).toLocaleDateString('en-MY', { month: 'long', year: 'numeric' })}`;
     if (type !== 'all') list = list.filter(t => t.type === type);
     if (category && type !== 'income') list = list.filter(t => t.type === 'expense' && t.category === category);
     if (month) {
@@ -1690,6 +1703,15 @@ historyResetBtn.addEventListener('click', () => {
 });
 
 historyList.addEventListener('click', (e) => {
+    const swipeAction = e.target.closest('[data-swipe-action]');
+    if (swipeAction) {
+        const item = swipeAction.closest('.swipe-row').querySelector('.history-item');
+        const { id, type } = item.dataset;
+        closeOpenSwipe();
+        if (swipeAction.dataset.swipeAction === 'delete') deleteWithUndo(type, id);
+        else duplicateRecord(type, id);
+        return;
+    }
     if (Date.now() < suppressClickUntil) return;
     const btn = e.target.closest('[data-action]');
     const row = e.target.closest('.history-item');
@@ -1789,10 +1811,23 @@ function swipeBackgrounds(item) {
     return { dup: row.querySelector('.swipe-bg.dup'), del: row.querySelector('.swipe-bg.del') };
 }
 
+function closeOpenSwipe(except = null) {
+    historyList.querySelectorAll('.swipe-row.is-open .history-item').forEach(item => {
+        if (item === except) return;
+        item.classList.add('settling');
+        item.style.transform = '';
+        item.parentElement.classList.remove('is-open');
+        const bg = swipeBackgrounds(item);
+        bg.dup.style.opacity = 0;
+        bg.del.style.opacity = 0;
+    });
+}
+
 historyList.addEventListener('pointerdown', (e) => {
     if (e.pointerType === 'mouse') return; // desktop has hover buttons
     const item = e.target.closest('.swipe-row .history-item');
     if (!item || e.target.closest('button')) return;
+    closeOpenSwipe(item);
     swipe.item = item;
     swipe.pid = e.pointerId;
     swipe.startX = e.clientX;
@@ -1846,8 +1881,18 @@ function endSwipe(e) {
             duplicateRecord(type, id);
         }
     } else {
-        item.style.transform = '';
-        setTimeout(() => { bg.dup.style.opacity = 0; bg.del.style.opacity = 0; }, 220);
+        const revealWidth = Math.min(104, width * 0.28);
+        if (Math.abs(dx) > 42) {
+            const reveal = dx > 0 ? revealWidth : -revealWidth;
+            item.style.transform = `translateX(${reveal}px)`;
+            item.parentElement.classList.add('is-open');
+            bg.dup.style.opacity = dx > 0 ? 1 : 0;
+            bg.del.style.opacity = dx < 0 ? 1 : 0;
+        } else {
+            item.style.transform = '';
+            item.parentElement.classList.remove('is-open');
+            setTimeout(() => { bg.dup.style.opacity = 0; bg.del.style.opacity = 0; }, 220);
+        }
     }
 }
 historyList.addEventListener('pointerup', endSwipe);

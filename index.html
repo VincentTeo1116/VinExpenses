@@ -449,7 +449,13 @@
                         <h1 class="page-title">History</h1>
                         <p class="page-sub">Every expense and income in one place</p>
                     </div>
+                    <button class="btn btn-primary history-add" data-screen="add"><i class="fas fa-plus"></i> Add transaction</button>
                 </header>
+
+                <section class="history-overview" aria-label="History overview">
+                    <div class="history-overview-main"><span class="history-overview-label">This month</span><strong id="historyMonthSpend">RM 0.00</strong><span id="historyMonthMeta">0 transactions</span></div>
+                    <div class="history-overview-stats"><div><span>Income</span><b id="historyMonthIncome">RM 0.00</b></div><div><span>Expenses</span><b id="historyMonthExpense">RM 0.00</b></div></div>
+                </section>
 
                 <div class="card filters-card">
                     <div class="search-wrap">
@@ -471,6 +477,7 @@
                 </div>
 
                 <div id="historySummary" class="history-summary"></div>
+                <p class="history-swipe-hint"><i class="fas fa-arrows-left-right"></i> Swipe right to duplicate · swipe left to delete</p>
                 <div id="historyList" class="history-list grouped">
                     <div class="history-empty">No transactions yet.</div>
                 </div>
