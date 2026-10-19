@@ -18,7 +18,10 @@ dashboard. Plain HTML/CSS/JS — no build step.
 | `migration-add-budgets.sql` | Run once to enable Budgets & "safe to spend today" |
 | `migration-add-merchants.sql` | Run once to add merchant names to expenses |
 | `migration-add-recurring.sql` | Run once to enable Recurring expenses (also run the categories migration first) |
+| `migration-monthly-report-email.sql` | Run once to store private monthly report email preferences |
+| `schedule-monthly-report-email.sql` | Run once to schedule the monthly email job after configuring secrets |
 | `supabase/functions/receipt-ocr/` | Private OCR.space proxy used by receipt scanning |
+| `supabase/functions/monthly-report-email/` | Scheduled monthly spending report sender |
 | `migration-add-categories.sql` | Run once if your database already existed before the Utilities/Car/Health/Other categories |
 | `manifest.json`, `sw.js`, `icons/` | Makes the site installable as an app (PWA) |
 | `icon.png` | Browser tab favicon |
@@ -35,7 +38,8 @@ dashboard. Plain HTML/CSS/JS — no build step.
   possible weekly/monthly merchant repeats from the user's history. Suggestions
   are never added as recurring bills automatically.
 - **Exports and reports** - export filtered History to CSV or open a print-ready
-  monthly report that can be saved as PDF.
+  monthly report that can be saved as PDF. Users can opt in to a monthly email,
+  edit its recipient, and turn delivery off from Account.
 
 - **Quick add** — a big **+** button (bottom tab bar on phones, sidebar button or the
   **N** key on desktop) opens one sheet with an Expense / Income switch, an
@@ -100,7 +104,8 @@ Netlify/Vercel, set the same two environment variables and use
 
 1. **Run the SQL.** In Supabase: **SQL Editor → New query**, paste
    `supabase-schema.sql`, and run it. (Already set up before? Run just the
-   `migration-add-*.sql` files you haven't run yet — categories, recurring, budgets.) This creates the `expenses` and
+   migration files you haven't run yet — categories, recurring, budgets, and
+   `migration-monthly-report-email.sql` for monthly email preferences.) This creates the `expenses` and
    `incomes` tables and locks each row to its owner (select, insert,
    update and delete are all covered — edit/delete in History rely on this).
 
@@ -138,8 +143,8 @@ worker and Supabase redirects need `http://`.)
 ## 3. Enable receipt scanning (OCR.space)
 
 Receipt scanning is optional. Nearby-place lookup, merchant suggestions,
-spending patterns, budget forecasts, CSV export and monthly reports need no
-additional API key.
+spending patterns, budget forecasts, CSV export and the in-app monthly report
+need no additional API key. Monthly report emails use the separate setup below.
 
 1. Create a free OCR.space API key at <https://ocr.space/ocrapi>.
 2. Install Node.js, then from this project folder run `npx supabase login`.
@@ -167,7 +172,45 @@ For existing databases, also run `migration-add-merchants.sql` once in the
 Supabase SQL Editor. Fresh databases get the merchant column from
 `supabase-schema.sql`.
 
-## 4. Using it on mobile
+## 4. Enable monthly report emails
+
+Monthly email is opt-in per user. Each user opens **Account**, enters the
+recipient address, turns on **Monthly report email**, and saves. Turning the
+switch off stops future sends. The email contains monthly income, expenses,
+net, record counts, and spending by category; it does not include individual
+transactions or receipt images.
+
+1. Run `migration-monthly-report-email.sql` in the Supabase SQL Editor (skip if
+   you already included the updated `supabase-schema.sql`).
+2. Create a [Resend](https://resend.com/) account, verify a sender domain, and
+   choose a sender such as `VinExpenses <reports@yourdomain.com>`. Resend's
+   current free tier lists 3,000 emails per month and 100 per day; sending from
+   a custom domain requires verifying that domain with Resend.
+3. Generate a long random value to use as the scheduler secret. Store these
+   three values as Supabase Edge Function secrets (Dashboard → Edge Functions →
+   Secrets, or CLI): `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, and
+   `MONTHLY_REPORT_CRON_SECRET`. The `SUPABASE_SERVICE_ROLE_KEY` and
+   `SUPABASE_URL` are provided by the Supabase Edge Function environment.
+4. Deploy the function:
+
+   ```bash
+   npx supabase functions deploy monthly-report-email
+   ```
+
+5. In Supabase **Vault**, store three named secrets: `project_url` set to
+   `https://YOUR_PROJECT_REF.supabase.co`, `publishable_key` set to your
+   Supabase anon/publishable key, and `monthly_report_cron_secret` set to the
+   exact same value as the Edge Function secret.
+6. Open `schedule-monthly-report-email.sql` and run it in the SQL Editor. The
+   job checks hourly; the sender only sends on the first day in Kuala Lumpur,
+   and skips any user already sent that month's report. Hourly checks allow
+   retries during that day if the email provider is temporarily unavailable.
+
+Use `cron.job_run_details` in the SQL Editor to inspect scheduled job runs.
+Keep the Resend API key and scheduler secret out of browser `.env`, `config.js`,
+and GitHub Pages secrets. They belong only in Supabase server-side secrets.
+
+## 5. Using it on mobile
 
 **A. Install as a PWA.** Once hosted (e.g. GitHub Pages), open the site on your
 phone and use "Add to Home Screen" (iOS Safari: Share → Add to Home Screen;

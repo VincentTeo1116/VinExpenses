@@ -685,6 +685,20 @@ option { background: var(--surface); color: var(--text); }
 .account-email { font-size: 13px; color: var(--muted); word-break: break-all; }
 .account-note { display: flex; align-items: flex-start; gap: 8px; font-size: 13px; color: var(--muted); margin-bottom: var(--s-3); }
 .account-note i { color: var(--primary); margin-top: 3px; }
+.report-email-settings { padding: 16px; margin: 0 0 var(--s-4); border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--surface); }
+.report-email-heading { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 14px; }
+.report-email-heading h3 { margin: 0 0 4px; font-size: 15px; }
+.report-email-heading p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.45; }
+.report-email-settings .input-group { margin-bottom: 12px; }
+.report-email-settings .field-hint { margin-bottom: 0; }
+.report-email-settings .field-hint.error { color: var(--danger); }
+.switch-label { position: relative; flex: 0 0 auto; width: 48px; height: 28px; cursor: pointer; }
+.switch-label input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+.switch-track { position: absolute; inset: 0; border-radius: 999px; background: var(--border); transition: background .18s ease; pointer-events: none; }
+.switch-track::after { content: ''; position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: white; box-shadow: 0 1px 3px #0002; transition: transform .18s ease; }
+.switch-label input:checked + .switch-track { background: var(--primary); }
+.switch-label input:checked + .switch-track::after { transform: translateX(20px); }
+.switch-label input:focus-visible + .switch-track { outline: 3px solid color-mix(in srgb, var(--primary) 35%, transparent); outline-offset: 2px; }
 
 /* Phones: sheets rise from the bottom */
 @media (max-width: 639px) {

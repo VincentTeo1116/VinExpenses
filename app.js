@@ -63,6 +63,7 @@ let recCategoryValue = 'utilities';
 let recPaymentValue = 'bank';
 let recFreqValue = 'monthly';
 let editingRecurringId = null;
+let monthlyReportPreference = null;
 
 let selectedDate = new Date();
 selectedDate.setDate(1);
@@ -448,8 +449,59 @@ function closeAddSheet() {
 function openAccountSheet() {
     if (!currentUser) return;
     accountSheet.classList.add('active');
+    loadMonthlyReportPreference();
     syncBodyScroll();
 }
+
+function setReportPreferenceStatus(message, isError = false) {
+    const status = $('reportEmailStatus');
+    status.textContent = message;
+    status.classList.toggle('error', isError);
+}
+
+async function loadMonthlyReportPreference() {
+    const emailInput = $('monthlyReportEmail');
+    const enabledInput = $('monthlyReportEnabled');
+    emailInput.value = monthlyReportPreference?.recipient_email || currentUser?.email || '';
+    enabledInput.checked = !!monthlyReportPreference?.enabled;
+    setReportPreferenceStatus(enabledInput.checked ? 'Monthly reports are enabled.' : 'Reports are off until you turn them on.');
+    if (!supabaseClient || !navigator.onLine) return;
+    const { data, error } = await supabaseClient.from('monthly_report_preferences')
+        .select('recipient_email, enabled, sent_for_month').eq('user_id', currentUser.id).maybeSingle();
+    if (error) {
+        setReportPreferenceStatus('Run migration-monthly-report-email.sql in Supabase to enable email reports.', true);
+        return;
+    }
+    monthlyReportPreference = data || { recipient_email: currentUser.email || '', enabled: false, sent_for_month: null };
+    emailInput.value = monthlyReportPreference.recipient_email || currentUser.email || '';
+    enabledInput.checked = !!monthlyReportPreference.enabled;
+    setReportPreferenceStatus(enabledInput.checked ? 'Monthly reports are enabled.' : 'Reports are off until you turn them on.');
+}
+
+$('saveReportEmailBtn').addEventListener('click', async () => {
+    if (!currentUser || !supabaseClient) return showToast('error', 'Sign in to save this preference.');
+    const email = $('monthlyReportEmail').value.trim();
+    const enabled = $('monthlyReportEnabled').checked;
+    if (enabled && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        setReportPreferenceStatus('Enter a valid email address before enabling reports.', true);
+        $('monthlyReportEmail').focus();
+        return;
+    }
+    const button = $('saveReportEmailBtn');
+    setBusy(button, true, 'Saving...');
+    const preference = { user_id: currentUser.id, recipient_email: email || currentUser.email || '', enabled };
+    const { data, error } = await supabaseClient.from('monthly_report_preferences')
+        .upsert(preference, { onConflict: 'user_id' }).select('recipient_email, enabled, sent_for_month').single();
+    setBusy(button, false);
+    if (error) {
+        console.error('Could not save monthly report preference:', error);
+        setReportPreferenceStatus('Could not save. Run migration-monthly-report-email.sql and try again.', true);
+        return;
+    }
+    monthlyReportPreference = data;
+    setReportPreferenceStatus(data.enabled ? `Reports will be sent to ${data.recipient_email} on the first day of each month.` : 'Monthly report emails are turned off.');
+    showToast('success', 'Monthly report preference saved');
+});
 
 function closeAccountSheet() {
     accountSheet.classList.remove('active');
@@ -1821,6 +1873,7 @@ function enterApp() {
 }
 
 async function onLoginSuccess(user) {
+    if (currentUser?.id !== user.id) monthlyReportPreference = null;
     currentUser = user;
 
     // Users who signed up with email always have a username. Anyone without one

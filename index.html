@@ -678,6 +678,18 @@
                 </div>
             </div>
             <p class="account-note"><i class="fas fa-circle-half-stroke"></i> The app follows your phone's light or dark setting automatically.</p>
+            <section class="report-email-settings" aria-labelledby="reportEmailTitle">
+                <div class="report-email-heading">
+                    <div><h3 id="reportEmailTitle">Monthly report email</h3><p>Receive last month’s spending summary on the first day of each month.</p></div>
+                    <label class="switch-label" for="monthlyReportEnabled"><span class="visually-hidden">Receive monthly report</span><input type="checkbox" id="monthlyReportEnabled" /><span class="switch-track" aria-hidden="true"></span></label>
+                </div>
+                <div class="input-group">
+                    <label for="monthlyReportEmail">Send report to</label>
+                    <div class="input-icon-wrap"><i class="fas fa-envelope"></i><input type="email" id="monthlyReportEmail" placeholder="you@example.com" autocomplete="email" /></div>
+                </div>
+                <button id="saveReportEmailBtn" class="btn btn-outline btn-block"><i class="fas fa-floppy-disk"></i> Save report preference</button>
+                <p id="reportEmailStatus" class="field-hint" role="status">Reports are off until you turn them on.</p>
+            </section>
             <button id="logoutBtn" class="btn btn-danger-soft btn-block">
                 <i class="fas fa-arrow-right-from-bracket"></i> Log out
             </button>
