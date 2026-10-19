@@ -1,0 +1,7 @@
+project_id = "vinexpenses"
+
+[functions.receipt-ocr]
+verify_jwt = true
+
+[functions.nearby-place]
+verify_jwt = true

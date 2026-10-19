@@ -16,12 +16,26 @@ dashboard. Plain HTML/CSS/JS — no build step.
 | `app.js` | All logic: Supabase auth, data fetch/save/edit/delete, charts, navigation |
 | `supabase-schema.sql` | Tables + Row Level Security policies — run once in Supabase |
 | `migration-add-budgets.sql` | Run once to enable Budgets & "safe to spend today" |
+| `migration-add-merchants.sql` | Run once to add merchant names to expenses |
 | `migration-add-recurring.sql` | Run once to enable Recurring expenses (also run the categories migration first) |
+| `supabase/functions/receipt-ocr/` | Private OCR.space proxy used by receipt scanning |
 | `migration-add-categories.sql` | Run once if your database already existed before the Utilities/Car/Health/Other categories |
 | `manifest.json`, `sw.js`, `icons/` | Makes the site installable as an app (PWA) |
 | `icon.png` | Browser tab favicon |
 
 ## Features
+
+- **Receipt scan & merchant shortcuts** - scan a receipt into an editable draft,
+  use optional nearby-place lookup, reuse frequent merchants, and tap a recent
+  merchant template to prefill amount/category/payment. Merchant names can be
+  searched in History. Images go to OCR.space for recognition and are not saved.
+- **Budget forecasts** - estimate month-end spending from the current pace and
+  show a gentle heads-up if an active budget is likely to be exceeded.
+- **Spending patterns** - compare the last 7 days with the week before and surface
+  possible weekly/monthly merchant repeats from the user's history. Suggestions
+  are never added as recurring bills automatically.
+- **Exports and reports** - export filtered History to CSV or open a print-ready
+  monthly report that can be saved as PDF.
 
 - **Quick add** — a big **+** button (bottom tab bar on phones, sidebar button or the
   **N** key on desktop) opens one sheet with an Expense / Income switch, an
@@ -121,7 +135,39 @@ python -m http.server 8000
 (Open it through a server, not by double-clicking the file — the service
 worker and Supabase redirects need `http://`.)
 
-## 3. Using it on mobile
+## 3. Enable receipt scanning (OCR.space)
+
+Receipt scanning is optional. Nearby-place lookup, merchant suggestions,
+spending patterns, budget forecasts, CSV export and monthly reports need no
+additional API key.
+
+1. Create a free OCR.space API key at <https://ocr.space/ocrapi>.
+2. Install Node.js, then from this project folder run `npx supabase login`.
+3. Link your Supabase project: `npx supabase link --project-ref YOUR_PROJECT_REF`.
+   The project ref is the subdomain in `https://YOUR_PROJECT_REF.supabase.co`.
+4. Store the OCR key as an Edge Function secret:
+   `npx supabase secrets set OCR_SPACE_API_KEY=YOUR_OCR_SPACE_KEY`.
+5. Deploy both authenticated functions:
+   `npx supabase functions deploy receipt-ocr`
+   `npx supabase functions deploy nearby-place`.
+6. Reload the app. Scan fills a draft; review the merchant, total, date and
+   category before saving. The free OCR.space plan currently has a 1 MB image
+   limit and no uptime guarantee; the app compresses photos before upload.
+
+Keep the OCR key in Supabase Edge Function secrets. Do not put it in `.env`,
+`config.js`, or browser JavaScript. The function requires a signed-in user and
+does not log or save receipt images or extracted text.
+Nearby lookup uses the OpenStreetMap public reverse-geocoding endpoint by
+default, through the `nearby-place` function. It requires no API key. The app
+only requests it on a button tap, caches results for the current browser session,
+and shows the required attribution. To switch to a compatible provider, set the
+`PLACE_REVERSE_URL` Edge Function secret to its reverse endpoint.
+
+For existing databases, also run `migration-add-merchants.sql` once in the
+Supabase SQL Editor. Fresh databases get the merchant column from
+`supabase-schema.sql`.
+
+## 4. Using it on mobile
 
 **A. Install as a PWA.** Once hosted (e.g. GitHub Pages), open the site on your
 phone and use "Add to Home Screen" (iOS Safari: Share → Add to Home Screen;

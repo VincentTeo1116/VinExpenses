@@ -54,6 +54,7 @@ let isLoading = false;
 let expCategoryValue = CATEGORIES[0].key;
 let expPaymentValue = PAYMENTS[0].key;
 let editing = null; // { type, id }
+let visibleHistoryTransactions = [];
 let recurring = [];
 let recurringLoadError = false;
 let budgets = [];            // { id, category ('all' = overall), amount }
@@ -122,8 +123,15 @@ const viewAllBtn = $('viewAllBtn');
 const expAmount = $('expAmount');
 const expDate = $('expDate');
 const expNote = $('expNote');
+const expMerchant = $('expMerchant');
 const expNoteLabel = $('expNoteLabel');
 const saveExpenseBtn = $('saveExpenseBtn');
+const receiptFileInput = $('receiptFileInput');
+const scanReceiptBtn = $('scanReceiptBtn');
+const receiptScanStatus = $('receiptScanStatus');
+const nearbyPlaceBtn = $('nearbyPlaceBtn');
+const nearbyPlaceStatus = $('nearbyPlaceStatus');
+const editMerchant = $('editMerchant');
 const incomeAmount = $('incomeAmount');
 const incomeSource = $('incomeSource');
 const incomeDate = $('incomeDate');
@@ -520,9 +528,10 @@ function transactionRowHtml(t, withActions, showDate = true) {
     const icon = isIncome ? 'fa-arrow-trend-up' : (cat ? cat.icon : 'fa-receipt');
     const baseTitle = isIncome ? (t.source || 'Salary') : (cat ? cat.label : t.category);
     // For expenses, a note (e.g. what "Other" was) is shown next to the category
-    const title = !isIncome && t.note ? `${baseTitle} — ${t.note}` : baseTitle;
+    const title = !isIncome && t.merchant ? t.merchant : (!isIncome && t.note ? `${baseTitle} — ${t.note}` : baseTitle);
     const pay = payByKey[t.payment];
-    const parts = [isIncome ? 'Income' : (pay ? pay.label : 'N/A')];
+    const parts = isIncome ? ['Income'] : [cat ? cat.label : t.category, pay ? pay.label : 'N/A'];
+    if (!isIncome && t.note) parts.push(t.note);
     if (showDate) parts.push(friendlyDate(t.created_at));
     const color = !isIncome && cat ? `style="--cat-color:${cat.color}"` : '';
     const rowHtml = `
@@ -563,7 +572,334 @@ function renderRecent() {
     recentList.innerHTML = recent.length
         ? recent.map(t => transactionRowHtml(t, false)).join('')
         : '<div class="history-empty small">Nothing here yet — tap <b>+</b> to add your first transaction.</div>';
+    renderMerchantSuggestions();
+    renderExpenseTemplates();
 }
+
+function startOfLocalDay(date) {
+    const day = new Date(date);
+    day.setHours(0, 0, 0, 0);
+    return day;
+}
+
+function renderSpendingPatterns() {
+    const now = new Date();
+    const today = startOfLocalDay(now);
+    const currentWeekStart = new Date(today);
+    currentWeekStart.setDate(currentWeekStart.getDate() - 6);
+    const previousWeekStart = new Date(currentWeekStart);
+    previousWeekStart.setDate(previousWeekStart.getDate() - 7);
+    const weekExpenses = expenses.filter(e => new Date(e.created_at) >= currentWeekStart && new Date(e.created_at) < new Date(today.getTime() + 86_400_000));
+    const previousWeekExpenses = expenses.filter(e => new Date(e.created_at) >= previousWeekStart && new Date(e.created_at) < currentWeekStart);
+    const weekTotal = sumAmount(weekExpenses);
+    const previousTotal = sumAmount(previousWeekExpenses);
+    const difference = weekTotal - previousTotal;
+    let weeklyCopy = `You spent ${formatMoney(weekTotal)} in the last 7 days`;
+    if (previousTotal > 0) {
+        const percent = Math.round(Math.abs(difference / previousTotal) * 100);
+        weeklyCopy += difference > 0 ? `, up ${percent}% from the week before.` : difference < 0 ? `, down ${percent}% from the week before.` : ', the same as the week before.';
+    } else weeklyCopy += previousWeekExpenses.length ? ' (no spend in the previous week).' : '.';
+    if (weekExpenses.length) {
+        const categoryTotals = CATEGORIES.map(c => ({ label: c.label, total: sumAmount(weekExpenses.filter(e => e.category === c.key)) })).sort((a, b) => b.total - a.total);
+        if (categoryTotals[0]?.total) weeklyCopy += ` ${categoryTotals[0].label} was the biggest category.`;
+    }
+    $('weeklySummary').textContent = weeklyCopy;
+
+    const cutoff = new Date(today);
+    cutoff.setDate(cutoff.getDate() - 120);
+    const byMerchant = new Map();
+    expenses.filter(e => e.merchant && new Date(e.created_at) >= cutoff).forEach(e => {
+        const key = e.merchant.trim().toLocaleLowerCase();
+        if (!key) return;
+        if (!byMerchant.has(key)) byMerchant.set(key, { name: e.merchant.trim(), records: [] });
+        byMerchant.get(key).records.push(e);
+    });
+    const activeRecurring = new Set(recurring.filter(r => r.active).map(r => r.name.trim().toLocaleLowerCase()));
+    const candidates = [...byMerchant.values()].map(group => {
+        const rows = group.records.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+        const amounts = rows.map(r => Number(r.amount));
+        const averageAmount = amounts.reduce((sum, amount) => sum + amount, 0) / Math.max(1, amounts.length);
+        const amountSpread = averageAmount ? (Math.max(...amounts) - Math.min(...amounts)) / averageAmount : 1;
+        const gaps = rows.slice(1).map((r, i) => (new Date(r.created_at) - new Date(rows[i].created_at)) / 86_400_000);
+        const averageGap = gaps.reduce((sum, gap) => sum + gap, 0) / Math.max(1, gaps.length);
+        const frequency = averageGap >= 5 && averageGap <= 10 ? 'weekly' : averageGap >= 22 && averageGap <= 38 ? 'monthly' : '';
+        if (rows.length < 3 || !frequency || amountSpread > 0.35 || activeRecurring.has(group.name.toLocaleLowerCase())) return null;
+        return { ...group, averageAmount, frequency, count: rows.length };
+    }).filter(Boolean).sort((a, b) => b.count - a.count).slice(0, 3);
+    $('repeatSuggestions').innerHTML = candidates.length
+        ? `<div class="repeat-heading"><i class="fas fa-repeat"></i> Possible recurring spend</div>${candidates.map(item => `<div class="repeat-row"><span><b>${escapeHtml(item.name)}</b><small>${item.count} similar charges, roughly ${item.frequency}</small></span><strong>${formatMoney(item.averageAmount)}</strong></div>`).join('')}`
+        : '<p class="patterns-empty">As your history grows, repeat merchants will appear here for a quick check.</p>';
+}
+
+function renderBudgetForecast(spent, isCurrent) {
+    const forecast = $('budgetForecast');
+    if (!isCurrent || !budgets.length) {
+        forecast.textContent = '';
+        forecast.classList.add('hidden');
+        return;
+    }
+    const today = new Date();
+    const elapsed = Math.max(1, today.getDate());
+    const days = daysInMonth(selectedDate.getFullYear(), selectedDate.getMonth() + 1);
+    if (elapsed < 4) {
+        forecast.classList.add('hidden');
+        return;
+    }
+    const monthRows = expenses.filter(e => isSameMonth(e.created_at));
+    const candidates = budgets.map(budget => {
+        const amount = budget.category === 'all' ? spent : sumAmount(monthRows.filter(e => e.category === budget.category));
+        const projected = amount / elapsed * days;
+        return { budget, amount, projected };
+    }).filter(item => item.amount < item.budget.amount && item.projected > item.budget.amount * 1.08)
+        .sort((a, b) => (b.projected / b.budget.amount) - (a.projected / a.budget.amount));
+    const concern = candidates[0];
+    if (!concern) {
+        forecast.textContent = '';
+        forecast.classList.add('hidden');
+        return;
+    }
+    const name = concern.budget.category === 'all' ? 'Overall spending' : `${catByKey[concern.budget.category]?.label || concern.budget.category} spending`;
+    forecast.innerHTML = `<i class="fas fa-circle-exclamation"></i><span>At this pace, ${escapeHtml(name.toLowerCase())} may reach <b>${formatMoney(concern.projected)}</b> this month, above your ${formatMoney(concern.budget.amount)} budget.</span>`;
+    forecast.classList.remove('hidden');
+}
+
+function renderMerchantSuggestions() {
+    const names = [...new Set(expenses.map(e => (e.merchant || '').trim()).filter(Boolean))].slice(0, 30);
+    $('merchantSuggestions').innerHTML = names.map(name => `<option value="${escapeHtml(name)}"></option>`).join('');
+}
+
+function renderExpenseTemplates() {
+    const counts = new Map();
+    expenses.forEach(expense => {
+        const merchant = (expense.merchant || '').trim();
+        if (!merchant) return;
+        const key = merchant.toLocaleLowerCase();
+        const item = counts.get(key) || { merchant, count: 0, latest: expense };
+        item.count++;
+        if (new Date(expense.created_at) > new Date(item.latest.created_at)) item.latest = expense;
+        counts.set(key, item);
+    });
+    const templates = [...counts.values()].filter(item => item.count >= 2).slice(0, 4);
+    const container = $('expenseTemplates');
+    container.classList.toggle('hidden', !templates.length);
+    container.innerHTML = templates.length
+        ? `<span class="template-label">Frequent</span>${templates.map((item, index) => `<button type="button" class="template-chip" data-template-index="${index}">${escapeHtml(item.merchant)} <small>${formatMoney(item.latest.amount)}</small></button>`).join('')}`
+        : '';
+    container._templates = templates;
+}
+
+function setReceiptStatus(message, error = false) {
+    receiptScanStatus.textContent = message;
+    receiptScanStatus.classList.toggle('error', error);
+    receiptScanStatus.classList.remove('hidden');
+}
+
+function readAsDataUrl(blob) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(new Error('Could not read the selected image.'));
+        reader.readAsDataURL(blob);
+    });
+}
+
+async function compressReceiptImage(file) {
+    if (!/^image\/(jpeg|png|webp)$/i.test(file.type)) throw new Error('Choose a JPG, PNG, or WebP image.');
+    const maxBytes = 900_000;
+    if (file.size <= maxBytes) return await readAsDataUrl(file);
+
+    const objectUrl = URL.createObjectURL(file);
+    try {
+        const image = await new Promise((resolve, reject) => {
+            const img = new Image();
+            img.onload = () => resolve(img);
+            img.onerror = () => reject(new Error('Could not open this image. Try another photo.'));
+            img.src = objectUrl;
+        });
+        let scale = Math.min(1, 2000 / image.width, 2000 / image.height);
+        for (let attempt = 0; attempt < 8; attempt++) {
+            const canvas = document.createElement('canvas');
+            canvas.width = Math.max(1, Math.round(image.width * scale));
+            canvas.height = Math.max(1, Math.round(image.height * scale));
+            const ctx = canvas.getContext('2d', { alpha: false });
+            if (!ctx) throw new Error('Image compression is unavailable in this browser.');
+            ctx.fillStyle = '#fff';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+            const quality = [0.86, 0.76, 0.66, 0.56][Math.min(attempt, 3)];
+            const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', quality));
+            if (blob && blob.size <= maxBytes) return await readAsDataUrl(blob);
+            scale *= 0.82;
+        }
+        throw new Error('This image is too large to scan. Try a smaller photo.');
+    } finally {
+        URL.revokeObjectURL(objectUrl);
+    }
+}
+
+function parseReceiptDate(text) {
+    let match = text.match(/\b(20\d{2})[/.\-](\d{1,2})[/.\-](\d{1,2})\b/);
+    let year, month, day;
+    if (match) [, year, month, day] = match;
+    else {
+        match = text.match(/\b(\d{1,2})[/.\-](\d{1,2})[/.\-](\d{2,4})\b/);
+        if (!match) return '';
+        [, day, month, year] = match; // Malaysia receipts commonly use day/month/year.
+    }
+    year = Number(year);
+    if (year < 100) year += year >= 70 ? 1900 : 2000;
+    month = Number(month);
+    day = Number(day);
+    const date = new Date(year, month - 1, day);
+    return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day && year >= 2000 && year <= new Date().getFullYear() + 1
+        ? `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+        : '';
+}
+
+function parseReceiptAmount(line) {
+    const matches = [...line.matchAll(/(?:RM\s*)?\b(\d{1,3}(?:,\d{3})*\.\d{2}|\d+\.\d{2})\b/gi)];
+    if (!matches.length) return 0;
+    return Number(matches[matches.length - 1][1].replace(/,/g, '')) || 0;
+}
+
+function suggestExpenseCategory(text) {
+    const value = text.toLowerCase();
+    const hints = [
+        ['food', /restaurant|mcdonald|kfc|burger|pizza|foodpanda|grabfood|bakery|food court|warung|mamak/],
+        ['beverages', /starbucks|coffee|tealive|kopitiam|bubble tea|cafe|espresso/],
+        ['travel', /grab ride|taxi|airasia|airline|flight|hotel|parking|toll|rapid kl|myrapid/],
+        ['shopping', /supermarket|grocer|mall|shopee|lazada|watsons|guardian|uniqlo/],
+        ['utilities', /electric|water bill|unifi|maxis|celcom|digi|utilities|internet bill/],
+        ['car', /petrol|shell|petronas|caltex|budi|workshop|service centre/],
+        ['health', /clinic|pharmacy|hospital|medical|dental/],
+        ['entertain', /cinema|movie|netflix|spotify|steam|ticket/]
+    ];
+    return hints.find(([, pattern]) => pattern.test(value))?.[0] || '';
+}
+
+function parseReceiptText(text) {
+    const lines = text.split(/\r?\n/).map(line => line.replace(/\s+/g, ' ').trim()).filter(Boolean);
+    const merchant = lines.slice(0, 10).find(line => {
+        const value = line.toLowerCase();
+        return line.length >= 2 && line.length <= 70 && /[a-z]/i.test(line) && !/^\d+$/.test(line)
+            && !/receipt|invoice|tax invoice|cashier|customer|tel\b|phone|date\b|time\b|table\b|gst|sst|reg\.?\s*no|thank you/i.test(value);
+    }) || '';
+    const totalCandidates = lines.map(line => {
+        const lower = line.toLowerCase();
+        const strong = /grand\s*total|total\s*(?:due|payable)|amount\s*due|net\s*total|balance\s*due/.test(lower);
+        const plain = /\btotal\b/.test(lower) && !/sub\s*total|tax\s*total|total\s*tax|cash|change/.test(lower);
+        return { line, score: strong ? 2 : plain ? 1 : 0, amount: parseReceiptAmount(line) };
+    }).filter(item => item.score && item.amount > 0).sort((a, b) => b.score - a.score);
+    return {
+        merchant,
+        amount: totalCandidates[0]?.amount || 0,
+        date: parseReceiptDate(text),
+        category: suggestExpenseCategory(`${merchant} ${text}`)
+    };
+}
+
+async function scanReceipt(file) {
+    if (!currentUser || !supabaseClient) throw new Error('Sign in before scanning a receipt.');
+    setBusy(scanReceiptBtn, true, 'Reading…');
+    try {
+        setReceiptStatus('Preparing image…');
+        const imageData = await compressReceiptImage(file);
+        setReceiptStatus('Reading receipt text…');
+        const { data, error } = await supabaseClient.functions.invoke('receipt-ocr', { body: { imageData } });
+        if (error) throw new Error(data?.error || 'Receipt scan is unavailable. Check the OCR setup and try again.');
+        if (data?.error) throw new Error(data.error);
+
+        const fields = parseReceiptText(data.text || '');
+        if (fields.merchant) expMerchant.value = fields.merchant.slice(0, 80);
+        if (fields.amount) expAmount.value = fields.amount.toFixed(2);
+        if (fields.date) expDate.value = fields.date;
+        if (fields.category) {
+            expCategoryValue = fields.category;
+            renderExpenseChips();
+        }
+        const detected = [fields.merchant && 'merchant', fields.amount && 'total', fields.date && 'date'].filter(Boolean);
+        if (!detected.length) throw new Error('Text was read, but I could not identify the merchant, total, or date. Please enter them manually.');
+        const categoryNote = fields.category ? ` Category suggestion: ${catByKey[fields.category].label}.` : '';
+        setReceiptStatus(`Draft filled: ${detected.join(', ')}.${categoryNote} Please review before saving.`);
+    } catch (error) {
+        setReceiptStatus(error.message || 'Receipt scanning failed. Please enter it manually.', true);
+    } finally {
+        setBusy(scanReceiptBtn, false);
+        receiptFileInput.value = '';
+    }
+}
+
+scanReceiptBtn.addEventListener('click', () => receiptFileInput.click());
+receiptFileInput.addEventListener('change', () => {
+    const file = receiptFileInput.files?.[0];
+    if (file) scanReceipt(file);
+});
+
+let nearbyLookupInFlight = false;
+let nearbyLastRequestAt = 0;
+const nearbyPlaceCache = new Map();
+nearbyPlaceBtn.addEventListener('click', () => {
+    if (nearbyLookupInFlight) return;
+    if (!navigator.geolocation) {
+        nearbyPlaceStatus.textContent = 'This browser does not provide location. Enter the merchant manually.';
+        return;
+    }
+    nearbyLookupInFlight = true;
+    nearbyPlaceBtn.disabled = true;
+    nearbyPlaceStatus.textContent = 'Getting your location…';
+    navigator.geolocation.getCurrentPosition(async position => {
+        try {
+            nearbyPlaceStatus.textContent = 'Looking for a nearby mapped place…';
+            const { latitude, longitude } = position.coords;
+            const cacheKey = `${latitude.toFixed(3)},${longitude.toFixed(3)}`;
+            const cachedName = nearbyPlaceCache.get(cacheKey);
+            if (cachedName) {
+                expMerchant.value = cachedName;
+                nearbyPlaceStatus.textContent = `Suggested “${cachedName}” from a recent nearby lookup. Edit it if needed.`;
+                nearbyPlaceStatus.classList.remove('error');
+                return;
+            }
+            const wait = 1100 - (Date.now() - nearbyLastRequestAt);
+            if (wait > 0) await new Promise(resolve => setTimeout(resolve, wait));
+            nearbyLastRequestAt = Date.now();
+            const { data, error } = await supabaseClient.functions.invoke('nearby-place', { body: { latitude, longitude } });
+            if (error) throw new Error(data?.error || 'Nearby lookup is temporarily unavailable. Enter the merchant manually.');
+            if (data?.error) throw new Error(data.error);
+            const placeName = data?.name || '';
+            if (!placeName) throw new Error('No mapped place found nearby. Enter the merchant manually.');
+            nearbyPlaceCache.set(cacheKey, placeName);
+            expMerchant.value = placeName.slice(0, 80);
+            nearbyPlaceStatus.textContent = `Suggested “${placeName}” from your current location. Edit it if needed.`;
+            nearbyPlaceStatus.classList.remove('error');
+        } catch (error) {
+            nearbyPlaceStatus.textContent = error.message || 'Nearby lookup failed. Enter the merchant manually.';
+            nearbyPlaceStatus.classList.add('error');
+        } finally {
+            nearbyLookupInFlight = false;
+            nearbyPlaceBtn.disabled = false;
+        }
+    }, error => {
+        nearbyLookupInFlight = false;
+        nearbyPlaceBtn.disabled = false;
+        nearbyPlaceStatus.classList.add('error');
+        nearbyPlaceStatus.textContent = error.code === 1
+            ? 'Location permission was declined. Enter the merchant or choose a previous one.'
+            : 'Could not get your location. Enter the merchant manually.';
+    }, { enableHighAccuracy: false, maximumAge: 60_000, timeout: 15_000 });
+});
+
+$('expenseTemplates').addEventListener('click', (event) => {
+    const button = event.target.closest('[data-template-index]');
+    if (!button) return;
+    const template = $('expenseTemplates')._templates?.[Number(button.dataset.templateIndex)];
+    if (!template) return;
+    expMerchant.value = template.merchant;
+    expAmount.value = parseFloat(template.latest.amount).toFixed(2);
+    expCategoryValue = template.latest.category;
+    expPaymentValue = template.latest.payment;
+    renderExpenseChips();
+    showToast('info', `${template.merchant} details filled in — review before saving`);
+});
 
 // Spending-vs-last-month chip, "% of income used" bar, and the three insight tiles
 function renderHeroAndInsights(spent, income) {
@@ -610,6 +946,7 @@ function renderHeroAndInsights(spent, income) {
         heroBarCaption.textContent = spent > 0 ? 'Add this month\'s income to see how much you\'ve used' : '';
     }
     renderSafeToSpend(spent, overall, isCurrent, isFuture);
+    renderBudgetForecast(spent, isCurrent);
 
     // insights
     const monthExpenses = expenses.filter(e => isSameMonth(e.created_at));
@@ -648,6 +985,9 @@ function updateDashboard() {
 
     selectedMonthDisplay.textContent = formatMonthDisplay(selectedDate);
     monthPicker.value = formatMonthValue(selectedDate);
+    const now = new Date();
+    const isSelectedCurrentMonth = now.getFullYear() === selectedDate.getFullYear() && now.getMonth() === selectedDate.getMonth();
+    $('trendResetBtn').classList.toggle('hidden', isSelectedCurrentMonth);
 
     const spent = getTotalSpent();
     const income = getTotalIncome();
@@ -663,6 +1003,7 @@ function updateDashboard() {
     renderCategoryGrid();
     renderRecent();
     renderUpcoming();
+    renderSpendingPatterns();
 
     const meta = currentUser.user_metadata || {};
     const name = meta.username || meta.full_name || currentUser.email?.split('@')[0] || 'User';
@@ -697,6 +1038,10 @@ function setSelectedMonth(year, month) {
 prevMonthBtn.addEventListener('click', () => setSelectedMonth(selectedDate.getFullYear(), selectedDate.getMonth() - 1));
 nextMonthBtn.addEventListener('click', () => setSelectedMonth(selectedDate.getFullYear(), selectedDate.getMonth() + 1));
 todayMonthBtn.addEventListener('click', () => {
+    const now = new Date();
+    setSelectedMonth(now.getFullYear(), now.getMonth());
+});
+$('trendResetBtn').addEventListener('click', () => {
     const now = new Date();
     setSelectedMonth(now.getFullYear(), now.getMonth());
 });
@@ -1081,8 +1426,9 @@ async function createRecord(type, fields) {
     return { queued: true, id: row.id };
 }
 
-function addExpense(amount, category, payment, createdAt, note) {
+function addExpense(amount, category, payment, createdAt, note, merchant = '') {
     const fields = { amount, category, payment, created_at: createdAt };
+    if (merchant) fields.merchant = merchant;
     if (note) fields.note = note; // only sent when used, so a missing `note` column only matters for noted expenses
     return createRecord('expense', fields);
 }
@@ -1537,6 +1883,7 @@ saveExpenseBtn.addEventListener('click', async () => {
         return showModal({ type: 'warning', title: 'Invalid amount', message: 'Please enter a valid amount greater than 0.' });
     }
     const note = expNote.value.trim();
+    const merchant = expMerchant.value.trim();
     if (expCategoryValue === 'other' && !note) {
         expNote.focus();
         return showModal({ type: 'warning', title: 'Please specify', message: 'Tell us what this "Other" expense was for.' });
@@ -1545,9 +1892,10 @@ saveExpenseBtn.addEventListener('click', async () => {
 
     setBusy(saveExpenseBtn, true, 'Saving...');
     try {
-        const { queued } = await addExpense(amount, expCategoryValue, expPaymentValue, createdAt, note);
+        const { queued } = await addExpense(amount, expCategoryValue, expPaymentValue, createdAt, note, merchant);
         expAmount.value = '';
         expNote.value = '';
+        expMerchant.value = '';
         expDate.value = toInputDate();
         const saved = new Date(createdAt);
         setSelectedMonth(saved.getFullYear(), saved.getMonth());
@@ -1655,10 +2003,12 @@ function renderHistory() {
         list = list.filter(t => {
             const hay = t.type === 'income'
                 ? `${t.source} income`
-                : `${catByKey[t.category]?.label || t.category} ${t.note || ''} ${payByKey[t.payment]?.label || t.payment} expense`;
+                : `${t.merchant || ''} ${catByKey[t.category]?.label || t.category} ${t.note || ''} ${payByKey[t.payment]?.label || t.payment} expense`;
             return hay.toLowerCase().includes(query);
         });
     }
+
+    visibleHistoryTransactions = list.slice();
 
     const inc = sumAmount(list.filter(t => t.type === 'income'));
     const exp = sumAmount(list.filter(t => t.type === 'expense'));
@@ -1700,6 +2050,59 @@ historyResetBtn.addEventListener('click', () => {
     historyMonthFilter.value = formatMonthValue(selectedDate);
     historySearch.value = '';
     renderHistory();
+});
+
+function csvCell(value) {
+    let text = String(value ?? '');
+    if (/^[\s]*[=+\-@]/.test(text)) text = `'${text}`;
+    return `"${text.replace(/"/g, '""')}"`;
+}
+
+function downloadBlob(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = filename;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+$('historyCsvBtn').addEventListener('click', () => {
+    const rows = [['Date', 'Type', 'Merchant', 'Category', 'Payment', 'Income source', 'Note', 'Amount (RM)']];
+    visibleHistoryTransactions.forEach(t => rows.push([
+        toInputDate(t.created_at),
+        t.type,
+        t.merchant || '',
+        t.type === 'expense' ? (catByKey[t.category]?.label || t.category) : '',
+        t.type === 'expense' ? (payByKey[t.payment]?.label || t.payment) : '',
+        t.type === 'income' ? (t.source || 'Salary') : '',
+        t.note || '',
+        Number(t.amount).toFixed(2)
+    ]));
+    const csv = '\uFEFF' + rows.map(row => row.map(csvCell).join(',')).join('\r\n');
+    const month = historyMonthFilter.value || formatMonthValue(selectedDate);
+    downloadBlob(new Blob([csv], { type: 'text/csv;charset=utf-8' }), `vinexpenses-${month}-transactions.csv`);
+    showToast('success', `${visibleHistoryTransactions.length} transaction${visibleHistoryTransactions.length === 1 ? '' : 's'} exported`);
+});
+
+$('historyReportBtn').addEventListener('click', () => {
+    const month = historyMonthFilter.value || formatMonthValue(selectedDate);
+    const [year, monthNumber] = month.split('-').map(Number);
+    const transactions = allTransactions().filter(t => {
+        const date = new Date(t.created_at);
+        return date.getFullYear() === year && date.getMonth() === monthNumber - 1;
+    });
+    const expensesTotal = sumAmount(transactions.filter(t => t.type === 'expense'));
+    const incomeTotal = sumAmount(transactions.filter(t => t.type === 'income'));
+    const rows = transactions.map(t => `<tr><td>${escapeHtml(toInputDate(t.created_at))}</td><td>${escapeHtml(t.type)}</td><td>${escapeHtml(t.merchant || (t.type === 'income' ? t.source || 'Salary' : catByKey[t.category]?.label || t.category))}</td><td>${escapeHtml(t.type === 'expense' ? catByKey[t.category]?.label || t.category : '')}</td><td>${escapeHtml(t.note || '')}</td><td class="amount">${escapeHtml(formatMoney(t.amount))}</td></tr>`).join('');
+    const report = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>VinExpenses ${escapeHtml(month)} report</title><style>body{font:14px Arial,sans-serif;color:#172033;max-width:960px;margin:32px auto;padding:0 20px}h1{margin-bottom:4px}.sub{color:#5b6785;margin-top:0}.totals{display:flex;gap:24px;margin:24px 0}.totals div{padding:14px 18px;background:#f3f4fb;border-radius:12px}.totals span{display:block;color:#5b6785;font-size:12px}.totals b{display:block;margin-top:5px;font-size:18px}table{width:100%;border-collapse:collapse}th,td{text-align:left;border-bottom:1px solid #e4e7f0;padding:9px 7px}th{font-size:12px;color:#5b6785}.amount{text-align:right;white-space:nowrap}@media print{body{margin:0 auto}.no-print{display:none}}</style></head><body><button class="no-print" onclick="window.print()">Print / Save as PDF</button><h1>Monthly expense report</h1><p class="sub">${escapeHtml(new Date(year, monthNumber - 1, 1).toLocaleDateString('en-MY', { month: 'long', year: 'numeric' }))} · VinExpenses</p><div class="totals"><div><span>Income</span><b>${escapeHtml(formatMoney(incomeTotal))}</b></div><div><span>Expenses</span><b>${escapeHtml(formatMoney(expensesTotal))}</b></div><div><span>Net</span><b>${escapeHtml(formatMoney(incomeTotal - expensesTotal))}</b></div><div><span>Transactions</span><b>${transactions.length}</b></div></div><table><thead><tr><th>Date</th><th>Type</th><th>Merchant / Source</th><th>Category</th><th>Note</th><th class="amount">Amount</th></tr></thead><tbody>${rows || '<tr><td colspan="6">No transactions for this month.</td></tr>'}</tbody></table></body></html>`;
+    const reportWindow = window.open('', '_blank');
+    if (!reportWindow) return showToast('error', 'Allow pop-ups to open the monthly report.');
+    reportWindow.document.open();
+    reportWindow.document.write(report);
+    reportWindow.document.close();
 });
 
 historyList.addEventListener('click', (e) => {
@@ -1915,6 +2318,7 @@ function openEditModal(type, id) {
         editCategory.value = rec.category;
         editPayment.value = rec.payment;
         editNote.value = rec.note || '';
+        editMerchant.value = rec.merchant || '';
         editing.hadNote = !!rec.note;
     }
 
@@ -1960,6 +2364,7 @@ editSaveBtn.addEventListener('click', async () => {
         }
         fields.category = editCategory.value;
         fields.payment = editPayment.value;
+        fields.merchant = editMerchant.value.trim() || null;
         if (note || hadNote) fields.note = note || null;
     }
 
@@ -2096,6 +2501,7 @@ async function processRecurring({ silent = false } = {}) {
                 amount: r.amount,
                 category: r.category,
                 payment: r.payment,
+                merchant: r.name,
                 note: r.name,
                 created_at: dueNoonISO(d)
             }));

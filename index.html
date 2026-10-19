@@ -294,6 +294,7 @@
                         <div class="amount" id="totalSpent">RM 0.00</div>
                         <div class="hero-bar" id="heroBarWrap" aria-hidden="true"><span id="heroBar"></span></div>
                         <div class="hero-bar-caption" id="heroBarCaption"></div>
+                        <div id="budgetForecast" class="budget-forecast hidden" role="status"></div>
                         <div class="safe-spend" id="safeToSpend"></div>
                         <div class="total-meta">
                             <div class="meta-pill"><i class="fas fa-arrow-trend-up"></i> Income <b id="totalIncome">RM 0.00</b></div>
@@ -354,7 +355,10 @@
                     <section class="card trend">
                         <div class="card-head">
                             <h2 class="card-title">Last 6 months</h2>
-                            <span class="card-hint">Tap a bar to jump to that month</span>
+                            <div class="trend-actions">
+                                <span class="card-hint">Tap a bar to jump to that month</span>
+                                <button id="trendResetBtn" class="trend-reset hidden" type="button"><i class="fas fa-rotate-left"></i> Current month</button>
+                            </div>
                         </div>
                         <div class="chart-wrap"><canvas id="barChart" aria-label="Expenses and income by month" role="img"></canvas></div>
                     </section>
@@ -375,6 +379,15 @@
                             <button id="viewAllBtn" class="link-btn">View all <i class="fas fa-arrow-right"></i></button>
                         </div>
                         <div id="recentList" class="history-list compact"></div>
+                    </section>
+
+                    <section class="card spending-patterns" aria-labelledby="patternsTitle">
+                        <div class="card-head">
+                            <div><h2 class="card-title" id="patternsTitle">Spending patterns</h2><span class="card-hint">A simple weekly check-in and possible repeats</span></div>
+                            <button class="link-btn" type="button" data-screen="recurring">Recurring <i class="fas fa-arrow-right"></i></button>
+                        </div>
+                        <div id="weeklySummary" class="weekly-summary" aria-live="polite"></div>
+                        <div id="repeatSuggestions" class="repeat-suggestions"></div>
                     </section>
                 </div>
             </div>
@@ -460,7 +473,7 @@
                 <div class="card filters-card">
                     <div class="search-wrap">
                         <i class="fas fa-magnifying-glass"></i>
-                        <input type="search" id="historySearch" placeholder="Search by category, note or source…" aria-label="Search" />
+                        <input type="search" id="historySearch" placeholder="Search merchant, category, note or source…" aria-label="Search" />
                     </div>
                     <div class="filter-row">
                         <select id="historyTypeFilter" class="filter-select" aria-label="Type">
@@ -477,6 +490,10 @@
                 </div>
 
                 <div id="historySummary" class="history-summary"></div>
+                <div class="history-export-actions">
+                    <button id="historyCsvBtn" type="button" class="btn btn-outline btn-small"><i class="fas fa-file-csv"></i> Export CSV</button>
+                    <button id="historyReportBtn" type="button" class="btn btn-outline btn-small"><i class="fas fa-file-lines"></i> Monthly report</button>
+                </div>
                 <p class="history-swipe-hint"><i class="fas fa-arrows-left-right"></i> Swipe right to duplicate · swipe left to delete</p>
                 <div id="historyList" class="history-list grouped">
                     <div class="history-empty">No transactions yet.</div>
@@ -528,6 +545,25 @@
                     <span class="amount-prefix">RM</span>
                     <input type="number" id="expAmount" placeholder="0.00" step="0.01" min="0" inputmode="decimal" aria-label="Amount in RM" />
                 </label>
+
+                <div class="receipt-scan-card">
+                    <div><b>Scan a receipt</b><span>Image is sent to OCR.space and not saved here. Review the draft.</span></div>
+                    <input id="receiptFileInput" class="visually-hidden" type="file" accept="image/jpeg,image/png,image/webp" capture="environment" />
+                    <button id="scanReceiptBtn" class="btn btn-outline btn-small" type="button"><i class="fas fa-camera"></i> Scan</button>
+                    <div id="receiptScanStatus" class="receipt-scan-status hidden" role="status"></div>
+                </div>
+
+                <div class="input-group merchant-group">
+                    <label for="expMerchant">Merchant (optional)</label>
+                    <div class="merchant-entry">
+                        <div class="input-icon-wrap"><i class="fas fa-store"></i><input type="text" id="expMerchant" list="merchantSuggestions" placeholder="e.g. Village Grocer" maxlength="80" autocomplete="off" /></div>
+                        <button id="nearbyPlaceBtn" type="button" class="btn btn-ghost btn-small" title="Use your location once to find a nearby mapped place"><i class="fas fa-location-crosshairs"></i><span>Nearby</span></button>
+                    </div>
+                    <datalist id="merchantSuggestions"></datalist>
+                    <span id="nearbyPlaceStatus" class="field-hint nearby-place-status" role="status">Your location is sent to OpenStreetMap only after you tap Nearby; the coordinates aren’t saved.</span>
+                    <span class="field-hint nearby-place-attribution"><a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">© OpenStreetMap contributors</a></span>
+                </div>
+                <div id="expenseTemplates" class="expense-templates hidden" aria-label="Frequent purchases"></div>
 
                 <div class="input-group">
                     <label>Category</label>
@@ -686,6 +722,10 @@
                     </div>
                 </div>
                 <div id="editExpenseFields">
+                    <div class="input-group">
+                        <label for="editMerchant">Merchant (optional)</label>
+                        <div class="input-icon-wrap"><i class="fas fa-store"></i><input type="text" id="editMerchant" maxlength="80" /></div>
+                    </div>
                     <div class="field-row">
                         <div class="input-group">
                             <label for="editCategory">Category</label>

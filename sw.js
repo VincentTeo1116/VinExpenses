@@ -2,7 +2,7 @@
 // Strategy: network-first (so a deploy is picked up immediately), falling
 // back to the cache when offline. Supabase API calls are never intercepted.
 // Bump CACHE_NAME whenever you want to force old caches to be dropped.
-const CACHE_NAME = 'expense-tracker-v4';
+const CACHE_NAME = 'expense-tracker-v5';
 const SHELL_FILES = [
     './',
     'index.html',

@@ -9,6 +9,7 @@ create table if not exists public.expenses (
   amount numeric(12, 2) not null check (amount > 0),
   category text not null check (category in ('beverages','travel','entertain','work','food','shopping','utilities','car','health','other')),
   payment text not null check (payment in ('bank','card','ewallet')),
+  merchant text,
   note text,
   created_at timestamptz not null default now()
 );
