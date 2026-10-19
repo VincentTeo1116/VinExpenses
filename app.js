@@ -431,13 +431,16 @@ function navigate(nav) {
     showScreen(SCREEN_BY_NAV[nav]);
 }
 
-document.querySelectorAll('.nav-item').forEach(btn => {
-    btn.addEventListener('click', () => {
-        const dest = btn.dataset.screen;
-        if (dest === 'add') openAddSheet('expense');
-        else if (dest === 'account') openAccountSheet();
-        else navigate(dest);
-    });
+// One delegated handler for everything marked data-screen: the sidebar, the tab bar, and in-page
+// controls such as History's "Add transaction" and the dashboard's "Recurring →" link. (It used to
+// be bound to .nav-item only, which left those in-page controls silently dead.)
+document.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-screen]');
+    if (!btn) return;
+    const dest = btn.dataset.screen;
+    if (dest === 'add') openAddSheet('expense');
+    else if (dest === 'account') openAccountSheet();
+    else if (SCREEN_BY_NAV[dest]) navigate(dest);
 });
 
 // === SHEETS (add transaction, account) ===
