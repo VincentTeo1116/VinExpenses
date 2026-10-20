@@ -33,3 +33,17 @@ desktop.ini
 
 # ---- Claude Code local-only settings ----
 .claude/settings.local.json
+
+# ---- Supabase CLI local state ----
+supabase/.temp/
+supabase/.branches/
+supabase/functions/.env
+supabase/functions/**/.env
+
+# ---- Real receipts (private data, never commit; test fixtures are anonymized .txt) ----
+*.pdf
+receipts/
+
+# ---- Local browser-test scaffolding ----
+test.html
+mock-supabase.js
