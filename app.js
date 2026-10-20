@@ -1405,7 +1405,15 @@ nearbyPlaceBtn.addEventListener('click', () => {
             if (wait > 0) await new Promise(resolve => setTimeout(resolve, wait));
             nearbyLastRequestAt = Date.now();
             const { data, error } = await supabaseClient.functions.invoke('nearby-place', { body: { latitude, longitude } });
-            if (error) throw new Error(data?.error || 'Nearby lookup is temporarily unavailable. Enter the merchant manually.');
+            if (error) {
+                const status = error.context && error.context.status;
+                const fallback = status === 404
+                    ? 'The nearby lookup is not deployed on the server yet (function nearby-place). Enter the merchant manually.'
+                    : status === 401 || status === 403
+                        ? 'The server refused the nearby lookup. Log out and in again, then retry.'
+                        : 'Nearby lookup is temporarily unavailable. Enter the merchant manually.';
+                throw new Error(await errorMessageFrom(error, fallback));
+            }
             if (data?.error) throw new Error(data.error);
             const placeName = data?.name || '';
             if (!placeName) throw new Error('No mapped place found nearby. Enter the merchant manually.');

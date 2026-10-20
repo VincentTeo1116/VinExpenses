@@ -36,9 +36,13 @@ Deno.serve(async (request: Request) => {
       namedetails: "1",
     }).toString();
     const response = await fetch(url, {
-      headers: { Accept: "application/json", "User-Agent": "VinExpenses/1.0" },
+      headers: { Accept: "application/json", "User-Agent": "VinExpenses/1.0 (personal expense tracker; nearby merchant suggestion)", "Accept-Language": "en" },
     });
-    if (!response.ok) return jsonResponse({ error: "Nearby place lookup is temporarily unavailable." }, 502);
+    if (!response.ok) {
+      // Public Nominatim sometimes blocks or rate-limits shared cloud addresses; say so instead of hiding it
+      console.error("nearby-place upstream status", response.status);
+      return jsonResponse({ error: `The map service answered ${response.status} (it may be blocking or rate-limiting the server). Try again later or enter the merchant manually.` }, 502);
+    }
 
     const result = await response.json();
     const address = result.address || {};
