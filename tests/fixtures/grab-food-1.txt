@@ -1,0 +1,64 @@
+Outlook
+Your Grab E-Receipt
+From Grab <no-reply@grab.com>
+Date Tue 2026-08-25 10:50
+To
+Test Customer <test.customer@example.com>
+Hope you enjoyed your food!
+TOTAL
+RM 111.55
+DATE  |  TIME
+Pick-up time: 25 Aug 26 10:28 +0800
+Booking Details
+Vehicle type:
+GrabFood
+Issued to
+Test Customer
+Booking code
+A-TESTCODE0001
+Order location:
+Segambut Yong Tau Foo - Jalan
+Segambut
+Delivery location:
+no 1, Jalan Contoh
+Profile:
+Grab Corporate Incentive
+GrabCoins earned:
++2
+Receipt Summary
+Payment Method:
+PayLater
+Description:
+  Amount:
+2x   Rojak
+  RM 29.68
+3x   Fried Tow Foo
+  RM 10.17
+7x   Fried Sui Kau
+  RM 23.73
+7x   Fried Foo Chok
+  RM 23.73
+3x   Lady Finger
+  RM 10.17
+3x   Fish ball
+  RM 10.17
+2x   Cheong Fun
+  RM 8.90
+ 
+ 
+Subtotal
+  RM 116.55
+incl. Tax
+  RM 6.55
+Delivery fee
+  RM 2.60
+RM3 off delivery
+- RM 2.60
+GFBTHANKYOU010726K
+- RM 5.00
+Syarikat bayar
+  RM 0.00
+Anda bayar
+  RM 111.55
+TOTAL (INCL. TAX)      RM 111.55
+RATE YOUR MEAL!

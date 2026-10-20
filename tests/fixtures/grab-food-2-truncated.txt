@@ -1,0 +1,69 @@
+Outlook
+Your Grab E-Receipt
+From Grab <no-reply@grab.com>
+Date Tue 2026-08-25 11:24
+To
+Test Customer <test.customer@example.com>
+Hope you enjoyed your food!
+TOTAL
+RM 125.40
+DATE  |  TIME
+Pick-up time: 25 Aug 26 11:00 +0800
+Booking Details
+Vehicle type:
+GrabFood
+Issued to
+Test Customer
+Booking code
+A-TESTCODE0002
+Order location:
+Sarawak Cuisine Lin Li Xiang - SS22
+[Non-Halal]
+Delivery location:
+no 1, Jalan Contoh
+Profile:
+Grab Corporate Incentive
+GrabCoins earned:
++2
+Receipt Summary
+Payment Method:
+PayLater
+Description:
+  Amount:
+1x   SN10 Sarawak Pepper Pork
+Stomach Soup 砂拉越胡椒猪肚汤
+  RM 16.90
+1x   K03 Kolo Mee Zheng 哥罗面
+整
+  RM 24.90
+         Big 大
+  
+         Kolo Mee 哥罗面
+  
+1x   SN08 Manicai Fried Egg 马
+尼菜炒蛋
+  RM 14.90
+1x   Y01 Soup Kiaw 汤饺
+  RM 17.90
+         Big 大
+  
+1x   Y02 Dry Kiaw 干饺
+  RM 17.90
+         Big 大
+  
+1x   FV01 Three Layer Tea 三色
+奶茶
+  RM 6.90
+1x   K01 Kolo Mee Normal 哥罗
+面普通
+  RM 15.90
+         Big 大
+  
+         Kolo Mee 哥罗面
+  
+         Red - 叉烧油 Cha Siew
+Sauce
+  
+1x   Must Try!! K02 Kolo Mee
+Special 哥罗面加料
+  RM 20.90

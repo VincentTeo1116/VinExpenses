@@ -1,0 +1,55 @@
+佛山市中马货运代理有限公司
+Foshan Zhongma Freight Forwarding Co., Ltd
+Commercial lnvoice
+商业发票
+International waybill 国际运单
+Date of exportation 出口日期
+XHY00000001
+2026年09月07日
+Shipper/exporter(complete name and address)
+Consignee (complete name and address)
+Company
+Company
+DEPARTMENT
+ATTN
+Test Customer
+No. 1, Jalan Contoh, Off Jalan Utama,
+50000 Kuala Lumpur
+TEL:
+TEL: ：0120000000
+POSTAL CODE: 510000
+Country of Origin：CHINA
+Country of Destination：
+西马
+Description of Goods 品名
+QTY(pcs) Remarks 备注
+Total value 总价值(RMB)
+支架
+1
+100.00
+TOTAL Items: 1
+TOTAL VALUE：RMB  100.00
+ ≈ USD:  16.67
+Waybill information 运单信息：
+运单号
+运送方式
+件数
+重量kg
+体积重kg
+尺寸cm
+运费(RM)
+其它(RM)
+费用小计(RM)
+XHY00000001
+西马.小海运
+1
+1.3
+2
+117*8*8
+14
+0
+14
+总计：
+RM 14.00
+= RMB 23.52
+备注：

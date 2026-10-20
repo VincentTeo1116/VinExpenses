@@ -15,13 +15,32 @@ dashboard. Plain HTML/CSS/JS — no build step.
 | `.github/workflows/deploy.yml` | Builds `config.js` from repo secrets and deploys to GitHub Pages |
 | `app.js` | All logic: Supabase auth, data fetch/save/edit/delete, charts, navigation |
 | `supabase-schema.sql` | Complete, rerunnable SQL setup for base tables and all database features |
-| `supabase/functions/receipt-ocr/` | Private OCR.space proxy used by receipt scanning |
+| `receipt-parser.js` | Finds the merchant, total and date in receipt text (OCR output or PDF text). No dependencies; unit-tested |
+| `smart-entry.js` | Category suggestions (learns from your history + Malaysian merchant list) and duplicate detection. No dependencies; unit-tested |
+| `tests/` | Automated tests (`npm test`) and anonymised receipt fixtures |
+| `supabase/functions/receipt-ocr/` | Private OCR.space proxy used by receipt scanning (signed-in users only, daily limit) |
+| `supabase/functions/receipt-ai/` | Optional AI helper for unclear receipts. Off until you add a key |
+| `supabase/functions/_shared/` | Login check, daily limits and CORS shared by the receipt functions |
 | `supabase/functions/monthly-report-email/` | Scheduled monthly spending report sender |
 | `manifest.json`, `sw.js`, `icons/` | Makes the site installable as an app (PWA) |
 | `icon.png` | Browser tab favicon |
 
 ## Features
 
+- **Smarter receipt reading** - scan a **photo or a PDF**. PDFs with a text layer
+  (e-mailed receipts, e-invoices) are read **on your device**, exactly and
+  instantly, and are never uploaded; photos and scanned PDFs go through OCR.
+  The reader scores every amount on the receipt from the words around it
+  (Total, Grand total, Jumlah, Anda bayar, 总计...), ignores subtotals, tax,
+  discounts and foreign-currency values, and double-checks with arithmetic
+  (subtotal + tax + fees - discounts). When it is unsure it **pre-fills nothing
+  wrong** and shows the likely totals as tap-to-choose chips.
+- **Auto-category** - a suggested category with a plain-English reason. It learns
+  from how *you* filed a merchant before, then uses a built-in Malaysian merchant
+  list, receipt clues (service charge + table = restaurant) and your own custom
+  category names. Your explicit choice is never overridden.
+- **Duplicate warning** - saving the same amount at the same merchant on the same
+  day (e.g. a receipt scanned twice) asks first.
 - **Receipt scan & merchant shortcuts** - scan a receipt into an editable draft,
   use optional nearby-place lookup, reuse frequent merchants, and tap a recent
   merchant template to prefill amount/category/payment. Merchant names can be
@@ -138,7 +157,9 @@ worker and Supabase redirects need `http://`.)
 
 ## 3. Enable receipt scanning (OCR.space)
 
-Receipt scanning is optional. Nearby-place lookup, merchant suggestions,
+PDF receipts with a text layer need **no setup at all** (they are read in the
+browser). Photos and scanned PDFs need the OCR key below. Receipt scanning is
+optional. Nearby-place lookup, merchant suggestions,
 spending patterns, budget forecasts, CSV export and the in-app monthly report
 need no additional API key. Monthly report emails use the separate setup below.
 
@@ -156,8 +177,44 @@ need no additional API key. Monthly report emails use the separate setup below.
    limit and no uptime guarantee; the app compresses photos before upload.
 
 Keep the OCR key in Supabase Edge Function secrets. Do not put it in `.env`,
-`config.js`, or browser JavaScript. The function requires a signed-in user and
-does not log or save receipt images or extracted text.
+`config.js`, or browser JavaScript. The function requires a **signed-in user**
+(the public anon key alone is rejected), limits each user to a **daily number of
+scans**, and does not log or save receipt images or extracted text.
+
+**Protect the scan functions (recommended, 2 minutes).**
+
+1. Run the latest `supabase-schema.sql` once more: it adds the
+   `receipt_scan_usage` table and `consume_receipt_quota()` that enforce the daily
+   limits. (Until you do, scanning keeps working but is not limited.)
+2. Optionally lock the functions to your website and set limits:
+   `npx supabase secrets set ALLOWED_ORIGINS=https://YOURNAME.github.io`
+   `npx supabase secrets set SCAN_DAILY_LIMIT=30 AI_DAILY_LIMIT=10`
+3. Redeploy: `npx supabase functions deploy receipt-ocr`.
+
+### Optional: AI help for unclear receipts
+
+Off by default and **not required**. The normal reader handles clear receipts
+without any AI. If you want a second opinion on messy ones:
+
+1. Create a key in Google AI Studio (<https://aistudio.google.com/apikey>).
+2. `npx supabase secrets set GEMINI_API_KEY=YOUR_KEY`
+3. `npx supabase functions deploy receipt-ai`
+4. In the app, tick **Let AI help when a receipt is unclear** in the scan card.
+
+Only the receipt *text* (never the photo) is sent, only when the reader is unsure
+and only for people who ticked the box. Every answer is validated before use
+(amount range, date, your own category list). Note that on Google's free tier,
+prompts may be used to improve Google's products; enable billing on the Google
+project if receipts should not be used that way. Any other vision/text model can
+be wired in by editing `supabase/functions/receipt-ai/index.ts`.
+
+### Tests
+
+`npm test` (Node 24) runs the parser, category, duplicate and AI-validation
+tests. The fixtures in `tests/fixtures` are real receipt layouts with names,
+e-mail addresses, phone numbers and addresses replaced. **When a receipt is read
+wrongly, copy its text into a new fixture and add one line to the test list**:
+that is how the reader keeps improving. CI runs the tests before every deploy.
 Nearby lookup uses the OpenStreetMap public reverse-geocoding endpoint by
 default, through the `nearby-place` function. It requires no API key. The app
 only requests it on a button tap, caches results for the current browser session,

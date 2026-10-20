@@ -556,10 +556,24 @@
                 </label>
 
                 <div class="receipt-scan-card">
-                    <div><b>Scan a receipt</b><span>Image is sent to OCR.space and not saved here. Review the draft.</span></div>
-                    <input id="receiptFileInput" class="visually-hidden" type="file" accept="image/jpeg,image/png,image/webp" capture="environment" />
+                    <div><b>Scan a receipt</b><span>Photo or PDF. PDFs with text are read on your device and never uploaded; photos go to OCR.space and aren't saved. Always review the draft.</span></div>
+                    <input id="receiptFileInput" class="visually-hidden" type="file" accept="image/jpeg,image/png,image/webp,application/pdf" />
                     <button id="scanReceiptBtn" class="btn btn-outline btn-small" type="button"><i class="fas fa-camera"></i> Scan</button>
                     <div id="receiptScanStatus" class="receipt-scan-status hidden" role="status"></div>
+                    <div id="receiptCandidates" class="receipt-candidates hidden" aria-label="Amounts found on the receipt"></div>
+                    <label class="ai-assist" for="aiAssistToggle">
+                        <input type="checkbox" id="aiAssistToggle" />
+                        <span>Let AI help when a receipt is unclear <small>Sends the receipt text (not the image) to an AI service. Off by default.</small></span>
+                    </label>
+                    <details class="scan-tips">
+                        <summary>Tips for a clean scan</summary>
+                        <ul>
+                            <li><b>PDF receipts</b> (e-mailed receipts, e-invoices) work best: exact, instant, nothing uploaded.</li>
+                            <li>Photos: lay the receipt flat, in bright even light, with the whole receipt in the frame.</li>
+                            <li>Avoid shadows, folds and glare over the total.</li>
+                            <li>If the total is wrong, tap the right amount under the scan.</li>
+                        </ul>
+                    </details>
                 </div>
 
                 <div class="input-group merchant-group">
@@ -577,6 +591,7 @@
                 <div class="input-group">
                     <label>Category</label>
                     <div class="chip-group" id="expCategoryChips" aria-label="Expense category"></div>
+                    <div id="categorySuggest" class="category-suggest hidden" role="status"></div>
                 </div>
                 <div class="input-group">
                     <label>Payment</label>
@@ -833,6 +848,8 @@
     <div id="toastHost" class="toast-host" aria-live="polite"></div>
 
     <script src="config.js?v=__BUILD__"></script> <!-- generated from .env by build-config.js -->
+    <script src="receipt-parser.js?v=__BUILD__"></script>
+    <script src="smart-entry.js?v=__BUILD__"></script>
     <script src="app.js?v=__BUILD__"></script>
 </body>
 </html>

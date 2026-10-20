@@ -8,6 +8,8 @@ const SHELL_FILES = [
     'index.html',
     'style.css',
     'app.js',
+    'receipt-parser.js',
+    'smart-entry.js',
     'manifest.json',
     'icon.png',
     'icons/icon-192.png',

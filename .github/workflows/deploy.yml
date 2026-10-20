@@ -32,7 +32,11 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24   # the tests load the TypeScript helpers directly (type stripping is on by default in 24)
+
+      # A failing test stops the deploy, so a broken receipt reader or category rule never reaches your phone
+      - name: Run tests
+        run: node --test "tests/*.test.js"
 
       - name: Generate config.js from secrets
         env:
@@ -43,7 +47,7 @@ jobs:
       - name: Stage site files
         run: |
           mkdir dist
-          cp index.html app.js config.js style.css sw.js manifest.json icon.png dist/
+          cp index.html app.js receipt-parser.js smart-entry.js config.js style.css sw.js manifest.json icon.png dist/
           cp -r icons dist/icons
           # Stamp this deploy with the commit id: it versions the CSS/JS URLs (cache busting),
           # renames the service-worker cache, and is shown in the app's Account sheet.

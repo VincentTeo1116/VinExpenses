@@ -925,6 +925,22 @@ function renderExpenseTemplates() {
     container._templates = templates;
 }
 
+// === RECEIPT READING ===
+// A receipt can be a photo, a PDF with a text layer (e-mailed receipts, e-invoices) or a scanned PDF.
+//   PDF with text  -> text is read on this device: instant, exact, nothing is uploaded
+//   photo / scan   -> OCR (receipt-ocr function), then the same parser
+// receipt-parser.js finds the merchant, total and date; smart-entry.js suggests the category.
+const RECEIPT_MAX_PDF_BYTES = 10 * 1024 * 1024;
+const PDFJS = {
+    base: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/',
+    mainIntegrity: 'sha384-/1qUCSGwTur9vjf/z9lmu/eCUYbpOTgSjmpbMQZ1/CtX2v/WcAIKqRv+U1DUCG6e'
+};
+let pdfJsPromise = null;
+let categoryTouched = false; // the user picked a category chip themselves: don't override it
+const AI_ASSIST_KEY = 'et_ai_assist';
+const aiAssist = { enabled: false, unavailable: false };
+try { aiAssist.enabled = localStorage.getItem(AI_ASSIST_KEY) === '1'; } catch (_) { /* storage blocked */ }
+
 function setReceiptStatus(message, error = false) {
     receiptScanStatus.textContent = message;
     receiptScanStatus.classList.toggle('error', error);
@@ -935,13 +951,83 @@ function readAsDataUrl(blob) {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => resolve(reader.result);
-        reader.onerror = () => reject(new Error('Could not read the selected image.'));
+        reader.onerror = () => reject(new Error('Could not read the selected file.'));
         reader.readAsDataURL(blob);
     });
 }
 
+const isPdfFile = file => file.type === 'application/pdf' || /\.pdf$/i.test(file.name || '');
+
+// Never leave the Scan button spinning: give up with a clear message if a step takes too long
+function withTimeout(promise, ms, message) {
+    let timer;
+    const limit = new Promise((_, reject) => { timer = setTimeout(() => reject(new Error(message)), ms); });
+    return Promise.race([promise, limit]).finally(() => clearTimeout(timer));
+}
+
+// Keep a canvas as a JPEG under the size limit, shrinking until it fits
+async function canvasToReceiptJpeg(canvas) {
+    const maxBytes = 900_000;
+    let current = canvas;
+    for (let attempt = 0; attempt < 8; attempt++) {
+        const quality = [0.86, 0.76, 0.66, 0.56][Math.min(attempt, 3)];
+        const blob = await new Promise(resolve => current.toBlob(resolve, 'image/jpeg', quality));
+        if (blob && blob.size <= maxBytes) return await readAsDataUrl(blob);
+        const smaller = document.createElement('canvas');
+        smaller.width = Math.max(1, Math.round(current.width * 0.82));
+        smaller.height = Math.max(1, Math.round(current.height * 0.82));
+        const ctx = smaller.getContext('2d', { alpha: false });
+        if (!ctx) throw new Error('Image compression is unavailable in this browser.');
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(0, 0, smaller.width, smaller.height);
+        ctx.drawImage(current, 0, 0, smaller.width, smaller.height);
+        current = smaller;
+    }
+    throw new Error('This receipt is too large to scan. Try a smaller file.');
+}
+
+// A scanned PDF page is often a small receipt on a large white sheet. Cropping the empty margins makes
+// the receipt's text bigger and sharper for OCR. Only crops clearly empty (near-white) margins.
+function trimMargins(canvas) {
+    const w = canvas.width, h = canvas.height;
+    const k = Math.min(1, 500 / Math.max(w, h));
+    const pw = Math.max(1, Math.round(w * k)), ph = Math.max(1, Math.round(h * k));
+    const probe = document.createElement('canvas');
+    probe.width = pw; probe.height = ph;
+    const pctx = probe.getContext('2d', { willReadFrequently: true });
+    if (!pctx) return canvas;
+    pctx.drawImage(canvas, 0, 0, pw, ph);
+    const px = pctx.getImageData(0, 0, pw, ph).data;
+    const rowInk = new Array(ph).fill(0), colInk = new Array(pw).fill(0);
+    for (let y = 0; y < ph; y++) {
+        for (let x = 0; x < pw; x++) {
+            const i = (y * pw + x) * 4;
+            if (px[i + 3] > 0 && px[i] * 0.299 + px[i + 1] * 0.587 + px[i + 2] * 0.114 < 225) { rowInk[y]++; colInk[x]++; }
+        }
+    }
+    const rowMin = Math.max(1, pw * 0.008), colMin = Math.max(1, ph * 0.008);
+    const top = rowInk.findIndex(n => n >= rowMin);
+    const left = colInk.findIndex(n => n >= colMin);
+    let bottom = -1, right = -1;
+    for (let y = ph - 1; y >= 0; y--) if (rowInk[y] >= rowMin) { bottom = y; break; }
+    for (let x = pw - 1; x >= 0; x--) if (colInk[x] >= colMin) { right = x; break; }
+    if (top < 0 || left < 0 || bottom < 0 || right < 0) return canvas;
+    const pad = Math.round(Math.max(pw, ph) * 0.02);
+    const x0 = Math.max(0, Math.floor((left - pad) / k)), y0 = Math.max(0, Math.floor((top - pad) / k));
+    const x1 = Math.min(w, Math.ceil((right + pad) / k)), y1 = Math.min(h, Math.ceil((bottom + pad) / k));
+    const cw = x1 - x0, ch = y1 - y0;
+    if (cw * ch > 0.85 * w * h || cw < w * 0.15 || ch < h * 0.15) return canvas; // nothing worth cropping
+    const out = document.createElement('canvas');
+    out.width = cw; out.height = ch;
+    const octx = out.getContext('2d', { alpha: false });
+    octx.fillStyle = '#fff';
+    octx.fillRect(0, 0, cw, ch);
+    octx.drawImage(canvas, x0, y0, cw, ch, 0, 0, cw, ch);
+    return out;
+}
+
 async function compressReceiptImage(file) {
-    if (!/^image\/(jpeg|png|webp)$/i.test(file.type)) throw new Error('Choose a JPG, PNG, or WebP image.');
+    if (!/^image\/(jpeg|png|webp)$/i.test(file.type)) throw new Error('Choose a JPG, PNG, WebP image or a PDF.');
     const maxBytes = 900_000;
     if (file.size <= maxBytes) return await readAsDataUrl(file);
 
@@ -953,111 +1039,294 @@ async function compressReceiptImage(file) {
             img.onerror = () => reject(new Error('Could not open this image. Try another photo.'));
             img.src = objectUrl;
         });
-        let scale = Math.min(1, 2000 / image.width, 2000 / image.height);
-        for (let attempt = 0; attempt < 8; attempt++) {
-            const canvas = document.createElement('canvas');
-            canvas.width = Math.max(1, Math.round(image.width * scale));
-            canvas.height = Math.max(1, Math.round(image.height * scale));
-            const ctx = canvas.getContext('2d', { alpha: false });
-            if (!ctx) throw new Error('Image compression is unavailable in this browser.');
-            ctx.fillStyle = '#fff';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
-            const quality = [0.86, 0.76, 0.66, 0.56][Math.min(attempt, 3)];
-            const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', quality));
-            if (blob && blob.size <= maxBytes) return await readAsDataUrl(blob);
-            scale *= 0.82;
-        }
-        throw new Error('This image is too large to scan. Try a smaller photo.');
+        const scale = Math.min(1, 2000 / image.width, 2000 / image.height);
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.max(1, Math.round(image.width * scale));
+        canvas.height = Math.max(1, Math.round(image.height * scale));
+        const ctx = canvas.getContext('2d', { alpha: false });
+        if (!ctx) throw new Error('Image compression is unavailable in this browser.');
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+        return await canvasToReceiptJpeg(canvas);
     } finally {
         URL.revokeObjectURL(objectUrl);
     }
 }
 
-function parseReceiptDate(text) {
-    let match = text.match(/\b(20\d{2})[/.\-](\d{1,2})[/.\-](\d{1,2})\b/);
-    let year, month, day;
-    if (match) [, year, month, day] = match;
-    else {
-        match = text.match(/\b(\d{1,2})[/.\-](\d{1,2})[/.\-](\d{2,4})\b/);
-        if (!match) return '';
-        [, day, month, year] = match; // Malaysia receipts commonly use day/month/year.
+// pdf.js is only downloaded when someone actually picks a PDF
+function loadPdfJs() {
+    if (window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
+    if (!pdfJsPromise) {
+        pdfJsPromise = new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = PDFJS.base + 'pdf.min.js';
+            script.integrity = PDFJS.mainIntegrity;
+            script.crossOrigin = 'anonymous';
+            script.onload = () => {
+                window.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS.base + 'pdf.worker.min.js';
+                resolve(window.pdfjsLib);
+            };
+            script.onerror = () => { pdfJsPromise = null; reject(new Error('Could not load the PDF reader. Check your connection and try again.')); };
+            document.head.appendChild(script);
+        });
     }
-    year = Number(year);
-    if (year < 100) year += year >= 70 ? 1900 : 2000;
-    month = Number(month);
-    day = Number(day);
-    const date = new Date(year, month - 1, day);
-    return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day && year >= 2000 && year <= new Date().getFullYear() + 1
-        ? `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
-        : '';
+    return pdfJsPromise;
 }
 
-function parseReceiptAmount(line) {
-    const matches = [...line.matchAll(/(?:RM\s*)?\b(\d{1,3}(?:,\d{3})*\.\d{2}|\d+\.\d{2})\b/gi)];
-    if (!matches.length) return 0;
-    return Number(matches[matches.length - 1][1].replace(/,/g, '')) || 0;
+// Returns { texts: [reading, reading] } for a PDF with a text layer, or { imageData } (a cropped JPEG of page 1) for a scan
+async function readPdfReceipt(file) {
+    if (file.size > RECEIPT_MAX_PDF_BYTES) throw new Error('This PDF is larger than 10 MB. Choose a smaller file.');
+    const pdfjsLib = await loadPdfJs();
+    let pdf;
+    try {
+        pdf = await pdfjsLib.getDocument({ data: await file.arrayBuffer() }).promise;
+    } catch (err) {
+        if (err && err.name === 'PasswordException') throw new Error('This PDF is password protected. Remove the password and try again.');
+        throw new Error('This file could not be opened as a PDF.');
+    }
+    try {
+        return await readOpenPdf(pdf);
+    } finally {
+        try { await pdf.destroy(); } catch (_) { /* already closed */ }
+    }
 }
 
-function suggestExpenseCategory(text) {
-    const value = text.toLowerCase();
-    const hints = [
-        ['food', /restaurant|mcdonald|kfc|burger|pizza|foodpanda|grabfood|bakery|food court|warung|mamak/],
-        ['beverages', /starbucks|coffee|tealive|kopitiam|bubble tea|cafe|espresso/],
-        ['travel', /grab ride|taxi|airasia|airline|flight|hotel|parking|toll|rapid kl|myrapid/],
-        ['shopping', /supermarket|grocer|mall|shopee|lazada|watsons|guardian|uniqlo/],
-        ['utilities', /electric|water bill|unifi|maxis|celcom|digi|utilities|internet bill/],
-        ['car', /petrol|shell|petronas|caltex|budi|workshop|service centre/],
-        ['health', /clinic|pharmacy|hospital|medical|dental/],
-        ['entertain', /cinema|movie|netflix|spotify|steam|ticket/]
-    ];
-    return hints.find(([, pattern]) => pattern.test(value))?.[0] || '';
+async function readOpenPdf(pdf) {
+    const pages = Math.min(pdf.numPages, 4);
+    const contentOrder = [];
+    const visualRows = [];
+    for (let n = 1; n <= pages; n++) {
+        const page = await pdf.getPage(n);
+        const content = await page.getTextContent();
+        const items = content.items.map(item => ({
+            str: item.str, x: item.transform[4], y: item.transform[5], width: item.width, height: item.height || Math.abs(item.transform[3]), hasEOL: !!item.hasEOL
+        }));
+        // Two readings of the same page: the PDF's own order, and rows rebuilt from positions.
+        // Neither suits every document, so the parser keeps whichever it trusts more.
+        contentOrder.push(ReceiptParser.pdfContentOrderToText(items));
+        visualRows.push(ReceiptParser.pdfItemsToText(items));
+    }
+    const texts = [contentOrder.join('\n'), visualRows.join('\n')];
+    if (texts[0].replace(/\s/g, '').length >= 30 || texts[1].replace(/\s/g, '').length >= 30) return { texts };
+
+    // No text layer: it is a scan. Render page 1, crop the empty margins, and send it to OCR.
+    const page = await pdf.getPage(1);
+    const base = page.getViewport({ scale: 1 });
+    const viewport = page.getViewport({ scale: Math.min(3, 2600 / Math.max(base.width, base.height)) });
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(viewport.width);
+    canvas.height = Math.round(viewport.height);
+    const ctx = canvas.getContext('2d', { alpha: false });
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    await page.render({ canvasContext: ctx, viewport }).promise;
+    return { imageData: await canvasToReceiptJpeg(trimMargins(canvas)) };
 }
 
-function parseReceiptText(text) {
-    const lines = text.split(/\r?\n/).map(line => line.replace(/\s+/g, ' ').trim()).filter(Boolean);
-    const merchant = lines.slice(0, 10).find(line => {
-        const value = line.toLowerCase();
-        return line.length >= 2 && line.length <= 70 && /[a-z]/i.test(line) && !/^\d+$/.test(line)
-            && !/receipt|invoice|tax invoice|cashier|customer|tel\b|phone|date\b|time\b|table\b|gst|sst|reg\.?\s*no|thank you/i.test(value);
-    }) || '';
-    const totalCandidates = lines.map(line => {
-        const lower = line.toLowerCase();
-        const strong = /grand\s*total|total\s*(?:due|payable)|amount\s*due|net\s*total|balance\s*due/.test(lower);
-        const plain = /\btotal\b/.test(lower) && !/sub\s*total|tax\s*total|total\s*tax|cash|change/.test(lower);
-        return { line, score: strong ? 2 : plain ? 1 : 0, amount: parseReceiptAmount(line) };
-    }).filter(item => item.score && item.amount > 0).sort((a, b) => b.score - a.score);
-    return {
-        merchant,
-        amount: totalCandidates[0]?.amount || 0,
-        date: parseReceiptDate(text),
-        category: suggestExpenseCategory(`${merchant} ${text}`)
-    };
+async function errorMessageFrom(error, fallback) {
+    try {
+        const body = await error.context.json();
+        if (body && body.error) return body.error;
+    } catch (_) { /* no readable body */ }
+    return fallback;
+}
+
+async function ocrReceiptImage(imageData) {
+    if (!navigator.onLine) throw new Error('You\'re offline. PDFs with text can still be read, but photos need a connection.');
+    const { data, error } = await supabaseClient.functions.invoke('receipt-ocr', { body: { imageData } });
+    if (error) throw new Error(await errorMessageFrom(error, 'Receipt scan is unavailable. Check the OCR setup and try again.'));
+    if (data?.error) throw new Error(data.error);
+    return data?.text || '';
+}
+
+// Optional: ask an AI service to read an unclear receipt. Off by default and sends only the receipt TEXT.
+async function askReceiptAi(text) {
+    try {
+        const categories = activeTaxonomy(CATEGORIES).map(c => ({ key: c.key, label: c.label }));
+        const { data, error } = await withTimeout(
+            supabaseClient.functions.invoke('receipt-ai', { body: { text: text.slice(0, 12000), categories, today: toInputDate() } }),
+            25_000, 'AI help took too long'
+        );
+        if (error) {
+            const message = await errorMessageFrom(error, '');
+            if (message === 'not_configured') {
+                aiAssist.unavailable = true;
+                $('aiAssistToggle').checked = false;
+                showToast('info', 'AI help isn\'t set up on this server yet, so the normal reader was used.');
+            } else if (/limit/i.test(message)) {
+                showToast('info', message);
+            }
+            return null;
+        }
+        return data && !data.error ? data : null;
+    } catch (_) {
+        return null;
+    }
+}
+
+$('aiAssistToggle').checked = aiAssist.enabled;
+$('aiAssistToggle').addEventListener('change', (event) => {
+    aiAssist.enabled = event.target.checked;
+    aiAssist.unavailable = false;
+    try { localStorage.setItem(AI_ASSIST_KEY, aiAssist.enabled ? '1' : '0'); } catch (_) { /* ignore */ }
+    if (aiAssist.enabled) showToast('info', 'AI help is on. When a receipt is unclear, its text is sent to an AI service.');
+});
+
+// ---- tap-to-choose totals ----
+const receiptCandidates = $('receiptCandidates');
+
+function renderReceiptCandidates(parsed) {
+    const options = (parsed.amountCandidates || []).filter(c => !c.currency || c.currency === 'MYR');
+    const unsure = parsed.amountConfidence !== 'high';
+    if (!options.length || (!unsure && options.length < 2)) {
+        receiptCandidates.classList.add('hidden');
+        receiptCandidates.innerHTML = '';
+        return;
+    }
+    const current = Math.round((parseFloat(expAmount.value) || 0) * 100);
+    receiptCandidates.innerHTML = `<span class="cand-label">${unsure ? 'Which is the total?' : 'Other amounts found'}</span>` + options.map(c => `
+        <button type="button" class="cand-chip${Math.round(c.amount * 100) === current ? ' active' : ''}" data-amount="${c.amount.toFixed(2)}">
+            <b>${formatMoney(c.amount)}</b>${c.label ? `<small>${escapeHtml(c.label)}</small>` : ''}
+        </button>`).join('');
+    receiptCandidates.classList.remove('hidden');
+}
+
+receiptCandidates.addEventListener('click', (event) => {
+    const chip = event.target.closest('.cand-chip');
+    if (!chip) return;
+    expAmount.value = chip.dataset.amount;
+    receiptCandidates.querySelectorAll('.cand-chip').forEach(c => c.classList.toggle('active', c === chip));
+});
+expAmount.addEventListener('input', () => {
+    const current = Math.round((parseFloat(expAmount.value) || 0) * 100);
+    receiptCandidates.querySelectorAll('.cand-chip').forEach(c => c.classList.toggle('active', Math.round(parseFloat(c.dataset.amount) * 100) === current));
+});
+
+// ---- category suggestions ----
+const categorySuggest = $('categorySuggest');
+
+function updateCategorySuggestion({ text = '', hint = null, scan = false } = {}) {
+    const merchant = expMerchant.value.trim();
+    if (!window.SmartEntry || (!merchant && !text)) { categorySuggest.classList.add('hidden'); return; }
+    const suggestion = SmartEntry.suggestCategory({
+        merchant, text, hint,
+        memory: SmartEntry.buildMerchantMemory(expenses),
+        categories: activeTaxonomy(CATEGORIES)
+    });
+    if (!suggestion) { categorySuggest.classList.add('hidden'); categorySuggest.innerHTML = ''; return; }
+
+    // Apply automatically when it is YOUR own habit, or after a scan; otherwise just suggest it
+    const trusted = suggestion.source === 'history' || scan;
+    if (trusted && suggestion.confidence !== 'low' && !categoryTouched && suggestion.key !== expCategoryValue) {
+        expCategoryValue = suggestion.key;
+        renderExpenseChips();
+        categorySuggest.innerHTML = `<i class="fas fa-wand-magic-sparkles"></i><span>Category set to <b>${escapeHtml(suggestion.label)}</b>. ${escapeHtml(suggestion.reason)}.</span>`;
+        categorySuggest.classList.remove('hidden');
+        return;
+    }
+    if (suggestion.key === expCategoryValue) {
+        categorySuggest.innerHTML = `<i class="fas fa-circle-check"></i><span><b>${escapeHtml(suggestion.label)}</b> fits. ${escapeHtml(suggestion.reason)}.</span>`;
+    } else {
+        categorySuggest.innerHTML = `<i class="fas fa-wand-magic-sparkles"></i><span>Suggested: <b>${escapeHtml(suggestion.label)}</b>. ${escapeHtml(suggestion.reason)}.</span><button type="button" class="link-btn" data-use-category="${escapeHtml(suggestion.key)}">Use</button>`;
+    }
+    categorySuggest.classList.remove('hidden');
+}
+
+categorySuggest.addEventListener('click', (event) => {
+    const button = event.target.closest('[data-use-category]');
+    if (!button) return;
+    expCategoryValue = button.dataset.useCategory;
+    categoryTouched = true;
+    renderExpenseChips();
+    updateCategorySuggestion();
+});
+
+let merchantTypingTimer = null;
+expMerchant.addEventListener('input', () => {
+    clearTimeout(merchantTypingTimer);
+    merchantTypingTimer = setTimeout(() => updateCategorySuggestion(), 250);
+});
+
+function resetReceiptHelpers() {
+    categoryTouched = false;
+    receiptCandidates.classList.add('hidden');
+    receiptCandidates.innerHTML = '';
+    categorySuggest.classList.add('hidden');
+    categorySuggest.innerHTML = '';
+    receiptScanStatus.classList.add('hidden');
+}
+
+// ---- put a parsed receipt into the form ----
+async function applyParsedReceipt(texts, source) {
+    const parsed = ReceiptParser.parseBest(texts);
+    const text = parsed.text; // the reading that was trusted most
+    let aiNote = '';
+    let aiCategory = null;
+
+    const unsure = parsed.amountConfidence !== 'high' || !parsed.merchant;
+    if (unsure && aiAssist.enabled && !aiAssist.unavailable) {
+        setReceiptStatus('Asking AI to double-check…');
+        const ai = await askReceiptAi(text);
+        if (ai) {
+            if (ai.category) aiCategory = ai.category;
+            if (!parsed.merchant && ai.merchant) parsed.merchant = ai.merchant;
+            if (!parsed.date && ai.date) parsed.date = ai.date;
+            if (parsed.amountConfidence !== 'high' && ai.amount > 0) {
+                const agrees = parsed.amountCandidates.some(c => Math.abs(c.amount - ai.amount) < 0.005);
+                parsed.amount = ai.amount;
+                parsed.amountConfidence = agrees ? 'high' : 'medium';
+                if (!agrees) parsed.amountCandidates.unshift({ amount: ai.amount, label: 'AI suggestion', score: 0, currency: 'MYR' });
+                aiNote = agrees ? ' AI agreed with the reader.' : ' The total is an AI suggestion, so check it.';
+            }
+        }
+    }
+
+    if (parsed.merchant) expMerchant.value = parsed.merchant.slice(0, 80);
+    if (parsed.amount) expAmount.value = parsed.amount.toFixed(2);
+    if (parsed.date) expDate.value = parsed.date;
+    categoryTouched = false;
+    const hint = parsed.hints.category ? { category: parsed.hints.category, reason: 'This is a Grab food order' } : (aiCategory ? { category: aiCategory, reason: 'Suggested by AI' } : null);
+    updateCategorySuggestion({ text, hint, scan: true });
+    renderReceiptCandidates(parsed);
+
+    const found = [parsed.merchant && 'merchant', parsed.amount && 'total', parsed.date && 'date'].filter(Boolean);
+    const options = parsed.amountCandidates.filter(c => !c.currency || c.currency === 'MYR');
+    if (!found.length && !options.length) throw new Error('Text was read, but I could not identify the merchant, total, or date. Please enter them manually.');
+
+    const origin = source === 'pdf-text' ? 'Read from the PDF on your device, nothing was uploaded. ' : '';
+    let message;
+    if (parsed.amountConfidence === 'high') message = `${origin}Filled: ${found.join(', ')}.${aiNote} Please review before saving.`;
+    else if (parsed.amountConfidence === 'medium') message = `${origin}Filled: ${found.join(', ')}. I'm not fully sure about the total (${formatMoney(parsed.amount)}); tap another amount below if it's wrong.${aiNote}`;
+    else message = `${origin}${found.length ? `Filled: ${found.join(', ')}. ` : ''}I couldn't tell which amount is the total.${options.length ? ' Tap the right one below.' : ' Please enter it manually.'}`;
+    if (parsed.warnings.length) message += ' ' + parsed.warnings.join(' ');
+    setReceiptStatus(message, parsed.amountConfidence === 'low' || parsed.amountConfidence === 'none');
 }
 
 async function scanReceipt(file) {
     if (!currentUser || !supabaseClient) throw new Error('Sign in before scanning a receipt.');
+    if (!window.ReceiptParser) { setReceiptStatus('The receipt reader did not load. Reload the page and try again.', true); return; }
     setBusy(scanReceiptBtn, true, 'Reading…');
+    receiptCandidates.classList.add('hidden');
     try {
-        setReceiptStatus('Preparing image…');
-        const imageData = await compressReceiptImage(file);
-        setReceiptStatus('Reading receipt text…');
-        const { data, error } = await supabaseClient.functions.invoke('receipt-ocr', { body: { imageData } });
-        if (error) throw new Error(data?.error || 'Receipt scan is unavailable. Check the OCR setup and try again.');
-        if (data?.error) throw new Error(data.error);
-
-        const fields = parseReceiptText(data.text || '');
-        if (fields.merchant) expMerchant.value = fields.merchant.slice(0, 80);
-        if (fields.amount) expAmount.value = fields.amount.toFixed(2);
-        if (fields.date) expDate.value = fields.date;
-        if (fields.category) {
-            expCategoryValue = fields.category;
-            renderExpenseChips();
+        let texts = [];
+        let source = 'ocr';
+        if (isPdfFile(file)) {
+            setReceiptStatus('Opening PDF…');
+            const pdf = await withTimeout(readPdfReceipt(file), 40_000, 'Reading this PDF took too long. Try again, or enter the receipt manually.');
+            if (pdf.texts) { texts = pdf.texts; source = 'pdf-text'; }
+            else {
+                setReceiptStatus('This PDF is a scan. Reading the text…');
+                texts = [await withTimeout(ocrReceiptImage(pdf.imageData), 45_000, 'The text reader took too long. Try again, or enter the receipt manually.')];
+            }
+        } else {
+            setReceiptStatus('Preparing image…');
+            const imageData = await withTimeout(compressReceiptImage(file), 30_000, 'Preparing the image took too long. Try a smaller photo.');
+            setReceiptStatus('Reading receipt text…');
+            texts = [await withTimeout(ocrReceiptImage(imageData), 45_000, 'The text reader took too long. Try again, or enter the receipt manually.')];
         }
-        const detected = [fields.merchant && 'merchant', fields.amount && 'total', fields.date && 'date'].filter(Boolean);
-        if (!detected.length) throw new Error('Text was read, but I could not identify the merchant, total, or date. Please enter them manually.');
-        const categoryNote = fields.category ? ` Category suggestion: ${catByKey[fields.category].label}.` : '';
-        setReceiptStatus(`Draft filled: ${detected.join(', ')}.${categoryNote} Please review before saving.`);
+        if (!texts.join('').trim()) throw new Error('I couldn\'t read any text. Try a sharper, well-lit photo or enter it manually.');
+        await applyParsedReceipt(texts, source);
     } catch (error) {
         setReceiptStatus(error.message || 'Receipt scanning failed. Please enter it manually.', true);
     } finally {
@@ -1092,6 +1361,7 @@ nearbyPlaceBtn.addEventListener('click', () => {
             const cachedName = nearbyPlaceCache.get(cacheKey);
             if (cachedName) {
                 expMerchant.value = cachedName;
+                updateCategorySuggestion();
                 nearbyPlaceStatus.textContent = `Suggested “${cachedName}” from a recent nearby lookup. Edit it if needed.`;
                 nearbyPlaceStatus.classList.remove('error');
                 return;
@@ -1106,6 +1376,7 @@ nearbyPlaceBtn.addEventListener('click', () => {
             if (!placeName) throw new Error('No mapped place found nearby. Enter the merchant manually.');
             nearbyPlaceCache.set(cacheKey, placeName);
             expMerchant.value = placeName.slice(0, 80);
+            updateCategorySuggestion();
             nearbyPlaceStatus.textContent = `Suggested “${placeName}” from your current location. Edit it if needed.`;
             nearbyPlaceStatus.classList.remove('error');
         } catch (error) {
@@ -1134,6 +1405,7 @@ $('expenseTemplates').addEventListener('click', (event) => {
     expAmount.value = parseFloat(template.latest.amount).toFixed(2);
     expCategoryValue = template.latest.category;
     expPaymentValue = template.latest.payment;
+    categoryTouched = true; // a frequent purchase already carries its category
     renderExpenseChips();
     showToast('info', `${template.merchant} details filled in — review before saving`);
 });
@@ -1801,7 +2073,12 @@ function renderExpenseChips() {
     expNoteLabel.textContent = isOther ? 'Please specify (required)' : 'Note (optional)';
     expNote.placeholder = isOther ? 'What was this expense for?' : 'e.g. Lunch with team';
 }
-bindChips($('expCategoryChips'), (key) => { expCategoryValue = key; renderExpenseChips(); });
+bindChips($('expCategoryChips'), (key) => {
+    expCategoryValue = key;
+    categoryTouched = true; // an explicit choice always wins over any suggestion
+    renderExpenseChips();
+    updateCategorySuggestion();
+});
 bindChips($('expPaymentChips'), (key) => { expPaymentValue = key; renderExpenseChips(); });
 
 function syncIncomeChips() {
@@ -2181,6 +2458,7 @@ if (supabaseClient) {
 }
 
 // === EXPENSE ===
+let duplicateConfirmed = false;
 saveExpenseBtn.addEventListener('click', async () => {
     if (!currentUser) return showModal({ type: 'warning', title: 'Not signed in', message: 'Please log in first.' });
 
@@ -2197,12 +2475,30 @@ saveExpenseBtn.addEventListener('click', async () => {
     }
     const createdAt = dateInputToISO(expDate.value);
 
+    // Warn before saving the same purchase twice (for example a receipt scanned two times)
+    const alreadyConfirmed = duplicateConfirmed;
+    duplicateConfirmed = false;
+    if (!alreadyConfirmed && window.SmartEntry) {
+        const dup = SmartEntry.findDuplicate(expenses, { amount, date: toInputDate(createdAt), merchant, category: expCategoryValue });
+        if (dup) {
+            return showModal({
+                type: 'warning',
+                title: 'Possible duplicate',
+                message: `You already saved ${formatMoney(dup.amount)}${dup.merchant ? ` at ${dup.merchant}` : ''} ${friendlyDate(dup.created_at).toLowerCase()}. Save this one as well?`,
+                confirmText: 'Save anyway',
+                cancelText: 'Go back',
+                onConfirm: () => { duplicateConfirmed = true; saveExpenseBtn.click(); }
+            });
+        }
+    }
+
     setBusy(saveExpenseBtn, true, 'Saving...');
     try {
         const { queued } = await addExpense(amount, expCategoryValue, expPaymentValue, createdAt, note, merchant);
         expAmount.value = '';
         expNote.value = '';
         expMerchant.value = '';
+        resetReceiptHelpers();
         expDate.value = toInputDate();
         const saved = new Date(createdAt);
         setSelectedMonth(saved.getFullYear(), saved.getMonth());

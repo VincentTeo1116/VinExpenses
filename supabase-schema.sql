@@ -314,3 +314,56 @@ begin
   end if;
 end
 $setup$;
+
+
+-- ================================================================
+-- Receipt scanning limits (used by the receipt-ocr and receipt-ai edge functions)
+-- Counts how many scans / AI calls each user has used today. Only the edge functions
+-- (service role) can read or change this table: it has no policies and no grants for
+-- signed-in users. Safe to run more than once.
+-- ================================================================
+create table if not exists public.receipt_scan_usage (
+  user_id uuid not null references auth.users (id) on delete cascade,
+  day date not null,
+  ocr_scans integer not null default 0,
+  ai_calls integer not null default 0,
+  primary key (user_id, day)
+);
+
+alter table public.receipt_scan_usage enable row level security;
+revoke all on public.receipt_scan_usage from anon, authenticated;
+
+-- Atomically counts one use and says whether it was allowed. The INSERT ... ON CONFLICT ... WHERE only
+-- updates (and so only returns a row) while the user is under the limit, so two scans at the same
+-- moment can never both slip past the limit.
+create or replace function public.consume_receipt_quota(p_user uuid, p_kind text, p_limit integer)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  today date := (now() at time zone 'utc')::date;
+  allowed boolean;
+begin
+  if p_kind = 'ocr' then
+    insert into public.receipt_scan_usage as u (user_id, day, ocr_scans)
+    values (p_user, today, 1)
+    on conflict (user_id, day) do update set ocr_scans = u.ocr_scans + 1
+      where u.ocr_scans < p_limit
+    returning true into allowed;
+  elsif p_kind = 'ai' then
+    insert into public.receipt_scan_usage as u (user_id, day, ai_calls)
+    values (p_user, today, 1)
+    on conflict (user_id, day) do update set ai_calls = u.ai_calls + 1
+      where u.ai_calls < p_limit
+    returning true into allowed;
+  else
+    raise exception 'unknown quota kind %', p_kind;
+  end if;
+  return coalesce(allowed, false);
+end;
+$$;
+
+revoke all on function public.consume_receipt_quota(uuid, text, integer) from public, anon, authenticated;
+grant execute on function public.consume_receipt_quota(uuid, text, integer) to service_role;
