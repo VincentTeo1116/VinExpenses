@@ -32,7 +32,7 @@ dashboard. Plain HTML/CSS/JS — no build step.
   possible weekly/monthly merchant repeats from the user's history. Suggestions
   are never added as recurring bills automatically.
 - **Exports and reports** - export filtered History to CSV or open a print-ready
-  monthly report that can be saved as PDF. Users can opt in to a monthly email,
+  monthly report that can be saved as PDF. The report opens *inside* the app (with a Back button, Esc, and the phone's back gesture), so an installed home-screen app never gets stuck on it; use **Print / PDF** in the report to save it. Users can opt in to a monthly email,
   edit its recipient, and turn delivery off from Account.
 
 - **Quick add** — a big **+** button (bottom tab bar on phones, sidebar button or the

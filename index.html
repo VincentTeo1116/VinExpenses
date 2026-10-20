@@ -819,6 +819,16 @@
         </div>
     </div>
 
+    <!-- ===== MONTHLY REPORT VIEW (in-app, so there is always a way back) ===== -->
+    <div id="reportView" class="report-view" role="dialog" aria-modal="true" aria-labelledby="reportViewTitle">
+        <div class="report-toolbar">
+            <button id="reportBackBtn" type="button" class="btn btn-ghost btn-small"><i class="fas fa-chevron-left"></i> Back</button>
+            <strong id="reportViewTitle">Monthly report</strong>
+            <button id="reportPrintBtn" type="button" class="btn btn-primary btn-small"><i class="fas fa-print"></i> Print / PDF</button>
+        </div>
+        <div class="report-scroll"><article id="reportDoc" class="report-doc"></article></div>
+    </div>
+
     <!-- Toasts -->
     <div id="toastHost" class="toast-host" aria-live="polite"></div>
 

@@ -257,7 +257,7 @@ let dismissModal = null;
 
 function syncBodyScroll() {
     // Lock page scroll while any dialog or sheet is open
-    document.body.style.overflow = document.querySelector('.modal-overlay-full.active') ? 'hidden' : '';
+    document.body.style.overflow = document.querySelector('.modal-overlay-full.active, .report-view.active') ? 'hidden' : '';
 }
 
 function closeModal() {
@@ -336,6 +336,7 @@ function showToast(type, message, opts = {}) {
 document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
         if (dismissModal) dismissModal();
+        else if ($('reportView').classList.contains('active')) closeReportView();
         else if ($('taxonomySheet').classList.contains('active')) closeTaxonomyManager();
         else if (editModal.classList.contains('active')) closeEditModal();
         else if (addSheet.classList.contains('active')) closeAddSheet();
@@ -348,7 +349,7 @@ document.addEventListener('keydown', (e) => {
     const tag = (e.target.tagName || '').toLowerCase();
     const typing = tag === 'input' || tag === 'textarea' || tag === 'select' || e.target.isContentEditable;
     if (e.key.toLowerCase() === 'n' && !typing && !e.metaKey && !e.ctrlKey && !e.altKey
-        && currentUser && !document.querySelector('.modal-overlay-full.active')) {
+        && currentUser && !document.querySelector('.modal-overlay-full.active, .report-view.active')) {
         e.preventDefault();
         openAddSheet('expense');
     }
@@ -2396,22 +2397,78 @@ $('historyCsvBtn').addEventListener('click', () => {
     showToast('success', `${visibleHistoryTransactions.length} transaction${visibleHistoryTransactions.length === 1 ? '' : 's'} exported`);
 });
 
-$('historyReportBtn').addEventListener('click', () => {
+// === MONTHLY REPORT (in-app view) ===
+// Shown inside the app, not in a new window. An installed iPhone app has no tab bar and no browser
+// back button, so a separate window would be a dead end. Back, Esc and the browser/edge-swipe back
+// gesture all return to History.
+const reportView = $('reportView');
+let reportDocTitle = '';
+
+function buildReportHtml(year, monthNumber, transactions) {
+    const expensesTotal = sumAmount(transactions.filter(t => t.type === 'expense'));
+    const incomeTotal = sumAmount(transactions.filter(t => t.type === 'income'));
+    const monthLabel = new Date(year, monthNumber - 1, 1).toLocaleDateString('en-MY', { month: 'long', year: 'numeric' });
+    const rows = transactions.map(t => {
+        const who = t.merchant || (t.type === 'income' ? t.source || 'Salary' : catByKey[t.category]?.label || t.category);
+        return `<tr><td>${escapeHtml(toInputDate(t.created_at))}</td><td>${escapeHtml(t.type)}</td><td>${escapeHtml(who)}</td>` +
+            `<td>${escapeHtml(t.type === 'expense' ? catByKey[t.category]?.label || t.category : '')}</td><td>${escapeHtml(t.note || '')}</td>` +
+            `<td class="amount">${escapeHtml(formatMoney(t.amount))}</td></tr>`;
+    }).join('');
+    return `
+        <header><h1>Monthly expense report</h1><p class="report-sub">${escapeHtml(monthLabel)} · VinExpenses</p></header>
+        <div class="report-totals">
+            <div><span>Income</span><b>${escapeHtml(formatMoney(incomeTotal))}</b></div>
+            <div><span>Expenses</span><b>${escapeHtml(formatMoney(expensesTotal))}</b></div>
+            <div><span>Net</span><b>${escapeHtml(formatMoney(incomeTotal - expensesTotal))}</b></div>
+            <div><span>Transactions</span><b>${transactions.length}</b></div>
+        </div>
+        <div class="report-table-wrap"><table class="report-table">
+            <thead><tr><th>Date</th><th>Type</th><th>Merchant / Source</th><th>Category</th><th>Note</th><th class="amount">Amount</th></tr></thead>
+            <tbody>${rows || '<tr><td colspan="6">No transactions for this month.</td></tr>'}</tbody>
+        </table></div>`;
+}
+
+function openReportView() {
     const month = historyMonthFilter.value || formatMonthValue(selectedDate);
     const [year, monthNumber] = month.split('-').map(Number);
     const transactions = allTransactions().filter(t => {
         const date = new Date(t.created_at);
         return date.getFullYear() === year && date.getMonth() === monthNumber - 1;
     });
-    const expensesTotal = sumAmount(transactions.filter(t => t.type === 'expense'));
-    const incomeTotal = sumAmount(transactions.filter(t => t.type === 'income'));
-    const rows = transactions.map(t => `<tr><td>${escapeHtml(toInputDate(t.created_at))}</td><td>${escapeHtml(t.type)}</td><td>${escapeHtml(t.merchant || (t.type === 'income' ? t.source || 'Salary' : catByKey[t.category]?.label || t.category))}</td><td>${escapeHtml(t.type === 'expense' ? catByKey[t.category]?.label || t.category : '')}</td><td>${escapeHtml(t.note || '')}</td><td class="amount">${escapeHtml(formatMoney(t.amount))}</td></tr>`).join('');
-    const report = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>VinExpenses ${escapeHtml(month)} report</title><style>body{font:14px Arial,sans-serif;color:#172033;max-width:960px;margin:32px auto;padding:0 20px}h1{margin-bottom:4px}.sub{color:#5b6785;margin-top:0}.totals{display:flex;gap:24px;margin:24px 0}.totals div{padding:14px 18px;background:#f3f4fb;border-radius:12px}.totals span{display:block;color:#5b6785;font-size:12px}.totals b{display:block;margin-top:5px;font-size:18px}table{width:100%;border-collapse:collapse}th,td{text-align:left;border-bottom:1px solid #e4e7f0;padding:9px 7px}th{font-size:12px;color:#5b6785}.amount{text-align:right;white-space:nowrap}@media print{body{margin:0 auto}.no-print{display:none}}</style></head><body><button class="no-print" onclick="window.print()">Print / Save as PDF</button><h1>Monthly expense report</h1><p class="sub">${escapeHtml(new Date(year, monthNumber - 1, 1).toLocaleDateString('en-MY', { month: 'long', year: 'numeric' }))} · VinExpenses</p><div class="totals"><div><span>Income</span><b>${escapeHtml(formatMoney(incomeTotal))}</b></div><div><span>Expenses</span><b>${escapeHtml(formatMoney(expensesTotal))}</b></div><div><span>Net</span><b>${escapeHtml(formatMoney(incomeTotal - expensesTotal))}</b></div><div><span>Transactions</span><b>${transactions.length}</b></div></div><table><thead><tr><th>Date</th><th>Type</th><th>Merchant / Source</th><th>Category</th><th>Note</th><th class="amount">Amount</th></tr></thead><tbody>${rows || '<tr><td colspan="6">No transactions for this month.</td></tr>'}</tbody></table></body></html>`;
-    const reportWindow = window.open('', '_blank');
-    if (!reportWindow) return showToast('error', 'Allow pop-ups to open the monthly report.');
-    reportWindow.document.open();
-    reportWindow.document.write(report);
-    reportWindow.document.close();
+    reportDocTitle = `VinExpenses-${month}-report`; // becomes the default file name when saving as PDF
+    $('reportDoc').innerHTML = buildReportHtml(year, monthNumber, transactions);
+    $('reportViewTitle').textContent = new Date(year, monthNumber - 1, 1).toLocaleDateString('en-MY', { month: 'long', year: 'numeric' });
+    reportView.classList.add('active');
+    reportView.querySelector('.report-scroll').scrollTop = 0;
+    syncBodyScroll();
+    // One history entry, so the phone's back gesture / the browser Back button closes the report
+    history.pushState({ view: 'report' }, '');
+    $('reportBackBtn').focus();
+}
+
+function hideReportView() {
+    reportView.classList.remove('active');
+    syncBodyScroll();
+}
+
+// Back button / Esc: go back in history if we pushed an entry, otherwise just hide
+function closeReportView() {
+    if (history.state && history.state.view === 'report') history.back();
+    else hideReportView();
+}
+
+window.addEventListener('popstate', () => {
+    if (reportView.classList.contains('active')) hideReportView();
+});
+
+$('historyReportBtn').addEventListener('click', openReportView);
+$('reportBackBtn').addEventListener('click', closeReportView);
+$('reportPrintBtn').addEventListener('click', () => {
+    if (typeof window.print !== 'function') return showToast('error', 'Printing isn\'t available in this browser.');
+    const previousTitle = document.title;
+    document.title = reportDocTitle;
+    window.addEventListener('afterprint', () => { document.title = previousTitle; }, { once: true });
+    window.print();
 });
 
 historyList.addEventListener('click', (e) => {
