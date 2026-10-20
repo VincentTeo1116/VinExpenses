@@ -1377,6 +1377,19 @@ receiptFileInput.addEventListener('change', () => {
 });
 
 let nearbyLookupInFlight = false;
+// Used when the server route is blocked: the public map service often refuses cloud servers but
+// accepts a normal browser. Still one request per tap, sent straight to OpenStreetMap.
+async function nearbyPlaceFromBrowser(latitude, longitude) {
+    const url = 'https://nominatim.openstreetmap.org/reverse?' + new URLSearchParams({
+        format: 'jsonv2', lat: String(latitude), lon: String(longitude), zoom: '18', addressdetails: '1', namedetails: '1'
+    });
+    const response = await withTimeout(fetch(url, { headers: { Accept: 'application/json' } }), 12_000, 'The map service took too long.');
+    if (!response.ok) throw new Error(`The map service answered ${response.status}.`);
+    const result = await response.json();
+    const a = result.address || {};
+    return String(result.name || a.amenity || a.shop || a.restaurant || a.cafe || a.leisure || a.building || (result.display_name || '').split(',')[0] || '').slice(0, 80);
+}
+
 let nearbyLastRequestAt = 0;
 const nearbyPlaceCache = new Map();
 nearbyPlaceBtn.addEventListener('click', () => {
@@ -1412,7 +1425,20 @@ nearbyPlaceBtn.addEventListener('click', () => {
                     : status === 401 || status === 403
                         ? 'The server refused the nearby lookup. Log out and in again, then retry.'
                         : 'Nearby lookup is temporarily unavailable. Enter the merchant manually.';
-                throw new Error(await errorMessageFrom(error, fallback));
+                const serverMessage = await errorMessageFrom(error, fallback);
+                // Blocked or down on the server side: ask the map service straight from the browser instead
+                try {
+                    const direct = await nearbyPlaceFromBrowser(latitude, longitude);
+                    if (!direct) throw new Error('No mapped place found nearby. Enter the merchant manually.');
+                    nearbyPlaceCache.set(cacheKey, direct);
+                    expMerchant.value = direct;
+                    updateCategorySuggestion();
+                    nearbyPlaceStatus.textContent = `Suggested “${direct}” from your current location. Edit it if needed.`;
+                    nearbyPlaceStatus.classList.remove('error');
+                    return;
+                } catch (directError) {
+                    throw new Error(`${serverMessage} (Direct lookup: ${directError.message || 'failed'})`);
+                }
             }
             if (data?.error) throw new Error(data.error);
             const placeName = data?.name || '';

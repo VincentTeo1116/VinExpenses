@@ -12,6 +12,42 @@ function jsonResponse(body: Record<string, unknown>, status = 200) {
   });
 }
 
+// Nearest named shop / restaurant / amenity within 80 m, or "" when none (or the service is down)
+async function overpassNearest(lat: number, lon: number): Promise<string> {
+  const endpoint = Deno.env.get("OVERPASS_URL") || "https://overpass-api.de/api/interpreter";
+  const filter = '[name][~"^(amenity|shop|tourism|leisure)$"~"."]';
+  const query = `[out:json][timeout:8];(node(around:80,${lat},${lon})${filter};way(around:80,${lat},${lon})${filter};);out center 20;`;
+  try {
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded", "User-Agent": "VinExpenses/1.0 (personal expense tracker; nearby merchant suggestion)" },
+      body: new URLSearchParams({ data: query }),
+      signal: AbortSignal.timeout(9000),
+    });
+    if (!response.ok) {
+      console.error("nearby-place overpass status", response.status);
+      return "";
+    }
+    const data = await response.json();
+    let best = "";
+    let bestDistance = Infinity;
+    for (const element of data.elements || []) {
+      const name = element.tags?.name;
+      const elementLat = element.lat ?? element.center?.lat;
+      const elementLon = element.lon ?? element.center?.lon;
+      if (!name || typeof elementLat !== "number" || typeof elementLon !== "number") continue;
+      const dy = (elementLat - lat) * 111_320;
+      const dx = (elementLon - lon) * 111_320 * Math.cos((lat * Math.PI) / 180);
+      const distance = Math.hypot(dx, dy);
+      if (distance < bestDistance) { best = String(name); bestDistance = distance; }
+    }
+    return best;
+  } catch (error) {
+    console.error("nearby-place overpass failed", error);
+    return "";
+  }
+}
+
 Deno.serve(async (request: Request) => {
   if (request.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (request.method !== "POST") return jsonResponse({ error: "Use POST for nearby place lookup." }, 405);
@@ -39,9 +75,12 @@ Deno.serve(async (request: Request) => {
       headers: { Accept: "application/json", "User-Agent": "VinExpenses/1.0 (personal expense tracker; nearby merchant suggestion)", "Accept-Language": "en" },
     });
     if (!response.ok) {
-      // Public Nominatim sometimes blocks or rate-limits shared cloud addresses; say so instead of hiding it
+      // Public Nominatim often blocks shared cloud addresses (403). Fall back to the Overpass API,
+      // which lists named shops and amenities around the point.
       console.error("nearby-place upstream status", response.status);
-      return jsonResponse({ error: `The map service answered ${response.status} (it may be blocking or rate-limiting the server). Try again later or enter the merchant manually.` }, 502);
+      const fallback = await overpassNearest(lat, lon);
+      if (fallback) return jsonResponse({ name: fallback.slice(0, 80) });
+      return jsonResponse({ error: `The map services did not answer (${response.status}). Try again later or enter the merchant manually.` }, 502);
     }
 
     const result = await response.json();
