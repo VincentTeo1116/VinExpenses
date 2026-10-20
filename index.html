@@ -561,6 +561,7 @@
                     <button id="scanReceiptBtn" class="btn btn-outline btn-small" type="button"><i class="fas fa-camera"></i> Scan</button>
                     <div id="receiptScanStatus" class="receipt-scan-status hidden" role="status"></div>
                     <div id="receiptCandidates" class="receipt-candidates hidden" aria-label="Amounts found on the receipt"></div>
+                    <button id="scanFeedbackBtn" class="link-btn hidden" type="button"><i class="fas fa-flag"></i> Something wrong? Save the scan details</button>
                     <label class="ai-assist" for="aiAssistToggle">
                         <input type="checkbox" id="aiAssistToggle" />
                         <span>Let AI help when a receipt is unclear <small>Sends the receipt text (not the image) to an AI service. Off by default.</small></span>
@@ -727,7 +728,16 @@
                 <button id="saveReportEmailBtn" class="btn btn-outline btn-block"><i class="fas fa-floppy-disk"></i> Save report preference</button>
                 <p id="reportEmailStatus" class="field-hint" role="status">Reports are off until you turn them on.</p>
             </section>
-            <button id="manageTaxonomyBtn" class="btn btn-outline btn-block account-manage-options"><i class="fas fa-sliders"></i> Manage categories &amp; payment methods</button>
+            <section class="report-email-settings" aria-labelledby="yourDataTitle">
+                <div class="report-email-heading"><div><h3 id="yourDataTitle">Your data</h3><p>Export everything as a spreadsheet, or import a CSV (this app's export or a bank statement). Duplicates are skipped.</p></div></div>
+                <div class="data-actions">
+                    <button id="exportAllCsvBtn" type="button" class="btn btn-outline"><i class="fas fa-file-export"></i> Export all (CSV)</button>
+                    <button id="importCsvBtn" type="button" class="btn btn-outline"><i class="fas fa-file-import"></i> Import CSV</button>
+                </div>
+                <input id="importCsvInput" class="visually-hidden" type="file" accept=".csv,text/csv" />
+                <p id="importCsvStatus" class="field-hint" role="status"></p>
+            </section>
+            <button id="manageTaxonomyBtn"class="btn btn-outline btn-block account-manage-options"><i class="fas fa-sliders"></i> Manage categories &amp; payment methods</button>
             <p class="build-info" id="buildInfo"></p>
             <button id="logoutBtn" class="btn btn-danger-soft btn-block">
                 <i class="fas fa-arrow-right-from-bracket"></i> Log out
@@ -850,6 +860,7 @@
     <script src="config.js?v=__BUILD__"></script> <!-- generated from .env by build-config.js -->
     <script src="receipt-parser.js?v=__BUILD__"></script>
     <script src="smart-entry.js?v=__BUILD__"></script>
+    <script src="csv-import.js?v=__BUILD__"></script>
     <script src="app.js?v=__BUILD__"></script>
 </body>
 </html>

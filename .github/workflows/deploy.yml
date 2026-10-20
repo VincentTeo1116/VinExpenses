@@ -47,7 +47,7 @@ jobs:
       - name: Stage site files
         run: |
           mkdir dist
-          cp index.html app.js receipt-parser.js smart-entry.js config.js style.css sw.js manifest.json icon.png dist/
+          cp index.html app.js receipt-parser.js smart-entry.js csv-import.js config.js style.css sw.js manifest.json icon.png dist/
           cp -r icons dist/icons
           # Stamp this deploy with the commit id: it versions the CSS/JS URLs (cache busting),
           # renames the service-worker cache, and is shown in the app's Account sheet.

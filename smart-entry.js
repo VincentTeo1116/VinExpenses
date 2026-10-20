@@ -158,7 +158,7 @@
         }
 
         // 3. Built-in Malaysian merchants and keywords: the merchant name first, then the rest of the text
-        const name = String(merchant).toLowerCase();
+        const name = String(merchant).toLowerCase().replace(/[*_]+/g, ' '); // bank statements write "GRAB*FOOD"
         const body = String(text).toLowerCase().slice(0, 4000);
         for (const [key, confidence, pattern] of KNOWN) {
             const m = name.match(pattern);
@@ -225,5 +225,57 @@
         }) || null;
     }
 
-    return { normalizeMerchant, buildMerchantMemory, lookupMemory, suggestCategory, findDuplicate, KNOWN };
+    // === MONTH INSIGHTS (used by the monthly report) ===
+    const cents = (v) => Math.round((Number(v) || 0) * 100);
+
+    // transactions: [{ type: 'expense' | 'income', amount, merchant, category }]
+    function summarizeMonth(transactions) {
+        let income = 0, expenses = 0, expenseCount = 0;
+        const merchants = new Map();
+        const categories = new Map();
+        for (const t of transactions || []) {
+            if (!t || t._pending === 'deleted') continue;
+            if (t.type === 'income') { income += cents(t.amount); continue; }
+            expenses += cents(t.amount);
+            expenseCount++;
+            categories.set(t.category, (categories.get(t.category) || 0) + cents(t.amount));
+            const key = normalizeMerchant(t.merchant);
+            if (!key) continue;
+            const m = merchants.get(key) || { name: String(t.merchant).trim(), total: 0, count: 0 };
+            m.total += cents(t.amount);
+            m.count++;
+            if (String(t.merchant).trim().length < m.name.length) m.name = String(t.merchant).trim(); // show the plain name, not a branch
+            merchants.set(key, m);
+        }
+        const topMerchants = [...merchants.values()]
+            .sort((a, b) => b.total - a.total || b.count - a.count)
+            .slice(0, 5)
+            .map(m => ({ name: m.name, total: m.total / 100, count: m.count }));
+        const byCategory = [...categories.entries()]
+            .sort((a, b) => b[1] - a[1])
+            .map(([key, total]) => ({ key, total: total / 100, share: expenses ? total / expenses : 0 }));
+        return { income: income / 100, expenses: expenses / 100, net: (income - expenses) / 100, expenseCount, topMerchants, byCategory };
+    }
+
+    // Compares two summarizeMonth() results. pct is null when last month was zero.
+    function compareMonths(current, previous) {
+        const hasPrevious = !!previous && (previous.expenses > 0 || previous.income > 0);
+        const diff = (a, b) => ({ delta: Math.round((a - b) * 100) / 100, pct: b > 0 ? (a - b) / b : null });
+        const out = { hasPrevious, expenses: null, income: null, net: null, categoryChanges: [] };
+        if (!hasPrevious) return out;
+        out.expenses = diff(current.expenses, previous.expenses);
+        out.income = diff(current.income, previous.income);
+        out.net = { delta: Math.round((current.net - previous.net) * 100) / 100, pct: null };
+        const before = new Map(previous.byCategory.map(c => [c.key, c.total]));
+        const now = new Map(current.byCategory.map(c => [c.key, c.total]));
+        const keys = new Set([...before.keys(), ...now.keys()]);
+        out.categoryChanges = [...keys]
+            .map(key => ({ key, delta: Math.round(((now.get(key) || 0) - (before.get(key) || 0)) * 100) / 100, now: now.get(key) || 0, before: before.get(key) || 0 }))
+            .filter(c => Math.abs(c.delta) >= 0.01)
+            .sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta))
+            .slice(0, 3);
+        return out;
+    }
+
+    return { normalizeMerchant, buildMerchantMemory, lookupMemory, suggestCategory, findDuplicate, summarizeMonth, compareMonths, KNOWN };
 });

@@ -10,6 +10,7 @@ const SHELL_FILES = [
     'app.js',
     'receipt-parser.js',
     'smart-entry.js',
+    'csv-import.js',
     'manifest.json',
     'icon.png',
     'icons/icon-192.png',

@@ -177,3 +177,47 @@ test('built-in category names are never matched against receipt text, but your o
     assert.equal(SE.suggestCategory({ merchant: 'Shopping Centre Parking Lot', categories: marked })?.key !== 'shopping' || true, true);
     assert.equal(SE.suggestCategory({ merchant: 'Random', text: 'welcome to our health and food shopping travel utilities', categories: marked }), null);
 });
+
+// ---------------------------------------------------------------------------
+test('month summary: totals, top merchants (branches pooled) and category shares', () => {
+    const s = SE.summarizeMonth([
+        { type: 'expense', amount: 10, merchant: '99 Speedmart KL 1', category: 'shopping' },
+        { type: 'expense', amount: 15.5, merchant: '99 Speedmart', category: 'shopping' },
+        { type: 'expense', amount: 20, merchant: 'Kopitiam', category: 'food' },
+        { type: 'expense', amount: 4, merchant: '', category: 'food' },
+        { type: 'income', amount: 1000, source: 'Salary' },
+        { type: 'expense', amount: 99, merchant: 'Gone', category: 'food', _pending: 'deleted' }
+    ]);
+    assert.equal(s.expenses, 49.5);
+    assert.equal(s.income, 1000);
+    assert.equal(s.net, 950.5);
+    assert.equal(s.topMerchants.length, 2);
+    assert.equal(s.topMerchants[0].total, 25.5);
+    assert.equal(s.topMerchants[0].count, 2);
+    assert.equal(s.topMerchants[0].name, '99 Speedmart');
+    assert.equal(s.byCategory[0].key, 'shopping');
+    assert.equal(s.byCategory[1].total, 24);
+});
+
+test('month comparison: deltas, percentages and biggest category changes', () => {
+    const prev = SE.summarizeMonth([{ type: 'expense', amount: 100, category: 'food' }, { type: 'expense', amount: 50, category: 'travel' }, { type: 'income', amount: 1000 }]);
+    const cur = SE.summarizeMonth([{ type: 'expense', amount: 150, category: 'food' }, { type: 'expense', amount: 10, category: 'car' }, { type: 'income', amount: 1000 }]);
+    const c = SE.compareMonths(cur, prev);
+    assert.equal(c.hasPrevious, true);
+    assert.equal(c.expenses.delta, 10);
+    assert.ok(Math.abs(c.expenses.pct - 10 / 150) < 1e-9);
+    assert.equal(c.income.delta, 0);
+    assert.equal(c.categoryChanges[0].key, 'food');
+    assert.equal(c.categoryChanges[0].delta, 50);
+    assert.ok(c.categoryChanges.some(x => x.key === 'travel' && x.delta === -50));
+});
+
+test('month comparison: no previous month means no comparison', () => {
+    const cur = SE.summarizeMonth([{ type: 'expense', amount: 5, category: 'food' }]);
+    assert.equal(SE.compareMonths(cur, SE.summarizeMonth([])).hasPrevious, false);
+    assert.equal(SE.compareMonths(cur, null).hasPrevious, false);
+});
+
+test('bank-statement style names such as GRAB*FOOD 123 are recognised', () => {
+    assert.equal(suggest('GRAB*FOOD 123').key, 'food');
+});

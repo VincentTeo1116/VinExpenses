@@ -17,6 +17,8 @@ dashboard. Plain HTML/CSS/JS — no build step.
 | `supabase-schema.sql` | Complete, rerunnable SQL setup for base tables and all database features |
 | `receipt-parser.js` | Finds the merchant, total and date in receipt text (OCR output or PDF text). No dependencies; unit-tested |
 | `smart-entry.js` | Category suggestions (learns from your history + Malaysian merchant list) and duplicate detection. No dependencies; unit-tested |
+| `csv-import.js` | Reads a CSV (this app's export or a bank statement) into expenses/income. No dependencies; unit-tested |
+| `tools/make-fixture.js` | Turns a saved scan-details file into a test fixture (`npm run fixture`) |
 | `tests/` | Automated tests (`npm test`) and anonymised receipt fixtures |
 | `supabase/functions/receipt-ocr/` | Private OCR.space proxy used by receipt scanning (signed-in users only, daily limit) |
 | `supabase/functions/receipt-ai/` | Optional AI helper for unclear receipts. Off until you add a key |
@@ -35,6 +37,15 @@ dashboard. Plain HTML/CSS/JS — no build step.
   discounts and foreign-currency values, and double-checks with arithmetic
   (subtotal + tax + fees - discounts). When it is unsure it **pre-fills nothing
   wrong** and shows the likely totals as tap-to-choose chips.
+- **Month-to-month report** - the monthly report compares with last month
+  (expenses, income, biggest category changes) and lists top merchants and where
+  the money went.
+- **CSV export / import** - Account -> Your data. Export everything, or import a
+  CSV: this app's own export, or a bank statement with Date + Amount (or
+  Debit/Credit) columns. Rows already in the app are skipped, categories are
+  matched by name or guessed from the merchant, and you confirm a summary first.
+  A file with only positive amounts is imported as expenses; add a `Type` column
+  (`expense`/`income`) to say otherwise.
 - **Auto-category** - a suggested category with a plain-English reason. It learns
   from how *you* filed a merchant before, then uses a built-in Malaysian merchant
   list, receipt clues (service charge + table = restaurant) and your own custom
@@ -214,7 +225,11 @@ be wired in by editing `supabase/functions/receipt-ai/index.ts`.
 tests. The fixtures in `tests/fixtures` are real receipt layouts with names,
 e-mail addresses, phone numbers and addresses replaced. **When a receipt is read
 wrongly, copy its text into a new fixture and add one line to the test list**:
-that is how the reader keeps improving. CI runs the tests before every deploy.
+that is how the reader keeps improving. After a scan the app shows
+**Something wrong? Save the scan details**: fix the form first, tap it, then run
+`npm run fixture -- path/to/scan-details.json my-receipt-name`. It writes a masked
+fixture and prints the correct values to add as a test (read the fixture and
+remove any names or addresses before committing). CI runs the tests before every deploy.
 Nearby lookup uses the OpenStreetMap public reverse-geocoding endpoint by
 default, through the `nearby-place` function. It requires no API key. The app
 only requests it on a button tap, caches results for the current browser session,

@@ -4,7 +4,8 @@
   "description": "Smart Expense Tracker (static site). There is no build step; package.json only provides the test command.",
   "scripts": {
     "test": "node --test \"tests/*.test.js\"",
-    "config": "node build-config.js"
+    "config": "node build-config.js",
+    "fixture": "node tools/make-fixture.js"
   },
   "engines": { "node": ">=24" }
 }

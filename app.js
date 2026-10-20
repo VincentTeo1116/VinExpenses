@@ -1248,7 +1248,32 @@ expMerchant.addEventListener('input', () => {
     merchantTypingTimer = setTimeout(() => updateCategorySuggestion(), 250);
 });
 
+// ---- "Something wrong?": save what the reader saw, so a misread receipt can become a test ----
+// Nothing is sent anywhere. The file stays on the device until the user chooses to share it.
+let lastScan = null;
+const scanFeedbackBtn = $('scanFeedbackBtn');
+
+scanFeedbackBtn.addEventListener('click', () => {
+    if (!lastScan) return;
+    const sample = {
+        app: APP_BUILD,
+        savedAt: new Date().toISOString(),
+        source: lastScan.source,
+        readings: lastScan.texts,
+        readerSaid: lastScan.parsed,
+        formNow: { amount: expAmount.value, merchant: expMerchant.value, date: expDate.value, category: expCategoryValue }
+    };
+    downloadBlob(new Blob([JSON.stringify(sample, null, 2)], { type: 'application/json' }), `scan-details-${toInputDate()}.json`);
+    showModal({
+        type: 'info',
+        title: 'Scan details saved',
+        message: 'The file has the text read from the receipt, what the reader chose, and what is in the form now (fix the form first if you want it to show the right answer). It may contain names or addresses, so it has not been sent anywhere. Remove personal details before sharing it.'
+    });
+});
+
 function resetReceiptHelpers() {
+    lastScan = null;
+    scanFeedbackBtn.classList.add('hidden');
     categoryTouched = false;
     receiptCandidates.classList.add('hidden');
     receiptCandidates.innerHTML = '';
@@ -1281,6 +1306,16 @@ async function applyParsedReceipt(texts, source) {
             }
         }
     }
+
+    lastScan = {
+        source,
+        texts,
+        parsed: {
+            amount: parsed.amount, confidence: parsed.amountConfidence, merchant: parsed.merchant, date: parsed.date,
+            candidates: parsed.amountCandidates.map(c => ({ amount: c.amount, label: c.label, score: c.score }))
+        }
+    };
+    scanFeedbackBtn.classList.remove('hidden');
 
     if (parsed.merchant) expMerchant.value = parsed.merchant.slice(0, 80);
     if (parsed.amount) expAmount.value = parsed.amount.toFixed(2);
@@ -2046,7 +2081,7 @@ async function deleteRecord(type, id) {
         if (!data || data.length === 0) throw new Error('That entry could not be deleted.');
     }
     if (type === 'income') incomes = incomes.filter(r => r.id !== id);
-    else expenses = expenses.filter(r => r.id !== id);
+    else { expenses = expenses.filter(r => r.id !== id); forgetRecentSave(id); }
 }
 
 // === CHIP SELECTORS ===
@@ -2459,6 +2494,23 @@ if (supabaseClient) {
 
 // === EXPENSE ===
 let duplicateConfirmed = false;
+
+// The list reloads a moment after a save, and a reload that started earlier can briefly drop the new
+// entry. Remember what was just saved so a quick second save of the same purchase is still caught.
+const recentSaves = [];
+function rememberRecentSave(row) {
+    recentSaves.push({ at: Date.now(), row });
+}
+function forgetRecentSave(id) {
+    const i = recentSaves.findIndex(r => r.row.id === id);
+    if (i >= 0) recentSaves.splice(i, 1);
+}
+function expensesForDuplicateCheck() {
+    const cutoff = Date.now() - 3 * 60_000;
+    const recent = recentSaves.filter(r => r.at >= cutoff).map(r => r.row).filter(r => !expenses.some(e => e.id === r.id));
+    return recent.length ? expenses.concat(recent) : expenses;
+}
+
 saveExpenseBtn.addEventListener('click', async () => {
     if (!currentUser) return showModal({ type: 'warning', title: 'Not signed in', message: 'Please log in first.' });
 
@@ -2479,7 +2531,7 @@ saveExpenseBtn.addEventListener('click', async () => {
     const alreadyConfirmed = duplicateConfirmed;
     duplicateConfirmed = false;
     if (!alreadyConfirmed && window.SmartEntry) {
-        const dup = SmartEntry.findDuplicate(expenses, { amount, date: toInputDate(createdAt), merchant, category: expCategoryValue });
+        const dup = SmartEntry.findDuplicate(expensesForDuplicateCheck(), { amount, date: toInputDate(createdAt), merchant, category: expCategoryValue });
         if (dup) {
             return showModal({
                 type: 'warning',
@@ -2494,7 +2546,8 @@ saveExpenseBtn.addEventListener('click', async () => {
 
     setBusy(saveExpenseBtn, true, 'Saving...');
     try {
-        const { queued } = await addExpense(amount, expCategoryValue, expPaymentValue, createdAt, note, merchant);
+        const { queued, id } = await addExpense(amount, expCategoryValue, expPaymentValue, createdAt, note, merchant);
+        rememberRecentSave({ id, amount, category: expCategoryValue, merchant, created_at: createdAt });
         expAmount.value = '';
         expNote.value = '';
         expMerchant.value = '';
@@ -2675,9 +2728,9 @@ function downloadBlob(blob, filename) {
     setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-$('historyCsvBtn').addEventListener('click', () => {
+function exportTransactionsCsv(transactions, filename) {
     const rows = [['Date', 'Type', 'Merchant', 'Category', 'Payment', 'Income source', 'Note', 'Amount (RM)']];
-    visibleHistoryTransactions.forEach(t => rows.push([
+    transactions.forEach(t => rows.push([
         toInputDate(t.created_at),
         t.type,
         t.merchant || '',
@@ -2687,10 +2740,154 @@ $('historyCsvBtn').addEventListener('click', () => {
         t.note || '',
         Number(t.amount).toFixed(2)
     ]));
-    const csv = '\uFEFF' + rows.map(row => row.map(csvCell).join(',')).join('\r\n');
+    const csv = '﻿' + rows.map(row => row.map(csvCell).join(',')).join('\r\n');
+    downloadBlob(new Blob([csv], { type: 'text/csv;charset=utf-8' }), filename);
+    showToast('success', `${transactions.length} transaction${transactions.length === 1 ? '' : 's'} exported`);
+}
+
+$('historyCsvBtn').addEventListener('click', () => {
     const month = historyMonthFilter.value || formatMonthValue(selectedDate);
-    downloadBlob(new Blob([csv], { type: 'text/csv;charset=utf-8' }), `vinexpenses-${month}-transactions.csv`);
-    showToast('success', `${visibleHistoryTransactions.length} transaction${visibleHistoryTransactions.length === 1 ? '' : 's'} exported`);
+    exportTransactionsCsv(visibleHistoryTransactions, `vinexpenses-${month}-transactions.csv`);
+});
+
+$('exportAllCsvBtn').addEventListener('click', () => {
+    const all = allTransactions();
+    if (!all.length) return showToast('info', 'Nothing to export yet.');
+    exportTransactionsCsv(all, `vinexpenses-all-${toInputDate()}.csv`);
+});
+
+// === CSV IMPORT ===
+const importCsvStatus = $('importCsvStatus');
+const CSV_MAX_BYTES = 2 * 1024 * 1024;
+
+// Add many records with one request per chunk (the offline queue takes over if the connection drops)
+async function bulkCreate(table, rows) {
+    const list = table === 'incomes' ? incomes : expenses;
+    rows.forEach(row => list.push({ ...row, _pending: true }));
+    list.sort(byDateDesc);
+    const settle = (row, saved) => {
+        const i = list.findIndex(r => r.id === row.id);
+        if (i >= 0) list[i] = saved || { ...row };
+    };
+    let queued = 0;
+    for (let start = 0; start < rows.length; start += 200) {
+        const chunk = rows.slice(start, start + 200);
+        let done = false;
+        if (navigator.onLine) {
+            try {
+                const { data, error } = await supabaseClient.from(table).insert(chunk).select();
+                if (error) throw error;
+                chunk.forEach(row => settle(row, (data || []).find(d => d.id === row.id)));
+                done = true;
+            } catch (err) {
+                if (!isNetworkError(err)) {
+                    rows.slice(start).forEach(row => { const i = list.findIndex(r => r.id === row.id); if (i >= 0) list.splice(i, 1); });
+                    throw err;
+                }
+            }
+        }
+        if (!done) { chunk.forEach(row => enqueue(table, row)); queued += chunk.length; }
+    }
+    list.sort(byDateDesc);
+    return { queued };
+}
+
+function matchByLabel(items, text) {
+    const wanted = String(text || '').trim().toLowerCase();
+    if (!wanted) return null;
+    return items.find(i => i.key.toLowerCase() === wanted || String(i.label).toLowerCase() === wanted) || null;
+}
+
+// Turn parsed CSV rows into insert-ready rows, leaving out anything already in the app
+function planCsvImport(parsed) {
+    const categories = activeTaxonomy(CATEGORIES);
+    const payments = activeTaxonomy(PAYMENTS);
+    const defaultPayment = (payments.find(p => p.key === 'bank') || payments[0] || PAYMENTS[0]).key;
+    const memory = SmartEntry.buildMerchantMemory(expenses);
+    const existing = expenses.slice();
+    const plan = { expenses: [], incomes: [], duplicates: 0 };
+
+    parsed.records.forEach(r => {
+        const createdAt = dateInputToISO(r.date, new Date(`${r.date}T12:00:00`));
+        if (r.type === 'income') {
+            const source = r.source || r.merchant || 'Salary';
+            const twin = incomes.find(i => Math.round(Number(i.amount) * 100) === Math.round(r.amount * 100) && toInputDate(i.created_at) === r.date && String(i.source || 'Salary').toLowerCase() === source.toLowerCase());
+            if (twin) { plan.duplicates++; return; }
+            plan.incomes.push({ id: uuid(), user_id: currentUser.id, amount: r.amount, source: source.slice(0, 60), created_at: createdAt });
+            return;
+        }
+        let category = matchByLabel(categories, r.category)?.key;
+        if (!category) {
+            const guess = SmartEntry.suggestCategory({ merchant: r.merchant, memory, categories });
+            category = guess && guess.confidence !== 'low' ? guess.key : 'other';
+        }
+        if (SmartEntry.findDuplicate(existing, { amount: r.amount, date: r.date, merchant: r.merchant, category })) { plan.duplicates++; return; }
+        const row = { id: uuid(), user_id: currentUser.id, amount: r.amount, category, payment: matchByLabel(payments, r.payment)?.key || defaultPayment, created_at: createdAt };
+        if (r.merchant) row.merchant = r.merchant;
+        const note = r.note || (category === 'other' ? r.merchant : '');
+        if (note) row.note = note;
+        plan.expenses.push(row);
+    });
+    return plan;
+}
+
+$('importCsvBtn').addEventListener('click', () => {
+    if (!currentUser) return;
+    $('importCsvInput').click();
+});
+
+$('importCsvInput').addEventListener('change', async (event) => {
+    const file = event.target.files && event.target.files[0];
+    event.target.value = '';
+    if (!file) return;
+    importCsvStatus.textContent = '';
+    if (!window.CsvImport || !window.SmartEntry) return showModal({ type: 'error', title: 'Import not ready', message: 'Reload the page and try again.' });
+    if (file.size > CSV_MAX_BYTES) return showModal({ type: 'warning', title: 'File too large', message: 'Please import a CSV under 2 MB (split it by year).' });
+
+    let parsed;
+    try {
+        parsed = CsvImport.importRecords(await file.text());
+    } catch (_) {
+        return showModal({ type: 'error', title: 'Couldn\'t read the file', message: 'That file could not be opened as text.' });
+    }
+    if (parsed.error) return showModal({ type: 'warning', title: 'Can\'t import this file', message: parsed.error });
+
+    const plan = planCsvImport(parsed);
+    const count = plan.expenses.length + plan.incomes.length;
+    const lines = [
+        `${plan.expenses.length} expense${plan.expenses.length === 1 ? '' : 's'} and ${plan.incomes.length} income${plan.incomes.length === 1 ? '' : 's'} will be added.`,
+        plan.duplicates ? `${plan.duplicates} already in the app (skipped).` : '',
+        parsed.skipped.length ? `${parsed.skipped.length} row${parsed.skipped.length === 1 ? '' : 's'} could not be read (first: line ${parsed.skipped[0].line}, ${parsed.skipped[0].reason}).` : '',
+        parsed.tooMany ? `Only the first ${CsvImport.MAX_ROWS} rows are used.` : '',
+        parsed.convention
+    ].filter(Boolean).join(' ');
+    if (!count) return showModal({ type: 'info', title: 'Nothing new to import', message: lines });
+
+    showModal({
+        type: 'info',
+        title: `Import ${count} transaction${count === 1 ? '' : 's'}?`,
+        message: lines,
+        confirmText: `Import ${count}`,
+        cancelText: 'Cancel',
+        onConfirm: async () => {
+            const button = $('importCsvBtn');
+            setBusy(button, true, 'Importing…');
+            try {
+                const a = plan.expenses.length ? await bulkCreate('expenses', plan.expenses) : { queued: 0 };
+                const b = plan.incomes.length ? await bulkCreate('incomes', plan.incomes) : { queued: 0 };
+                updateDashboard();
+                if ($('historyScreen').classList.contains('active')) renderHistory();
+                const queued = a.queued + b.queued;
+                importCsvStatus.textContent = `Imported ${count} transaction${count === 1 ? '' : 's'}${queued ? ` (${queued} will sync when you're back online)` : ''}.`;
+                showToast('success', `${count} transaction${count === 1 ? '' : 's'} imported`);
+            } catch (err) {
+                console.error('CSV import error:', err);
+                showModal({ type: 'error', title: 'Import failed', message: (err && err.message) || 'Please try again.' });
+            } finally {
+                setBusy(button, false);
+            }
+        }
+    });
 });
 
 // === MONTHLY REPORT (in-app view) ===
@@ -2700,7 +2897,41 @@ $('historyCsvBtn').addEventListener('click', () => {
 const reportView = $('reportView');
 let reportDocTitle = '';
 
-function buildReportHtml(year, monthNumber, transactions) {
+// "RM 12.00 (+8%)" with an arrow-free, colour-free wording so it still reads when printed in black and white
+function describeChange(change, { goodWhenDown }) {
+    if (!change) return '';
+    if (Math.abs(change.delta) < 0.005) return 'Same as last month';
+    const up = change.delta > 0;
+    const amount = formatMoney(Math.abs(change.delta));
+    const pct = change.pct === null ? '' : ` (${Math.abs(Math.round(change.pct * 100))}%)`;
+    const good = goodWhenDown ? !up : up;
+    return `<span class="${good ? 'delta-good' : 'delta-bad'}">${up ? 'Up' : 'Down'} ${escapeHtml(amount)}${pct}</span> vs last month`;
+}
+
+function buildInsightsHtml(transactions, previousTransactions) {
+    const cur = SmartEntry.summarizeMonth(transactions);
+    const prev = SmartEntry.summarizeMonth(previousTransactions);
+    const cmp = SmartEntry.compareMonths(cur, prev);
+    const labelOf = key => catByKey[key]?.label || key;
+
+    const compare = cmp.hasPrevious ? `
+        <div class="report-compare">
+            <div><span>Expenses</span><b>${describeChange(cmp.expenses, { goodWhenDown: true })}</b></div>
+            <div><span>Income</span><b>${describeChange(cmp.income, { goodWhenDown: false })}</b></div>
+            ${cmp.categoryChanges.length ? `<div class="wide"><span>Biggest category changes</span><b>${cmp.categoryChanges.map(c =>
+                `${escapeHtml(labelOf(c.key))}: ${c.delta > 0 ? '+' : '−'}${escapeHtml(formatMoney(Math.abs(c.delta)))}`).join(' · ')}</b></div>` : ''}
+        </div>` : '<p class="report-note">No transactions last month to compare with.</p>';
+
+    const merchants = cur.topMerchants.length ? `
+        <div><h2>Top merchants</h2><table class="report-table compact"><tbody>${cur.topMerchants.map(m =>
+            `<tr><td>${escapeHtml(m.name)}</td><td>${m.count}×</td><td class="amount">${escapeHtml(formatMoney(m.total))}</td></tr>`).join('')}</tbody></table></div>` : '';
+    const categories = cur.byCategory.length ? `
+        <div><h2>Where it went</h2><table class="report-table compact"><tbody>${cur.byCategory.slice(0, 5).map(c =>
+            `<tr><td>${escapeHtml(labelOf(c.key))}</td><td>${Math.round(c.share * 100)}%</td><td class="amount">${escapeHtml(formatMoney(c.total))}</td></tr>`).join('')}</tbody></table></div>` : '';
+    return compare + (merchants || categories ? `<div class="report-columns">${categories}${merchants}</div>` : '');
+}
+
+function buildReportHtml(year, monthNumber, transactions, previousTransactions = []) {
     const expensesTotal = sumAmount(transactions.filter(t => t.type === 'expense'));
     const incomeTotal = sumAmount(transactions.filter(t => t.type === 'income'));
     const monthLabel = new Date(year, monthNumber - 1, 1).toLocaleDateString('en-MY', { month: 'long', year: 'numeric' });
@@ -2718,6 +2949,8 @@ function buildReportHtml(year, monthNumber, transactions) {
             <div><span>Net</span><b>${escapeHtml(formatMoney(incomeTotal - expensesTotal))}</b></div>
             <div><span>Transactions</span><b>${transactions.length}</b></div>
         </div>
+        ${buildInsightsHtml(transactions, previousTransactions)}
+        <h2>All transactions</h2>
         <div class="report-table-wrap"><table class="report-table">
             <thead><tr><th>Date</th><th>Type</th><th>Merchant / Source</th><th>Category</th><th>Note</th><th class="amount">Amount</th></tr></thead>
             <tbody>${rows || '<tr><td colspan="6">No transactions for this month.</td></tr>'}</tbody>
@@ -2731,8 +2964,10 @@ function openReportView() {
         const date = new Date(t.created_at);
         return date.getFullYear() === year && date.getMonth() === monthNumber - 1;
     });
+    const previousMonth = new Date(year, monthNumber - 2, 1);
+    const previousTransactions = allTransactions().filter(t => isSameMonth(t.created_at, previousMonth));
     reportDocTitle = `VinExpenses-${month}-report`; // becomes the default file name when saving as PDF
-    $('reportDoc').innerHTML = buildReportHtml(year, monthNumber, transactions);
+    $('reportDoc').innerHTML = buildReportHtml(year, monthNumber, transactions, previousTransactions);
     $('reportViewTitle').textContent = new Date(year, monthNumber - 1, 1).toLocaleDateString('en-MY', { month: 'long', year: 'numeric' });
     reportView.classList.add('active');
     reportView.querySelector('.report-scroll').scrollTop = 0;
