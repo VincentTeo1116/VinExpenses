@@ -74,7 +74,7 @@ dashboard. Plain HTML/CSS/JS — no build step.
   transactions) and a 6-month trend (tap a bar to jump to that month).
 - **History** — grouped by day with a per-day total; filter by type, category and
   month, and search. Tap a row to edit; **Delete** lives in the editor.
-- **Recurring** — schedule bills, subscriptions, salary, and other regular income. Due entries post to History the next time you open the app on or after the due date; missed dates are back-filled. Pause, edit, or delete schedules.
+- **Recurring** — schedule bills, subscriptions, salary, and other regular income. Due entries post to History when you open the app with an internet connection on or after the due date; missed dates are back-filled then. Schedules do not run in the background while the app is closed. Pause, edit, or delete schedules.
 - **Personal spending options** — rename built-in categories and payment methods, add your own, or deactivate an option. Past transactions remain readable after deactivation.
 - **Professional polish** — display amounts consistently in MYR (RM); choose `19 Oct 2026`, `19/10/2026`, or ISO date format in Account; escape user-defined labels; announce key updates to assistive technology; and provide clearer empty and loading states.
 - **Budgets** — set an overall monthly budget and/or a limit per category. Category
@@ -186,6 +186,46 @@ need no additional API key. Monthly report emails use the separate setup below.
 6. Reload the app. Scan fills a draft; review the merchant, total, date and
    category before saving. The free OCR.space plan currently has a 1 MB image
    limit and no uptime guarantee; the app compresses photos before upload.
+
+## Account deletion
+
+Account -> Delete account requires typing `DELETE` and removes the signed-in
+Supabase Auth user. The schema links user-owned rows with `ON DELETE CASCADE`,
+so expenses, income, schedules, budgets, preferences and custom options are
+removed with that user. The app then clears that account's local cache and
+offline queue on the current device. Export your CSV first if you want a copy.
+Deletion needs an internet connection and cannot be undone.
+
+Deploy the authenticated deletion endpoint after linking the Supabase project:
+
+```bash
+npx supabase functions deploy delete-account
+```
+
+No additional secret is needed; Supabase supplies the service role key to the
+Edge Function environment. The key stays server-side.
+
+## Local recovery and sync
+
+Offline entries remain saved on the device until synced. If Supabase rejects an
+entry, the app keeps it marked as pending instead of discarding it. Account ->
+Your data shows the last successful sync, lets you retry, and exports only
+unsynced transactions to CSV. Keep in mind that browser local storage is tied to
+that browser/device; export pending rows before clearing site data or changing
+devices.
+
+## Before sharing a release
+
+Run `npm run check` from the project folder. It checks the app JavaScript syntax
+and runs the receipt, CSV, categorisation and report tests. Then, with the
+project's Supabase URL and public anon key configured, open the app on a desktop
+and phone and confirm: sign-in; a manual expense and income; receipt scan review
+before save (if OCR is deployed); an offline transaction marked pending and
+synced after reconnect; a recurring item due today; CSV export; and the report
+preference. Test account deletion only with a disposable test account, after
+deploying `delete-account`. The automated checks cannot verify your Supabase
+tables, Edge Function deployment, secrets, scheduled email job or mobile browser
+behaviour.
 
 Keep the OCR key in Supabase Edge Function secrets. Do not put it in `.env`,
 `config.js`, or browser JavaScript. The function requires a **signed-in user**

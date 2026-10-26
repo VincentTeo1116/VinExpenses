@@ -480,6 +480,10 @@ function openAccountSheet() {
     accountSheet.classList.add('active');
     loadMonthlyReportPreference();
     loadDisplayPreferences();
+    updateAccountSyncStatus();
+    $('deleteAccountConfirm').value = '';
+    $('deleteAccountBtn').disabled = true;
+    $('deleteAccountStatus').textContent = '';
     syncBodyScroll();
 }
 
@@ -1599,6 +1603,8 @@ function updateDashboard() {
     $('accountAvatar').textContent = initial;
 
     persistLocal();
+    renderQuickStart();
+    updateAccountSyncStatus();
     if ($('dashboardScreen').classList.contains('active')) renderCharts();
 }
 
@@ -1872,6 +1878,96 @@ function renderNetBanner() {
         : `<i class="fas fa-rotate fa-spin"></i><span>Syncing ${n} change${n === 1 ? '' : 's'}…</span>`;
 }
 
+function updateAccountSyncStatus() {
+    const status = $('accountSyncStatus');
+    if (!status || !currentUser) return;
+    let last = null;
+    try { last = localStorage.getItem(`et_sync_${currentUser.id}`); } catch (_) { /* storage may be blocked */ }
+    const pending = syncQueue.length;
+    const failed = syncQueue.filter(op => op.lastError).length;
+    const time = last ? new Date(last).toLocaleString('en-MY', { dateStyle: 'medium', timeStyle: 'short' }) : 'Not synced on this device yet';
+    const reason = syncQueue.find(op => op.lastError)?.lastError;
+    status.textContent = `${pending ? `${pending} item${pending === 1 ? '' : 's'} waiting${failed ? `; ${failed} need attention${reason ? `: ${reason.slice(0, 140)}` : ''}` : ''}` : 'Everything is up to date'} · Last successful sync: ${time}.`;
+    $('exportPendingBtn').disabled = pending === 0;
+}
+
+function renderQuickStart() {
+    const card = $('quickStartCard');
+    if (!card || !currentUser) return;
+    if (currentUser.user_metadata?.expense_quick_start_hidden) { card.classList.add('hidden'); return; }
+    const tasks = [
+        { done: incomes.length > 0, title: 'Add your first income', action: 'income' },
+        { done: budgets.length > 0, title: 'Set a monthly budget', action: 'budget' },
+        { done: expenses.length > 0, title: 'Log your first expense', action: 'expense' },
+        { done: !taxonomyLoadError, title: 'Review categories and payment methods', action: 'taxonomy' }
+    ];
+    const remaining = tasks.filter(task => !task.done);
+    card.classList.toggle('hidden', remaining.length === 0);
+    $('quickStartSteps').innerHTML = remaining.map(task => `<div class="quick-start-step"><span>${escapeHtml(task.title)}</span><button type="button" class="btn btn-outline" data-quick-action="${task.action}">Set up</button></div>`).join('');
+}
+
+$('quickStartDismiss').addEventListener('click', async () => {
+    if (!currentUser) return;
+    $('quickStartCard').classList.add('hidden');
+    try {
+        const { data, error } = await supabaseClient.auth.updateUser({ data: { expense_quick_start_hidden: true } });
+        if (error) throw error;
+        if (data?.user) currentUser = data.user;
+    } catch (_) { showToast('error', 'Could not save this setting. The guide may return next time.'); }
+});
+$('quickStartSteps').addEventListener('click', event => {
+    const action = event.target.closest('[data-quick-action]')?.dataset.quickAction;
+    if (action === 'income' || action === 'expense') openAddSheet(action);
+    if (action === 'budget') openBudgetSheet();
+    if (action === 'taxonomy') openTaxonomyManager();
+});
+$('showQuickStartBtn').addEventListener('click', async () => {
+    if (!currentUser) return;
+    try {
+        const { data, error } = await supabaseClient.auth.updateUser({ data: { expense_quick_start_hidden: false } });
+        if (error) throw error;
+        currentUser = data.user;
+        renderQuickStart();
+        closeAccountSheet();
+        showScreen('dashboardScreen');
+    } catch (_) { showToast('error', 'Could not reopen the setup guide. Please try again.'); }
+});
+$('retrySyncBtn').addEventListener('click', async () => {
+    if (!navigator.onLine) return showToast('error', 'You’re offline. Connect to the internet and try again.');
+    await fetchAllData();
+    await flushQueue({ silent: false, force: true });
+    updateAccountSyncStatus();
+});
+$('exportPendingBtn').addEventListener('click', () => {
+    const pendingIds = new Set(syncQueue.map(op => op.row.id));
+    const pending = allTransactions().filter(row => pendingIds.has(row.id));
+    if (pending.length) exportTransactionsCsv(pending, `vinexpenses-unsynced-${toInputDate()}.csv`);
+});
+$('deleteAccountConfirm').addEventListener('input', event => { $('deleteAccountBtn').disabled = event.target.value.trim() !== 'DELETE'; });
+$('deleteAccountBtn').addEventListener('click', async () => {
+    if (!currentUser || $('deleteAccountConfirm').value.trim() !== 'DELETE') return;
+    if (!navigator.onLine) { $('deleteAccountStatus').textContent = 'Connect to the internet before deleting your account.'; return; }
+    const button = $('deleteAccountBtn');
+    setBusy(button, true, 'Deleting…');
+    $('deleteAccountStatus').textContent = 'Deleting your account and cloud data…';
+    const userId = currentUser.id;
+    try {
+        const { error } = await supabaseClient.functions.invoke('delete-account');
+        if (error) throw error;
+        try {
+            localStorage.removeItem(`et_cache_${userId}`);
+            localStorage.removeItem(`et_queue_${userId}`);
+            localStorage.removeItem(`et_sync_${userId}`);
+        } catch (_) { /* the account deletion succeeded; browser storage may be blocked */ }
+        await supabaseClient.auth.signOut({ scope: 'local' });
+        resetSession();
+        showToast('success', 'Your account and data were deleted.');
+    } catch (error) {
+        console.error('Account deletion failed:', error);
+        $('deleteAccountStatus').textContent = error.message || 'Could not delete account. Check connection and try again.';
+    } finally { setBusy(button, false); }
+});
+
 function resetTaxonomyDefaults() {
     CATEGORIES = DEFAULT_CATEGORIES.map(item => ({ ...item, active: true, is_builtin: true }));
     PAYMENTS = DEFAULT_PAYMENTS.map(item => ({ ...item, active: true, is_builtin: true }));
@@ -1923,13 +2019,16 @@ async function loadUserTaxonomy() {
     }
 }
 
-async function flushQueue({ silent = false } = {}) {
+async function flushQueue({ silent = false, force = false } = {}) {
     if (!currentUser || flushing || !navigator.onLine || !syncQueue.length) return;
+    if (force) syncQueue.forEach(op => { delete op.lastError; });
     flushing = true;
     let synced = 0;
     try {
         while (syncQueue.length) {
-            const op = syncQueue[0];
+            const opIndex = syncQueue.findIndex(item => !item.lastError);
+            if (opIndex < 0) break;
+            const op = syncQueue[opIndex];
             const list = op.table === 'incomes' ? incomes : expenses;
             let result;
             try {
@@ -1942,9 +2041,10 @@ async function flushQueue({ silent = false } = {}) {
 
             const idx = list.findIndex(r => r.id === op.row.id);
             if (error && error.code !== '23505') {
-                // The server refused it (not a connection problem): drop it and say so
+                // Keep refused rows locally so the user can correct the problem or export them.
                 console.error('Sync rejected an entry:', error);
-                if (idx >= 0) list.splice(idx, 1);
+                op.lastError = error.message || 'Server rejected this entry';
+                if (idx >= 0) list[idx]._pending = true;
                 showToast('error', `Couldn't sync an entry: ${error.message || 'rejected'}`);
             } else {
                 // Saved now, or already saved by an earlier attempt (duplicate key)
@@ -1953,12 +2053,13 @@ async function flushQueue({ silent = false } = {}) {
                 if (idx >= 0) list[idx] = saved;
                 synced++;
             }
-            syncQueue.shift();
+            if (!error || error.code === '23505') syncQueue.splice(opIndex, 1);
             saveQueue();
         }
     } finally {
         flushing = false;
         renderNetBanner();
+        updateAccountSyncStatus();
         expenses.sort(byDateDesc);
         incomes.sort(byDateDesc);
         updateDashboard();
@@ -2019,6 +2120,9 @@ async function fetchAllData() {
 
         mergePending();
         await flushQueue(); // tells you if offline entries were just synced
+        if (!loadErr) {
+            try { localStorage.setItem(`et_sync_${currentUser.id}`, new Date().toISOString()); } catch (_) { /* optional recovery metadata */ }
+        }
         await processRecurring();
     } catch (err) {
         if (isNetworkError(err)) {
@@ -2035,6 +2139,8 @@ async function fetchAllData() {
         $('dashboardScreen').setAttribute('aria-busy', 'false');
         historyList.setAttribute('aria-busy', 'false');
         updateDashboard();
+        renderQuickStart();
+        updateAccountSyncStatus();
         if ($('historyScreen').classList.contains('active')) renderHistory();
     }
 }
@@ -3563,7 +3669,7 @@ let recurringIncomeBusy = false;
 
 // Posts due expense and income schedules into the normal transaction history.
 async function processRecurring({ silent = false } = {}) {
-    if (!currentUser || recurringBusy) return 0;
+    if (!currentUser || recurringBusy || !navigator.onLine) return 0;
     const today = toInputDate();
     const dueItems = recurringLoadError ? [] : recurring.filter(r => r.active && r.next_due <= today);
 
@@ -3626,7 +3732,7 @@ async function processRecurring({ silent = false } = {}) {
 }
 
 async function processRecurringIncome() {
-    if (!currentUser || recurringIncomeLoadError || recurringIncomeBusy) return 0;
+    if (!currentUser || !navigator.onLine || recurringIncomeLoadError || recurringIncomeBusy) return 0;
     const today = toInputDate();
     const dueItems = recurringIncomes.filter(item => item.active && item.next_due <= today);
     if (!dueItems.length) return 0;

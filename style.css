@@ -825,6 +825,20 @@ option { background: var(--surface); color: var(--text); }
     font-size: 13.5px; font-weight: 600; backdrop-filter: blur(8px);
 }
 .net-banner.online { background: var(--primary-soft); color: var(--primary); border-color: transparent; }
+.quick-start-card { margin: 0 0 var(--s-4); padding: 18px; border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--surface); }
+.quick-start-head, .quick-start-step { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.quick-start-head h2 { margin: 0 0 4px; font-size: 17px; }
+.quick-start-head p, .quick-start-step small { margin: 0; color: var(--muted); font-size: 13px; }
+.quick-start-steps { display: grid; grid-template-columns: repeat(auto-fit,minmax(190px,1fr)); gap: 9px; margin-top: 14px; }
+.quick-start-step { justify-content: flex-start; min-height: 48px; padding: 9px 11px; border-radius: var(--r-md); background: var(--surface-2); }
+.quick-start-step > span { flex: 1; font-size: 13px; font-weight: 650; }
+.quick-start-step > i { color: var(--success); }
+.quick-start-step .btn { min-height: 36px; padding: 6px 10px; }
+.sync-status-card { margin-top: 15px; padding-top: 14px; border-top: 1px solid var(--border); }
+.delete-account-section { border-color: color-mix(in srgb,var(--danger) 35%,var(--border)); }
+.delete-account-section summary { color: var(--danger); font-size: 13px; font-weight: 700; cursor: pointer; }
+.delete-confirm-label { display: block; margin: 12px 0 5px; font-size: 13px; }
+.delete-account-input { width: 100%; min-height: 42px; padding: 8px 11px; border: 1px solid var(--border); border-radius: var(--r-md); background: var(--surface-2); color: var(--text); }
 body.is-auth .net-banner { display: none; }
 .pending-badge { display: inline-flex; align-items: center; gap: 4px; margin-left: 6px; font-size: 11px; font-weight: 700; color: var(--warning); }
 .history-item.pending { opacity: 0.85; }
