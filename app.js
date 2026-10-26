@@ -1417,6 +1417,23 @@ nearbyPlaceBtn.addEventListener('click', () => {
             const wait = 1100 - (Date.now() - nearbyLastRequestAt);
             if (wait > 0) await new Promise(resolve => setTimeout(resolve, wait));
             nearbyLastRequestAt = Date.now();
+            // The public map service refuses most cloud servers, so ask it straight from the browser first
+            // (one request per tap) and use the server route only if that fails.
+            let directError = null;
+            try {
+                const direct = await nearbyPlaceFromBrowser(latitude, longitude);
+                if (direct) {
+                    nearbyPlaceCache.set(cacheKey, direct);
+                    expMerchant.value = direct;
+                    updateCategorySuggestion();
+                    nearbyPlaceStatus.textContent = `Suggested “${direct}” from your current location. Edit it if needed.`;
+                    nearbyPlaceStatus.classList.remove('error');
+                    return;
+                }
+                directError = new Error('No mapped place found nearby.');
+            } catch (err) {
+                directError = err;
+            }
             const { data, error } = await supabaseClient.functions.invoke('nearby-place', { body: { latitude, longitude } });
             if (error) {
                 const status = error.context && error.context.status;
@@ -1426,19 +1443,7 @@ nearbyPlaceBtn.addEventListener('click', () => {
                         ? 'The server refused the nearby lookup. Log out and in again, then retry.'
                         : 'Nearby lookup is temporarily unavailable. Enter the merchant manually.';
                 const serverMessage = await errorMessageFrom(error, fallback);
-                // Blocked or down on the server side: ask the map service straight from the browser instead
-                try {
-                    const direct = await nearbyPlaceFromBrowser(latitude, longitude);
-                    if (!direct) throw new Error('No mapped place found nearby. Enter the merchant manually.');
-                    nearbyPlaceCache.set(cacheKey, direct);
-                    expMerchant.value = direct;
-                    updateCategorySuggestion();
-                    nearbyPlaceStatus.textContent = `Suggested “${direct}” from your current location. Edit it if needed.`;
-                    nearbyPlaceStatus.classList.remove('error');
-                    return;
-                } catch (directError) {
-                    throw new Error(`${serverMessage} (Direct lookup: ${directError.message || 'failed'})`);
-                }
+                throw new Error(`${serverMessage} (Direct lookup: ${directError.message || 'failed'})`);
             }
             if (data?.error) throw new Error(data.error);
             const placeName = data?.name || '';
@@ -2930,6 +2935,135 @@ $('importCsvInput').addEventListener('change', async (event) => {
 // gesture all return to History.
 const reportView = $('reportView');
 let reportDocTitle = '';
+let reportDailyChart = null;
+let reportCategoryChart = null;
+
+function getReportMonthSeries(year, monthNumber, transactions) {
+    const daysInMonthCount = new Date(year, monthNumber, 0).getDate();
+    const daily = Array(daysInMonthCount).fill(0);
+    const categories = new Map();
+    (transactions || []).forEach(transaction => {
+        if (transaction.type !== 'expense') return;
+        const date = new Date(transaction.created_at);
+        if (Number.isNaN(date.getTime()) || date.getFullYear() !== year || date.getMonth() !== monthNumber - 1) return;
+        const amount = Math.round((Number(transaction.amount) || 0) * 100) / 100;
+        daily[date.getDate() - 1] = Math.round((daily[date.getDate() - 1] + amount) * 100) / 100;
+        categories.set(transaction.category, Math.round(((categories.get(transaction.category) || 0) + amount) * 100) / 100);
+    });
+    return { daily, categories };
+}
+
+function buildReportChartHtml(year, monthNumber, transactions, previousTransactions) {
+    const current = getReportMonthSeries(year, monthNumber, transactions);
+    const previousDate = new Date(year, monthNumber - 2, 1);
+    const previous = getReportMonthSeries(previousDate.getFullYear(), previousDate.getMonth() + 1, previousTransactions);
+    const previousMonthLabel = previousDate.toLocaleDateString('en-MY', { month: 'long' });
+    const categoryKeys = [...new Set([...current.categories.keys(), ...previous.categories.keys()])]
+        .sort((a, b) => ((current.categories.get(b) || 0) + (previous.categories.get(b) || 0)) - ((current.categories.get(a) || 0) + (previous.categories.get(a) || 0)));
+    const labelOf = key => catByKey[key]?.label || key || 'Uncategorized';
+    const categoryRows = categoryKeys.map(key => {
+        const now = current.categories.get(key) || 0;
+        const before = previous.categories.get(key) || 0;
+        const difference = Math.round((now - before) * 100) / 100;
+        const pct = before > 0 ? `${Math.round(Math.abs(difference / before) * 100)}%` : (now > 0 ? 'New' : '—');
+        const change = Math.abs(difference) < 0.005
+            ? 'No change'
+            : `${difference > 0 ? 'Increased' : 'Decreased'} ${formatMoney(Math.abs(difference))} (${pct})`;
+        return `<tr><th scope="row">${escapeHtml(labelOf(key))}</th><td class="amount">${escapeHtml(formatMoney(before))}</td><td class="amount">${escapeHtml(formatMoney(now))}</td><td>${escapeHtml(change)}</td></tr>`;
+    }).join('');
+    const maxCategoryHeight = Math.max(250, categoryKeys.length * 34 + 68);
+    const monthLabel = new Date(year, monthNumber - 1, 1).toLocaleDateString('en-MY', { month: 'long' });
+    const total = current.daily.reduce((sum, amount) => sum + amount, 0);
+    const topDay = current.daily.reduce((best, amount, index) => amount > best.amount ? { day: index + 1, amount } : best, { day: 0, amount: 0 });
+    const dailySummary = total > 0
+        ? `Total expenses: ${formatMoney(total)}. Highest spending day: ${topDay.day} ${monthLabel}, ${formatMoney(topDay.amount)}.`
+        : `No expenses were recorded in ${monthLabel}.`;
+    return `
+        <section class="report-chart-section daily-expenses" aria-labelledby="reportDailyTitle">
+            <h2 id="reportDailyTitle">Daily expenses</h2>
+            <p class="report-chart-summary">${escapeHtml(dailySummary)}</p>
+            <div class="report-chart-box daily"><canvas id="reportDailyChart" role="img" aria-label="Line chart of daily expenses for ${escapeHtml(monthLabel)} ${year}"></canvas></div>
+        </section>
+        <section class="report-chart-section category-comparison" aria-labelledby="reportCategoryTitle">
+            <h2 id="reportCategoryTitle">Category comparison</h2>
+            <p class="report-chart-summary">Expenses by category: ${escapeHtml(previousMonthLabel)} compared with ${escapeHtml(monthLabel)}.</p>
+            ${categoryKeys.length ? `<div class="report-chart-box categories" style="height:${maxCategoryHeight}px"><canvas id="reportCategoryChart" role="img" aria-label="Grouped bar chart comparing every used expense category between the previous month and ${escapeHtml(monthLabel)}"></canvas></div>
+            <div class="report-table-wrap report-category-table-wrap"><table class="report-table compact report-category-table">
+                <thead><tr><th scope="col">Category</th><th scope="col" class="amount">${escapeHtml(previousMonthLabel)}</th><th scope="col" class="amount">${escapeHtml(monthLabel)}</th><th scope="col">Change</th></tr></thead>
+                <tbody>${categoryRows}</tbody>
+            </table></div>` : '<p class="report-note">No expenses in either month to compare by category.</p>'}
+        </section>`;
+}
+
+function renderReportCharts(year, monthNumber, transactions, previousTransactions) {
+    reportDailyChart?.destroy();
+    reportCategoryChart?.destroy();
+    reportDailyChart = reportCategoryChart = null;
+    if (typeof Chart === 'undefined') return;
+
+    const current = getReportMonthSeries(year, monthNumber, transactions);
+    const previousDate = new Date(year, monthNumber - 2, 1);
+    const previous = getReportMonthSeries(previousDate.getFullYear(), previousDate.getMonth() + 1, previousTransactions);
+    const monthLabel = new Date(year, monthNumber - 1, 1).toLocaleDateString('en-MY', { month: 'short' });
+    const previousMonthLabel = previousDate.toLocaleDateString('en-MY', { month: 'short' });
+    const gridColor = '#e7eaf2';
+    const commonFont = { family: 'Inter, Arial, sans-serif', size: 11 };
+    const dailyCanvas = $('reportDailyChart');
+    if (dailyCanvas) {
+        reportDailyChart = new Chart(dailyCanvas.getContext('2d'), {
+            type: 'line',
+            data: {
+                labels: current.daily.map((_, index) => String(index + 1)),
+                datasets: [{
+                    label: 'Expenses', data: current.daily,
+                    borderColor: '#4f46e5', backgroundColor: 'rgba(79,70,229,.12)',
+                    fill: true, tension: 0.32, borderWidth: 2.5,
+                    pointRadius: current.daily.length > 20 ? 0 : 2,
+                    pointHoverRadius: 5, pointBackgroundColor: '#4f46e5'
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false, animation: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { callbacks: {
+                        title: items => items.length ? `${items[0].label} ${monthLabel}` : '',
+                        label: item => `Expenses: ${formatMoney(item.parsed.y)}`
+                    } }
+                },
+                scales: {
+                    x: { grid: { display: false }, border: { display: false }, ticks: { maxTicksLimit: 10, font: commonFont, callback: value => `${Number(value) + 1}` } },
+                    y: { beginAtZero: true, border: { display: false }, grid: { color: gridColor }, ticks: { maxTicksLimit: 5, font: commonFont, callback: value => Number(value) >= 1000 ? `RM ${(Number(value) / 1000).toFixed(1)}k` : `RM ${Number(value).toFixed(0)}` } }
+                }
+            }
+        });
+    }
+
+    const categoryCanvas = $('reportCategoryChart');
+    const keys = [...new Set([...current.categories.keys(), ...previous.categories.keys()])]
+        .sort((a, b) => ((current.categories.get(b) || 0) + (previous.categories.get(b) || 0)) - ((current.categories.get(a) || 0) + (previous.categories.get(a) || 0)));
+    if (categoryCanvas && keys.length) {
+        reportCategoryChart = new Chart(categoryCanvas.getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels: keys.map(key => catByKey[key]?.label || key || 'Uncategorized'),
+                datasets: [
+                    { label: previousMonthLabel, data: keys.map(key => previous.categories.get(key) || 0), backgroundColor: '#a5b4fc', borderRadius: 5, borderSkipped: false, barPercentage: 0.78, categoryPercentage: 0.72 },
+                    { label: monthLabel, data: keys.map(key => current.categories.get(key) || 0), backgroundColor: '#4f46e5', borderRadius: 5, borderSkipped: false, barPercentage: 0.78, categoryPercentage: 0.72 }
+                ]
+            },
+            options: {
+                indexAxis: 'y', responsive: true, maintainAspectRatio: false, animation: false,
+                plugins: { legend: { position: 'top', align: 'end', labels: { usePointStyle: true, pointStyle: 'circle', boxWidth: 8, font: commonFont } }, tooltip: { callbacks: { label: item => `${item.dataset.label}: ${formatMoney(item.parsed.x)}` } } },
+                scales: {
+                    x: { beginAtZero: true, border: { display: false }, grid: { color: gridColor }, ticks: { maxTicksLimit: 5, font: commonFont, callback: value => Number(value) >= 1000 ? `RM ${(Number(value) / 1000).toFixed(1)}k` : `RM ${Number(value).toFixed(0)}` } },
+                    y: { border: { display: false }, grid: { display: false }, ticks: { autoSkip: false, font: commonFont } }
+                }
+            }
+        });
+    }
+}
 
 // "RM 12.00 (+8%)" with an arrow-free, colour-free wording so it still reads when printed in black and white
 function describeChange(change, { goodWhenDown }) {
@@ -2983,6 +3117,7 @@ function buildReportHtml(year, monthNumber, transactions, previousTransactions =
             <div><span>Net</span><b>${escapeHtml(formatMoney(incomeTotal - expensesTotal))}</b></div>
             <div><span>Transactions</span><b>${transactions.length}</b></div>
         </div>
+        ${buildReportChartHtml(year, monthNumber, transactions, previousTransactions)}
         ${buildInsightsHtml(transactions, previousTransactions)}
         <h2>All transactions</h2>
         <div class="report-table-wrap"><table class="report-table">
@@ -3004,6 +3139,9 @@ function openReportView() {
     $('reportDoc').innerHTML = buildReportHtml(year, monthNumber, transactions, previousTransactions);
     $('reportViewTitle').textContent = new Date(year, monthNumber - 1, 1).toLocaleDateString('en-MY', { month: 'long', year: 'numeric' });
     reportView.classList.add('active');
+    requestAnimationFrame(() => {
+        if (reportView.classList.contains('active')) renderReportCharts(year, monthNumber, transactions, previousTransactions);
+    });
     reportView.querySelector('.report-scroll').scrollTop = 0;
     syncBodyScroll();
     // One history entry, so the phone's back gesture / the browser Back button closes the report
@@ -3013,6 +3151,9 @@ function openReportView() {
 
 function hideReportView() {
     reportView.classList.remove('active');
+    reportDailyChart?.destroy();
+    reportCategoryChart?.destroy();
+    reportDailyChart = reportCategoryChart = null;
     syncBodyScroll();
 }
 
