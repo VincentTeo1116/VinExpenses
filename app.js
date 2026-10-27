@@ -2697,6 +2697,14 @@ function expensesForDuplicateCheck() {
     return recent.length ? expenses.concat(recent) : expenses;
 }
 
+function animateHistoryAddition(id) {
+    if (!id || !$('historyScreen').classList.contains('active')) return;
+    requestAnimationFrame(() => {
+        const row = Array.from(historyList.querySelectorAll('.history-item')).find(item => item.dataset.id === id);
+        if (row) row.classList.add('just-added');
+    });
+}
+
 saveExpenseBtn.addEventListener('click', async () => {
     if (!currentUser) return showModal({ type: 'warning', title: 'Not signed in', message: 'Please log in first.' });
 
@@ -2742,6 +2750,7 @@ saveExpenseBtn.addEventListener('click', async () => {
         const saved = new Date(createdAt);
         setSelectedMonth(saved.getFullYear(), saved.getMonth());
         closeAddSheet();
+        animateHistoryAddition(id);
         showToast(queued ? 'info' : 'success', queued
             ? `Saved offline — ${formatMoney(amount)} will sync when you're back online`
             : `Expense of ${formatMoney(amount)} saved`);
@@ -2769,7 +2778,7 @@ saveIncomeBtn.addEventListener('click', async () => {
 
     setBusy(saveIncomeBtn, true, 'Saving...');
     try {
-        const { queued } = await addIncome(amount, source, createdAt);
+        const { queued, id } = await addIncome(amount, source, createdAt);
         incomeAmount.value = '';
         incomeSource.value = '';
         incomeDate.value = toInputDate();
@@ -2777,6 +2786,7 @@ saveIncomeBtn.addEventListener('click', async () => {
         const saved = new Date(createdAt);
         setSelectedMonth(saved.getFullYear(), saved.getMonth());
         closeAddSheet();
+        animateHistoryAddition(id);
         showToast(queued ? 'info' : 'success', queued
             ? `Saved offline — ${formatMoney(amount)} will sync when you're back online`
             : `Income of ${formatMoney(amount)} saved`);
