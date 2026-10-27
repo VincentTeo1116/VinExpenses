@@ -60,6 +60,7 @@ let expenses = [];
 let incomes = [];
 let lastRegisteredEmail = null;
 let isLoading = false;
+let historyLoadError = '';
 let expCategoryValue = CATEGORIES[0].key;
 let expPaymentValue = PAYMENTS[0].key;
 let editing = null; // { type, id }
@@ -84,6 +85,35 @@ selectedDate.setHours(0, 0, 0, 0);
 
 // === DOM REFS ===
 const $ = id => document.getElementById(id);
+
+const THEMES = ['blue', 'pink', 'orange', 'green'];
+function setTheme(theme, { persist = false, refreshCharts = true } = {}) {
+    const selected = THEMES.includes(theme) ? theme : 'blue';
+    document.documentElement.dataset.theme = selected;
+    let stored = false;
+    if (persist && currentUser) {
+        try { localStorage.setItem(`et_theme_${currentUser.id}`, selected); stored = true; } catch (_) { /* theme still applies for this session */ }
+    }
+    document.querySelectorAll('[data-theme-choice]').forEach(button => {
+        button.setAttribute('aria-pressed', String(button.dataset.themeChoice === selected));
+    });
+    const status = $('themeStatus');
+    if (status) status.textContent = `${selected[0].toUpperCase()}${selected.slice(1)} theme selected.${persist ? (stored ? ' Saved on this device; it will not sync to other devices.' : ' Browser storage is unavailable, so this choice may reset when you reload.') : ''}`;
+    if (refreshCharts && typeof onThemeChange === 'function') onThemeChange();
+}
+
+function loadUserTheme(userId) {
+    let theme = 'blue';
+    try {
+        const saved = localStorage.getItem(`et_theme_${userId}`);
+        if (THEMES.includes(saved)) theme = saved;
+    } catch (_) { /* use the default theme if storage is blocked */ }
+    setTheme(theme, { refreshCharts: false });
+}
+
+document.querySelectorAll('[data-theme-choice]').forEach(button => {
+    button.addEventListener('click', () => setTheme(button.dataset.themeChoice, { persist: true }));
+});
 
 const authTitle = $('authTitle');
 const authSub = $('authSub');
@@ -730,9 +760,9 @@ function renderCategoryGrid() {
         let barPct, note, state = '';
         if (c.budget > 0) {
             const used = c.total / c.budget;
-            state = used >= 1 ? 'over' : used >= 0.8 ? 'warn' : '';
+            state = used > 1 ? 'over' : used >= 0.8 ? 'warn' : '';
             barPct = Math.min(100, used * 100);
-            note = used >= 1
+            note = used > 1
                 ? `Over by ${formatMoney(c.total - c.budget)}`
                 : `${(used * 100).toFixed(0)}% of ${formatMoney(c.budget)}`;
         } else {
@@ -744,7 +774,7 @@ function renderCategoryGrid() {
                 <span class="cat-ico"><i class="fas ${safeIcon(c.icon)}" aria-hidden="true"></i></span>
                 <span class="cat-main">
                     <span class="cat-name">${escapeHtml(c.label)}</span>
-                    <span class="cat-bar${c.budget > 0 ? ' budgeted' : ''}"><span style="width:${barPct.toFixed(1)}%"></span></span>
+                    <span class="cat-bar${c.budget > 0 ? ' budgeted' : ''}" role="progressbar" aria-label="${escapeHtml(c.label)} spending progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.min(100, Math.round(barPct))}" aria-valuetext="${escapeHtml(note)}"><span style="width:${barPct.toFixed(1)}%"></span></span>
                 </span>
                 <span class="cat-amt"><b>${formatMoney(c.total)}</b><small class="${state}">${note}</small></span>
             </button>`;
@@ -787,16 +817,16 @@ function transactionRowHtml(t, withActions, showDate = true) {
             </div>
             ${withActions ? `
             <div class="h-actions">
-                <button type="button" class="icon-btn" data-action="edit" title="Edit" aria-label="Edit"><i class="fas fa-pen"></i></button>
-                <button type="button" class="icon-btn danger" data-action="delete" title="Delete" aria-label="Delete"><i class="fas fa-trash-can"></i></button>
+                <button type="button" class="icon-btn" data-action="edit" title="Edit" aria-label="Edit ${escapeHtml(title)}"><i class="fas fa-pen" aria-hidden="true"></i></button>
+                <button type="button" class="icon-btn danger" data-action="delete" title="Delete" aria-label="Delete ${escapeHtml(title)}"><i class="fas fa-trash-can" aria-hidden="true"></i></button>
             </div>` : ''}
         </div>`;
     if (!withActions) return rowHtml;
     // History rows sit in a swipe container: right = duplicate, left = delete
     return `
         <div class="swipe-row">
-            <div class="swipe-bg dup"><button type="button" class="swipe-action" data-swipe-action="duplicate" aria-label="Duplicate transaction"><i class="fas fa-copy"></i><span>Duplicate</span></button></div>
-            <div class="swipe-bg del"><button type="button" class="swipe-action" data-swipe-action="delete" aria-label="Delete transaction"><span>Delete</span><i class="fas fa-trash-can"></i></button></div>
+            <div class="swipe-bg dup" aria-hidden="true" inert><button type="button" class="swipe-action" data-swipe-action="duplicate" aria-label="Duplicate ${escapeHtml(isIncome ? 'income' : 'expense')} ${escapeHtml(title)}"><i class="fas fa-copy" aria-hidden="true"></i><span>Duplicate</span></button></div>
+            <div class="swipe-bg del" aria-hidden="true" inert><button type="button" class="swipe-action" data-swipe-action="delete" aria-label="Delete ${escapeHtml(isIncome ? 'income' : 'expense')} ${escapeHtml(title)}"><span>Delete</span><i class="fas fa-trash-can" aria-hidden="true"></i></button></div>
             ${rowHtml}
         </div>`;
 }
@@ -1686,6 +1716,9 @@ function onThemeChange() {
     if (pieChartInstance) { pieChartInstance.destroy(); pieChartInstance = null; }
     if (barChartInstance) { barChartInstance.destroy(); barChartInstance = null; }
     if (currentUser && $('dashboardScreen').classList.contains('active')) renderCharts();
+    if (activeReportChartData && reportView.classList.contains('active')) {
+        renderReportCharts(activeReportChartData.year, activeReportChartData.monthNumber, activeReportChartData.transactions, activeReportChartData.previousTransactions);
+    }
 }
 if (darkQuery.addEventListener) darkQuery.addEventListener('change', onThemeChange);
 else if (darkQuery.addListener) darkQuery.addListener(onThemeChange); // older Safari
@@ -1744,10 +1777,11 @@ function renderCharts() {
 
     // Bars: expenses vs income for the last six months
     const { months, expensesData, incomesData } = getMonthlyTotals();
+    const expenseColor = cssVar('--brand') || '#6366f1';
     const barData = {
         labels: months,
         datasets: [
-            { label: 'Expenses', data: expensesData, backgroundColor: '#6366f1', borderRadius: 6, borderSkipped: false, maxBarThickness: 28 },
+            { label: 'Expenses', data: expensesData, backgroundColor: expenseColor, borderRadius: 6, borderSkipped: false, maxBarThickness: 28 },
             { label: 'Income', data: incomesData, backgroundColor: '#10b981', borderRadius: 6, borderSkipped: false, maxBarThickness: 28 }
         ]
     };
@@ -1958,6 +1992,7 @@ $('deleteAccountBtn').addEventListener('click', async () => {
             localStorage.removeItem(`et_cache_${userId}`);
             localStorage.removeItem(`et_queue_${userId}`);
             localStorage.removeItem(`et_sync_${userId}`);
+            localStorage.removeItem(`et_theme_${userId}`);
         } catch (_) { /* the account deletion succeeded; browser storage may be blocked */ }
         await supabaseClient.auth.signOut({ scope: 'local' });
         resetSession();
@@ -2079,6 +2114,7 @@ window.addEventListener('online', () => {
 
 async function fetchAllData() {
     isLoading = true;
+    historyLoadError = '';
     $('dashboardScreen').setAttribute('aria-busy', 'true');
     historyList.setAttribute('aria-busy', 'true');
     loadQueue();
@@ -2098,6 +2134,7 @@ async function fetchAllData() {
         if (loadErr) {
             if (isNetworkError(loadErr)) throw loadErr;
             console.error('Error fetching data:', loadErr);
+            historyLoadError = 'Some transactions could not be loaded.';
             showToast('error', 'Could not load all your data. Pull to refresh or try again.');
         }
 
@@ -2128,10 +2165,12 @@ async function fetchAllData() {
         if (isNetworkError(err)) {
             const had = loadLocal();
             servedFromCache = true;
+            if (!had) historyLoadError = 'Connect to the internet and try again to load your history.';
             mergePending();
             showToast('info', had ? 'You\'re offline — showing your last saved data' : 'You\'re offline');
         } else {
             console.error('Fetch data error:', err);
+            historyLoadError = 'Your history could not be loaded. Please try again.';
             showToast('error', 'Something went wrong while loading your data.');
         }
     } finally {
@@ -2554,6 +2593,7 @@ logoutBtn.addEventListener('click', () => {
 
 function resetSession() {
     currentUser = null;
+    setTheme('blue', { refreshCharts: false });
     expenses = [];
     incomes = [];
     recurring = [];
@@ -2586,6 +2626,7 @@ async function onLoginSuccess(user) {
         dateFormat = 'dmy_short';
     }
     currentUser = user;
+    loadUserTheme(user.id);
 
     // Users who signed up with email always have a username. Anyone without one
     // (a brand-new Google account) finishes their profile first.
@@ -2810,6 +2851,19 @@ function renderHistory() {
         });
     }
 
+    const activeFilters = [];
+    if (type !== 'all') activeFilters.push(type === 'income' ? 'Income' : 'Expenses');
+    if (category) activeFilters.push(catByKey[category]?.label || category);
+    if (query) activeFilters.push(`Search “${historySearch.value.trim()}”`);
+    if (month && month !== formatMonthValue(selectedDate)) {
+        const [filterYear, filterMonth] = month.split('-').map(Number);
+        activeFilters.push(new Date(filterYear, filterMonth - 1, 1).toLocaleDateString('en-MY', { month: 'long', year: 'numeric' }));
+    }
+    $('historyFilterStatus').classList.toggle('hidden', activeFilters.length === 0);
+    $('historyFilterSummary').textContent = activeFilters.length
+        ? `${activeFilters.length} filter${activeFilters.length === 1 ? '' : 's'}: ${activeFilters.join(' · ')}`
+        : '';
+
     visibleHistoryTransactions = list.slice();
 
     const inc = sumAmount(list.filter(t => t.type === 'income'));
@@ -2821,12 +2875,16 @@ function renderHistory() {
         : '';
 
     if (!list.length) {
+        const hasAnyTransactions = allTransactions().length > 0;
         historyList.innerHTML = isLoading
-            ? '<div class="history-empty" role="status"><i class="fas fa-spinner fa-spin" aria-hidden="true"></i><div>Loading your transactions…</div></div>'
-            : '<div class="history-empty"><i class="fas fa-inbox" aria-hidden="true"></i><div>No transactions found for this filter.</div></div>';
+            ? "<div class=\"history-empty\" role=\"status\"><i class=\"fas fa-spinner fa-spin\" aria-hidden=\"true\"></i><div>Loading your transactions...</div></div>"
+            : historyLoadError
+                ? `<div class="history-empty" role="alert"><i class="fas fa-triangle-exclamation" aria-hidden="true"></i><div>${escapeHtml(historyLoadError)}</div><button type="button" class="btn btn-outline btn-small" data-retry-history>Try again</button></div>`
+                : hasAnyTransactions
+                ? "<div class=\"history-empty\"><i class=\"fas fa-magnifying-glass\" aria-hidden=\"true\"></i><div><b>No matching transactions</b><br />Try a different search or clear your filters.</div><button type=\"button\" class=\"btn btn-outline btn-small\" data-clear-history-filters>Clear filters</button></div>"
+                : "<div class=\"history-empty\"><i class=\"fas fa-inbox\" aria-hidden=\"true\"></i><div><b>No transactions yet</b><br />Add your first expense or income to start building your history.</div><button type=\"button\" class=\"btn btn-outline btn-small\" data-add-first-transaction>Add a transaction</button></div>";
         return;
     }
-
     // Group by calendar day (the list is already newest-first)
     const groups = [];
     list.forEach(t => {
@@ -2855,6 +2913,14 @@ historyResetBtn.addEventListener('click', () => {
     historySearch.value = '';
     renderHistory();
 });
+function clearHistoryFilters() {
+    historyTypeFilter.value = 'all';
+    historyCategoryFilter.value = '';
+    historyMonthFilter.value = '';
+    historySearch.value = '';
+    renderHistory();
+}
+$('historyClearFiltersBtn').addEventListener('click', clearHistoryFilters);
 
 function csvCell(value) {
     let text = String(value ?? '');
@@ -3043,6 +3109,15 @@ const reportView = $('reportView');
 let reportDocTitle = '';
 let reportDailyChart = null;
 let reportCategoryChart = null;
+let activeReportChartData = null;
+
+function colorWithAlpha(hex, alpha) {
+    const raw = String(hex || '').replace('#', '');
+    const normalized = raw.length === 3 ? raw.split('').map(char => char + char).join('') : raw;
+    if (!/^[0-9a-f]{6}$/i.test(normalized)) return `rgba(79,70,229,${alpha})`;
+    const value = Number.parseInt(normalized, 16);
+    return `rgba(${value >> 16},${(value >> 8) & 255},${value & 255},${alpha})`;
+}
 
 function getReportMonthSeries(year, monthNumber, transactions) {
     const daysInMonthCount = new Date(year, monthNumber, 0).getDate();
@@ -3112,7 +3187,8 @@ function renderReportCharts(year, monthNumber, transactions, previousTransaction
     const previous = getReportMonthSeries(previousDate.getFullYear(), previousDate.getMonth() + 1, previousTransactions);
     const monthLabel = new Date(year, monthNumber - 1, 1).toLocaleDateString('en-MY', { month: 'short' });
     const previousMonthLabel = previousDate.toLocaleDateString('en-MY', { month: 'short' });
-    const gridColor = '#e7eaf2';
+    const gridColor = cssVar('--border') || '#e7eaf2';
+    const chartAccent = cssVar('--brand') || '#4f46e5';
     const commonFont = { family: 'Inter, Arial, sans-serif', size: 11 };
     const dailyCanvas = $('reportDailyChart');
     if (dailyCanvas) {
@@ -3122,10 +3198,10 @@ function renderReportCharts(year, monthNumber, transactions, previousTransaction
                 labels: current.daily.map((_, index) => String(index + 1)),
                 datasets: [{
                     label: 'Expenses', data: current.daily,
-                    borderColor: '#4f46e5', backgroundColor: 'rgba(79,70,229,.12)',
+                    borderColor: chartAccent, backgroundColor: colorWithAlpha(chartAccent, .12),
                     fill: true, tension: 0.32, borderWidth: 2.5,
                     pointRadius: current.daily.length > 20 ? 0 : 2,
-                    pointHoverRadius: 5, pointBackgroundColor: '#4f46e5'
+                    pointHoverRadius: 5, pointBackgroundColor: chartAccent
                 }]
             },
             options: {
@@ -3155,8 +3231,8 @@ function renderReportCharts(year, monthNumber, transactions, previousTransaction
             data: {
                 labels: keys.map(key => catByKey[key]?.label || key || 'Uncategorized'),
                 datasets: [
-                    { label: previousMonthLabel, data: keys.map(key => previous.categories.get(key) || 0), backgroundColor: '#a5b4fc', borderRadius: 5, borderSkipped: false, barPercentage: 0.78, categoryPercentage: 0.72 },
-                    { label: monthLabel, data: keys.map(key => current.categories.get(key) || 0), backgroundColor: '#4f46e5', borderRadius: 5, borderSkipped: false, barPercentage: 0.78, categoryPercentage: 0.72 }
+                    { label: previousMonthLabel, data: keys.map(key => previous.categories.get(key) || 0), backgroundColor: colorWithAlpha(chartAccent, .38), borderRadius: 5, borderSkipped: false, barPercentage: 0.78, categoryPercentage: 0.72 },
+                    { label: monthLabel, data: keys.map(key => current.categories.get(key) || 0), backgroundColor: chartAccent, borderRadius: 5, borderSkipped: false, barPercentage: 0.78, categoryPercentage: 0.72 }
                 ]
             },
             options: {
@@ -3241,6 +3317,7 @@ function openReportView() {
     });
     const previousMonth = new Date(year, monthNumber - 2, 1);
     const previousTransactions = allTransactions().filter(t => isSameMonth(t.created_at, previousMonth));
+    activeReportChartData = { year, monthNumber, transactions, previousTransactions };
     reportDocTitle = `VinExpenses-${month}-report`; // becomes the default file name when saving as PDF
     $('reportDoc').innerHTML = buildReportHtml(year, monthNumber, transactions, previousTransactions);
     $('reportViewTitle').textContent = new Date(year, monthNumber - 1, 1).toLocaleDateString('en-MY', { month: 'long', year: 'numeric' });
@@ -3260,6 +3337,7 @@ function hideReportView() {
     reportDailyChart?.destroy();
     reportCategoryChart?.destroy();
     reportDailyChart = reportCategoryChart = null;
+    activeReportChartData = null;
     syncBodyScroll();
 }
 
@@ -3284,6 +3362,9 @@ $('reportPrintBtn').addEventListener('click', () => {
 });
 
 historyList.addEventListener('click', (e) => {
+    if (e.target.closest('[data-retry-history]')) { fetchAllData(); return; }
+    if (e.target.closest('[data-clear-history-filters]')) { clearHistoryFilters(); return; }
+    if (e.target.closest('[data-add-first-transaction]')) { openAddSheet('expense'); return; }
     const swipeAction = e.target.closest('[data-swipe-action]');
     if (swipeAction) {
         const item = swipeAction.closest('.swipe-row').querySelector('.history-item');
@@ -3401,6 +3482,10 @@ function closeOpenSwipe(except = null) {
         const bg = swipeBackgrounds(item);
         bg.dup.style.opacity = 0;
         bg.del.style.opacity = 0;
+        bg.dup.setAttribute('aria-hidden', 'true');
+        bg.del.setAttribute('aria-hidden', 'true');
+        bg.dup.inert = true;
+        bg.del.inert = true;
     });
 }
 
@@ -3469,9 +3554,17 @@ function endSwipe(e) {
             item.parentElement.classList.add('is-open');
             bg.dup.style.opacity = dx > 0 ? 1 : 0;
             bg.del.style.opacity = dx < 0 ? 1 : 0;
+            bg.dup.inert = dx < 0;
+            bg.del.inert = dx > 0;
+            bg.dup.setAttribute('aria-hidden', String(dx < 0));
+            bg.del.setAttribute('aria-hidden', String(dx > 0));
         } else {
             item.style.transform = '';
             item.parentElement.classList.remove('is-open');
+            bg.dup.inert = true;
+            bg.del.inert = true;
+            bg.dup.setAttribute('aria-hidden', 'true');
+            bg.del.setAttribute('aria-hidden', 'true');
             setTimeout(() => { bg.dup.style.opacity = 0; bg.del.style.opacity = 0; }, 220);
         }
     }
@@ -3512,6 +3605,12 @@ function closeEditModal() {
 }
 
 editCancelBtn.addEventListener('click', closeEditModal);
+$('editDuplicateBtn').addEventListener('click', () => {
+    if (!editing) return;
+    const { type, id } = editing;
+    closeEditModal();
+    duplicateRecord(type, id);
+});
 $('editDeleteBtn').addEventListener('click', () => {
     if (!editing) return;
     const { type, id } = editing;

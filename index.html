@@ -503,6 +503,10 @@
                     </div>
                 </div>
 
+                <div id="historyFilterStatus" class="history-filter-status hidden" role="status" aria-live="polite">
+                    <span id="historyFilterSummary"></span>
+                    <button id="historyClearFiltersBtn" type="button" class="link-btn">Clear filters</button>
+                </div>
                 <div id="historySummary" class="history-summary" role="status" aria-live="polite"></div>
                 <div class="history-export-actions">
                     <button id="historyCsvBtn" type="button" class="btn btn-outline btn-small"><i class="fas fa-file-csv"></i> Export CSV</button>
@@ -720,6 +724,12 @@
                 </div>
                 <button id="saveDisplayPreferencesBtn" type="button" class="btn btn-outline btn-block"><i class="fas fa-floppy-disk"></i> Save display preferences</button>
                 <p id="displayPreferencesStatus" class="field-hint" role="status">Dates use the Malaysia format.</p>
+                <fieldset class="theme-picker"><legend>Colour theme</legend><p class="field-hint">Saved on this device for this account.</p><div class="theme-options" role="group" aria-label="Choose colour theme">
+                    <button type="button" class="theme-option" data-theme-choice="blue" aria-pressed="true"><span class="theme-swatch blue" aria-hidden="true"></span><span>Blue</span></button>
+                    <button type="button" class="theme-option" data-theme-choice="pink" aria-pressed="false"><span class="theme-swatch pink" aria-hidden="true"></span><span>Pink</span></button>
+                    <button type="button" class="theme-option" data-theme-choice="orange" aria-pressed="false"><span class="theme-swatch orange" aria-hidden="true"></span><span>Orange</span></button>
+                    <button type="button" class="theme-option" data-theme-choice="green" aria-pressed="false"><span class="theme-swatch green" aria-hidden="true"></span><span>Green</span></button>
+                </div><p id="themeStatus" class="field-hint" role="status" aria-live="polite">Blue theme selected. Saved on this device.</p></fieldset>
             </section>
             <section class="report-email-settings" aria-labelledby="reportEmailTitle">
                 <div class="report-email-heading">
@@ -847,6 +857,7 @@
             </div>
             <div class="modal-actions split">
                 <button class="modal-btn modal-danger-ghost" id="editDeleteBtn"><i class="fas fa-trash-can"></i> Delete</button>
+                <button class="modal-btn modal-cancel" id="editDuplicateBtn"><i class="fas fa-copy" aria-hidden="true"></i> Duplicate</button>
                 <button class="modal-btn modal-confirm" id="editSaveBtn">Save changes</button>
             </div>
         </div>
