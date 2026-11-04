@@ -577,16 +577,111 @@ async function loadMonthlyReportPreference() {
     setReportPreferenceStatus(enabledInput.checked ? 'Monthly reports are enabled.' : 'Reports are off until you turn them on.');
     if (!supabaseClient || !navigator.onLine) return;
     const { data, error } = await supabaseClient.from('monthly_report_preferences')
-        .select('recipient_email, enabled, sent_for_month').eq('user_id', currentUser.id).maybeSingle();
+        .select('recipient_email, enabled, sent_for_month, verified_email').eq('user_id', currentUser.id).maybeSingle();
     if (error) {
         setReportPreferenceStatus('Run supabase-schema.sql in Supabase to enable email reports.', true);
         return;
     }
-    monthlyReportPreference = data || { recipient_email: currentUser.email || '', enabled: false, sent_for_month: null };
+    monthlyReportPreference = data || { recipient_email: currentUser.email || '', enabled: false, sent_for_month: null, verified_email: null, unsaved: true };
     emailInput.value = monthlyReportPreference.recipient_email || currentUser.email || '';
     enabledInput.checked = !!monthlyReportPreference.enabled;
     setReportPreferenceStatus(enabledInput.checked ? 'Monthly reports are enabled.' : 'Reports are off until you turn them on.');
+    renderReportVerification();
+    loadAdminStatus();
 }
+
+// Reports are only emailed to an address the person confirmed by clicking the link in a confirmation email.
+function isReportEmailVerified(pref) {
+    return !!(pref && pref.verified_email && String(pref.recipient_email || '').trim().toLowerCase() === pref.verified_email);
+}
+
+function renderReportVerification() {
+    const pref = monthlyReportPreference;
+    const note = $('reportEmailVerified');
+    const button = $('verifyReportEmailBtn');
+    if (!pref || pref.unsaved) { note.hidden = true; button.hidden = true; return; }
+    const verified = isReportEmailVerified(pref);
+    button.hidden = verified;
+    note.hidden = false;
+    note.classList.toggle('error', !verified && !!pref.enabled);
+    note.textContent = verified
+        ? 'Confirmed: reports can be sent to this address.'
+        : 'Not confirmed yet: no report will be sent until you press \u201cSend confirmation email\u201d and open the link we email you.';
+}
+
+// Edge functions answer errors with {error: "..."}; the library hides that inside error.context.
+async function functionErrorMessage(error, fallback) {
+    try {
+        const body = await error.context.clone().json();
+        if (body && typeof body.error === 'string') return body.error;
+    } catch (_) { /* no readable body */ }
+    return fallback;
+}
+
+$('verifyReportEmailBtn').addEventListener('click', async () => {
+    if (!currentUser || !supabaseClient || !navigator.onLine) return showToast('error', 'Connect to the internet and sign in first.');
+    const button = $('verifyReportEmailBtn');
+    setBusy(button, true, 'Sending...');
+    const { data, error } = await supabaseClient.functions.invoke('email-verify', { body: {} });
+    setBusy(button, false);
+    if (error) {
+        const message = await functionErrorMessage(error, 'Could not send the confirmation email. Try again later.');
+        setReportPreferenceStatus(message, true);
+        return showToast('error', message);
+    }
+    if (data && data.status === 'verified') {
+        monthlyReportPreference.verified_email = String(monthlyReportPreference.recipient_email).trim().toLowerCase();
+        renderReportVerification();
+        return showToast('success', 'This address is already confirmed');
+    }
+    setReportPreferenceStatus('Confirmation email sent. Open it and press the button inside (valid for 48 hours). Check your spam folder too.');
+    showToast('success', 'Confirmation email sent');
+});
+
+// ---- Administrator-only email service test ----
+let adminCheckedFor = null;
+async function loadAdminStatus() {
+    if (!supabaseClient || !currentUser || !navigator.onLine || adminCheckedFor === currentUser.id) return;
+    adminCheckedFor = currentUser.id;
+    const { data, error } = await supabaseClient.functions.invoke('admin-email-test', { body: { action: 'status' } });
+    const section = $('adminEmailSection');
+    if (error || !data || !data.admin) { section.hidden = true; return; }
+    section.hidden = false;
+    renderAdminChecks(data.checks);
+    if (data.justCreated) setAdminStatus('You were registered as the administrator of this app.', false);
+}
+
+function setAdminStatus(message, isError) {
+    const status = $('adminEmailStatus');
+    status.textContent = message;
+    status.classList.toggle('error', !!isError);
+}
+
+function renderAdminChecks(checks) {
+    const list = $('adminEmailChecks');
+    list.replaceChildren();
+    Object.entries(checks || {}).forEach(([name, ok]) => {
+        const item = document.createElement('li');
+        item.className = ok ? 'ok' : 'bad';
+        item.textContent = name;   // textContent: server text is never parsed as HTML
+        list.appendChild(item);
+    });
+}
+
+$('adminEmailTestBtn').addEventListener('click', async () => {
+    if (!supabaseClient || !currentUser || !navigator.onLine) return showToast('error', 'Connect to the internet first.');
+    const button = $('adminEmailTestBtn');
+    setBusy(button, true, 'Sending...');
+    const { data, error } = await supabaseClient.functions.invoke('admin-email-test', { body: { action: 'send_test' } });
+    setBusy(button, false);
+    if (error) {
+        setAdminStatus(await functionErrorMessage(error, 'The test could not run.'), true);
+        return;
+    }
+    renderAdminChecks(data.checks);
+    if (data.ok) setAdminStatus(`Delivered to ${data.sentTo} in ${(data.elapsedMs / 1000).toFixed(1)}s. Check that inbox (and spam).`, false);
+    else setAdminStatus(`Failed at step \u201c${data.stage}\u201d${data.code ? ` (code ${data.code})` : ''}: ${data.reason}`, true);
+});
 
 $('saveReportEmailBtn').addEventListener('click', async () => {
     if (!currentUser || !supabaseClient) return showToast('error', 'Sign in to save this preference.');
@@ -599,9 +694,9 @@ $('saveReportEmailBtn').addEventListener('click', async () => {
     }
     const button = $('saveReportEmailBtn');
     setBusy(button, true, 'Saving...');
-    const preference = { user_id: currentUser.id, recipient_email: email || currentUser.email || '', enabled };
+    const preference = { user_id: currentUser.id, recipient_email: (email || currentUser.email || '').toLowerCase(), enabled };
     const { data, error } = await supabaseClient.from('monthly_report_preferences')
-        .upsert(preference, { onConflict: 'user_id' }).select('recipient_email, enabled, sent_for_month').single();
+        .upsert(preference, { onConflict: 'user_id' }).select('recipient_email, enabled, sent_for_month, verified_email').single();
     setBusy(button, false);
     if (error) {
         console.error('Could not save monthly report preference:', error);
@@ -609,7 +704,10 @@ $('saveReportEmailBtn').addEventListener('click', async () => {
         return;
     }
     monthlyReportPreference = data;
-    setReportPreferenceStatus(data.enabled ? `Reports will be sent to ${data.recipient_email} on the first day of each month.` : 'Monthly report emails are turned off.');
+    renderReportVerification();
+    if (!data.enabled) setReportPreferenceStatus('Monthly report emails are turned off.');
+    else if (isReportEmailVerified(data)) setReportPreferenceStatus(`Reports will be sent to ${data.recipient_email} on the first day of each month.`);
+    else setReportPreferenceStatus('Saved. Now press \u201cSend confirmation email\u201d and open the link we send you: reports start only after you confirm.');
     showToast('success', 'Monthly report preference saved');
 });
 
@@ -965,9 +1063,11 @@ function renderExpenseTemplates() {
 //   photo / scan   -> OCR (receipt-ocr function), then the same parser
 // receipt-parser.js finds the merchant, total and date; smart-entry.js suggests the category.
 const RECEIPT_MAX_PDF_BYTES = 10 * 1024 * 1024;
+// pdf.js is hosted on this site (vendor/pdfjs, pinned and hash-checked by tools/vendor.js). Versions up to 4.1.392
+// can run an attacker's JavaScript just by opening a crafted PDF (CVE-2024-4367), so never downgrade it.
 const PDFJS = {
-    base: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/',
-    mainIntegrity: 'sha384-/1qUCSGwTur9vjf/z9lmu/eCUYbpOTgSjmpbMQZ1/CtX2v/WcAIKqRv+U1DUCG6e'
+    main: 'vendor/pdfjs/pdf.min.mjs',
+    worker: 'vendor/pdfjs/pdf.worker.min.mjs'
 };
 let pdfJsPromise = null;
 let categoryTouched = false; // the user picked a category chip themselves: don't override it
@@ -1090,19 +1190,14 @@ async function compressReceiptImage(file) {
 
 // pdf.js is only downloaded when someone actually picks a PDF
 function loadPdfJs() {
-    if (window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
     if (!pdfJsPromise) {
-        pdfJsPromise = new Promise((resolve, reject) => {
-            const script = document.createElement('script');
-            script.src = PDFJS.base + 'pdf.min.js';
-            script.integrity = PDFJS.mainIntegrity;
-            script.crossOrigin = 'anonymous';
-            script.onload = () => {
-                window.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS.base + 'pdf.worker.min.js';
-                resolve(window.pdfjsLib);
-            };
-            script.onerror = () => { pdfJsPromise = null; reject(new Error('Could not load the PDF reader. Check your connection and try again.')); };
-            document.head.appendChild(script);
+        // A module import from this site (allowed by the Content-Security-Policy as 'self'); nothing is fetched from elsewhere.
+        pdfJsPromise = import(new URL(PDFJS.main, document.baseURI).href).then(lib => {
+            lib.GlobalWorkerOptions.workerSrc = new URL(PDFJS.worker, document.baseURI).href;
+            return lib;
+        }).catch(() => {
+            pdfJsPromise = null;
+            throw new Error('Could not load the PDF reader. Check your connection and try again.');
         });
     }
     return pdfJsPromise;
@@ -1114,7 +1209,14 @@ async function readPdfReceipt(file) {
     const pdfjsLib = await loadPdfJs();
     let pdf;
     try {
-        pdf = await pdfjsLib.getDocument({ data: await file.arrayBuffer() }).promise;
+        // Defence in depth for files from strangers: no eval-based font compilation (the CVE-2024-4367 route),
+        // no XFA form scripting, and a cap on decoded image size so a tiny file cannot exhaust the phone's memory.
+        pdf = await pdfjsLib.getDocument({
+            data: await file.arrayBuffer(),
+            isEvalSupported: false,
+            enableXfa: false,
+            maxImageSize: 32 * 1024 * 1024
+        }).promise;
     } catch (err) {
         if (err && err.name === 'PasswordException') throw new Error('This PDF is password protected. Remove the password and try again.');
         throw new Error('This file could not be opened as a PDF.');
@@ -1576,7 +1678,7 @@ function renderHeroAndInsights(spent, income) {
     if (topCat && topCat.total > 0) {
         $('insightTop').textContent = topCat.label;
         $('insightTopSub').textContent = `${formatMoney(topCat.total)} · ${((topCat.total / spent) * 100).toFixed(0)}% of spending`;
-        topIcon.innerHTML = `<i class="fas ${topCat.icon}"></i>`;
+        topIcon.innerHTML = `<i class="fas ${safeIcon(topCat.icon)}"></i>`;
         topIcon.style.color = topCat.color;
         topIcon.style.background = `color-mix(in srgb, ${topCat.color} 14%, var(--surface))`;
     } else {
@@ -2600,6 +2702,10 @@ function resetSession() {
     recurringIncomes = [];
     budgets = [];
     monthlyReportPreference = null;
+    adminCheckedFor = null;
+    $('adminEmailSection').hidden = true;
+    $('adminEmailChecks').replaceChildren();
+    setAdminStatus('', false);
     dateFormat = 'dmy_short';
     resetTaxonomyDefaults();
     syncQueue = [];

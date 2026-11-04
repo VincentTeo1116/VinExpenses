@@ -1,0 +1,10 @@
+# Keeps the pinned GitHub Actions current. Each update arrives as a pull request that you review and merge;
+# nothing is changed automatically. (Third-party browser libraries are managed by tools/vendor.js instead.)
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "ci"

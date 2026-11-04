@@ -1,16 +1,6 @@
-const DEFAULT_REVERSE_ENDPOINT = "https://nominatim.openstreetmap.org/reverse";
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-};
+import { dailyLimit, json, preflight, requireUser, takeQuota } from "../_shared/guard.ts";
 
-function jsonResponse(body: Record<string, unknown>, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
-  });
-}
+const DEFAULT_REVERSE_ENDPOINT = "https://nominatim.openstreetmap.org/reverse";
 
 // Nearest named shop / restaurant / amenity within 80 m, or "" when none (or the service is down)
 async function overpassNearest(lat: number, lon: number): Promise<string> {
@@ -49,8 +39,18 @@ async function overpassNearest(lat: number, lon: number): Promise<string> {
 }
 
 Deno.serve(async (request: Request) => {
-  if (request.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  const early = preflight(request);
+  if (early) return early;
+  const jsonResponse = (body: Record<string, unknown>, status = 200) => json(request, body, status);
   if (request.method !== "POST") return jsonResponse({ error: "Use POST for nearby place lookup." }, 405);
+
+  // Signed-in users only, with a daily allowance: this function relays requests to free public map services,
+  // and must not become an anonymous relay that gets this project's address banned.
+  const auth = await requireUser(request);
+  if (auth instanceof Response) return auth;
+  if (!(await takeQuota(`nearby:${auth.userId}`, dailyLimit("NEARBY_DAILY_LIMIT", 200)))) {
+    return jsonResponse({ error: "Daily nearby-place limit reached. Enter the merchant manually." }, 429);
+  }
 
   try {
     const body = await request.json();

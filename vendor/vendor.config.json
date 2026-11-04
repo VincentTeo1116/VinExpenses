@@ -1,0 +1,40 @@
+{
+  "packages": {
+    "@supabase/supabase-js": {
+      "version": "2.118.0",
+      "dir": "supabase-js",
+      "files": { "dist/umd/supabase.js": "supabase.js" }
+    },
+    "chart.js": {
+      "version": "4.4.0",
+      "dir": "chartjs",
+      "files": { "dist/chart.umd.js": "chart.umd.js" }
+    },
+    "pdfjs-dist": {
+      "version": "4.10.38",
+      "dir": "pdfjs",
+      "files": {
+        "legacy/build/pdf.min.mjs": "pdf.min.mjs",
+        "legacy/build/pdf.worker.min.mjs": "pdf.worker.min.mjs"
+      }
+    },
+    "@fortawesome/fontawesome-free": {
+      "version": "6.7.2",
+      "dir": "fontawesome",
+      "files": {
+        "css/all.min.css": "css/all.min.css",
+        "webfonts/fa-solid-900.woff2": "webfonts/fa-solid-900.woff2",
+        "webfonts/fa-regular-400.woff2": "webfonts/fa-regular-400.woff2",
+        "webfonts/fa-brands-400.woff2": "webfonts/fa-brands-400.woff2"
+      }
+    },
+    "@fontsource-variable/inter": {
+      "version": "5.3.0",
+      "dir": "inter",
+      "files": {
+        "files/inter-latin-wght-normal.woff2": "files/inter-latin-wght-normal.woff2",
+        "files/inter-latin-ext-wght-normal.woff2": "files/inter-latin-ext-wght-normal.woff2"
+      }
+    }
+  }
+}

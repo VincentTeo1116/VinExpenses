@@ -1,0 +1,52 @@
+{
+  "generated": "by tools/vendor.js. Do not edit by hand.",
+  "packages": {
+    "@supabase/supabase-js": {
+      "version": "2.118.0",
+      "integrity": "sha512-FxI8UXMVC2UG7IkeiI8fuQZqq2oI3JeSuN8MPIC2RLVaoEAxKS0nqE6kii9Ewpq8f9gNPM6git1Y8f0vN/QLFw==",
+      "license": "MIT",
+      "dir": "supabase-js"
+    },
+    "chart.js": {
+      "version": "4.4.0",
+      "integrity": "sha512-vQEj6d+z0dcsKLlQvbKIMYFHd3t8W/7L2vfJIbYcfyPcRx92CsHqECpueN8qVGNlKyDcr5wBrYAYKnfu/9Q1hQ==",
+      "license": "MIT",
+      "dir": "chartjs"
+    },
+    "pdfjs-dist": {
+      "version": "4.10.38",
+      "integrity": "sha512-/Y3fcFrXEAsMjJXeL9J8+ZG9U01LbuWaYypvDW2ycW1jL269L3js3DVBjDJ0Up9Np1uqDXsDrRihHANhZOlwdQ==",
+      "license": "Apache-2.0",
+      "dir": "pdfjs"
+    },
+    "@fortawesome/fontawesome-free": {
+      "version": "6.7.2",
+      "integrity": "sha512-JUOtgFW6k9u4Y+xeIaEiLr3+cjoUPiAuLXoyKOJSia6Duzb7pq+A76P9ZdPDoAoxHdHzq6gE9/jKBGXlZT8FbA==",
+      "license": "(CC-BY-4.0 AND OFL-1.1 AND MIT)",
+      "dir": "fontawesome"
+    },
+    "@fontsource-variable/inter": {
+      "version": "5.3.0",
+      "integrity": "sha512-OupL48va4JNofb97w6NYeF9S7W/kHNKM0Er8Dem5nqi4jeOLrVJDoE8tZEpnMJmtkvNbB1EIPPwHcdkF6b1oUA==",
+      "license": "OFL-1.1",
+      "dir": "inter"
+    }
+  },
+  "files": {
+    "chartjs/LICENSE.txt": "sha384-k1B8EE6v14zYHoqN/HkFSzv0RMXE3AH1b1bT+CU5/xSU//sya1sD7Zuej8cPWRdv",
+    "chartjs/chart.umd.js": "sha384-FcQlsUOd0TJjROrBxhJdUhXTUgNJQxTMcxZe6nHbaEfFL1zjQ+bq/uRoBQxb0KMo",
+    "fontawesome/LICENSE.txt": "sha384-d9j8W38zBz51HJF7nOlshkGdC2zRSf6Z71XhxX26gsZ2bex584+oqnWbi/yz/Jxj",
+    "fontawesome/css/all.min.css": "sha384-nRgPTkuX86pH8yjPJUAFuASXQSSl2/bBUiNV47vSYpKFxHJhbcrGnmlYpYJMeD7a",
+    "fontawesome/webfonts/fa-brands-400.woff2": "sha384-5bQWftm2RhZySCFP7cLHM9Q0J7z6ky5sbicvUH56HGBRUDIGyAj52Py3qqJcISlb",
+    "fontawesome/webfonts/fa-regular-400.woff2": "sha384-Z05gtC6+ONF8+7LTo5Vz1F6CZZS7YFou0LyBMChIU/hvIv6nbDo9UpXr8qKbFUPq",
+    "fontawesome/webfonts/fa-solid-900.woff2": "sha384-77y8nNGW9eYPJKjLxoeFrOIkHDBkRk9yWR1JHddn++xVgG4hAQIyuDbKcPV/Cjh5",
+    "inter/LICENSE.txt": "sha384-kj3ws+qnzjazxsLTzPAVaXquIFuyNRYVaSXX024NG79Z2vDskAWFDhnsJYazAo0C",
+    "inter/files/inter-latin-ext-wght-normal.woff2": "sha384-r0EoKgCx3XyQjhJdTJ6FDE+8mEZrV95dM7cWvqLDUVdqzM44cq76qdOaYiA3sebS",
+    "inter/files/inter-latin-wght-normal.woff2": "sha384-l0ql7Q1zqvX5klAVRwYjcMVCkCxg5dMTdghsIlC3pYkX6wwEHerh2bP/4yAao3Im",
+    "pdfjs/LICENSE.txt": "sha384-dIfJx5IERVwWkDwmUITjq6FFmOOiUluv24tT2o6vrjEpXyjYGE/BIj5rw25rSNr0",
+    "pdfjs/pdf.min.mjs": "sha384-z/XbAtvhBXJoK+yvYimnFuTCF6/2wTCDSIFD09/HtIfwFtvDKOMdAe5Z3wOChkmW",
+    "pdfjs/pdf.worker.min.mjs": "sha384-vbNBYP03jHFPlgtK4qSXtazEmGfmpTWlSsfq9OiU20MroW/Q9TbaEXiM7PpeWg+6",
+    "supabase-js/LICENSE.txt": "sha384-1OoeMQHJk9w9LYfOTwEiTwvWY9LxP7/4eNz3eO4qdWKnTc7vouDoy6mMkhxBz4oo",
+    "supabase-js/supabase.js": "sha384-TcHRA3zBbn+Lexh5n+Oil4guNPOS3rjNDpGRAN46u/s/mB2IZ50ceC6TYDU2yvgK"
+  }
+}

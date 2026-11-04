@@ -2,6 +2,12 @@
 <html lang="en-MY">
 <head>
     <meta charset="UTF-8" />
+    <!-- SECURITY: this policy must stay FIRST in <head>: it only protects what is parsed after it.
+         Only this site's own files may run or load. The deploy step narrows `https://*.supabase.co`
+         to your exact project address. See SECURITY.md before loosening anything here. -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https://*.supabase.co https://nominatim.openstreetmap.org; worker-src 'self' blob:; manifest-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'" />
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
+    <script src="frame-guard.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="description" content="Track your spending, income and recurring bills in one calm, fast place." />
     <meta name="color-scheme" content="light dark" />
@@ -14,12 +20,13 @@
     <link rel="manifest" href="manifest.json" />
     <link rel="apple-touch-icon" href="icons/icon-192.png" />
 
-    <!-- Supabase & Chart.js -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <!-- Supabase, Chart.js, icons and fonts are served from this site (see vendor/ and tools/vendor.js):
+         pinned versions with hashes, so no third-party server can change the code that runs here. -->
+    <script src="vendor/supabase-js/supabase.js"></script>
+    <script src="vendor/chartjs/chart.umd.js"></script>
 
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700;14..32,800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="vendor/fontawesome/css/all.min.css" />
+    <link rel="stylesheet" href="fonts.css" />
     <link rel="stylesheet" href="style.css?v=__BUILD__" />
 </head>
 <body class="is-auth">
@@ -741,7 +748,15 @@
                     <div class="input-icon-wrap"><i class="fas fa-envelope"></i><input type="email" id="monthlyReportEmail" placeholder="you@example.com" autocomplete="email" /></div>
                 </div>
                 <button id="saveReportEmailBtn" class="btn btn-outline btn-block"><i class="fas fa-floppy-disk"></i> Save report preference</button>
+                <button id="verifyReportEmailBtn" class="btn btn-outline btn-block" type="button" hidden><i class="fas fa-envelope-circle-check"></i> Send confirmation email</button>
                 <p id="reportEmailStatus" class="field-hint" role="status">Reports are off until you turn them on.</p>
+                <p id="reportEmailVerified" class="field-hint" role="status" hidden></p>
+            </section>
+            <section class="report-email-settings" id="adminEmailSection" aria-labelledby="adminEmailTitle" hidden>
+                <div class="report-email-heading"><div><h3 id="adminEmailTitle">Administrator: email service</h3><p>Sends a real test message to your own address through Gmail and shows exactly where it stops if something is wrong.</p></div></div>
+                <button id="adminEmailTestBtn" class="btn btn-outline btn-block" type="button"><i class="fas fa-paper-plane"></i> Send test email to me</button>
+                <p id="adminEmailStatus" class="field-hint" role="status"></p>
+                <ul id="adminEmailChecks" class="admin-checks"></ul>
             </section>
             <section class="report-email-settings" aria-labelledby="yourDataTitle">
                 <div class="report-email-heading"><div><h3 id="yourDataTitle">Your data</h3><p>Export everything as a spreadsheet, or import a CSV (this app's export or a bank statement). Duplicates are skipped.</p></div></div>

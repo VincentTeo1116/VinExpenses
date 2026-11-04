@@ -28,13 +28,21 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - uses: actions/checkout@v4
+      # Every action is pinned to an exact commit, not a tag: a tag can be moved to different code, a commit cannot.
+      # Dependabot (.github/dependabot.yml) proposes updates, and the comment names the release each hash is.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false   # the build never needs to push, so don't leave a token lying around
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 24   # the tests load the TypeScript helpers directly (type stripping is on by default in 24)
 
-      # A failing test stops the deploy, so a broken receipt reader or category rule never reaches your phone
+      # Fails if any file in vendor/ was changed, added or removed without going through tools/vendor.js
+      - name: Verify self-hosted libraries
+        run: node tools/vendor.js verify
+
+      # A failing test stops the deploy, so a broken receipt reader, category rule or security rule never reaches your phone
       - name: Run tests
         run: node --test "tests/*.test.js"
 
@@ -47,18 +55,27 @@ jobs:
       - name: Stage site files
         run: |
           mkdir dist
-          cp index.html app.js receipt-parser.js smart-entry.js csv-import.js config.js style.css sw.js manifest.json icon.png dist/
+          cp index.html app.js receipt-parser.js smart-entry.js csv-import.js config.js style.css fonts.css frame-guard.js email-action.html email-action.js email-action.css sw.js manifest.json icon.png dist/
           cp -r icons dist/icons
+          cp -r vendor dist/vendor
+          rm dist/vendor/vendor.config.json dist/vendor/VENDOR.lock.json   # build metadata, not part of the site
           # Stamp this deploy with the commit id: it versions the CSS/JS URLs (cache busting),
           # renames the service-worker cache, and is shown in the app's Account sheet.
           BUILD="${GITHUB_SHA::7}"
           sed -i "s/__BUILD__/${BUILD}/g" dist/index.html dist/app.js dist/style.css dist/sw.js
 
-      - uses: actions/configure-pages@v5
+      # The committed page allows any *.supabase.co address (so local development works). Production allows ONLY yours.
+      # This step fails the deploy if the result still contains a wildcard.
+      - name: Pin the Content-Security-Policy to your Supabase project
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+        run: node tools/pin-csp.js dist/index.html dist/email-action.html
 
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5.0.0
+
+      - uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3.0.1
         with:
           path: dist
 
       - id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4.0.5

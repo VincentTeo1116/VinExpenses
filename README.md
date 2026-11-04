@@ -237,7 +237,7 @@ scans**, and does not log or save receipt images or extracted text.
 1. Run the latest `supabase-schema.sql` once more: it adds the
    `receipt_scan_usage` table and `consume_receipt_quota()` that enforce the daily
    limits. (Until you do, scanning keeps working but is not limited.)
-2. Optionally lock the functions to your website and set limits:
+2. Lock the functions to your website (**required**: while `ALLOWED_ORIGINS` is empty they refuse browser calls) and optionally set limits:
    `npx supabase secrets set ALLOWED_ORIGINS=https://YOURNAME.github.io`
    `npx supabase secrets set SCAN_DAILY_LIMIT=30 AI_DAILY_LIMIT=10`
 3. Redeploy: `npx supabase functions deploy receipt-ocr`.
@@ -279,42 +279,70 @@ and shows the required attribution. To switch to a compatible provider, set the
 The merchant column and index are included in `supabase-schema.sql` for fresh
 and existing databases.
 
-## 4. Enable monthly report emails
+## 4. Enable monthly report emails (Gmail SMTP)
 
-Monthly email is opt-in per user. Each user opens **Account**, enters the
-recipient address, turns on **Monthly report email**, and saves. Turning the
-switch off stops future sends. The email contains monthly income, expenses,
-net, record counts, and spending by category; it does not include individual
-transactions or receipt images.
+Monthly email is opt-in per user, and a report is only sent to an address its owner
+**confirmed**. In **Account** a user enters the address, turns on **Monthly report
+email**, saves, presses **Send confirmation email**, and clicks the button in the
+message they receive. Turning the switch off, or pressing **Unsubscribe** in any
+report, stops future sends. The email contains monthly income, expenses, net,
+record counts and spending by category; no individual transactions or receipts.
 
-1. The monthly report preference table is included in `supabase-schema.sql`.
-2. Create a [Resend](https://resend.com/) account, verify a sender domain, and
-   choose a sender such as `VinExpenses <reports@yourdomain.com>`. Resend's
-   current free tier lists 3,000 emails per month and 100 per day; sending from
-   a custom domain requires verifying that domain with Resend.
-3. Generate a long random value to use as the scheduler secret. Store these
-   three values as Supabase Edge Function secrets (Dashboard → Edge Functions →
-   Secrets, or CLI): `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, and
-   `MONTHLY_REPORT_CRON_SECRET`. The `SUPABASE_SERVICE_ROLE_KEY` and
-   `SUPABASE_URL` are provided by the Supabase Edge Function environment.
-4. Deploy the function:
+Mail goes out through **Gmail SMTP** (`smtp.gmail.com`, port **465**, encrypted from
+the first byte). Supabase blocks ports 25 and 587, so 465 is the one that works.
+Gmail sends *from* the Gmail account itself and allows about **500 recipients a day**
+(Google Workspace about 2,000); the app stops at `EMAIL_DAILY_CAP` (default 400).
+
+**One-time setup**
+
+1. In the Google account that will send the mail, turn on **2-Step Verification**
+   (<https://myaccount.google.com/security>), then create an **App Password**
+   (<https://myaccount.google.com/apppasswords>). It is 16 letters. Use a dedicated
+   account for the app, not your personal inbox.
+2. Store the secrets (Dashboard → Edge Functions → Secrets, or CLI). Never put
+   them in `.env`, `config.js` or GitHub:
 
    ```bash
-   npx supabase functions deploy monthly-report-email
+   npx supabase secrets set SMTP_USER=yourapp@gmail.com SMTP_PASS="abcd efgh ijkl mnop"
+   npx supabase secrets set EMAIL_TOKEN_SECRET="$(openssl rand -hex 32)"
+   npx supabase secrets set MONTHLY_REPORT_CRON_SECRET="$(openssl rand -hex 32)"
+   npx supabase secrets set SITE_URL=https://YOURNAME.github.io/VinExpenses
+   npx supabase secrets set ALLOWED_ORIGINS=https://YOURNAME.github.io
+   npx supabase secrets set ADMIN_EMAIL=you@yourcompany.com
    ```
 
-5. In Supabase **Vault**, store three named secrets: `project_url` set to
-   `https://YOUR_PROJECT_REF.supabase.co`, `publishable_key` set to your
-   Supabase anon/publishable key, and `monthly_report_cron_secret` set to the
-   exact same value as the Edge Function secret.
-6. Run `supabase-schema.sql` again in the SQL Editor. Once the Vault secrets
-   exist, it installs the scheduler. The job checks hourly; the sender only sends on the first day in Kuala Lumpur,
-   and skips any user already sent that month's report. Hourly checks allow
-   retries during that day if the email provider is temporarily unavailable.
+   `ALLOWED_ORIGINS` is **required**: while it is empty every function refuses
+   browser calls. `ADMIN_EMAIL` is the login email of the person who becomes the
+   administrator (see below). Optional: `EMAIL_FROM_NAME`, `EMAIL_DAILY_CAP`,
+   `MONTHLY_REPORT_BATCH` (default 25 per hourly run).
+3. Run the latest `supabase-schema.sql` in the SQL Editor (it adds the confirmed-address
+   columns, the administrator table and the daily counters). **Existing users must
+   confirm their address once**; until they do, no report is sent to them.
+4. Deploy every function (the shared code changed):
 
-Use `cron.job_run_details` in the SQL Editor to inspect scheduled job runs.
-Keep the Resend API key and scheduler secret out of browser `.env`, `config.js`,
-and GitHub Pages secrets. They belong only in Supabase server-side secrets.
+   ```bash
+   npx supabase functions deploy
+   ```
+
+5. Push the site so `email-action.html` (the page behind the email links) is published.
+6. In Supabase **Vault**, store `project_url` (`https://YOUR_PROJECT_REF.supabase.co`),
+   `publishable_key` (the anon/publishable key) and `monthly_report_cron_secret`
+   (exactly the same value as `MONTHLY_REPORT_CRON_SECRET`), then run
+   `supabase-schema.sql` once more to install the hourly scheduler. The job only
+   sends on the 1st in Kuala Lumpur and never sends a user's report twice.
+
+**Test it (administrator).** Sign in with the `ADMIN_EMAIL` account (its email must be
+confirmed) and open **Account**. A card **Administrator: email service** appears; the
+first time, that account is registered as the administrator automatically, and the
+database refuses to register anyone else afterwards. **Send test email to me** sends a
+real message to your own address and shows a checklist of the settings, or exactly
+where it failed: connect, login, sender, recipient or delivery. It can only email the
+administrator, at most 10 times a day.
+To register an administrator by hand instead: run
+`insert into public.app_admins (user_id) select id from auth.users where email = 'you@yourcompany.com';`
+
+Use `cron.job_run_details` in the SQL Editor to inspect scheduled runs. See
+[SECURITY.md](SECURITY.md) for how the email system is protected.
 
 ## 5. Using it on mobile
 

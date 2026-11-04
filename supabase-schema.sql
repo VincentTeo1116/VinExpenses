@@ -251,6 +251,119 @@ create policy "Users can update their own monthly report preference"
   on public.monthly_report_preferences for update using (auth.uid() = user_id)
   with check (auth.uid() = user_id);
 
+-- ---- Confirmed recipients (double opt-in) -----------------------------------
+-- A report is only ever emailed to an address the account holder CONFIRMED by clicking the link in a confirmation
+-- email. verified_email / verified_at / sent_for_month / failed_for_month can only be written by the edge functions
+-- (service role): signed-in users get column-level permission for recipient_email and enabled only.
+alter table public.monthly_report_preferences add column if not exists verified_email text;
+alter table public.monthly_report_preferences add column if not exists verified_at timestamptz;
+alter table public.monthly_report_preferences add column if not exists failed_for_month date;
+alter table public.monthly_report_preferences drop constraint if exists monthly_report_email_length;
+alter table public.monthly_report_preferences
+  add constraint monthly_report_email_length check (char_length(recipient_email) between 6 and 254) not valid;
+alter table public.monthly_report_preferences drop constraint if exists monthly_report_email_chars;
+alter table public.monthly_report_preferences
+  add constraint monthly_report_email_chars check (recipient_email ~ '^[A-Za-z0-9._%+''-]+@[A-Za-z0-9.-]+[.][A-Za-z]{2,}$') not valid;
+
+revoke all on public.monthly_report_preferences from anon, authenticated;
+grant select on public.monthly_report_preferences to authenticated;
+grant insert (user_id, recipient_email, enabled) on public.monthly_report_preferences to authenticated;
+grant update (user_id, recipient_email, enabled, updated_at) on public.monthly_report_preferences to authenticated;
+
+create or replace function public.touch_updated_at() returns trigger language plpgsql as $$
+begin
+  new.updated_at := now();
+  return new;
+end;
+$$;
+drop trigger if exists monthly_report_touch on public.monthly_report_preferences;
+create trigger monthly_report_touch before update on public.monthly_report_preferences
+  for each row execute function public.touch_updated_at();
+
+-- ---- Administrators ----------------------------------------------------------
+-- Nobody can read or change this table from the website. The first administrator is registered by the
+-- admin-email-test function (ADMIN_EMAIL secret) or by running the one-line INSERT shown in SECURITY.md.
+create table if not exists public.app_admins (
+  user_id uuid primary key references auth.users (id) on delete cascade,
+  created_at timestamptz not null default now()
+);
+alter table public.app_admins enable row level security;
+revoke all on public.app_admins from anon, authenticated;
+
+-- Registers p_user as the FIRST administrator, and only if: nobody is an administrator yet, and p_user really is a
+-- confirmed account with exactly this email address. Returns true when it did. Cannot add a second administrator.
+create or replace function public.claim_first_admin(p_user uuid, p_email text)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  added boolean;
+begin
+  perform pg_advisory_xact_lock(7001);
+  if exists (select 1 from public.app_admins) then
+    return false;
+  end if;
+  insert into public.app_admins (user_id)
+  select u.id from auth.users u
+  where u.id = p_user and lower(u.email) = lower(p_email) and u.email_confirmed_at is not null
+  returning true into added;
+  return coalesce(added, false);
+end;
+$$;
+revoke all on function public.claim_first_admin(uuid, text) from public, anon, authenticated;
+grant execute on function public.claim_first_admin(uuid, text) to service_role;
+
+-- ---- Generic daily counters ---------------------------------------------------
+-- Used for email limits (per user, per destination address, whole app) and the nearby-place lookup.
+-- Same pattern as the receipt counters: one atomic statement, so two requests at the same instant cannot both pass.
+create table if not exists public.usage_counters (
+  scope text not null check (char_length(scope) between 1 and 200),
+  day date not null,
+  used integer not null default 0,
+  primary key (scope, day)
+);
+alter table public.usage_counters enable row level security;
+revoke all on public.usage_counters from anon, authenticated;
+
+create or replace function public.consume_quota(p_scope text, p_limit integer)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  today date := (now() at time zone 'utc')::date;
+  allowed boolean;
+begin
+  if p_scope is null or p_limit is null or p_limit < 1 then
+    return false;
+  end if;
+  insert into public.usage_counters as c (scope, day, used)
+  values (p_scope, today, 1)
+  on conflict (scope, day) do update set used = c.used + 1
+    where c.used < p_limit
+  returning true into allowed;
+  -- Old counters are no use after a few days; tidy a few at a time so the table stays small.
+  delete from public.usage_counters where ctid in (select ctid from public.usage_counters where day < today - 3 limit 20);
+  return coalesce(allowed, false);
+end;
+$$;
+revoke all on function public.consume_quota(text, integer) from public, anon, authenticated;
+grant execute on function public.consume_quota(text, integer) to service_role;
+
+-- ---- Stricter values for icons and colours (they end up in HTML) --------------
+-- NOT VALID = checked for every new or changed row, without failing on old rows that were already saved.
+alter table public.user_categories drop constraint if exists user_categories_icon_format;
+alter table public.user_categories add constraint user_categories_icon_format check (icon ~ '^fa-[a-z0-9-]{1,40}$') not valid;
+alter table public.user_categories drop constraint if exists user_categories_color_format;
+alter table public.user_categories add constraint user_categories_color_format check (color ~ '^#[0-9a-fA-F]{3,8}$') not valid;
+alter table public.user_payment_methods drop constraint if exists user_payment_methods_icon_format;
+alter table public.user_payment_methods add constraint user_payment_methods_icon_format check (icon ~ '^fa-[a-z0-9-]{1,40}$') not valid;
+alter table public.user_payment_methods drop constraint if exists user_payment_methods_color_format;
+alter table public.user_payment_methods add constraint user_payment_methods_color_format check (color ~ '^#[0-9a-fA-F]{3,8}$') not valid;
+
 -- Compatibility upgrades for databases created before all current features.
 alter table public.expenses add column if not exists merchant text;
 alter table public.expenses add column if not exists note text;

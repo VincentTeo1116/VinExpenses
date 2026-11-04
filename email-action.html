@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en-MY">
+<head>
+    <meta charset="UTF-8" />
+    <!-- SECURITY: same strict policy as index.html (the deploy narrows the Supabase wildcard to your project).
+         This page is opened from links inside our emails and only ever talks to the email-action function. -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; font-src 'self'; connect-src 'self' https://*.supabase.co; base-uri 'none'; form-action 'none'" />
+    <meta name="referrer" content="no-referrer" />
+    <meta name="robots" content="noindex, nofollow" />
+    <script src="frame-guard.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light dark" />
+    <link rel="icon" href="icon.png" type="image/png" />
+    <title>VinExpenses email</title>
+    <link rel="stylesheet" href="email-action.css" />
+</head>
+<body>
+    <main class="card" aria-live="polite">
+        <img src="icons/icon-192.png" alt="" width="56" height="56" />
+        <h1 id="title">VinExpenses</h1>
+        <p id="message">Loading…</p>
+        <button id="go" type="button" hidden></button>
+    </main>
+    <script src="config.js"></script>
+    <script src="email-action.js"></script>
+</body>
+</html>

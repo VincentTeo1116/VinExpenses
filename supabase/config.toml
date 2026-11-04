@@ -14,3 +14,17 @@ verify_jwt = false
 
 [functions.delete-account]
 verify_jwt = true
+
+# Email confirmation request: signed-in users only.
+[functions.email-verify]
+verify_jwt = true
+
+# The links inside our emails (confirm / unsubscribe) are opened by people who are not signed in to the app and by
+# mail providers' one-click Unsubscribe buttons. They cannot carry a login, so the gateway check is off for this one
+# function only. It is protected instead by signed, expiring, single-purpose tokens (see _shared/email-tokens.ts).
+[functions.email-action]
+verify_jwt = false
+
+# Administrator-only email service test.
+[functions.admin-email-test]
+verify_jwt = true

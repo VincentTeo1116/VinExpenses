@@ -1,3 +1,6 @@
+/* Clickjacking guard (see frame-guard.js): stay blank until the page knows it is the top-level window. */
+html:not([data-top]) body { display: none !important; }
+
 /* ================================================================
    SMART EXPENSE TRACKER — style.css
    One token system (light + dark), mobile-first.
@@ -1161,3 +1164,11 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, *::-webkit-scrollbar { display
     .report-chart-box { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     .report-category-table tr { break-inside: avoid; }
 }
+
+/* Administrator email test */
+.admin-checks { list-style: none; margin: 10px 0 0; padding: 0; font-size: 12.5px; color: var(--muted); }
+.admin-checks li { padding: 3px 0; }
+.admin-checks li.ok::before { content: "¹3  "; color: #16a34a; font-weight: 700; }
+.admin-checks li.bad::before { content: "¹7  "; color: #dc2626; font-weight: 700; }
+.field-hint.error { color: #dc2626; }
+[hidden] { display: none !important; }
