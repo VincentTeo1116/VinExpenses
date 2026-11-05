@@ -74,6 +74,14 @@ Run all checks: `npm test` (also runs before every deploy) and `node tools/vendo
 * **Privacy:** bot chats are not end-to-end encrypted, so the amounts and merchants you type or receive are stored
   by Telegram. Summaries are only sent when the user asks; nothing is pushed.
 
+## 4c. Auto-deploy of the functions
+
+* The workflow runs only on pushes to `main` and manually, **never for pull requests**, so nobody can run code with
+  your Supabase token by opening one. Tests run first; the actions and the Supabase CLI version are pinned.
+* The access token can manage your whole Supabase account. Store it only as a GitHub secret, protect `main`
+  (require a pull request and passing checks) so only reviewed code reaches this workflow, and revoke the token in
+  Supabase if it ever leaks.
+
 ## 5. What only you can do (checklist)
 
 - [ ] Set the secrets listed in README section 4 (`ALLOWED_ORIGINS` is **required**), run `supabase-schema.sql`,

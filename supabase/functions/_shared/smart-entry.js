@@ -79,7 +79,7 @@
         ['travel', 'medium', /\b(?:hotel|resort|airline|flight|toll|plus\s*highway|parking|taxi|e-?hailing|airbnb|homestay)\b/],
         // meals
         ['food', 'high', /\b(?:mcdonald'?s?|kfc|burger\s*king|pizza\s*hut|domino'?s?|subway|sushi\s*king|sushi\s*zanmai|nando'?s?|secret\s*recipe|old\s*town|pappa\s*rich|dim\s*sum|marrybrown|texas\s*chicken|a&w|wendy'?s?|jollibee|mamak|nasi\s*kandar|foodpanda|grab\s*food|grabfood|shopeefood|kopitiam|food\s*court|hawker|warung|medan\s*selera)\b/],
-        ['food', 'medium', /\b(?:restaurant|restoran|bistro|kitchen|bakery|patisserie|noodle|rice|chicken|steak|seafood|laksa|satay|cake|dessert|catering|canteen|cafeteria|dapur|kedai\s*makan)\b/],
+        ['food', 'medium', /\b(?:lunch|dinner|breakfast|brunch|supper|makan|snacks?|mamak|warung|hawker|food\s*court|nasi|mee|roti|restaurant|restoran|bistro|kitchen|bakery|patisserie|noodle|rice|chicken|steak|seafood|laksa|satay|cake|dessert|catering|canteen|cafeteria|dapur|kedai\s*makan)\b/],
         // drinks
         ['beverages', 'high', /\b(?:starbucks|zus\s*coffee|tealive|chatime|gigi\s*coffee|the\s*coffee\s*bean|coffee\s*bean|dd\s*coffee|kenanga\s*coffee|oldtown\s*white|tiger\s*sugar|the\s*alley|xing\s*fu\s*tang|each\s*a\s*cup|koi\s*the|bobabar|dakasi|sharetea|machi\s*machi|ya\s*kun)\b/],
         ['beverages', 'medium', /\b(?:coffee|cafe|café|bubble\s*tea|boba|teh|juice|smoothie|espresso|kopi)\b/],

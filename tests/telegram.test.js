@@ -572,3 +572,72 @@ test('telegramClient: calls the right methods and never leaks the token into log
     assert.ok(logged.length >= 2);
     assert.ok(logged.every((line) => !line.includes('TOKEN')), logged.join('|'));
 });
+
+// ------------------------------------------------------------------ automatic category: knowledge base -> history -> Other
+test('auto category: everyday words and known merchants are filed by the built-in knowledge base', async () => {
+    const { db, tg } = setup();
+    seedChoices(db, A);
+    db.user_categories.push({ user_id: A, category_key: 'car', label: 'Car', active: true, sort_order: 5 });
+    await link(db, tg, 'tok-a', CHAT_A);
+    const cases = [['lunch 12.50', 'food'], ['dinner 30', 'food'], ['petronas 50', 'car'], ['mcdonalds 15.90', 'food']];
+    for (const [text, expected] of cases) {
+        db.expenses.length = 0;
+        await deliver(tg, message(CHAT_A, text));
+        assert.equal(db.expenses[0].category, expected, text);
+        assert.match(tg.last().html, /<i>Auto: /, 'the reply says why');
+    }
+});
+
+test('auto category: the knowledge base comes BEFORE history, and history comes before Other', async () => {
+    const { db, tg } = setup();
+    seedChoices(db, A);
+    for (let i = 0; i < 5; i++) {
+        db.expenses.push({ id: `h${i}`, user_id: A, amount: '9', category: 'shopping', payment: 'bank', merchant: 'McDonalds', created_at: '2026-10-01T00:00:00Z' });
+    }
+    db.expenses.push({ id: 'k1', user_id: A, amount: '4', category: 'shopping', payment: 'bank', merchant: 'Kedai Ali', created_at: '2026-10-02T00:00:00Z' });
+    await link(db, tg, 'tok-a', CHAT_A);
+    await deliver(tg, message(CHAT_A, 'mcdonalds 15'));
+    assert.equal(db.expenses.at(-1).category, 'food', 'known brand wins over the person\'s own (odd) habit');
+    await deliver(tg, message(CHAT_A, 'kedai ali 6'));
+    assert.equal(db.expenses.at(-1).category, 'shopping', 'not in the knowledge base: history decides');
+    assert.match(tg.last().html, /Auto: .*Kedai Ali/i);
+    await deliver(tg, message(CHAT_A, 'zzqx unknown thing 3'));
+    assert.equal(db.expenses.at(-1).category, 'other', 'nothing matches: Other');
+    assert.match(tg.last().html, /filed under Other/);
+});
+
+test('auto category: only categories the person still uses can be chosen', async () => {
+    const { db, tg } = setup();
+    db.user_categories.push(
+        { user_id: A, category_key: 'food', label: 'Food', active: false, sort_order: 1 },
+        { user_id: A, category_key: 'other', label: 'Other', active: true, sort_order: 2 },
+        { user_id: A, category_key: 'pets', label: 'Pets', active: true, sort_order: 3 },
+    );
+    await link(db, tg, 'tok-a', CHAT_A);
+    await deliver(tg, message(CHAT_A, 'lunch 10'));
+    assert.equal(db.expenses.at(-1).category, 'other', 'Food was retired, so a lunch goes to Other, not to a hidden category');
+    await deliver(tg, message(CHAT_A, 'pets snacks 20'));
+    assert.ok(['pets', 'other'].includes(db.expenses.at(-1).category));
+});
+
+test('auto category: correcting a category teaches the next one (history)', async () => {
+    const { db, tg } = setup();
+    seedChoices(db, A);
+    await link(db, tg, 'tok-a', CHAT_A);
+    await deliver(tg, message(CHAT_A, 'zzqx corner 5'));
+    assert.equal(db.expenses[0].category, 'other');
+    await deliver(tg, callback(CHAT_A, `k:${db.expenses[0].id}:1`));            // person picks "Shopping"
+    await deliver(tg, message(CHAT_A, 'zzqx corner 7'));
+    assert.equal(db.expenses[1].category, 'shopping');
+});
+
+test('chooseCategory: handles empty descriptions and bad input without throwing', async () => {
+    const { chooseCategory } = await botModule();
+    const cats = [{ key: 'food', label: 'Food', active: true }, { key: 'other', label: 'Other', active: true }];
+    for (const d of ['', '   ', '<script>', 'x'.repeat(80)]) {
+        const r = await chooseCategory(d, cats, [], 'other');
+        assert.ok(['food', 'other'].includes(r.key), d);
+    }
+    assert.equal((await chooseCategory('lunch', cats, [], 'other')).source, 'knowledge');
+    assert.equal((await chooseCategory('', cats, [], 'other')).source, 'none');
+});

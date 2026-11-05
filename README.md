@@ -388,6 +388,19 @@ list; the reply has **Undo** and **Category** buttons. Commands: `/today`, `/mon
 5. Push the site. In the app open **Account → Telegram → Connect Telegram → Open Telegram
    to finish → Start**. Friends do the same with their own accounts.
 
+**Automatic category.** For every expense you type, the bot picks the category in this order:
+(1) the built-in knowledge base (known Malaysian brands, everyday words such as `lunch`, `petrol`,
+`toll`, and your own category names), (2) your own history (you filed the same place before),
+(3) otherwise **Other**. The reply says which rule it used, and the **Category** button corrects
+it; a correction is remembered for next time.
+
+**Auto-deploy the functions.** `.github/workflows/deploy-functions.yml` redeploys all Supabase
+functions whenever code under `supabase/functions` changes on `main` (after the tests pass).
+One-time: create an access token in Supabase (Account → Access Tokens) and add two repository
+secrets in GitHub (Settings → Secrets and variables → Actions): `SUPABASE_ACCESS_TOKEN` and
+`SUPABASE_PROJECT_REF` (the 20 letters before `.supabase.co`). It does not change database tables:
+run `supabase-schema.sql` yourself when it changes. The Pages workflow still publishes the website.
+
 If it does not answer: `node tools/set-telegram-webhook.js` prints Telegram's
 `last error`, and Edge Functions → telegram-bot → Logs shows what the function saw.
 

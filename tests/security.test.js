@@ -94,6 +94,18 @@ test('deploy workflow: actions pinned to commits, tests + vendor check before de
     assert.match(yml, /^permissions:/m);
 });
 
+test('functions workflow: never runs for pull requests, pins everything, gives the token only to the deploy step', () => {
+    const yml = read('.github/workflows/deploy-functions.yml');
+    assert.ok(!/pull_request/.test(yml), 'a pull request (possibly from a stranger) must never reach the Supabase token');
+    assert.match(yml, /branches: \[main\]/);
+    for (const u of [...yml.matchAll(/uses:\s*(\S+)/g)].map((m) => m[1])) assert.match(u, /@[0-9a-f]{40}$/, `${u} must be pinned to a commit`);
+    assert.match(yml, /supabase@\d+\.\d+\.\d+ functions deploy/, 'exact CLI version, no "latest"');
+    assert.match(yml, /permissions:\s*\n\s*contents: read/);
+    assert.ok(yml.indexOf('node --test') < yml.indexOf('functions deploy'), 'tests run first');
+    assert.equal((yml.match(/secrets\.SUPABASE_ACCESS_TOKEN/g) || []).length, 1, 'the token appears once, in the deploy step only');
+    assert.ok(!/echo[^\n]*\$SUPABASE_ACCESS_TOKEN/.test(yml), 'the token is never printed');
+});
+
 test('pin-csp: narrows the wildcard to one exact project and refuses anything suspicious', () => {
     const { pinCsp, cspOf: cspFrom } = require('../tools/pin-csp.js');
     const html = read('index.html');

@@ -140,15 +140,10 @@ async function addExpense(tg: TelegramClient, link: Link, text: string): Promise
   const lastUsed = activePayments.find((p) => p.key === recent[0]?.payment);
   const payment = (byWord ?? lastUsed ?? activePayments[0])?.key ?? "bank";
 
-  const smart = await loadSmartEntry();
   const activeCategories = categories.filter((c) => c.active);
-  let category = (activeCategories.find((c) => c.key === "other") ?? activeCategories[0])?.key ?? "other";
-  if (smart && parsed.description) {
-    try {
-      const guess = smart.suggestCategory({ merchant: parsed.description, text: parsed.description, memory: smart.buildMerchantMemory(recent), categories });
-      if (guess && activeCategories.some((c) => c.key === guess.key)) category = guess.key;
-    } catch (_error) { /* keep the default category */ }
-  }
+  const fallback = (activeCategories.find((c) => c.key === "other") ?? activeCategories[0])?.key ?? "other";
+  const decision = await chooseCategory(parsed.description, categories, recent, fallback);
+  const category = decision.key;
 
   const created = await rest("expenses", {
     method: "POST",
@@ -159,7 +154,34 @@ async function addExpense(tg: TelegramClient, link: Link, text: string): Promise
   if (!row) return tg.send(link.chat_id, "Sorry, I couldn't save that. Please try again in a moment.");
   await rest(`telegram_links?chat_id=eq.${link.chat_id}`, { method: "PATCH", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ last_expense_id: row.id }) });
   const view = expenseView(row, categories, payments);
-  await tg.send(link.chat_id, view.text, { buttons: view.buttons });
+  await tg.send(link.chat_id, `${view.text}\n<i>${escapeHtml(decision.why)}</i>`, { buttons: view.buttons });
+}
+
+/**
+ * Automatic category, in this order:
+ *   1. the built-in knowledge base (known Malaysian merchants, everyday words like "lunch", "petrol", your own
+ *      category names),
+ *   2. this person's own history (they filed the same place under a category before),
+ *   3. otherwise "Other".
+ * Whatever it picks, the reply says why, and the Category button changes it (which also teaches step 2).
+ */
+export async function chooseCategory(
+  description: string,
+  categories: Choice[],
+  history: { merchant: string | null; category: string }[],
+  fallback: string,
+): Promise<{ key: string; why: string; source: "knowledge" | "history" | "none" }> {
+  const none = { key: fallback, why: "No match found, so it is filed under Other. Tap Category to change it.", source: "none" as const };
+  const smart = await loadSmartEntry();
+  if (!smart || !description) return none;
+  const usable = (key: string) => categories.some((c) => c.active && c.key === key);
+  try {
+    const known = smart.suggestCategory({ merchant: description, text: description, memory: null, categories });
+    if (known && usable(known.key)) return { key: known.key, why: `Auto: ${known.reason}.`, source: "knowledge" };
+    const learned = smart.suggestCategory({ merchant: description, text: description, memory: smart.buildMerchantMemory(history), categories });
+    if (learned && usable(learned.key)) return { key: learned.key, why: `Auto: ${learned.reason}.`, source: "history" };
+  } catch (_error) { /* fall through to Other */ }
+  return none;
 }
 
 async function undoExpense(tg: TelegramClient, link: Link, id: string | null): Promise<string | null> {
