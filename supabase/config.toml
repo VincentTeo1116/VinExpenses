@@ -28,3 +28,12 @@ verify_jwt = false
 # Administrator-only email service test.
 [functions.admin-email-test]
 verify_jwt = true
+
+# Telegram calls this address itself and cannot send a login, so the gateway check is off for this one function.
+# It is protected instead by Telegram's secret header (TELEGRAM_WEBHOOK_SECRET), compared in constant time.
+[functions.telegram-bot]
+verify_jwt = false
+
+# The website's "Connect Telegram" card: signed-in users only.
+[functions.telegram-link]
+verify_jwt = true

@@ -136,12 +136,13 @@ function matchOperator(value, rest) {
     if (rest.startsWith('neq.')) return String(value) !== rest.slice(4);
     if (rest.startsWith('gte.')) return String(value) >= rest.slice(4);
     if (rest.startsWith('lt.')) return String(value) < rest.slice(3);
+    if (rest.startsWith('gt.')) return String(value) > rest.slice(3);
     throw new Error('fake supabase: unsupported operator ' + rest);
 }
 
 function rowMatches(row, params) {
     for (const [key, value] of params) {
-        if (['select', 'order', 'limit', 'offset'].includes(key)) continue;
+        if (['select', 'order', 'limit', 'offset', 'on_conflict'].includes(key)) continue;
         if (key === 'and' || key === 'or') {
             if (!matchCondition(row, `${key}${value}`)) return false;
         } else if (!matchOperator(row[key], value)) return false;
@@ -155,6 +156,7 @@ function fakeSupabase() {
         monthly_report_preferences: [],
         expenses: [], incomes: [], user_categories: [],
         app_admins: [],
+        telegram_links: [], telegram_link_codes: [], telegram_seen: [], user_payment_methods: [],
         counters: new Map(),
         requests: [],
         quotaCalls: [],
@@ -199,6 +201,31 @@ function fakeSupabase() {
         const rows = db[table];
         if (!Array.isArray(rows)) return respond({ message: 'unknown table ' + table }, 404);
         const matched = rows.filter((row) => rowMatches(row, url.searchParams));
+        const filtered = [...url.searchParams.keys()].some((k) => !['select', 'order', 'limit', 'offset', 'on_conflict'].includes(k));
+        const wantsRows = (headers.prefer || '').includes('return=representation');
+        if (method === 'POST') {
+            const pk = { telegram_seen: 'update_id', telegram_links: 'chat_id', telegram_link_codes: 'code_hash' }[table];
+            const inserted = [];
+            for (const item of Array.isArray(body) ? body : [body]) {
+                const row = { ...item };
+                if (table === 'expenses') { row.id = row.id || crypto.randomUUID(); row.created_at = row.created_at || new Date().toISOString(); }
+                const clash = (pk && rows.some((r) => String(r[pk]) === String(row[pk])))
+                    || (table === 'telegram_links' && rows.some((r) => r.user_id === row.user_id));
+                if (clash) {
+                    if ((headers.prefer || '').includes('ignore-duplicates')) continue;
+                    return respond({ code: '23505' }, 409);
+                }
+                rows.push(row);
+                inserted.push(row);
+            }
+            return wantsRows ? respond(inserted, 201) : new Response(null, { status: 201 });
+        }
+        if ((method === 'PATCH' || method === 'DELETE') && !filtered) return respond({ message: 'refusing an unfiltered ' + method }, 400);
+        if (method === 'DELETE') {
+            const removed = matched.slice();
+            rows.splice(0, rows.length, ...rows.filter((row) => !removed.includes(row)));
+            return wantsRows ? respond(removed) : new Response(null, { status: 204 });
+        }
         if (method === 'GET') {
             const offset = Number(url.searchParams.get('offset') || 0);
             const limit = Number(url.searchParams.get('limit') || 1000);
@@ -206,7 +233,7 @@ function fakeSupabase() {
         }
         if (method === 'PATCH') {
             matched.forEach((row) => Object.assign(row, body));
-            return headers.prefer === 'return=representation' ? respond(matched) : new Response(null, { status: 204 });
+            return wantsRows ? respond(matched) : new Response(null, { status: 204 });
         }
         throw new Error('fake supabase: unsupported method ' + method);
     };

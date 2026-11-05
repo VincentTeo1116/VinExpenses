@@ -120,11 +120,33 @@ test('service worker: handles only this site, caches only good same-origin respo
 // ------------------------------------------------------------------ edge functions
 const functions = fs.readdirSync(path.join(root, 'supabase/functions'), { withFileTypes: true }).filter((d) => d.isDirectory() && d.name !== '_shared').map((d) => d.name);
 
-test('every edge function has an explicit entry in config.toml, and only email-action is public', () => {
+test('Telegram: the public webhook proves who is calling, and its tables are server-only', () => {
+    const bot = read('supabase/functions/telegram-bot/handler.ts');
+    assert.match(bot, /safeEqual\(request\.headers\.get\("x-telegram-bot-api-secret-token"\)/);
+    assert.match(bot, /secret\.length < 24/, 'a missing or short secret closes the door, never opens it');
+    assert.ok(bot.indexOf('safeEqual(') < bot.indexOf('request.text()'), 'the secret is checked before the body is read');
+    assert.match(bot, /chat\?\.type !== "private"|chat\.type !== "private"/, 'private chats only');
+    // Every query that reaches user data must be scoped to the linked user (the server key ignores row-level security).
+    for (const [, query] of bot.matchAll(/rest\(`((?:expenses|incomes|user_categories|user_payment_methods)[^`]*)`/g)) {
+        assert.match(query, /user_id=eq\.\$\{q\((link\.user_id|userId)\)\}/, `unscoped query: ${query}`);
+    }
+    const sql = read('supabase-schema.sql');
+    for (const table of ['telegram_links', 'telegram_link_codes', 'telegram_seen']) {
+        assert.match(sql, new RegExp(`alter table public\\.${table} enable row level security`));
+        assert.match(sql, new RegExp(`revoke all on public\\.${table} from anon, authenticated`));
+    }
+    const link = read('supabase/functions/telegram-link/handler.ts');
+    assert.match(link, /requireUser\(request\)/);
+    assert.match(link, /sha256Hex\(/, 'link codes are stored hashed');
+    assert.match(read('tools/set-telegram-webhook.js'), /secret_token/);
+    assert.ok(!/process\.argv/.test(read('tools/set-telegram-webhook.js')), 'the token is never taken from the command line');
+});
+
+test('every edge function has an explicit entry in config.toml, and only the intended ones are public', () => {
     const toml = read('supabase/config.toml');
     const settings = Object.fromEntries([...toml.matchAll(/\[functions\.([a-z-]+)\]\s*\n\s*verify_jwt\s*=\s*(true|false)/g)].map((m) => [m[1], m[2]]));
     for (const name of functions) assert.ok(name in settings, `${name} missing from config.toml`);
-    assert.deepEqual(Object.keys(settings).filter((n) => settings[n] === 'false').sort(), ['email-action', 'monthly-report-email']);
+    assert.deepEqual(Object.keys(settings).filter((n) => settings[n] === 'false').sort(), ['email-action', 'monthly-report-email', 'telegram-bot']);
 });
 
 test('no function allows every website (CORS *) and none builds its own CORS headers', () => {
@@ -136,7 +158,7 @@ test('no function allows every website (CORS *) and none builds its own CORS hea
 });
 
 test('browser-facing functions all sit behind the same guard: allowed website + signed-in user', () => {
-    for (const name of ['receipt-ocr', 'receipt-ai', 'nearby-place', 'delete-account', 'email-verify', 'admin-email-test']) {
+    for (const name of ['receipt-ocr', 'receipt-ai', 'nearby-place', 'delete-account', 'email-verify', 'admin-email-test', 'telegram-link']) {
         const code = read(`supabase/functions/${name}/${fs.existsSync(path.join(root, `supabase/functions/${name}/handler.ts`)) ? 'handler' : 'index'}.ts`);
         assert.match(code, /preflight\(request\)/, `${name}: preflight`);
         assert.match(code, /requireUser\(request\)/, `${name}: requireUser`);

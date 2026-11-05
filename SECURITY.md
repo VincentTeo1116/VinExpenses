@@ -55,6 +55,25 @@ Run all checks: `npm test` (also runs before every deploy) and `node tools/vendo
   address only (10/day). The first administrator is the confirmed account matching `ADMIN_EMAIL`, registered
   once by the database itself; nobody can be added afterwards through the app.
 
+## 4b. Telegram bot
+
+* **The door:** `telegram-bot` is public (Telegram cannot log in), so it checks Telegram's secret header
+  (`TELEGRAM_WEBHOOK_SECRET`, 24+ characters, constant-time comparison) before reading anything, and refuses to run
+  at all if the secret or token is missing.
+* **Linking:** only a signed-in user can create a code: 10 unambiguous characters, valid 10 minutes, single use
+  (deleting the row *is* the check), stored only as a hash, one live code per account, and a limit on wrong guesses
+  per chat. A chat can belong to one account and an account to one chat; nobody can take over a linked chat.
+* **Isolation between friends:** the bot reaches the database with the server key, which ignores row-level
+  security, so every query is scoped to the linked user id, and a test fails if one is not. Button presses carry an
+  expense id, but the delete/update still filters by the owner, so a guessed id from another chat does nothing.
+* **Abuse limits:** private chats only; 300 messages and 100 saved expenses per chat per day; amounts 0.01 to
+  1,000,000; messages capped at 500 characters; control and invisible characters stripped; everything shown back is
+  HTML-escaped; repeated deliveries of the same Telegram update are ignored.
+* **Secrets:** the bot token exists only as a Supabase secret and in your shell while registering the webhook. It is
+  never logged (Telegram's API address contains it, so errors are logged without the address).
+* **Privacy:** bot chats are not end-to-end encrypted, so the amounts and merchants you type or receive are stored
+  by Telegram. Summaries are only sent when the user asks; nothing is pushed.
+
 ## 5. What only you can do (checklist)
 
 - [ ] Set the secrets listed in README section 4 (`ALLOWED_ORIGINS` is **required**), run `supabase-schema.sql`,
@@ -65,6 +84,7 @@ Run all checks: `npm test` (also runs before every deploy) and `node tools/vendo
       hCaptcha) and rate limits; consider MFA for your own account.
 - [ ] Supabase Auth also sends sign-up/reset emails. The built-in sender only delivers to team members; under
       Authentication → SMTP Settings enter `smtp.gmail.com`, port `465`, the same Gmail address and app password.
+- [ ] Create the Telegram bot token in BotFather yourself and never paste it into a chat; if it leaks, `/revoke` it in BotFather and set the new one.
 - [ ] Rotate anything that was ever pasted into a chat or committed: the Telegram bot token and WAQI key from the
       weather-bot project, and delete its `secrets.json`. Revoke and re-create the Gmail app password if it was
       ever shared.

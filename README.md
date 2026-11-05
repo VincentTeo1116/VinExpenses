@@ -344,6 +344,53 @@ To register an administrator by hand instead: run
 Use `cron.job_run_details` in the SQL Editor to inspect scheduled runs. See
 [SECURITY.md](SECURITY.md) for how the email system is protected.
 
+## 4b. Telegram bot (add expenses by chatting)
+
+Each person (you and your friends) signs in to the app and connects **their own**
+Telegram chat; the bot then adds, reads and removes only that person's expenses.
+
+In the chat: type `lunch 12.50`, `grab rm8.90 ewallet` or `7-eleven 5.50 card`. The
+category is guessed from your own history first, then the built-in Malaysian merchant
+list; the reply has **Undo** and **Category** buttons. Commands: `/today`, `/month`,
+`/undo`, `/unlink`, `/help`. (Photos of receipts are not supported yet.)
+
+**One-time setup**
+
+1. In Telegram open **@BotFather** → `/newbot` → choose a name and a username ending in
+   `bot` (for example `VinExpenses_bot`). Use a **new** bot, not the weather bot.
+   BotFather gives you a token. Treat it like a password: never paste it into a chat,
+   a commit or the website.
+2. Store the secrets (PowerShell). The webhook secret is a random string only Telegram
+   and your function know:
+
+   ```powershell
+   $wh = node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+   npx supabase secrets set TELEGRAM_BOT_TOKEN="<token from BotFather>" TELEGRAM_WEBHOOK_SECRET=$wh TELEGRAM_BOT_USERNAME=VinExpenses_bot
+   ```
+3. Run the latest `supabase-schema.sql` (adds the three Telegram tables), then deploy:
+
+   ```powershell
+   npx supabase functions deploy telegram-bot telegram-link
+   ```
+
+   `telegram-bot` must have **Enforce JWT verification OFF** (Telegram cannot send a
+   login). `supabase/config.toml` already says so; confirm it under Edge Functions →
+   telegram-bot → Details. (If it shows ON, redeploy with `--no-verify-jwt`.)
+4. Tell Telegram where to send messages (this also sets the command menu). The token
+   is read from the environment, never from the command line:
+
+   ```powershell
+   $env:TELEGRAM_BOT_TOKEN = "<token from BotFather>"
+   $env:TELEGRAM_WEBHOOK_SECRET = $wh
+   $env:SUPABASE_URL = "https://YOURREF.supabase.co"
+   node tools/set-telegram-webhook.js
+   ```
+5. Push the site. In the app open **Account → Telegram → Connect Telegram → Open Telegram
+   to finish → Start**. Friends do the same with their own accounts.
+
+If it does not answer: `node tools/set-telegram-webhook.js` prints Telegram's
+`last error`, and Edge Functions → telegram-bot → Logs shows what the function saw.
+
 ## 5. Using it on mobile
 
 **A. Install as a PWA.** Once hosted (e.g. GitHub Pages), open the site on your

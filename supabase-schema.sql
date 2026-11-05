@@ -480,3 +480,36 @@ $$;
 
 revoke all on function public.consume_receipt_quota(uuid, text, integer) from public, anon, authenticated;
 grant execute on function public.consume_receipt_quota(uuid, text, integer) to service_role;
+
+
+-- ================================================================
+-- Telegram bot (functions telegram-bot and telegram-link)
+-- None of these tables can be read or changed from the website or by other users: RLS is on and nobody but the
+-- server (service role) has any permission. Safe to run more than once.
+-- ================================================================
+create table if not exists public.telegram_links (
+  chat_id bigint primary key,
+  user_id uuid not null unique references auth.users (id) on delete cascade,
+  last_expense_id uuid,
+  linked_at timestamptz not null default now()
+);
+alter table public.telegram_links enable row level security;
+revoke all on public.telegram_links from anon, authenticated;
+
+-- One-time link codes, stored as a hash (never the code itself). Deleted when used or expired.
+create table if not exists public.telegram_link_codes (
+  code_hash text primary key,
+  user_id uuid not null references auth.users (id) on delete cascade,
+  expires_at timestamptz not null
+);
+create index if not exists telegram_link_codes_user_idx on public.telegram_link_codes (user_id);
+alter table public.telegram_link_codes enable row level security;
+revoke all on public.telegram_link_codes from anon, authenticated;
+
+-- Telegram re-sends a message if it thinks we missed it; remembering update ids stops an expense being added twice.
+create table if not exists public.telegram_seen (
+  update_id bigint primary key,
+  seen_at timestamptz not null default now()
+);
+alter table public.telegram_seen enable row level security;
+revoke all on public.telegram_seen from anon, authenticated;

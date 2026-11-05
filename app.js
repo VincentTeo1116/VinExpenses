@@ -588,6 +588,7 @@ async function loadMonthlyReportPreference() {
     setReportPreferenceStatus(enabledInput.checked ? 'Monthly reports are enabled.' : 'Reports are off until you turn them on.');
     renderReportVerification();
     loadAdminStatus();
+    loadTelegramStatus();
 }
 
 // Reports are only emailed to an address the person confirmed by clicking the link in a confirmation email.
@@ -636,6 +637,70 @@ $('verifyReportEmailBtn').addEventListener('click', async () => {
     }
     setReportPreferenceStatus('Confirmation email sent. Open it and press the button inside (valid for 48 hours). Check your spam folder too.');
     showToast('success', 'Confirmation email sent');
+});
+
+// ---- Telegram connection ----
+async function telegramCall(action) {
+    const { data, error } = await supabaseClient.functions.invoke('telegram-link', { body: { action } });
+    if (error) throw new Error(await functionErrorMessage(error, 'Telegram is not available right now.'));
+    return data;
+}
+
+function setTelegramStatus(message, isError = false) {
+    const status = $('telegramStatus');
+    status.textContent = message;
+    status.classList.toggle('error', !!isError);
+}
+
+function renderTelegram(linked) {
+    $('telegramConnectBtn').hidden = linked;
+    $('telegramUnlinkBtn').hidden = !linked;
+    $('telegramOpenLink').hidden = true;
+    setTelegramStatus(linked ? 'Connected. Chat with the bot to add expenses, or send /today and /month.' : 'Not connected.');
+}
+
+async function loadTelegramStatus() {
+    if (!supabaseClient || !currentUser || !navigator.onLine) { setTelegramStatus('Connect to the internet to manage Telegram.'); return; }
+    try {
+        renderTelegram((await telegramCall('status')).linked);
+    } catch (err) {
+        $('telegramConnectBtn').hidden = true;
+        $('telegramUnlinkBtn').hidden = true;
+        setTelegramStatus(err.message, true);
+    }
+}
+
+$('telegramConnectBtn').addEventListener('click', async () => {
+    if (!supabaseClient || !currentUser || !navigator.onLine) return showToast('error', 'Connect to the internet first.');
+    const button = $('telegramConnectBtn');
+    setBusy(button, true, 'Creating code...');
+    try {
+        const data = await telegramCall('create');
+        // Only ever open a genuine t.me start link with a well-formed code.
+        if (!/^https:\/\/t\.me\/[A-Za-z0-9_]{5,32}\?start=[A-Z2-9]{10}$/.test(String(data.link))) throw new Error('Unexpected answer from the server.');
+        const open = $('telegramOpenLink');
+        open.href = data.link;
+        open.hidden = false;
+        setTelegramStatus('Tap “Open Telegram to finish” and press Start. The code works once, for 10 minutes. Then come back and reopen Account to see “Connected”.');
+    } catch (err) {
+        setTelegramStatus(err.message, true);
+    } finally {
+        setBusy(button, false);
+    }
+});
+
+$('telegramUnlinkBtn').addEventListener('click', async () => {
+    if (!supabaseClient || !currentUser || !navigator.onLine) return showToast('error', 'Connect to the internet first.');
+    const button = $('telegramUnlinkBtn');
+    setBusy(button, true, 'Disconnecting...');
+    try {
+        renderTelegram((await telegramCall('unlink')).linked);
+        showToast('success', 'Telegram disconnected');
+    } catch (err) {
+        setTelegramStatus(err.message, true);
+    } finally {
+        setBusy(button, false);
+    }
 });
 
 // ---- Administrator-only email service test ----
@@ -2703,6 +2768,7 @@ function resetSession() {
     budgets = [];
     monthlyReportPreference = null;
     adminCheckedFor = null;
+    $('telegramOpenLink').hidden = true;
     $('adminEmailSection').hidden = true;
     $('adminEmailChecks').replaceChildren();
     setAdminStatus('', false);
