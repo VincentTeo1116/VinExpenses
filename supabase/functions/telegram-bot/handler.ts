@@ -24,16 +24,8 @@ import { loadSmartEntry } from "../_shared/smart-entry-loader.ts";
 import { extractDate } from "../_shared/tg-dates.ts";
 import { bar, emojiFor, escapeHtml, type Lang, RULE, ringgit, truncate } from "../_shared/tg-format.ts";
 import { asLang, dayLabel, LANG_NAMES, LANGS, menuAction, menuKeyboard, tr } from "../_shared/tg-i18n.ts";
-import {
-  aggregate,
-  budgetUsage,
-  loadBudgets,
-  loadExpenses,
-  loadIncomeTotal,
-  renderMonth,
-  renderToday,
-  renderTop,
-} from "../_shared/tg-reports.ts";
+import { aggregate, budgetUsage, loadBudgets, loadExpenses } from "../_shared/tg-reports.ts";
+import { buildView, MAX_OFFSET, pagerButtons, type ViewKind, type ViewResult } from "../_shared/tg-views.ts";
 import {
   CODE_PATTERN,
   type InlineButton,
@@ -616,34 +608,76 @@ async function linkAccount(tg: TelegramClient, chatId: number, rawCode: string, 
   await tg.send(chatId, tr(guessLang, "onboard"), { keyboard: menuKeyboard(guessLang) });
 }
 
-async function sendMonthViews(tg: TelegramClient, link: Link, kind: "today" | "month" | "top", now: Date): Promise<void> {
+// ---------------------------------------------------------------- reports: Today / Week / Month / Top
+
+/**
+ * Shows a report. Week and Month are a picture with a caption; Today and Top are text. Every report carries the same
+ * navigation buttons. When a button is pressed (`existing`), the SAME message is updated in place if the new view is
+ * the same kind (picture to picture, text to text); otherwise the new view is sent and the old message removed.
+ * Fallbacks: a picture that cannot be drawn or sent becomes the text report; an edit that fails becomes a new message.
+ * Returns a short pop-up text when something worth telling the person happened.
+ */
+async function showView(
+  tg: TelegramClient, link: Link, view: ViewKind, offset: number, now: Date, existing?: { messageId: number; isPhoto: boolean },
+): Promise<string | undefined> {
   const lang = link.lang;
-  await safe(() => tg.action(link.chat_id), undefined);
-  const { categories } = await loadChoices(link.user_id);
-  const labels = labeller(categories);
-  const options = siteRow(lang).length ? { buttons: siteRow(lang) } : undefined;
-  if (kind === "today") {
-    const win = klWindow("day", now);
-    const agg = aggregate(await loadExpenses(link.user_id, win.start, win.end));
-    await tg.send(link.chat_id, renderToday({ lang, now, agg, labels }), options);
+  const chat = link.chat_id;
+  if (!(await takeQuota(`tg-view:${chat}`, 300))) {
+    if (existing) return plainText(tr(lang, "view_limit"));
+    await tg.send(chat, tr(lang, "view_limit"));
     return;
   }
-  const win = klWindow("month", now);
-  const monthStart = new Date(new Date(win.start).getTime() + 12 * 3600_000); // inside the month, whatever the time zone
-  const agg = aggregate(await loadExpenses(link.user_id, win.start, win.end));
-  if (kind === "top") {
-    await tg.send(link.chat_id, renderTop({ lang, monthStart, agg, labels }), options);
+  await safe(() => tg.action(chat), undefined);
+  let result: ViewResult;
+  try {
+    const { categories } = await loadChoices(link.user_id);
+    result = await buildView({ userId: link.user_id, lang, now, view, offset, labels: labeller(categories) });
+  } catch (_error) {
+    if (existing) return plainText(tr(lang, "view_failed"));
+    await tg.send(chat, tr(lang, "went_wrong"));
     return;
   }
-  const lastMonthMid = new Date(new Date(win.start).getTime() - 12 * 3600_000);
-  const lastWin = klWindow("month", lastMonthMid);
-  const [previous, income, budgets] = await Promise.all([
-    safe(async () => aggregate(await loadExpenses(link.user_id, lastWin.start, lastWin.end)), null),
-    safe(() => loadIncomeTotal(link.user_id, win.start, win.end), 0),
-    safe(() => loadBudgets(link.user_id), []),
-  ]);
-  await tg.send(link.chat_id, renderMonth({ lang, monthStart, agg, previous: previous && previous.count ? previous : null, income, budgets: budgetUsage(budgets, agg), labels }), options);
+  const siteUrl = cleanSiteUrl(env("SITE_URL"));
+  const photo = result.kind === "photo" && result.png ? result.png : null;
+  const buttons = pagerButtons(lang, view, offset, { details: photo !== null, siteUrl });
+
+  // A new message: the picture if there is one, otherwise (or if Telegram refuses it) the complete text report.
+  const sendNew = async (): Promise<number | null> => {
+    if (photo) {
+      const id = await safe(() => tg.sendPhoto(chat, photo, result.text, { buttons }), null);
+      if (typeof id === "number") return id;
+      const textButtons = pagerButtons(lang, view, offset, { details: false, siteUrl });
+      return (await tg.send(chat, result.full, { buttons: textButtons })) ?? null;
+    }
+    return (await tg.send(chat, result.text, { buttons })) ?? null;
+  };
+
+  if (!existing) { await sendNew(); return; }
+  if (photo && existing.isPhoto) {
+    if (await safe(() => tg.editPhoto(chat, existing.messageId, photo, result.text, { buttons }), false)) return;
+  } else if (!photo && !existing.isPhoto) {
+    await tg.edit(chat, existing.messageId, result.text, { buttons });
+    return;
+  }
+  // A different kind of message (or the edit failed): send the new view, and only then remove the old one.
+  const id = await sendNew();
+  if (id !== null) await safe(() => tg.remove(chat, existing.messageId), undefined);
 }
+
+/** The complete text version of a picture report (the Details button): a new message, so the picture stays. */
+async function showDetails(tg: TelegramClient, link: Link, view: ViewKind, offset: number, now: Date): Promise<string | undefined> {
+  const lang = link.lang;
+  if (!(await takeQuota(`tg-view:${link.chat_id}`, 300))) return plainText(tr(lang, "view_limit"));
+  try {
+    const { categories } = await loadChoices(link.user_id);
+    const result = await buildView({ userId: link.user_id, lang, now, view, offset, labels: labeller(categories) });
+    await tg.send(link.chat_id, result.full);
+  } catch (_error) {
+    return plainText(tr(lang, "view_failed"));
+  }
+}
+
+const VIEW_OF_COMMAND: Record<string, ViewKind> = { today: "d", week: "w", month: "m", top: "p" };
 
 async function sendRecent(tg: TelegramClient, link: Link, messageId?: number): Promise<void> {
   const lang = link.lang;
@@ -710,7 +744,7 @@ async function onText(tg: TelegramClient, chatId: number, rawText: string, now: 
   if (name) await clearPending(chatId); // any other command abandons "send me the amount"
 
   switch (name) {
-    case "today": case "month": case "top": return sendMonthViews(tg, link, name, now);
+    case "today": case "week": case "month": case "top": await showView(tg, link, VIEW_OF_COMMAND[name], 0, now); return;
     case "recent": return sendRecent(tg, link);
     case "add": return sendAddPrompt(tg, link);
     case "settings": return sendSettings(tg, link);
@@ -774,7 +808,7 @@ async function onText(tg: TelegramClient, chatId: number, rawText: string, now: 
 interface CallbackQuery {
   id?: string;
   data?: string;
-  message?: { message_id?: number; chat?: { id?: number; type?: string } };
+  message?: { message_id?: number; chat?: { id?: number; type?: string }; photo?: unknown[] };
 }
 
 /** Runs a button press and always acknowledges it; the returned text (if any) pops up as a small toast. */
@@ -838,6 +872,21 @@ async function runCallback(tg: TelegramClient, cb: CallbackQuery, now: Date): Pr
         await sendSettings(tg, link, msg);
         return;
     }
+  }
+
+  // ---- report navigation: n:<view>:<offset> switches or pages in place, n:f<view>:<offset> shows the full text
+  const nav = /^n:([dwmp]):(\d{1,3})$/.exec(data);
+  if (nav) {
+    const kind = nav[1] as ViewKind;
+    const offset = Number(nav[2]);
+    if (offset > MAX_OFFSET[kind]) return;
+    return await showView(tg, link, kind, offset, now, { messageId: msg, isPhoto: Array.isArray(cb.message?.photo) && cb.message!.photo!.length > 0 });
+  }
+  const more = /^n:f([wm]):(\d{1,3})$/.exec(data);
+  if (more) {
+    const kind = more[1] as ViewKind;
+    if (Number(more[2]) > MAX_OFFSET[kind]) return;
+    return await showDetails(tg, link, kind, Number(more[2]), now);
   }
 
   // ---- receipt confirmation

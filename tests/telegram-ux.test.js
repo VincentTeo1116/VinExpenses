@@ -29,7 +29,7 @@ const RECEIPT = fs.readFileSync(path.join(__dirname, 'fixtures/grab-food-2-trunc
 function assertTelegramHtml(text, where = '') {
     const stack = [];
     for (const m of text.matchAll(/<(\/?)([a-z]+)((?: expandable)?)>/g)) {
-        assert.ok(['b', 'i', 'code', 'blockquote'].includes(m[2]), `${where}: tag <${m[2]}>`);
+        assert.ok(['b', 'i', 'code', 'pre', 'blockquote'].includes(m[2]), `${where}: tag <${m[2]}>`);
         if (m[3]) assert.equal(m[2], 'blockquote', `${where}: "expandable" only belongs on blockquote`);
         if (m[1]) assert.equal(stack.pop(), m[2], `${where}: closing </${m[2]}> does not match`);
         else stack.push(m[2]);
@@ -443,11 +443,12 @@ test('settings: junk and stranger presses are ignored', async () => {
 test('open button: "Open VinExpenses" appears on reports and settings only when SITE_URL is a clean https address', async () => {
     const withSite = await linked({ SITE_URL: 'https://me.github.io/VinExpenses/' });
     await deliver(withSite.tg, message(CHAT_A, '/month'));
-    assert.deepEqual(withSite.tg.last().buttons, [[{ text: '🔗 Open VinExpenses', url: 'https://me.github.io/VinExpenses' }]]);
+    const openButtons = (m) => (m.buttons ?? []).flat().filter((b) => b.url);
+    assert.deepEqual(openButtons(withSite.tg.last()), [{ text: '🔗 Open VinExpenses', url: 'https://me.github.io/VinExpenses' }]);
     await deliver(withSite.tg, message(CHAT_A, '/today'));
-    assert.ok(withSite.tg.last().buttons);
+    assert.equal(openButtons(withSite.tg.last()).length, 1);
     await deliver(withSite.tg, message(CHAT_A, '/top'));
-    assert.ok(withSite.tg.last().buttons);
+    assert.equal(openButtons(withSite.tg.last()).length, 1);
     await deliver(withSite.tg, message(CHAT_A, '/settings'));
     assert.ok(withSite.tg.last().buttons.flat().some((b) => b.url));
     delete globalThis.Deno;
@@ -455,7 +456,7 @@ test('open button: "Open VinExpenses" appears on reports and settings only when 
     for (const bad of [undefined, 'http://me.github.io', 'javascript:alert(1)', 'https://user:pw@evil.example', 'not a url']) {
         const ctx = await linked({ SITE_URL: bad });
         await deliver(ctx.tg, message(CHAT_A, '/month'));
-        assert.equal(ctx.tg.last().buttons, undefined, `SITE_URL=${bad}`);
+        assert.equal((ctx.tg.last().buttons ?? []).flat().filter((b) => b.url).length, 0, `SITE_URL=${bad}`);
         await deliver(ctx.tg, message(CHAT_A, '/settings'));
         assert.ok(!ctx.tg.last().buttons.flat().some((b) => b.url), `settings, SITE_URL=${bad}`);
         delete globalThis.Deno;

@@ -40,7 +40,7 @@ function setup(extraEnv = {}) {
         return db.fetch(input, init);
     };
     // A recording Telegram that behaves like the real one: messages get ids, edits keep them, buttons can be toasts.
-    const tg = { sent: [], edited: [], answered: [], reactions: [], actions: [], file: null, checkedResult: 'ok', noIds: false, throwOn: new Set() };
+    const tg = { sent: [], edited: [], answered: [], reactions: [], actions: [], removed: [], file: null, checkedResult: 'ok', noIds: false, throwOn: new Set() };
     let seq = 0;
     let nextId = 900;
     const maybeThrow = (name) => { if (tg.throwOn.has(name)) throw new Error(`${name} failed`); };
@@ -59,6 +59,25 @@ function setup(extraEnv = {}) {
         react: async (chatId, messageId, emoji) => { maybeThrow('react'); tg.reactions.push({ chatId, messageId, emoji }); },
         action: async (chatId) => { maybeThrow('action'); tg.actions.push(chatId); },
         sendChecked: async (chatId, html, options) => { tg.sent.push({ seq: ++seq, chatId, html, buttons: options?.buttons, checked: true }); return tg.checkedResult; },
+        sendPhoto: async (chatId, png, caption, options) => {
+            maybeThrow('sendPhoto');
+            if (tg.photoFails) return null;
+            const id = tg.noIds ? null : ++nextId;
+            tg.sent.push({ seq: ++seq, chatId, html: caption, buttons: options?.buttons, photo: true, png, id });
+            return id ?? 0;
+        },
+        sendPhotoChecked: async (chatId, png, caption, options) => {
+            maybeThrow('sendPhoto');
+            tg.sent.push({ seq: ++seq, chatId, html: caption, buttons: options?.buttons, photo: true, png, checked: true });
+            return tg.checkedPhotoResult || tg.checkedResult;
+        },
+        editPhoto: async (chatId, messageId, png, caption, options) => {
+            maybeThrow('editPhoto');
+            if (tg.editPhotoFails) return false;
+            tg.edited.push({ seq: ++seq, chatId, messageId, html: caption, buttons: options?.buttons, photo: true, png });
+            return true;
+        },
+        remove: async (chatId, messageId) => { maybeThrow('remove'); tg.removed.push({ chatId, messageId }); },
         fileBytes: async () => (tg.file ? tg.file : { error: 'failed' }),
     };
     // The newest thing the person can see: a new message or an edited one.

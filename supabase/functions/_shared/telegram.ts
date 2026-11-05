@@ -25,6 +25,14 @@ export interface TelegramClient {
   react(chatId: number, messageId: number, emoji: string): Promise<void>;
   /** Shows "typing…" while the bot works. */
   action(chatId: number): Promise<void>;
+  /** Sends a picture with a caption (max 1,024 characters). Returns the message id, or null if Telegram refused it. */
+  sendPhoto(chatId: number, png: Uint8Array, caption: string, options?: SendOptions): Promise<number | null>;
+  /** Like sendPhoto, but says what happened ("blocked" = the person blocked the bot). */
+  sendPhotoChecked(chatId: number, png: Uint8Array, caption: string, options?: SendOptions): Promise<"ok" | "blocked" | "failed">;
+  /** Replaces the picture and caption of a photo message in place. Returns false if Telegram refused. */
+  editPhoto(chatId: number, messageId: number, png: Uint8Array, caption: string, options?: SendOptions): Promise<boolean>;
+  /** Deletes one of the bot's own messages (best effort). */
+  remove(chatId: number, messageId: number): Promise<void>;
   /** Downloads a photo/file the user sent. `too_large` when it is bigger than maxBytes, `failed` for anything else. */
   fileBytes(fileId: string, maxBytes: number): Promise<{ bytes: Uint8Array } | { error: "too_large" | "failed" }>;
 }
@@ -42,7 +50,7 @@ export function stripTags(html: string): string {
  * formatting problem can make a message less pretty but never make it disappear.
  */
 export function telegramClient(token: string, fetchImpl: typeof fetch = fetch): TelegramClient {
-  type Outcome = { ok: boolean; status: number; result?: { message_id?: number } };
+  type Outcome = { ok: boolean; status: number; result?: { message_id?: number }; notModified?: boolean };
   const post = async (method: string, payload: Record<string, unknown>): Promise<{ outcome: Outcome; description: string }> => {
     try {
       const response = await fetchImpl(`https://api.telegram.org/bot${token}/${method}`, {
@@ -69,6 +77,42 @@ export function telegramClient(token: string, fetchImpl: typeof fetch = fetch): 
       console.error(outcome.status === 0 ? `telegram ${method} failed (network)` : `telegram ${method} failed with status ${outcome.status}`);
     }
     return outcome;
+  };
+
+  // ---- pictures (multipart upload). The same plain-text safety net as for messages applies to captions.
+  const photoBlob = (png: Uint8Array) => new Blob([png.buffer.slice(png.byteOffset, png.byteOffset + png.byteLength) as ArrayBuffer], { type: "image/png" });
+  const postForm = async (method: string, build: (caption: (html: string) => string, parseMode: boolean) => FormData, caption: string): Promise<Outcome> => {
+    const attempt = async (plain: boolean) => {
+      try {
+        const response = await fetchImpl(`https://api.telegram.org/bot${token}/${method}`, {
+          method: "POST",
+          body: build((html) => (plain ? stripTags(html).slice(0, 1000) : html), !plain),
+          signal: AbortSignal.timeout(15000),
+        });
+        const data = await response.json().catch(() => ({}));
+        return { outcome: { ok: response.ok, status: response.status, result: data?.result } as Outcome, description: String(data?.description ?? "") };
+      } catch (_error) {
+        return { outcome: { ok: false, status: 0 } as Outcome, description: "network" };
+      }
+    };
+    let { outcome, description } = await attempt(false);
+    if (!outcome.ok && outcome.status === 400 && /parse entities|unsupported start tag|caption is too long/i.test(description) && caption) {
+      ({ outcome, description } = await attempt(true));
+    }
+    outcome.notModified = /not modified/i.test(description);
+    if (!outcome.ok && !outcome.notModified) {
+      console.error(outcome.status === 0 ? `telegram ${method} failed (network)` : `telegram ${method} failed with status ${outcome.status}`);
+    }
+    return outcome;
+  };
+  const photoForm = (chatId: number, png: Uint8Array, options?: SendOptions) => (caption: (html: string) => string, parseMode: boolean, text: string) => {
+    const form = new FormData();
+    form.append("chat_id", String(chatId));
+    form.append("photo", photoBlob(png), "chart.png");
+    form.append("caption", caption(text));
+    if (parseMode) form.append("parse_mode", "HTML");
+    if (options?.buttons) form.append("reply_markup", JSON.stringify({ inline_keyboard: options.buttons }));
+    return form;
   };
 
   const markup = (options?: SendOptions) => {
@@ -107,6 +151,29 @@ export function telegramClient(token: string, fetchImpl: typeof fetch = fetch): 
     },
     async action(chatId) {
       await call("sendChatAction", { chat_id: chatId, action: "typing" });
+    },
+    async sendPhoto(chatId, png, caption, options) {
+      const outcome = await postForm("sendPhoto", (c, parse) => photoForm(chatId, png, options)(c, parse, caption), caption);
+      return outcome.ok && Number.isSafeInteger(outcome.result?.message_id) ? (outcome.result!.message_id as number) : null;
+    },
+    async sendPhotoChecked(chatId, png, caption, options) {
+      const outcome = await postForm("sendPhoto", (c, parse) => photoForm(chatId, png, options)(c, parse, caption), caption);
+      return outcome.ok ? "ok" : outcome.status === 403 ? "blocked" : "failed";
+    },
+    async editPhoto(chatId, messageId, png, caption, options) {
+      const outcome = await postForm("editMessageMedia", (c, parse) => {
+        const form = new FormData();
+        form.append("chat_id", String(chatId));
+        form.append("message_id", String(messageId));
+        form.append("media", JSON.stringify({ type: "photo", media: "attach://photo", caption: c(caption), ...(parse ? { parse_mode: "HTML" } : {}) }));
+        form.append("photo", photoBlob(png), "chart.png");
+        if (options?.buttons) form.append("reply_markup", JSON.stringify({ inline_keyboard: options.buttons }));
+        return form;
+      }, caption);
+      return outcome.ok || outcome.notModified === true; // pressing a button that changes nothing is fine
+    },
+    async remove(chatId, messageId) {
+      await call("deleteMessage", { chat_id: chatId, message_id: messageId });
     },
     async fileBytes(fileId, maxBytes) {
       try {

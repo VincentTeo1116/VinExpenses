@@ -240,13 +240,14 @@ test('/month shows income, spending, savings, last-month trend, categories and b
     assert.match(month, /Spent\s+<b>RM\s?350\.00<\/b>\s+🔺 100% <i>vs last month/);
     assert.match(month, /Net\s+<b>RM\s?2,650\.00/);
     assert.match(month, /Saved\s+▰▰▰▰▰▰▰▰▰▱ <b>88%/);
-    assert.match(month, /🍜 Food\s+▰▰▰▰▰▰▰▰▰▱ 86%/);
+    assert.match(month, /🟦 🍜 Food\s+<b>RM\s300\.00<\/b> · 86%/, 'legend: coloured square matches the donut slice');
     assert.match(month, /🟢 🍜 Food\s+▰▰▰▰▰▰▰▰▱▱ <b>75%/);
     await deliver(tg, message(CHAT_A, '/top'));
     const top = tg.last().html;
-    assert.match(top, /🥇 🍜 Food/);
-    assert.match(top, /🥇 Cafe\s+<b>RM\s?300\.00<\/b>\s+<i>×2<\/i>/, 'the same place in different letter case counts once');
-    assert.match(top, /🥈 Mall/);
+    assert.match(top, /<pre>/);
+    assert.match(top, /1\s+Food\s+RM\s300\.00\s+86%/);
+    assert.match(top, /1\s+Cafe ×2\s+RM\s300\.00/, 'the same place in different letter case counts once');
+    assert.match(top, /2\s+Mall\s+RM\s50\.00/);
 });
 
 // ------------------------------------------------------------------ language
@@ -501,7 +502,7 @@ test('weekly summary: sends the right numbers to opted-in people only, once per 
     const text = tg.sent[0].html;
     assert.match(text, /Your week<\/b> · 2 Nov – 8 Nov/);
     assert.match(text, /Spent\s+<b>RM\s?80\.00<\/b>\s+🔺 100% <i>vs last week/);
-    assert.match(text, /Biggest\s+<b>RM\s?50\.00<\/b> · Cafe/);
+    assert.match(text, /Biggest day: <b>Tue 3<\/b> · RM\s?50\.00/);
     assert.match(text, /🍜 food/);
     assert.ok(!/999/.test(text), 'Monday 9 Nov belongs to next week');
     assert.equal(db.telegram_links[0].last_digest_week, '2026-11-09');

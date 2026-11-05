@@ -394,6 +394,23 @@ list; the reply has **Undo** and **Category** buttons. Commands: `/today`, `/mon
 (3) otherwise **Other**. The reply says which rule it used, and the **Category** button corrects
 it; a correction is remembered for next time.
 
+**Charts and reports.**
+
+| Report | What you get |
+|---|---|
+| `/month` (or 🗓 Month) | A **donut chart picture** of where the month went. The caption has the legend (coloured squares match the slices), totals, income, net, savings rate, budgets, up to two insights ("🍜 Food is up 18% vs last month", "⚠️ At this pace Overall will reach 118% of its budget"), a **calendar heat-strip** of daily spending (🟩🟨🟧🟥, with the busiest day named in words), a **6-month mini trend** (▂▄▅▃▇▆) and your 🔥 **logging streak**. |
+| `/week` | A **bar chart** of the week (biggest day in orange, today marked, days still to come faded), a day-by-day table, last-week comparison and budgets that need attention. |
+| `/today` | Today's total by category, plus your streak. |
+| `/top` | Top categories and places in **aligned tables**. |
+| **Buttons under every report** | `📅 Today · 📊 Week · 🗓 Month · 🏆 Top`, `◀ Earlier / Later ▶` to page back through months and weeks, `📋 Details` (the complete text version) and `🔗 Open VinExpenses`. The report updates **in place**. |
+| The Monday **weekly summary** | The same week chart, with the buttons continuing from last week. |
+
+Charts are drawn by the bot itself (no chart service, nothing to pay, your numbers never leave your server). The pictures
+contain no text: all names and amounts are in the caption, so Malay and Chinese work the same as English and colours are
+never the only information. If a picture cannot be drawn or sent, you get the complete text report instead; if an edit
+fails, the new view arrives as a new message; the report buttons are limited to 300 views a day per chat.
+After updating, run `node tools/set-telegram-webhook.js` again to add `/week` to the command list.
+
 **How it looks and feels.**
 
 | What you see | Why |

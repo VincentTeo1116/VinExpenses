@@ -86,6 +86,10 @@ Run all checks: `npm test` (also runs before every deploy) and `node tools/vendo
 * **Fallbacks are part of the safety design:** every optional feature fails to "do the main job and say what is
   unavailable", never to "save something wrong" or "stop working".
 
+* **Charts:** drawn inside the function (`_shared/tg-chart.ts`: no network access, no libraries, a test checks both), so
+  nobody's spending numbers are sent to a chart service. Every report query is scoped to the linked person (a test fails
+  if one is not), navigation buttons carry only a view letter and a bounded number, and report views are limited per chat.
+
 ## 4c. Auto-deploy of the functions
 
 * The workflow runs only on pushes to `main` and manually, **never for pull requests**, so nobody can run code with

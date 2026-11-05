@@ -391,6 +391,71 @@ Object.assign(zh, {
   toast_saved: "已保存 ✓", toast_unavailable: "暂不可用",
 });
 
+// ---- Phase 2: charts, navigation, insights ------------------------------------------------------------------------
+Object.assign(en, {
+  nav_today: "📅 Today", nav_week: "📊 Week", nav_month: "🗓 Month", nav_top: "🏆 Top",
+  nav_prev: "◀ Earlier", nav_next: "Later ▶", nav_details: "📋 Details",
+  week_view_title: "📊 <b>Week</b> · {range}",
+  week_biggest: "🥇 Biggest day: <b>{day}</b> · {amount}",
+  heat_title: "<b>Daily spending</b>",
+  heat_legend: "🟩 light · 🟨 medium · 🟧 heavy · 🟥 heaviest",
+  heat_biggest: "🥇 Busiest day: <b>{day}</b> · {amount}",
+  trend_title: "📈 <b>Last 6 months</b>",
+  trend_line: "{{spark}}  {from} → {to}",
+  streak_line: "🔥 <b>{n}</b> days in a row",
+  legend_others: "Others",
+  ins_cat_up: "{emoji} {cat} is up <b>{pct}</b> vs last month",
+  ins_cat_down: "{emoji} {cat} is down <b>{pct}</b> vs last month 👏",
+  ins_weekend_heavy: "🎉 Weekend days cost <b>{x}×</b> your weekdays",
+  ins_weekday_heavy: "💼 Weekdays cost <b>{x}×</b> your weekends",
+  ins_pace_warn: "⚠️ At this pace {name} will reach <b>{pct}</b> of its budget",
+  ins_pace_ok: "🎯 On track: {used} of your {name} budget used by day {day}",
+  view_limit: "⛔ Too many report views today. Try again tomorrow.",
+  view_failed: "😕 Couldn't update that view. Try again.",
+});
+Object.assign(ms, {
+  nav_today: "📅 Hari ini", nav_week: "📊 Minggu", nav_month: "🗓 Bulan", nav_top: "🏆 Teratas",
+  nav_prev: "◀ Lebih awal", nav_next: "Lebih baharu ▶", nav_details: "📋 Butiran",
+  week_view_title: "📊 <b>Minggu</b> · {range}",
+  week_biggest: "🥇 Hari terbesar: <b>{day}</b> · {amount}",
+  heat_title: "<b>Perbelanjaan harian</b>",
+  heat_legend: "🟩 ringan · 🟨 sederhana · 🟧 tinggi · 🟥 tertinggi",
+  heat_biggest: "🥇 Hari paling sibuk: <b>{day}</b> · {amount}",
+  trend_title: "📈 <b>6 bulan lepas</b>",
+  trend_line: "{{spark}}  {from} → {to}",
+  streak_line: "🔥 <b>{n}</b> hari berturut-turut",
+  legend_others: "Lain-lain",
+  ins_cat_up: "{emoji} {cat} naik <b>{pct}</b> berbanding bulan lepas",
+  ins_cat_down: "{emoji} {cat} turun <b>{pct}</b> berbanding bulan lepas 👏",
+  ins_weekend_heavy: "🎉 Hujung minggu <b>{x}×</b> lebih mahal daripada hari bekerja",
+  ins_weekday_heavy: "💼 Hari bekerja <b>{x}×</b> lebih mahal daripada hujung minggu",
+  ins_pace_warn: "⚠️ Dengan kadar ini {name} akan mencecah <b>{pct}</b> daripada bajetnya",
+  ins_pace_ok: "🎯 Mengikut landasan: {used} bajet {name} digunakan setakat hari ke-{day}",
+  view_limit: "⛔ Terlalu banyak paparan laporan hari ini. Cuba lagi esok.",
+  view_failed: "😕 Tidak dapat mengemas kini paparan itu. Cuba lagi.",
+});
+Object.assign(zh, {
+  nav_today: "📅 今天", nav_week: "📊 本周", nav_month: "🗓 本月", nav_top: "🏆 排行",
+  nav_prev: "◀ 更早", nav_next: "更近 ▶", nav_details: "📋 详情",
+  week_view_title: "📊 <b>本周</b> · {range}",
+  week_biggest: "🥇 花得最多的一天：<b>{day}</b> · {amount}",
+  heat_title: "<b>每日支出</b>",
+  heat_legend: "🟩 少 · 🟨 中 · 🟧 多 · 🟥 最多",
+  heat_biggest: "🥇 花得最多的一天：<b>{day}</b> · {amount}",
+  trend_title: "📈 <b>最近 6 个月</b>",
+  trend_line: "{{spark}}  {from} → {to}",
+  streak_line: "🔥 连续记账 <b>{n}</b> 天",
+  legend_others: "其他",
+  ins_cat_up: "{emoji} {cat} 比上个月增加 <b>{pct}</b>",
+  ins_cat_down: "{emoji} {cat} 比上个月减少 <b>{pct}</b> 👏",
+  ins_weekend_heavy: "🎉 周末的花费是工作日的 <b>{x}×</b>",
+  ins_weekday_heavy: "💼 工作日的花费是周末的 <b>{x}×</b>",
+  ins_pace_warn: "⚠️ 照这个速度，{name}将达到预算的 <b>{pct}</b>",
+  ins_pace_ok: "🎯 进度良好：到第 {day} 天，{name}预算已用 {used}",
+  view_limit: "⛔ 今天查看报告的次数过多。请明天再试。",
+  view_failed: "😕 无法更新该视图，请重试。",
+});
+
 /** "Today", "Yesterday", or the date: friendlier than always printing a date. Days follow Kuala Lumpur time. */
 export function dayLabel(date: Date, now: Date, lang: Lang): string {
   const day = (d: Date) => Math.floor((d.getTime() + 8 * 3600_000) / 86_400_000);

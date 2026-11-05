@@ -174,6 +174,25 @@ test('Telegram extras: new tables are server-only, the summary sender is schedul
     assert.ok(!/console\./.test(ocr), 'receipt images and text are never logged');
 });
 
+test('Telegram charts: drawn locally with no outside service, every report query is scoped to one person, views are rate-limited', () => {
+    const chart = read('supabase/functions/_shared/tg-chart.ts');
+    assert.ok(!/\bfetch\s*\(|XMLHttpRequest|WebSocket|^import\s/m.test(chart), 'the chart code has no network access and no dependencies: spending numbers never leave your server');
+    const views = read('supabase/functions/_shared/tg-views.ts');
+    for (const [, query] of views.matchAll(/`((?:expenses|incomes|budgets|user_categories)\?[^`]*)`/g)) {
+        assert.match(query, /user_id=eq\.\$\{q\(userId\)\}/, `unscoped report query: ${query}`);
+    }
+    const reports = read('supabase/functions/_shared/tg-reports.ts');
+    for (const [, query] of reports.matchAll(/`((?:expenses|incomes|budgets)\?[^`]*)`/g)) {
+        assert.match(query, /user_id=eq\.\$\{q\(userId\)\}/, `unscoped report query: ${query}`);
+    }
+    const bot = read('supabase/functions/telegram-bot/handler.ts');
+    assert.match(bot, /takeQuota\(`tg-view:/, 'report views are counted per chat');
+    assert.match(bot, /MAX_OFFSET\[kind\]/, 'navigation offsets are bounded');
+    assert.match(bot, /\^n:\(\[dwmp\]\):\(\\d\{1,3\}\)\$/, 'navigation data is strictly validated');
+    assert.match(read('supabase/functions/telegram-digest/handler.ts'), /buildView\(/, 'the Monday summary uses the same view code');
+    assert.ok(!/api\.quickchart|chart\.googleapis|image-charts/i.test([chart, views, bot].join('\n')), 'no third-party chart service');
+});
+
 test('every edge function has an explicit entry in config.toml, and only the intended ones are public', () => {
     const toml = read('supabase/config.toml');
     const settings = Object.fromEntries([...toml.matchAll(/\[functions\.([a-z-]+)\]\s*\n\s*verify_jwt\s*=\s*(true|false)/g)].map((m) => [m[1], m[2]]));

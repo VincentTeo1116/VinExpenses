@@ -6,6 +6,7 @@ const COMMANDS = {
     default: [
         ['add', 'Add an expense'],
         ['today', "Today's spending"],
+        ['week', 'This week, day by day'],
         ['month', 'This month at a glance'],
         ['top', 'Top categories and places'],
         ['recent', 'Edit or delete a recent expense'],
@@ -18,6 +19,7 @@ const COMMANDS = {
     ms: [
         ['add', 'Tambah perbelanjaan'],
         ['today', 'Perbelanjaan hari ini'],
+        ['week', 'Minggu ini, hari demi hari'],
         ['month', 'Ringkasan bulan ini'],
         ['top', 'Kategori dan tempat teratas'],
         ['recent', 'Ubah atau padam perbelanjaan terkini'],
@@ -30,6 +32,7 @@ const COMMANDS = {
     zh: [
         ['add', '记一笔支出'],
         ['today', '今天的支出'],
+        ['week', '本周每天的支出'],
         ['month', '本月概览'],
         ['top', '支出最多的分类和商家'],
         ['recent', '修改或删除最近的支出'],

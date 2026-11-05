@@ -10,9 +10,9 @@ import { dailyLimit, env, safeEqual } from "../_shared/guard.ts";
 import { q, rest } from "../_shared/db.ts";
 import { cleanSiteUrl } from "../_shared/email-setup.ts";
 import { asLang, tr } from "../_shared/tg-i18n.ts";
-import { aggregate, budgetUsage, loadBudgets, loadExpenses, renderDigest } from "../_shared/tg-reports.ts";
-import { type TelegramClient, telegramClient } from "../_shared/telegram.ts";
-import { klWindow } from "../_shared/telegram.ts";
+import { loadExpenses } from "../_shared/tg-reports.ts";
+import { buildView, pagerButtons } from "../_shared/tg-views.ts";
+import { stripTags, type TelegramClient, telegramClient } from "../_shared/telegram.ts";
 
 const KL_MS = 8 * 3600_000;
 const DAY_MS = 86_400_000;
@@ -97,29 +97,25 @@ export async function handle(request: Request, now = new Date(), clientOverride?
     try {
       const lang = asLang(person.lang);
       const iso = (d: Date) => d.toISOString();
-      const month = klWindow("month", new Date(week.lastMonday.getTime() + 12 * 3600_000 + 6 * DAY_MS)); // the month the week ended in
-      const [rows, before, monthRows, categories, budgets] = await Promise.all([
-        loadExpenses(userId, iso(week.lastMonday), iso(week.monday)),
-        loadExpenses(userId, iso(week.weekBefore), iso(week.lastMonday)),
-        loadExpenses(userId, month.start, iso(week.monday)),
-        rest(`user_categories?select=category_key,label&user_id=eq.${q(userId)}`).then(async (r) => (r.ok ? await r.json() : [])).catch(() => []),
-        loadBudgets(userId),
-      ]);
-      const agg = aggregate(rows);
-      const previous = aggregate(before);
-      if (!agg.count && !previous.count) { skipped++; continue; } // a quiet fortnight: say nothing
+      // The same week view as the /week command (offset 1 = the week that just ended): bars + caption, with the
+      // complete text report as the fallback if the picture cannot be drawn or sent.
+      const categories = await rest(`user_categories?select=category_key,label&user_id=eq.${q(userId)}`).then(async (r) => (r.ok ? await r.json() : [])).catch(() => []);
       const names = new Map((categories as { category_key: string; label: string }[]).map((c) => [c.category_key, c.label] as const));
-      const text = renderDigest({
-        lang,
-        rangeStart: week.lastMonday,
-        rangeEnd: new Date(week.monday.getTime() - DAY_MS),
-        agg,
-        previous: previous.count ? previous : null,
-        budgets: budgetUsage(budgets, aggregate(monthRows)),
-        labels: (key) => names.get(key) ?? key,
-      });
+      const view = await buildView({ userId, lang, now, view: "w", offset: 1, labels: (key) => names.get(key) ?? key, digest: true });
+      if (!view.hasData) {
+        const before = await loadExpenses(userId, iso(week.weekBefore), iso(week.lastMonday));
+        if (!before.length) { skipped++; continue; } // a quiet fortnight: say nothing
+      }
       const site = cleanSiteUrl(env("SITE_URL"));
-      const result = await tg.sendChecked(chatId, text, site ? { buttons: [[{ text: tr(lang, "btn_open"), url: site }]] } : undefined);
+      const tip = tr(lang, "digest_tip");
+      const withTip = (text: string, limit: number) => (stripTags(`${text}\n\n${tip}`).length <= limit ? `${text}\n\n${tip}` : text);
+      let result: "ok" | "blocked" | "failed";
+      if (view.kind === "photo" && view.png) {
+        result = await tg.sendPhotoChecked(chatId, view.png, withTip(view.text, 1000), { buttons: pagerButtons(lang, "w", 1, { details: true, siteUrl: site }) });
+        if (result === "failed") result = await tg.sendChecked(chatId, withTip(view.full, 3900), { buttons: pagerButtons(lang, "w", 1, { details: false, siteUrl: site }) });
+      } else {
+        result = await tg.sendChecked(chatId, withTip(view.text, 3900), { buttons: pagerButtons(lang, "w", 1, { details: false, siteUrl: site }) });
+      }
       if (result === "ok") { sent++; continue; }
       if (result === "blocked") {
         blocked++;
