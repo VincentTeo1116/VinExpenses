@@ -15,8 +15,12 @@ export interface SendOptions {
 
 export interface TelegramClient {
   send(chatId: number, html: string, options?: SendOptions): Promise<void>;
+  /** Like send, but says what happened: "blocked" means the person blocked the bot or deleted the chat (stop sending). */
+  sendChecked(chatId: number, html: string): Promise<"ok" | "blocked" | "failed">;
   edit(chatId: number, messageId: number, html: string, options?: SendOptions): Promise<void>;
   answer(callbackId: string, text?: string): Promise<void>;
+  /** Downloads a photo/file the user sent. `too_large` when it is bigger than maxBytes, `failed` for anything else. */
+  fileBytes(fileId: string, maxBytes: number): Promise<{ bytes: Uint8Array } | { error: "too_large" | "failed" }>;
 }
 
 /** The real client. Failures are logged by status only and never stop the webhook from answering Telegram. */
@@ -36,10 +40,48 @@ export function telegramClient(token: string, fetchImpl: typeof fetch = fetch): 
   };
   const markup = (options?: SendOptions) => (options?.buttons ? { reply_markup: { inline_keyboard: options.buttons } } : {});
   return {
+    async sendChecked(chatId, html) {
+      try {
+        const response = await fetchImpl(`https://api.telegram.org/bot${token}/sendMessage`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ chat_id: chatId, text: html, parse_mode: "HTML", disable_web_page_preview: true }),
+          signal: AbortSignal.timeout(8000),
+        });
+        if (response.ok) return "ok";
+        console.error(`telegram sendMessage failed with status ${response.status}`);
+        return response.status === 403 ? "blocked" : "failed";
+      } catch (_error) {
+        console.error("telegram sendMessage failed (network)");
+        return "failed";
+      }
+    },
     send: (chatId, html, options) => call("sendMessage", { chat_id: chatId, text: html, parse_mode: "HTML", disable_web_page_preview: true, ...markup(options) }),
     edit: (chatId, messageId, html, options) =>
       call("editMessageText", { chat_id: chatId, message_id: messageId, text: html, parse_mode: "HTML", disable_web_page_preview: true, ...markup(options) }),
     answer: (callbackId, text) => call("answerCallbackQuery", { callback_query_id: callbackId, ...(text ? { text: text.slice(0, 180) } : {}) }),
+    async fileBytes(fileId, maxBytes) {
+      try {
+        const info = await fetchImpl(`https://api.telegram.org/bot${token}/getFile`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ file_id: fileId }),
+          signal: AbortSignal.timeout(8000),
+        });
+        if (!info.ok) return { error: "failed" };
+        const meta = (await info.json())?.result;
+        const path = typeof meta?.file_path === "string" ? meta.file_path : "";
+        if (!/^[A-Za-z0-9_\-./]{1,200}$/.test(path) || path.includes("..")) return { error: "failed" };
+        if (typeof meta.file_size === "number" && meta.file_size > maxBytes) return { error: "too_large" };
+        const file = await fetchImpl(`https://api.telegram.org/file/bot${token}/${path}`, { signal: AbortSignal.timeout(15000) });
+        if (!file.ok) return { error: "failed" };
+        const bytes = new Uint8Array(await file.arrayBuffer());
+        return bytes.length > maxBytes ? { error: "too_large" } : { bytes };
+      } catch (_error) {
+        console.error("telegram file download failed (network)");
+        return { error: "failed" };
+      }
+    },
   };
 }
 
@@ -68,7 +110,8 @@ export function cleanText(value: string, max: number): string {
  * `paymentWords` are the user's payment-method names; one match is removed from the description and reported.
  */
 export function parseExpense(text: string, paymentWords: string[] = []): ParsedExpense | null {
-  const tokens = cleanText(text, 500).split(" ").filter(Boolean);
+  const spaced = cleanText(text, 500).replace(/([\u3400-\u9fff])(?=[\d])/g, "$1 ").replace(/(\d)(?=[\u3400-\u9fff])/g, "$1 ");
+  const tokens = spaced.split(" ").filter(Boolean);
   const candidates = tokens
     .map((token, index) => ({ index, match: AMOUNT_TOKEN.exec(token.replace(/[,;]+$/, "")) }))
     .filter((entry) => entry.match);
@@ -121,17 +164,3 @@ export function newLinkCode(): string {
 }
 
 export const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-export const HELP_TEXT = [
-  "<b>VinExpenses bot</b>",
-  "",
-  "Just type an expense:",
-  "<code>lunch 12.50</code>",
-  "<code>grab rm8.90 ewallet</code>",
-  "<code>7-eleven 5.50 card</code>",
-  "",
-  "/today  today's spending",
-  "/month  this month",
-  "/undo  remove the last one you added here",
-  "/unlink  disconnect this chat",
-].join("\n");

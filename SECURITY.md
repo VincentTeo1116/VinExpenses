@@ -74,6 +74,18 @@ Run all checks: `npm test` (also runs before every deploy) and `node tools/vendo
 * **Privacy:** bot chats are not end-to-end encrypted, so the amounts and merchants you type or receive are stored
   by Telegram. Summaries are only sent when the user asks; nothing is pushed.
 
+### Telegram bot, receipts and weekly summary
+
+* **Receipt photos:** only real images are accepted (the file's own bytes decide, not its name), at most 1 MB; each
+  scan is counted against the same daily allowance as the app *before* the paid OCR call; nothing is saved until the
+  person presses Save, and the image and its text are never logged or stored.
+* **Pending questions** ("send the new amount", a receipt waiting for Save) live in a server-only table, per chat,
+  expire in 15 minutes, and can only be answered from that chat.
+* **Weekly summary:** `telegram-digest` is scheduler-only (secret header, constant-time comparison), claims each person
+  before sending so runs never double-send, switches off anyone who blocked the bot, and sends only to people who opted in.
+* **Fallbacks are part of the safety design:** every optional feature fails to "do the main job and say what is
+  unavailable", never to "save something wrong" or "stop working".
+
 ## 4c. Auto-deploy of the functions
 
 * The workflow runs only on pushes to `main` and manually, **never for pull requests**, so nobody can run code with

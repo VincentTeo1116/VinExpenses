@@ -394,6 +394,28 @@ list; the reply has **Undo** and **Category** buttons. Commands: `/today`, `/mon
 (3) otherwise **Other**. The reply says which rule it used, and the **Category** button corrects
 it; a correction is remembered for next time.
 
+**More things the bot does.**
+
+| You do | The bot does |
+|---|---|
+| Send a **photo of a receipt** | Reads it (the same reader and daily scan allowance as the app), shows merchant / total / date / category with **Save · Edit amount · Cancel**. Nothing is saved until you press Save. If it cannot find a reliable total it asks you to type the amount. |
+| `yesterday petrol 50`, `3/11 coffee 6`, `3 nov lunch 12`, `昨天 加油 50` | Saves it on that day (English, Malay and Chinese words). A date in the future, or more than about a year old, is refused. |
+| `+3000 salary`, `income 500 ang pow` | Saves income. The **Undo** button removes it. |
+| Any expense | Shows a **budget progress bar** for its category and overall (from your app budgets), a heads-up when you cross 80% and an alert when you go over, and warns about a **possible duplicate** (same amount, same place, same day) without blocking it. |
+| `/recent` | Last 6 expenses; tap one to change the **amount**, **category** or **delete** it. |
+| `/today` `/month` `/top` | Pretty reports with progress bars, trend arrows vs last month, savings rate, budgets and the top places. |
+| `/language` | English, Bahasa Melayu or 中文 (first set from your Telegram language). |
+| `/digest on` | An opt-in **weekly summary** every Monday morning (Malaysia time). `/digest off` stops it. |
+
+Every extra has a fallback: if budgets, the duplicate check, the language column, the receipt reader or the
+weekly summary is unavailable, the bot still saves what you typed and tells you plainly what is not available.
+
+*To enable the new parts:* run the latest `supabase-schema.sql` again (adds language, weekly-summary and
+pending-confirmation storage, and schedules the weekly job once the three Vault secrets from section 4 exist),
+make sure `OCR_SPACE_API_KEY` is set (the same key the app uses), deploy the functions (the auto-deploy does this),
+and run `node tools/set-telegram-webhook.js` once more to refresh the command menu. When you change
+`smart-entry.js` or `receipt-parser.js`, run `node tools/sync-shared.js` so the bot's copy matches (a test fails if not).
+
 **Auto-deploy the functions.** `.github/workflows/deploy-functions.yml` redeploys all Supabase
 functions whenever code under `supabase/functions` changes on `main` (after the tests pass).
 One-time: create an access token in Supabase (Account → Access Tokens) and add two repository

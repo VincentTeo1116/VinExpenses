@@ -1,7 +1,7 @@
 // The Telegram bot. Telegram calls this address (the "webhook") for every message sent to the bot.
 //
 // Who can do what:
-//   - Anyone can open the bot, but it only answers /start and /help until a chat is LINKED to an app account.
+//   - Anyone can open the bot, but it only answers /start, /help and /language until a chat is LINKED to an app account.
 //   - Linking needs a one-time code that only a signed-in user can create (function telegram-link): 10 characters,
 //     valid 10 minutes, usable once, stored only as a hash, with a limit on wrong guesses per chat.
 //   - After linking, every action is restricted to that one account. The database is reached with the server key
@@ -10,24 +10,40 @@
 //
 // Telegram only accepts a reply of 200: anything else makes it re-send the message again and again. So once the
 // secret header is proven, this function always answers 200 and reports problems to the user in the chat instead.
+//
+// Fallbacks: every extra (budgets, duplicate check, language, receipts, weekly summary) is optional. If its table,
+// column or service is missing or fails, the core job (saving what the person typed) still works.
 
-import { env, projectAccess, safeEqual, sha256Hex, takeQuota } from "../_shared/guard.ts";
-import { fetchAll, q, rest } from "../_shared/db.ts";
+import { env, projectAccess, safeEqual, sha256Hex, takeQuota, takeReceiptQuota, dailyLimit } from "../_shared/guard.ts";
+import { q, rest } from "../_shared/db.ts";
+import { MAX_IMAGE_BYTES, runOcr } from "../_shared/ocr.ts";
+import { loadReceiptParser } from "../_shared/receipt-parser-loader.ts";
 import { loadSmartEntry } from "../_shared/smart-entry-loader.ts";
+import { extractDate } from "../_shared/tg-dates.ts";
+import { bar, emojiFor, escapeHtml, formatDay, type Lang, RULE, ringgit, truncate } from "../_shared/tg-format.ts";
+import { asLang, LANG_NAMES, LANGS, tr } from "../_shared/tg-i18n.ts";
+import {
+  aggregate,
+  budgetUsage,
+  loadBudgets,
+  loadExpenses,
+  loadIncomeTotal,
+  renderMonth,
+  renderToday,
+  renderTop,
+} from "../_shared/tg-reports.ts";
 import {
   CODE_PATTERN,
-  HELP_TEXT,
   type InlineButton,
-  UUID_PATTERN,
-  escapeHtml,
   klWindow,
   parseExpense,
-  ringgit,
   type TelegramClient,
   telegramClient,
+  UUID_PATTERN,
 } from "../_shared/telegram.ts";
 
 const MAX_BODY = 30_000;
+const PENDING_MINUTES = 15;
 const DEFAULT_CATEGORIES = [
   ["beverages", "Beverages"], ["travel", "Travel"], ["entertain", "Entertain"], ["work", "Work"], ["food", "Food"],
   ["shopping", "Shopping"], ["utilities", "Utilities"], ["car", "Car"], ["health", "Health"], ["other", "Other"],
@@ -38,6 +54,8 @@ interface Link {
   chat_id: number;
   user_id: string;
   last_expense_id: string | null;
+  lang: Lang;
+  digest_on: boolean;
 }
 interface Choice {
   key: string;
@@ -50,17 +68,42 @@ interface ExpenseRow {
   category: string;
   payment: string;
   merchant: string | null;
+  created_at?: string;
+}
+type PendingKind = "receipt" | "receipt_amount" | "edit_amount";
+interface Pending {
+  kind: PendingKind;
+  payload: Record<string, unknown>;
 }
 
 const ok = () => new Response(JSON.stringify({ ok: true }), { status: 200, headers: { "Content-Type": "application/json" } });
 const plain = (status: number) => new Response(null, { status });
+
+/** Runs an optional extra. Whatever goes wrong, the caller gets the fallback and the main job carries on. */
+async function safe<T>(work: () => Promise<T>, fallback: T): Promise<T> {
+  try {
+    return await work();
+  } catch (_error) {
+    return fallback;
+  }
+}
+
+const money = (value: number | string) => ringgit(Number(value));
+const klDayStart = (instant: Date) => klWindow("day", instant);
 
 // ---------------------------------------------------------------- data access (every query is scoped to one user)
 
 async function getLink(chatId: number): Promise<Link | null> {
   const response = await rest(`telegram_links?select=chat_id,user_id,last_expense_id&chat_id=eq.${chatId}`);
   if (!response.ok) throw new Error(`link lookup failed (${response.status})`);
-  return (await response.json())[0] ?? null;
+  const row = (await response.json())[0];
+  if (!row) return null;
+  // Language and weekly-summary settings live in newer columns: if the database update has not been run yet, use defaults.
+  const prefs = await safe(async () => {
+    const res = await rest(`telegram_links?select=lang,digest_on&chat_id=eq.${chatId}`);
+    return res.ok ? (await res.json())[0] ?? {} : {};
+  }, {} as { lang?: string; digest_on?: boolean });
+  return { ...row, lang: asLang(prefs.lang), digest_on: prefs.digest_on === true };
 }
 
 async function loadChoices(userId: string): Promise<{ categories: Choice[]; payments: Choice[] }> {
@@ -77,90 +120,34 @@ async function loadChoices(userId: string): Promise<{ categories: Choice[]; paym
 }
 
 const labelOf = (choices: Choice[], key: string) => choices.find((c) => c.key === key)?.label ?? key;
-
-function expenseView(row: ExpenseRow, categories: Choice[], payments: Choice[], heading = "✅ Saved"): { text: string; buttons: InlineButton[][] } {
-  const lines = [
-    `${heading} <b>${escapeHtml(ringgit(Number(row.amount)))}</b>`,
-    [labelOf(categories, row.category), row.merchant, labelOf(payments, row.payment)].filter(Boolean).map((part) => escapeHtml(part)).join(" · "),
-  ];
-  return {
-    text: lines.join("\n"),
-    buttons: [[{ text: "↩️ Undo", callback_data: `u:${row.id}` }, { text: "🏷 Category", callback_data: `c:${row.id}` }]],
-  };
-}
+const labeller = (categories: Choice[]) => (key: string) => labelOf(categories, key);
 
 async function getExpense(userId: string, id: string): Promise<ExpenseRow | null> {
-  const response = await rest(`expenses?select=id,amount,category,payment,merchant&id=eq.${q(id)}&user_id=eq.${q(userId)}`);
+  const response = await rest(`expenses?select=id,amount,category,payment,merchant,created_at&id=eq.${q(id)}&user_id=eq.${q(userId)}`);
   return response.ok ? ((await response.json())[0] ?? null) : null;
 }
 
-// ---------------------------------------------------------------- commands
-
-async function linkAccount(tg: TelegramClient, chatId: number, rawCode: string): Promise<void> {
-  const code = rawCode.trim().toUpperCase();
-  if (!(await takeQuota(`tg-link:${chatId}`, 10))) {
-    return tg.send(chatId, "Too many attempts today. Create a new code in the app tomorrow.");
-  }
-  if (!CODE_PATTERN.test(code)) return tg.send(chatId, "That code doesn't look right. Open VinExpenses → Account → Connect Telegram to get a new one.");
-
-  const hash = await sha256Hex(`${env("TELEGRAM_WEBHOOK_SECRET")}:${code}`);
-  // Deleting the row IS the check: it can only succeed once, and only before it expires.
-  const used = await rest(`telegram_link_codes?code_hash=eq.${hash}&expires_at=gt.${q(new Date().toISOString())}`, {
-    method: "DELETE",
-    headers: { Prefer: "return=representation" },
-  });
-  const rows = used.ok ? (await used.json()) as { user_id: string }[] : [];
-  if (rows.length !== 1) return tg.send(chatId, "That code is invalid or has expired. Create a new one in the app.");
-
-  const userId = rows[0].user_id;
-  const existing = await getLink(chatId);
-  if (existing && existing.user_id !== userId) {
-    return tg.send(chatId, "This Telegram chat is already connected to another VinExpenses account. Send /unlink first, then try again.");
-  }
-  await rest(`telegram_links?user_id=eq.${q(userId)}`, { method: "DELETE" }); // one chat per account
-  const created = await rest("telegram_links", { method: "POST", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ chat_id: chatId, user_id: userId }) });
-  if (!created.ok) throw new Error(`could not save link (${created.status})`);
-  await tg.send(chatId, `✅ <b>Connected.</b> Your expenses added here go straight to your VinExpenses account.\n\n${HELP_TEXT}`);
-}
-
-async function addExpense(tg: TelegramClient, link: Link, text: string): Promise<void> {
-  const { categories, payments } = await loadChoices(link.user_id);
-  const words = payments.flatMap((p) => [p.key, p.label.toLowerCase().replace(/[^a-z0-9-]/g, "")]);
-  const parsed = parseExpense(text, words);
-  if (!parsed) return tg.send(link.chat_id, "I couldn't find an amount. Try <code>lunch 12.50</code>.\n\n/help");
-  if (!(await takeQuota(`tg-add:${link.chat_id}`, 100))) return tg.send(link.chat_id, "Daily limit reached for adding expenses by chat (100). Use the app, or try again tomorrow.");
-
-  const recentRes = await rest(`expenses?select=merchant,category,payment&user_id=eq.${q(link.user_id)}&order=created_at.desc&limit=300`);
-  const recent = recentRes.ok ? (await recentRes.json()) as { merchant: string | null; category: string; payment: string }[] : [];
-
-  const activePayments = payments.filter((p) => p.active);
-  const byWord = parsed.paymentWord
-    ? payments.find((p) => p.active && (p.key === parsed.paymentWord || p.label.toLowerCase().replace(/[^a-z0-9-]/g, "") === parsed.paymentWord))
-    : undefined;
-  const lastUsed = activePayments.find((p) => p.key === recent[0]?.payment);
-  const payment = (byWord ?? lastUsed ?? activePayments[0])?.key ?? "bank";
-
-  const activeCategories = categories.filter((c) => c.active);
-  const fallback = (activeCategories.find((c) => c.key === "other") ?? activeCategories[0])?.key ?? "other";
-  const decision = await chooseCategory(parsed.description, categories, recent, fallback);
-  const category = decision.key;
-
-  const created = await rest("expenses", {
+// ---- waiting-for-an-answer state (receipt confirmation, "send the new amount")
+async function setPending(chatId: number, kind: PendingKind, payload: Record<string, unknown>): Promise<void> {
+  await rest("telegram_pending?on_conflict=chat_id", {
     method: "POST",
-    headers: { Prefer: "return=representation" },
-    body: JSON.stringify({ user_id: link.user_id, amount: parsed.amount, category, payment, merchant: parsed.description || null, note: "via Telegram" }),
+    headers: { Prefer: "resolution=merge-duplicates,return=minimal" },
+    body: JSON.stringify({ chat_id: chatId, kind, payload, expires_at: new Date(Date.now() + PENDING_MINUTES * 60_000).toISOString() }),
   });
-  const row = created.ok ? ((await created.json()) as ExpenseRow[])[0] : undefined;
-  if (!row) return tg.send(link.chat_id, "Sorry, I couldn't save that. Please try again in a moment.");
-  await rest(`telegram_links?chat_id=eq.${link.chat_id}`, { method: "PATCH", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ last_expense_id: row.id }) });
-  const view = expenseView(row, categories, payments);
-  await tg.send(link.chat_id, `${view.text}\n<i>${escapeHtml(decision.why)}</i>`, { buttons: view.buttons });
 }
+const getPending = (chatId: number): Promise<Pending | null> =>
+  safe(async () => {
+    const res = await rest(`telegram_pending?select=kind,payload&chat_id=eq.${chatId}&expires_at=gt.${q(new Date().toISOString())}`);
+    return res.ok ? ((await res.json())[0] ?? null) : null;
+  }, null);
+const clearPending = (chatId: number) => safe(async () => { await rest(`telegram_pending?chat_id=eq.${chatId}`, { method: "DELETE" }); }, undefined);
+
+// ---------------------------------------------------------------- automatic category
 
 /**
  * Automatic category, in this order:
  *   1. the built-in knowledge base (known Malaysian merchants, everyday words like "lunch", "petrol", your own
- *      category names),
+ *      category names, and a hint from the receipt itself),
  *   2. this person's own history (they filed the same place under a category before),
  *   3. otherwise "Other".
  * Whatever it picks, the reply says why, and the Category button changes it (which also teaches step 2).
@@ -170,96 +157,462 @@ export async function chooseCategory(
   categories: Choice[],
   history: { merchant: string | null; category: string }[],
   fallback: string,
+  options: { lang?: Lang; hint?: string } = {},
 ): Promise<{ key: string; why: string; source: "knowledge" | "history" | "none" }> {
-  const none = { key: fallback, why: "No match found, so it is filed under Other. Tap Category to change it.", source: "none" as const };
+  const lang = options.lang ?? "en";
+  const none = { key: fallback, why: tr(lang, "why_none"), source: "none" as const };
   const smart = await loadSmartEntry();
-  if (!smart || !description) return none;
+  if (!smart || (!description && !options.hint)) return none;
   const usable = (key: string) => categories.some((c) => c.active && c.key === key);
+  const sentence = (reason: string, generic: string) => (lang === "en" ? `Auto: ${reason}.` : tr(lang, generic));
   try {
-    const known = smart.suggestCategory({ merchant: description, text: description, memory: null, categories });
-    if (known && usable(known.key)) return { key: known.key, why: `Auto: ${known.reason}.`, source: "knowledge" };
+    const hint = options.hint ? { category: options.hint, reason: "The receipt says what kind of purchase it is" } : null;
+    // deno-lint-ignore no-explicit-any
+    const known = smart.suggestCategory({ merchant: description, text: description, memory: null, categories, hint } as any);
+    if (known && usable(known.key)) return { key: known.key, why: sentence(known.reason, "why_known"), source: "knowledge" };
     const learned = smart.suggestCategory({ merchant: description, text: description, memory: smart.buildMerchantMemory(history), categories });
-    if (learned && usable(learned.key)) return { key: learned.key, why: `Auto: ${learned.reason}.`, source: "history" };
+    if (learned && usable(learned.key)) return { key: learned.key, why: sentence(learned.reason, "why_history"), source: "history" };
   } catch (_error) { /* fall through to Other */ }
   return none;
 }
 
+// ---------------------------------------------------------------- cards
+
+function expenseCard(
+  lang: Lang,
+  row: ExpenseRow,
+  categories: Choice[],
+  payments: Choice[],
+  heading: string,
+  mode: "saved" | "detail",
+  now: Date,
+  extra: string[] = [],
+): { text: string; buttons: InlineButton[][] } {
+  const when = row.created_at ? new Date(row.created_at) : now;
+  const backdated = klDayStart(when).start !== klDayStart(now).start;
+  const lines = [heading, `${emojiFor(row.category)} <b>${escapeHtml(money(row.amount))}</b> · ${escapeHtml(labelOf(categories, row.category))}`];
+  const meta = [
+    row.merchant ? `📍 ${escapeHtml(truncate(row.merchant, 40))}` : "",
+    `💳 ${escapeHtml(labelOf(payments, row.payment))}`,
+    backdated || mode === "detail" ? `📅 ${escapeHtml(formatDay(when, lang))}` : "",
+  ].filter(Boolean);
+  lines.push(meta.join("   "));
+  if (extra.length) lines.push(RULE, ...extra);
+  const id = row.id;
+  const buttons: InlineButton[][] = mode === "saved"
+    ? [[{ text: tr(lang, "btn_undo"), callback_data: `u:${id}` }, { text: tr(lang, "btn_category"), callback_data: `c:${id}` }]]
+    : [
+      [{ text: tr(lang, "btn_amount"), callback_data: `a:${id}` }, { text: tr(lang, "btn_category"), callback_data: `c:${id}` }, { text: tr(lang, "btn_delete"), callback_data: `d:${id}` }],
+      [{ text: tr(lang, "btn_back"), callback_data: "b:0" }],
+    ];
+  return { text: lines.join("\n"), buttons };
+}
+
+const whatOf = (row: { merchant?: string | null }) => (row.merchant ? ` · ${row.merchant}` : "");
+
+// ---------------------------------------------------------------- extras that may fail without hurting the main job
+
+/** Budget progress for the month the expense belongs to, and a heads-up when this expense crossed 80% or 100%. */
+async function budgetNotes(link: Link, categories: Choice[], category: string, amount: number, when: Date): Promise<string[]> {
+  return await safe(async () => {
+    const budgets = await loadBudgets(link.user_id);
+    const relevant = budgets.filter((b) => b.category === category || b.category === "all");
+    if (!relevant.length) return [];
+    const win = klWindow("month", when);
+    const agg = aggregate(await loadExpenses(link.user_id, win.start, win.end));
+    const lines: string[] = [];
+    const labels = labeller(categories);
+    for (const usage of budgetUsage(relevant, agg)) {
+      const name = usage.key === "all" ? tr(link.lang, "budget_overall") : labels(usage.key);
+      const emoji = usage.key === "all" ? "🎯" : emojiFor(usage.key);
+      const before = (usage.used - amount) / usage.limit;
+      lines.push(`${emoji} <b>${escapeHtml(truncate(name, 18))}</b> ${tr(link.lang, "budget_line", { bar: bar(usage.ratio), pct: `${Math.round(usage.ratio * 100)}%`, used: ringgit(usage.used), limit: ringgit(usage.limit) })}`);
+      if (usage.ratio > 1 && before <= 1) lines.push(tr(link.lang, "budget_over", { name, amount: ringgit(usage.used - usage.limit) }));
+      else if (usage.ratio >= 0.8 && usage.ratio <= 1 && before < 0.8) lines.push(tr(link.lang, "budget_warn", { name, pct: `${Math.round(usage.ratio * 100)}%` }));
+    }
+    return lines;
+  }, [] as string[]);
+}
+
+/** An earlier expense the same day with the same amount and place (or, with no place, the same category). */
+async function duplicateOf(link: Link, row: ExpenseRow, when: Date): Promise<ExpenseRow | null> {
+  return await safe(async () => {
+    const win = klDayStart(when);
+    const res = await rest(
+      `expenses?select=id,amount,merchant,category&user_id=eq.${q(link.user_id)}&id=neq.${q(row.id)}&created_at=gte.${q(win.start)}&created_at=lt.${q(win.end)}&limit=300`,
+    );
+    if (!res.ok) return null;
+    const smart = await loadSmartEntry();
+    const norm = (value: string | null | undefined) => {
+      const text = (value ?? "").trim();
+      // deno-lint-ignore no-explicit-any
+      const fn = (smart as any)?.normalizeMerchant;
+      return (typeof fn === "function" ? fn(text) : text.toLowerCase()) as string;
+    };
+    const cents = Math.round(Number(row.amount) * 100);
+    const mine = norm(row.merchant);
+    const same = ((await res.json()) as ExpenseRow[]).find((other) => {
+      if (Math.round(Number(other.amount) * 100) !== cents) return false;
+      const theirs = norm(other.merchant);
+      if (mine && theirs) return mine === theirs || mine.startsWith(theirs + " ") || theirs.startsWith(mine + " ");
+      return other.category === row.category;
+    });
+    return same ?? null;
+  }, null);
+}
+
+// ---------------------------------------------------------------- saving
+
+interface NewExpense {
+  amount: number;
+  merchant: string | null;
+  category: string;
+  payment: string;
+  createdAt: Date | null;
+  note: string;
+}
+
+async function insertExpense(link: Link, e: NewExpense): Promise<ExpenseRow | null> {
+  const created = await rest("expenses", {
+    method: "POST",
+    headers: { Prefer: "return=representation" },
+    body: JSON.stringify({
+      user_id: link.user_id, amount: e.amount, category: e.category, payment: e.payment, merchant: e.merchant, note: e.note,
+      ...(e.createdAt ? { created_at: e.createdAt.toISOString() } : {}),
+    }),
+  });
+  const row = created.ok ? ((await created.json()) as ExpenseRow[])[0] : undefined;
+  if (!row) return null;
+  await safe(async () => {
+    await rest(`telegram_links?chat_id=eq.${link.chat_id}`, { method: "PATCH", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ last_expense_id: row.id }) });
+  }, undefined);
+  return row;
+}
+
+/** The "Saved" message: card, duplicate warning, budget progress and the reason for the category. */
+async function savedMessage(
+  link: Link, row: ExpenseRow, categories: Choice[], payments: Choice[], now: Date, why: string, heading: string,
+): Promise<{ text: string; buttons: InlineButton[][] }> {
+  const when = row.created_at ? new Date(row.created_at) : now;
+  const [dup, budgetLines] = await Promise.all([duplicateOf(link, row, when), budgetNotes(link, categories, row.category, Number(row.amount), when)]);
+  const extra: string[] = [];
+  if (dup) extra.push(tr(link.lang, "dup_warn", { amount: money(row.amount), what: dup.merchant || labelOf(categories, dup.category) }));
+  extra.push(...budgetLines);
+  if (why) extra.push(`<i>${escapeHtml(why)}</i>`);
+  return expenseCard(link.lang, row, categories, payments, heading, "saved", now, extra);
+}
+
+async function paymentFor(payments: Choice[], word: string | null, recent: { payment: string }[]): Promise<string> {
+  const active = payments.filter((p) => p.active);
+  const bare = (text: string) => text.toLowerCase().replace(/[^a-z0-9-]/g, "");
+  const byWord = word ? active.find((p) => p.key === word || bare(p.label) === word) : undefined;
+  const lastUsed = active.find((p) => p.key === recent[0]?.payment);
+  return (byWord ?? lastUsed ?? active[0])?.key ?? "bank";
+}
+
+async function recentExpenses(userId: string, limit: number) {
+  return await safe(async () => {
+    const res = await rest(`expenses?select=merchant,category,payment&user_id=eq.${q(userId)}&order=created_at.desc&limit=${limit}`);
+    return res.ok ? (await res.json()) as { merchant: string | null; category: string; payment: string }[] : [];
+  }, [] as { merchant: string | null; category: string; payment: string }[]);
+}
+
+async function addExpense(tg: TelegramClient, link: Link, text: string, now: Date): Promise<void> {
+  const lang = link.lang;
+  const date = extractDate(text, now);
+  if (date.error) return tg.send(link.chat_id, tr(lang, date.error === "future" ? "date_future" : "date_old"));
+  const { categories, payments } = await loadChoices(link.user_id);
+  const words = payments.flatMap((p) => [p.key, p.label.toLowerCase().replace(/[^a-z0-9-]/g, "")]);
+  const parsed = parseExpense(date.text, words);
+  if (!parsed) return tg.send(link.chat_id, tr(lang, "no_amount"));
+  if (!(await takeQuota(`tg-add:${link.chat_id}`, 100))) return tg.send(link.chat_id, tr(lang, "add_limit"));
+
+  const recent = await recentExpenses(link.user_id, 300);
+  const activeCategories = categories.filter((c) => c.active);
+  const fallback = (activeCategories.find((c) => c.key === "other") ?? activeCategories[0])?.key ?? "other";
+  const decision = await chooseCategory(parsed.description, categories, recent, fallback, { lang });
+
+  const row = await insertExpense(link, {
+    amount: parsed.amount, merchant: parsed.description || null, category: decision.key,
+    payment: await paymentFor(payments, parsed.paymentWord, recent), createdAt: date.at, note: "via Telegram",
+  });
+  if (!row) return tg.send(link.chat_id, tr(lang, "cant_save"));
+  const view = await savedMessage(link, row, categories, payments, now, decision.why, tr(lang, "saved"));
+  await tg.send(link.chat_id, view.text, { buttons: view.buttons });
+}
+
+const INCOME_PREFIX = /^\s*(?:\+|(?:income|pendapatan|收入)(?=\s*(?:rm|myr)?\s*\d))\s*/i;
+const INCOME_SOURCES: [RegExp, string][] = [
+  [/^(salary|gaji|工资|薪水)$/i, "Salary"], [/^(freelance|projek)$/i, "Freelance"],
+  [/^(bonus|奖金)$/i, "Bonus"], [/^(invest\w*|dividend\w*|saham|投资)$/i, "Investment"],
+];
+
+async function addIncome(tg: TelegramClient, link: Link, text: string, now: Date): Promise<void> {
+  const lang = link.lang;
+  const date = extractDate(text.replace(INCOME_PREFIX, ""), now);
+  if (date.error) return tg.send(link.chat_id, tr(lang, date.error === "future" ? "date_future" : "date_old"));
+  const parsed = parseExpense(date.text, []);
+  if (!parsed) return tg.send(link.chat_id, tr(lang, "no_amount"));
+  if (!(await takeQuota(`tg-add:${link.chat_id}`, 100))) return tg.send(link.chat_id, tr(lang, "add_limit"));
+  const word = parsed.description.trim();
+  const source = INCOME_SOURCES.find(([pattern]) => pattern.test(word))?.[1] ?? (word ? word.charAt(0).toUpperCase() + word.slice(1, 40) : "Salary");
+  const created = await rest("incomes", {
+    method: "POST",
+    headers: { Prefer: "return=representation" },
+    body: JSON.stringify({ user_id: link.user_id, amount: parsed.amount, source, ...(date.at ? { created_at: date.at.toISOString() } : {}) }),
+  });
+  const row = created.ok ? ((await created.json()) as { id: string }[])[0] : undefined;
+  if (!row) return tg.send(link.chat_id, tr(lang, "cant_save"));
+  const stamp = date.at ? `   📅 ${escapeHtml(formatDay(date.at, lang))}` : "";
+  await tg.send(link.chat_id, `${tr(lang, "income_saved")}\n💰 <b>${escapeHtml(money(parsed.amount))}</b> · ${escapeHtml(source)}${stamp}`, {
+    buttons: [[{ text: tr(lang, "btn_undo"), callback_data: `i:${row.id}` }]],
+  });
+}
+
+// ---------------------------------------------------------------- receipts
+
+function receiptCard(lang: Lang, p: Record<string, unknown>, categories: Choice[], payments: Choice[], now: Date) {
+  const when = typeof p.date === "string" && p.date ? new Date(`${p.date}T12:00:00+08:00`) : null;
+  const lines = [
+    tr(lang, "receipt_title"),
+    RULE,
+    `${emojiFor(String(p.category))} <b>${escapeHtml(money(Number(p.amount)))}</b> · ${escapeHtml(labelOf(categories, String(p.category)))}`,
+    [
+      p.merchant ? `📍 ${escapeHtml(truncate(String(p.merchant), 40))}` : "",
+      `💳 ${escapeHtml(labelOf(payments, String(p.payment)))}`,
+      `📅 ${escapeHtml(formatDay(when ?? now, lang))}`,
+    ].filter(Boolean).join("   "),
+  ];
+  if (p.why) lines.push(`<i>${escapeHtml(String(p.why))}</i>`);
+  if (p.foreign) lines.push(tr(lang, "receipt_foreign"));
+  const buttons: InlineButton[][] = [[
+    { text: tr(lang, "btn_save"), callback_data: "r:s" },
+    { text: tr(lang, "btn_edit_amount"), callback_data: "r:e" },
+    { text: tr(lang, "btn_cancel"), callback_data: "r:x" },
+  ]];
+  return { text: lines.join("\n"), buttons };
+}
+
+async function onPhoto(
+  tg: TelegramClient,
+  link: Link,
+  message: { photo?: { file_id?: string; file_size?: number }[]; document?: { file_id?: string; file_size?: number; mime_type?: string } },
+  now: Date,
+): Promise<void> {
+  const lang = link.lang;
+  const apiKey = env("OCR_SPACE_API_KEY");
+  if (!apiKey) return tg.send(link.chat_id, tr(lang, "photo_unavailable"));
+
+  // The best picture that fits OCR.space's 1 MB limit: the largest size that is small enough.
+  let fileId: string | undefined;
+  if (Array.isArray(message.photo) && message.photo.length) {
+    const sizes = message.photo.filter((p) => typeof p?.file_id === "string");
+    const fits = sizes.filter((p) => typeof p.file_size !== "number" || p.file_size <= MAX_IMAGE_BYTES);
+    fileId = (fits.length ? fits[fits.length - 1] : sizes[0])?.file_id;
+  } else if (message.document && /^image\/(jpeg|png|webp)$/i.test(message.document.mime_type ?? "")) {
+    if ((message.document.file_size ?? 0) > MAX_IMAGE_BYTES) return tg.send(link.chat_id, tr(lang, "receipt_too_big"));
+    fileId = message.document.file_id;
+  }
+  if (!fileId) return tg.send(link.chat_id, tr(lang, "receipt_unreadable"));
+
+  if (!(await takeReceiptQuota(link.user_id, dailyLimit("SCAN_DAILY_LIMIT", 30)))) return tg.send(link.chat_id, tr(lang, "receipt_limit"));
+  await tg.send(link.chat_id, tr(lang, "receipt_reading"));
+
+  const file = await tg.fileBytes(fileId, MAX_IMAGE_BYTES);
+  if ("error" in file) return tg.send(link.chat_id, tr(lang, file.error === "too_large" ? "receipt_too_big" : "receipt_unreadable"));
+  const ocr = await runOcr(apiKey, file.bytes);
+  if (!ocr.ok) {
+    const key = ocr.reason === "too_large" ? "receipt_too_big" : ocr.reason === "service" ? "photo_unavailable" : "receipt_unreadable";
+    return tg.send(link.chat_id, tr(lang, key));
+  }
+  const parser = await loadReceiptParser();
+  if (!parser) return tg.send(link.chat_id, tr(lang, "photo_unavailable"));
+  const parsed = parser.parseBest([ocr.text], { now });
+
+  const merchant = (parsed.merchant ?? "").trim();
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(parsed.date) && extractDate(parsed.date, now).error === null ? parsed.date : "";
+  const { categories, payments } = await loadChoices(link.user_id);
+  const recent = await recentExpenses(link.user_id, 300);
+  const activeCategories = categories.filter((c) => c.active);
+  const fallback = (activeCategories.find((c) => c.key === "other") ?? activeCategories[0])?.key ?? "other";
+  const decision = await chooseCategory(merchant, categories, recent, fallback, { lang, hint: parsed.hints?.category });
+  const payload = {
+    amount: parsed.amount > 0 ? parsed.amount : 0, merchant, date, category: decision.key, why: decision.why,
+    payment: await paymentFor(payments, null, recent), foreign: (parsed.warnings ?? []).length > 0,
+  };
+  if (!(payload.amount > 0)) {
+    await setPending(link.chat_id, "receipt_amount", payload);
+    return tg.send(link.chat_id, tr(lang, "receipt_not_sure", { merchant: merchant ? ` (${escapeHtml(merchant)})` : "" }));
+  }
+  await setPending(link.chat_id, "receipt", payload);
+  const card = receiptCard(lang, payload, categories, payments, now);
+  await tg.send(link.chat_id, card.text, { buttons: card.buttons });
+}
+
+// ---------------------------------------------------------------- commands
+
+async function linkAccount(tg: TelegramClient, chatId: number, rawCode: string, guessLang: Lang): Promise<void> {
+  const code = rawCode.trim().toUpperCase();
+  if (!(await takeQuota(`tg-link:${chatId}`, 10))) return tg.send(chatId, tr(guessLang, "link_limit"));
+  if (!CODE_PATTERN.test(code)) return tg.send(chatId, tr(guessLang, "link_bad"));
+
+  const hash = await sha256Hex(`${env("TELEGRAM_WEBHOOK_SECRET")}:${code}`);
+  // Deleting the row IS the check: it can only succeed once, and only before it expires.
+  const used = await rest(`telegram_link_codes?code_hash=eq.${hash}&expires_at=gt.${q(new Date().toISOString())}`, {
+    method: "DELETE",
+    headers: { Prefer: "return=representation" },
+  });
+  const rows = used.ok ? (await used.json()) as { user_id: string }[] : [];
+  if (rows.length !== 1) return tg.send(chatId, tr(guessLang, "link_invalid"));
+
+  const userId = rows[0].user_id;
+  const existing = await getLink(chatId);
+  if (existing && existing.user_id !== userId) return tg.send(chatId, tr(guessLang, "link_other"));
+  await rest(`telegram_links?user_id=eq.${q(userId)}`, { method: "DELETE" }); // one chat per account
+  let created = await rest("telegram_links", { method: "POST", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ chat_id: chatId, user_id: userId, lang: guessLang }) });
+  if (!created.ok) created = await rest("telegram_links", { method: "POST", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ chat_id: chatId, user_id: userId }) });
+  if (!created.ok) throw new Error(`could not save link (${created.status})`);
+  await tg.send(chatId, `${tr(guessLang, "connected_ok")}\n\n${tr(guessLang, "help")}`);
+}
+
+async function sendMonthViews(tg: TelegramClient, link: Link, kind: "today" | "month" | "top", now: Date): Promise<void> {
+  const lang = link.lang;
+  const { categories } = await loadChoices(link.user_id);
+  const labels = labeller(categories);
+  if (kind === "today") {
+    const win = klWindow("day", now);
+    const agg = aggregate(await loadExpenses(link.user_id, win.start, win.end));
+    return tg.send(link.chat_id, renderToday({ lang, now, agg, labels }));
+  }
+  const win = klWindow("month", now);
+  const monthStart = new Date(new Date(win.start).getTime() + 12 * 3600_000); // inside the month, whatever the time zone
+  const agg = aggregate(await loadExpenses(link.user_id, win.start, win.end));
+  if (kind === "top") return tg.send(link.chat_id, renderTop({ lang, monthStart, agg, labels }));
+
+  const lastMonthMid = new Date(new Date(win.start).getTime() - 12 * 3600_000);
+  const lastWin = klWindow("month", lastMonthMid);
+  const [previous, income, budgets] = await Promise.all([
+    safe(async () => aggregate(await loadExpenses(link.user_id, lastWin.start, lastWin.end)), null),
+    safe(() => loadIncomeTotal(link.user_id, win.start, win.end), 0),
+    safe(() => loadBudgets(link.user_id), []),
+  ]);
+  await tg.send(link.chat_id, renderMonth({ lang, monthStart, agg, previous: previous && previous.count ? previous : null, income, budgets: budgetUsage(budgets, agg), labels }));
+}
+
+async function sendRecent(tg: TelegramClient, link: Link, messageId?: number): Promise<void> {
+  const lang = link.lang;
+  const res = await rest(`expenses?select=id,amount,category,merchant,created_at&user_id=eq.${q(link.user_id)}&order=created_at.desc&limit=6`);
+  const rows = res.ok ? (await res.json()) as ExpenseRow[] : [];
+  if (!rows.length) {
+    const empty = tr(lang, "recent_empty");
+    return messageId ? tg.edit(link.chat_id, messageId, empty) : tg.send(link.chat_id, empty);
+  }
+  const { categories } = await loadChoices(link.user_id);
+  const buttons = rows.map((r) => [{
+    text: truncate(`${emojiFor(r.category)} ${money(r.amount)} · ${r.merchant || labelOf(categories, r.category)} · ${formatDay(new Date(r.created_at ?? Date.now()), lang)}`, 56),
+    callback_data: `v:${r.id}`,
+  }]);
+  const text = tr(lang, "recent_title");
+  return messageId ? tg.edit(link.chat_id, messageId, text, { buttons }) : tg.send(link.chat_id, text, { buttons });
+}
+
 async function undoExpense(tg: TelegramClient, link: Link, id: string | null): Promise<string | null> {
-  if (!id || !UUID_PATTERN.test(id)) { await tg.send(link.chat_id, "Nothing to undo."); return null; }
+  if (!id || !UUID_PATTERN.test(id)) { await tg.send(link.chat_id, tr(link.lang, "undo_none")); return null; }
   const removed = await rest(`expenses?id=eq.${q(id)}&user_id=eq.${q(link.user_id)}`, { method: "DELETE", headers: { Prefer: "return=representation" } });
   const rows = removed.ok ? (await removed.json()) as ExpenseRow[] : [];
   if (link.last_expense_id === id) {
-    await rest(`telegram_links?chat_id=eq.${link.chat_id}`, { method: "PATCH", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ last_expense_id: null }) });
+    await safe(async () => {
+      await rest(`telegram_links?chat_id=eq.${link.chat_id}`, { method: "PATCH", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ last_expense_id: null }) });
+    }, undefined);
   }
   if (!rows.length) return null;
-  return `↩️ Removed <b>${escapeHtml(ringgit(Number(rows[0].amount)))}</b>${rows[0].merchant ? ` · ${escapeHtml(rows[0].merchant)}` : ""}.`;
+  return tr(link.lang, "removed", { amount: money(rows[0].amount), what: whatOf(rows[0]) });
 }
 
-async function sendSummary(tg: TelegramClient, link: Link, kind: "day" | "month", now: Date): Promise<void> {
-  const win = klWindow(kind, now);
-  const range = `created_at=gte.${q(win.start)}&created_at=lt.${q(win.end)}`;
-  const [expenses, incomes, { categories }] = await Promise.all([
-    fetchAll<{ amount: string | number; category: string }>(`expenses?select=amount,category&user_id=eq.${q(link.user_id)}&${range}&order=created_at.asc,id.asc`),
-    kind === "month"
-      ? fetchAll<{ amount: string | number }>(`incomes?select=amount&user_id=eq.${q(link.user_id)}&${range}&order=created_at.asc,id.asc`)
-      : Promise.resolve([] as { amount: string | number }[]),
-    loadChoices(link.user_id),
-  ]);
-  const total = expenses.reduce((sum, row) => sum + Number(row.amount), 0);
-  const byCategory = new Map<string, number>();
-  for (const row of expenses) byCategory.set(row.category, (byCategory.get(row.category) ?? 0) + Number(row.amount));
-  const top = [...byCategory.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5);
-
-  const lines = [`<b>${kind === "day" ? "Today" : escapeHtml(win.label)}</b>`, ""];
-  if (kind === "month") {
-    const income = incomes.reduce((sum, row) => sum + Number(row.amount), 0);
-    lines.push(`Income  ${escapeHtml(ringgit(income))}`, `Spent   <b>${escapeHtml(ringgit(total))}</b>`, `Net     ${escapeHtml(ringgit(income - total))}`);
-  } else {
-    lines.push(`Spent <b>${escapeHtml(ringgit(total))}</b> (${expenses.length} ${expenses.length === 1 ? "expense" : "expenses"})`);
-  }
-  if (top.length) {
-    lines.push("", ...top.map(([key, amount]) => `${escapeHtml(labelOf(categories, key))}  ${escapeHtml(ringgit(amount))}`));
-  } else {
-    lines.push("", "No expenses yet.");
-  }
-  await tg.send(link.chat_id, lines.join("\n"));
-}
-
-// ---------------------------------------------------------------- dispatch
-
-async function onText(tg: TelegramClient, chatId: number, rawText: string, now: Date): Promise<void> {
+async function onText(tg: TelegramClient, chatId: number, rawText: string, now: Date, guessLang: Lang): Promise<void> {
   const text = rawText.trim();
   if (!text) return;
-  if (text.length > 500) return tg.send(chatId, "That message is too long. Keep it short, like <code>lunch 12.50</code>.");
+  if (text.length > 500) return tg.send(chatId, tr(guessLang, "too_long"));
   const command = /^\/([a-z_]{1,32})(?:@\w+)?(?:\s+([\s\S]*))?$/i.exec(text);
   const name = command?.[1].toLowerCase();
   const arg = (command?.[2] ?? "").trim();
 
   if (name === "start" || name === "link") {
-    if (arg) return linkAccount(tg, chatId, arg);
+    if (arg) return linkAccount(tg, chatId, arg, guessLang);
     const link = await getLink(chatId);
-    return tg.send(chatId, link ? `You're connected.\n\n${HELP_TEXT}` : "👋 Hi! To connect, open <b>VinExpenses → Account → Connect Telegram</b> and tap the button there.");
+    return tg.send(chatId, link ? `${tr(link.lang, "already_connected")}\n\n${tr(link.lang, "help")}` : tr(guessLang, "welcome"));
   }
-  if (name === "help") return tg.send(chatId, HELP_TEXT);
+  if (name === "help") {
+    const link = await safe(() => getLink(chatId), null);
+    return tg.send(chatId, tr(link?.lang ?? guessLang, "help"));
+  }
 
   const link = await getLink(chatId);
-  if (!link) return tg.send(chatId, "This chat isn't connected yet. Open <b>VinExpenses → Account → Connect Telegram</b>.");
+  if (!link) return tg.send(chatId, tr(guessLang, "not_connected"));
+  const lang = link.lang;
+
+  if (name === "cancel") {
+    await clearPending(chatId);
+    return tg.send(chatId, tr(lang, "edit_cancelled"));
+  }
+  if (name) await clearPending(chatId); // any other command abandons "send me the amount"
 
   switch (name) {
-    case "today": return sendSummary(tg, link, "day", now);
-    case "month": return sendSummary(tg, link, "month", now);
+    case "today": case "month": case "top": return sendMonthViews(tg, link, name, now);
+    case "recent": return sendRecent(tg, link);
     case "undo": {
       const message = await undoExpense(tg, link, link.last_expense_id);
       if (message) await tg.send(chatId, message);
       return;
     }
+    case "language": case "lang":
+      return tg.send(chatId, tr(lang, "lang_prompt"), { buttons: [LANGS.map((code) => ({ text: LANG_NAMES[code], callback_data: `l:${code}` }))] });
+    case "digest": {
+      const want = arg.toLowerCase();
+      if (want !== "on" && want !== "off") return tg.send(chatId, tr(lang, link.digest_on ? "digest_status_on" : "digest_status_off"));
+      const res = await rest(`telegram_links?chat_id=eq.${chatId}`, { method: "PATCH", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ digest_on: want === "on" }) });
+      return tg.send(chatId, tr(lang, res.ok ? (want === "on" ? "digest_on" : "digest_off") : "digest_unavailable"));
+    }
     case "unlink":
       await rest(`telegram_links?chat_id=eq.${chatId}`, { method: "DELETE" });
-      return tg.send(chatId, "Disconnected. Your expenses stay in the app. Reconnect any time from Account.");
-    case undefined: return addExpense(tg, link, text);
-    default: return tg.send(chatId, `I don't know that command.\n\n${HELP_TEXT}`);
+      return tg.send(chatId, tr(lang, "unlinked"));
+    case undefined: break;
+    default: return tg.send(chatId, tr(lang, "unknown_cmd", { help: tr(lang, "help") }));
   }
+
+  // ---- plain text. First: is the person answering a question the bot asked?
+  const pending = await getPending(chatId);
+  if (pending && (pending.kind === "edit_amount" || pending.kind === "receipt_amount")) {
+    const asAmount = parseExpense(text, []);
+    const bare = asAmount && !asAmount.description && !asAmount.paymentWord;
+    if (bare) {
+      const { categories, payments } = await loadChoices(link.user_id);
+      if (pending.kind === "receipt_amount") {
+        const payload = { ...pending.payload, amount: asAmount.amount };
+        await setPending(chatId, "receipt", payload);
+        const card = receiptCard(lang, payload, categories, payments, now);
+        return tg.send(chatId, card.text, { buttons: card.buttons });
+      }
+      const id = String(pending.payload.id ?? "");
+      if (!UUID_PATTERN.test(id)) { await clearPending(chatId); return tg.send(chatId, tr(lang, "gone")); }
+      const patched = await rest(`expenses?id=eq.${q(id)}&user_id=eq.${q(link.user_id)}`, {
+        method: "PATCH", headers: { Prefer: "return=representation" }, body: JSON.stringify({ amount: asAmount.amount }),
+      });
+      const row = patched.ok ? ((await patched.json()) as ExpenseRow[])[0] : undefined;
+      await clearPending(chatId);
+      if (!row) return tg.send(chatId, tr(lang, "gone"));
+      const card = expenseCard(lang, row, categories, payments, tr(lang, "amount_updated"), "saved", now);
+      return tg.send(chatId, card.text, { buttons: card.buttons });
+    }
+    if (!asAmount) return tg.send(chatId, tr(lang, "amount_invalid")); // keep waiting for a proper amount
+    await clearPending(chatId); // they typed a whole new expense instead: forget the question
+  }
+
+  if (INCOME_PREFIX.test(text) && /\d/.test(text)) return addIncome(tg, link, text, now);
+  return addExpense(tg, link, text, now);
 }
+
+// ---------------------------------------------------------------- buttons
 
 interface CallbackQuery {
   id?: string;
@@ -267,46 +620,105 @@ interface CallbackQuery {
   message?: { message_id?: number; chat?: { id?: number; type?: string } };
 }
 
-async function onCallback(tg: TelegramClient, cb: CallbackQuery): Promise<void> {
+async function onCallback(tg: TelegramClient, cb: CallbackQuery, now: Date): Promise<void> {
   const chatId = cb.message?.chat?.id;
   const messageId = cb.message?.message_id;
   if (typeof cb.id !== "string") return;
   await tg.answer(cb.id);
   if (cb.message?.chat?.type !== "private" || !Number.isSafeInteger(chatId) || !Number.isSafeInteger(messageId)) return;
-  const link = await getLink(chatId as number);
+  const chat = chatId as number;
+  const msg = messageId as number;
+  const link = await getLink(chat);
   if (!link) return;
+  const lang = link.lang;
+  const data = String(cb.data ?? "");
 
-  const match = /^([ucxk]):([0-9a-f-]{36})(?::(\d{1,2}))?$/i.exec(String(cb.data ?? ""));
+  // language picker
+  const pick = /^l:(en|ms|zh)$/.exec(data);
+  if (pick) {
+    const newLang = pick[1] as Lang;
+    const res = await rest(`telegram_links?chat_id=eq.${chat}`, { method: "PATCH", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ lang: newLang }) });
+    if (!res.ok) return tg.edit(chat, msg, tr(lang, "digest_unavailable"));
+    return tg.edit(chat, msg, `${tr(newLang, "lang_set", { name: LANG_NAMES[newLang] })}\n\n${tr(newLang, "help")}`);
+  }
+  if (data === "b:0") return sendRecent(tg, link, msg);
+
+  // receipt confirmation
+  const receipt = /^r:([sex])$/.exec(data);
+  if (receipt) {
+    const pending = await getPending(chat);
+    if (!pending || pending.kind !== "receipt") return tg.edit(chat, msg, tr(lang, "receipt_expired"));
+    const { categories, payments } = await loadChoices(link.user_id);
+    if (receipt[1] === "x") { await clearPending(chat); return tg.edit(chat, msg, tr(lang, "receipt_cancelled")); }
+    if (receipt[1] === "e") {
+      await setPending(chat, "receipt_amount", pending.payload);
+      return tg.edit(chat, msg, tr(lang, "ask_amount"));
+    }
+    const p = pending.payload;
+    const when = typeof p.date === "string" && p.date ? new Date(`${p.date}T12:00:00+08:00`) : null;
+    const row = await insertExpense(link, {
+      amount: Number(p.amount), merchant: p.merchant ? String(p.merchant) : null, category: String(p.category),
+      payment: String(p.payment), createdAt: when && klDayStart(when).start !== klDayStart(now).start ? when : null, note: "via Telegram receipt",
+    });
+    if (!row) return tg.edit(chat, msg, tr(lang, "cant_save"));
+    await clearPending(chat);
+    const view = await savedMessage(link, row, categories, payments, now, String(p.why ?? ""), tr(lang, "receipt_saved"));
+    return tg.edit(chat, msg, view.text, { buttons: view.buttons });
+  }
+
+  const match = /^([ucxkvadi]):([0-9a-f-]{36})(?::(\d{1,2}))?$/i.exec(data);
   if (!match || !UUID_PATTERN.test(match[2])) return;
   const [, action, id, index] = match;
-  const { categories, payments } = await loadChoices(link.user_id);
 
+  if (action === "i") {
+    const removed = await rest(`incomes?id=eq.${q(id)}&user_id=eq.${q(link.user_id)}`, { method: "DELETE", headers: { Prefer: "return=representation" } });
+    const rows = removed.ok ? (await removed.json()) as { amount: string | number }[] : [];
+    return tg.edit(chat, msg, rows.length ? tr(lang, "removed", { amount: money(rows[0].amount), what: "" }) : tr(lang, "already_removed"));
+  }
   if (action === "u") {
     const message = await undoExpense(tg, link, id);
-    return tg.edit(chatId as number, messageId as number, message ?? "Already removed.");
+    return tg.edit(chat, msg, message ?? tr(lang, "already_removed"));
   }
-  const row = await getExpense(link.user_id, id);
-  if (!row) return tg.edit(chatId as number, messageId as number, "That expense no longer exists.");
 
-  if (action === "c") {
-    const options = categories.filter((c) => c.active).slice(0, 20);
-    const buttons: InlineButton[][] = [];
-    options.forEach((c, i) => {
-      if (i % 2 === 0) buttons.push([]);
-      buttons[buttons.length - 1].push({ text: c.label.slice(0, 24), callback_data: `k:${id}:${i}` });
-    });
-    buttons.push([{ text: "Cancel", callback_data: `x:${id}` }]);
-    return tg.edit(chatId as number, messageId as number, `Choose a category for <b>${escapeHtml(ringgit(Number(row.amount)))}</b>${row.merchant ? ` · ${escapeHtml(row.merchant)}` : ""}`, { buttons });
+  const { categories, payments } = await loadChoices(link.user_id);
+  const row = await getExpense(link.user_id, id);
+  if (!row) return tg.edit(chat, msg, tr(lang, "gone"));
+
+  switch (action) {
+    case "v": { const card = expenseCard(lang, row, categories, payments, tr(lang, "card_title", { amount: money(row.amount) }), "detail", now); return tg.edit(chat, msg, card.text, { buttons: card.buttons }); }
+    case "a":
+      await setPending(chat, "edit_amount", { id });
+      return tg.edit(chat, msg, `${tr(lang, "card_title", { amount: money(row.amount) })}${escapeHtml(whatOf(row))}\n\n${tr(lang, "ask_amount")}`);
+    case "d":
+      return tg.edit(chat, msg, tr(lang, "confirm_delete", { amount: money(row.amount), what: whatOf(row) }), {
+        buttons: [[{ text: tr(lang, "btn_yes_delete"), callback_data: `u:${id}` }, { text: tr(lang, "btn_cancel"), callback_data: `v:${id}` }]],
+      });
+    case "c": {
+      const options = categories.filter((c) => c.active).slice(0, 20);
+      const buttons: InlineButton[][] = [];
+      options.forEach((c, i) => {
+        if (i % 2 === 0) buttons.push([]);
+        buttons[buttons.length - 1].push({ text: truncate(`${emojiFor(c.key)} ${c.label}`, 26), callback_data: `k:${id}:${i}` });
+      });
+      buttons.push([{ text: tr(lang, "btn_cancel"), callback_data: `x:${id}` }]);
+      return tg.edit(chat, msg, tr(lang, "choose_category", { amount: money(row.amount), what: whatOf(row) }), { buttons });
+    }
+    case "k": {
+      const chosen = categories.filter((c) => c.active).slice(0, 20)[Number(index)];
+      if (!chosen) return;
+      await rest(`expenses?id=eq.${q(id)}&user_id=eq.${q(link.user_id)}`, { method: "PATCH", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ category: chosen.key }) });
+      row.category = chosen.key;
+      const card = expenseCard(lang, row, categories, payments, tr(lang, "updated"), "saved", now);
+      return tg.edit(chat, msg, card.text, { buttons: card.buttons });
+    }
+    default: { // "x": back to the normal card
+      const card = expenseCard(lang, row, categories, payments, tr(lang, "saved"), "saved", now);
+      return tg.edit(chat, msg, card.text, { buttons: card.buttons });
+    }
   }
-  if (action === "k") {
-    const chosen = categories.filter((c) => c.active).slice(0, 20)[Number(index)];
-    if (!chosen) return;
-    await rest(`expenses?id=eq.${q(id)}&user_id=eq.${q(link.user_id)}`, { method: "PATCH", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ category: chosen.key }) });
-    row.category = chosen.key;
-  }
-  const view = expenseView(row, categories, payments, action === "k" ? "🏷 Updated" : "✅ Saved");
-  return tg.edit(chatId as number, messageId as number, view.text, { buttons: view.buttons });
 }
+
+// ---------------------------------------------------------------- the door
 
 async function markSeen(updateId: number): Promise<boolean> {
   const response = await rest("telegram_seen?on_conflict=update_id", {
@@ -317,6 +729,12 @@ async function markSeen(updateId: number): Promise<boolean> {
   if (!response.ok) throw new Error(`seen-check failed (${response.status})`);
   return (await response.json()).length === 1; // empty = Telegram re-sent an update we already handled
 }
+
+/** Telegram tells us the person's app language ("ms", "zh-hans"...): used for the first greeting and the first link. */
+const guessLanguage = (code: unknown): Lang => {
+  const value = typeof code === "string" ? code.toLowerCase() : "";
+  return value.startsWith("zh") ? "zh" : value === "ms" || value.startsWith("ms-") ? "ms" : "en";
+};
 
 export async function handle(request: Request, now = new Date(), clientOverride?: TelegramClient): Promise<Response> {
   if (request.method !== "POST") return plain(405);
@@ -343,26 +761,39 @@ export async function handle(request: Request, now = new Date(), clientOverride?
   try {
     if (!(await markSeen(update.update_id as number))) return ok();
     if (Math.random() < 0.02) {
-      await rest(`telegram_seen?seen_at=lt.${q(new Date(Date.now() - 86_400_000).toISOString())}`, { method: "DELETE" });
-      await rest(`telegram_link_codes?expires_at=lt.${q(new Date().toISOString())}`, { method: "DELETE" });
+      await safe(async () => {
+        await rest(`telegram_seen?seen_at=lt.${q(new Date(Date.now() - 86_400_000).toISOString())}`, { method: "DELETE" });
+        await rest(`telegram_link_codes?expires_at=lt.${q(new Date().toISOString())}`, { method: "DELETE" });
+        await rest(`telegram_pending?expires_at=lt.${q(new Date().toISOString())}`, { method: "DELETE" });
+      }, undefined);
     }
     if (update.callback_query) {
-      await onCallback(tg, update.callback_query);
+      await onCallback(tg, update.callback_query, now);
       return ok();
     }
-    const message = update.message as { chat?: { id?: number; type?: string }; text?: unknown; photo?: unknown; document?: unknown } | undefined;
+    const message = update.message as {
+      chat?: { id?: number; type?: string };
+      from?: { language_code?: string };
+      text?: unknown;
+      photo?: { file_id?: string; file_size?: number }[];
+      document?: { file_id?: string; file_size?: number; mime_type?: string };
+    } | undefined;
     const chatId = message?.chat?.id;
     if (!message || message.chat?.type !== "private" || !Number.isSafeInteger(chatId)) return ok();
     if (!(await takeQuota(`tg-msg:${chatId}`, 300))) return ok();
+    const guess = guessLanguage(message.from?.language_code);
     if (typeof message.text === "string") {
-      await onText(tg, chatId as number, message.text, now);
+      await onText(tg, chatId as number, message.text, now, guess);
     } else if (message.photo || message.document) {
-      await tg.send(chatId as number, "Photos and files aren't supported yet. Type the expense instead, like <code>lunch 12.50</code>.");
+      const link = await getLink(chatId as number);
+      if (!link) await tg.send(chatId as number, tr(guess, "not_connected"));
+      else await onPhoto(tg, link, message, now);
     }
   } catch (error) {
     console.error("telegram-bot: update failed", error instanceof Error ? error.message : "unknown");
     const chatId = (update.message as { chat?: { id?: number } } | undefined)?.chat?.id;
-    if (Number.isSafeInteger(chatId)) await tg.send(chatId as number, "Something went wrong on my side. Please try again in a moment.");
+    const guess = guessLanguage((update.message as { from?: { language_code?: string } } | undefined)?.from?.language_code);
+    if (Number.isSafeInteger(chatId)) await safe(() => tg.send(chatId as number, tr(guess, "went_wrong")), undefined);
   }
   return ok();
 }

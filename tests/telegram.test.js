@@ -38,6 +38,8 @@ function setup(extraEnv = {}) {
     tg.client = {
         send: async (chatId, html, options) => { tg.sent.push({ chatId, html, buttons: options?.buttons }); },
         edit: async (chatId, messageId, html, options) => { tg.edited.push({ chatId, messageId, html, buttons: options?.buttons }); },
+        sendChecked: async (chatId, html) => { tg.sent.push({ chatId, html }); return tg.checkedResult || 'ok'; },
+        fileBytes: async () => (tg.file ? tg.file : { error: 'failed' }),
         answer: async (id) => { tg.answered.push(id); },
     };
     tg.last = () => tg.sent[tg.sent.length - 1];
@@ -139,11 +141,13 @@ test('newLinkCode: 10 unambiguous characters, different every time', async () =>
     assert.equal(seen.size, 500);
 });
 
-test('the app copy of the category-guessing code is identical to the one the bot uses', () => {
+test('the app copies of the category-guessing and receipt-reading code are identical to the ones the bot uses', () => {
     const root = path.join(__dirname, '..');
-    const app = fs.readFileSync(path.join(root, 'smart-entry.js'));
-    const bot = fs.readFileSync(path.join(root, 'supabase/functions/_shared/smart-entry.js'));
-    assert.ok(app.equals(bot), 'run: node tools/sync-shared.js');
+    for (const file of ['smart-entry.js', 'receipt-parser.js']) {
+        const app = fs.readFileSync(path.join(root, file));
+        const bot = fs.readFileSync(path.join(root, 'supabase/functions/_shared', file));
+        assert.ok(app.equals(bot), `${file} differs from the bot's copy. Run: node tools/sync-shared.js`);
+    }
 });
 
 // ------------------------------------------------------------------ telegram-link (the website side)
@@ -300,7 +304,7 @@ test('an unconnected chat can do nothing but ask for help', async () => {
     await deliver(tg, message(CHAT_A, '/start'));
     assert.match(tg.last().html, /Connect Telegram/);
     await deliver(tg, message(CHAT_A, '/help'));
-    assert.match(tg.last().html, /Just type an expense/);
+    assert.match(tg.last().html, /Add an expense/);
     assert.equal(db.expenses.length, 0);
 });
 
@@ -429,7 +433,7 @@ test('buttons: Undo removes it; Category offers the active categories and applie
     await deliver(tg, callback(CHAT_A, `c:${id}`));
     const menu = tg.edited.at(-1);
     const labels = menu.buttons.flat().map((b) => b.text);
-    assert.deepEqual(labels, ['Food', 'Shopping', 'Other', 'Cancel'], 'inactive categories are not offered');
+    assert.deepEqual(labels, ['🍜 Food', '🛍️ Shopping', '📦 Other', '✖ Cancel'], 'inactive categories are not offered');
     await deliver(tg, callback(CHAT_A, `k:${id}:1`));
     assert.equal(db.expenses[0].category, 'shopping');
     assert.match(tg.edited.at(-1).html, /Updated/);
@@ -464,7 +468,7 @@ test('SECURITY: one person can never change or delete another person\'s expenses
     assert.ok(db.expenses.some((e) => e.id === bobs.id), "Bob's expense survives");
     // summaries only count one's own data
     await deliver(tg, message(CHAT_A, '/today'));
-    assert.match(tg.last().html, /RM\s?0\.00/);
+    assert.match(tg.last().html, /No expenses yet/);
     assert.ok(!/99/.test(tg.last().html));
 });
 
@@ -499,15 +503,15 @@ test('/today and /month add up the right period, in Kuala Lumpur time, for the r
     add(B, 1000, '2026-11-05T01:00:00Z');          // someone else
     db.incomes.push({ id: 'i1', user_id: A, amount: '3000', created_at: '2026-11-02T00:00:00Z' });
     await deliver(tg, message(CHAT_A, '/today'));
-    assert.match(tg.last().html, /Spent <b>RM\s?15\.50<\/b> \(2 expenses\)/);
-    assert.match(tg.last().html, /Food\s+RM\s?10\.00/);
-    assert.match(tg.last().html, /Shopping\s+RM\s?5\.50/);
+    assert.match(tg.last().html, /Spent\s+<b>RM\s?15\.50<\/b>\s+·\s+2 expenses/);
+    assert.match(tg.last().html, /Food.*<b>RM\s?10\.00<\/b>/);
+    assert.match(tg.last().html, /Shopping.*<b>RM\s?5\.50<\/b>/);
     await deliver(tg, message(CHAT_A, '/month'));
     const month = tg.last().html;
     assert.match(month, /November 2026/);
-    assert.match(month, /Income\s+RM\s?3,000\.00/);
+    assert.match(month, /Income\s+<b>RM\s?3,000\.00/);
     assert.match(month, /Spent\s+<b>RM\s?122\.50<\/b>/);
-    assert.match(month, /Net\s+RM\s?2,877\.50/);
+    assert.match(month, /Net\s+<b>RM\s?2,877\.50/);
     assert.ok(!/1,?000\.00/.test(month.replace('3,000.00', '')), "no one else's money");
 });
 
@@ -542,7 +546,7 @@ test('photos and files get a clear "not supported yet" answer', async () => {
     const { db, tg } = setup();
     await link(db, tg, 'tok-a', CHAT_A);
     await deliver(tg, { update_id: ++updateCounter, message: { message_id: 9, chat: { id: CHAT_A, type: 'private' }, photo: [{ file_id: 'x' }] } });
-    assert.match(tg.last().html, /aren't supported yet/);
+    assert.match(tg.last().html, /Photo reading isn't available/);
     assert.equal(db.expenses.length, 0);
 });
 

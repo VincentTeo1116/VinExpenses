@@ -154,11 +154,31 @@ test('Telegram: the public webhook proves who is calling, and its tables are ser
     assert.ok(!/process\.argv/.test(read('tools/set-telegram-webhook.js')), 'the token is never taken from the command line');
 });
 
+test('Telegram extras: new tables are server-only, the summary sender is scheduler-only, photos go through the shared limit', () => {
+    const sql = read('supabase-schema.sql');
+    assert.match(sql, /alter table public\.telegram_pending enable row level security/);
+    assert.match(sql, /revoke all on public\.telegram_pending from anon, authenticated/);
+    assert.match(sql, /check \(lang in \('en', 'ms', 'zh'\)\)/);
+    const digest = read('supabase/functions/telegram-digest/handler.ts');
+    assert.match(digest, /safeEqual\(request\.headers\.get\("x-cron-secret"\)/);
+    assert.match(digest, /cronSecret\.length < 24/);
+    const bot = read('supabase/functions/telegram-bot/handler.ts');
+    assert.match(bot, /takeReceiptQuota\(/, 'a photo costs one scan from the same daily allowance as the app');
+    assert.ok(bot.indexOf('takeReceiptQuota(') < bot.indexOf('runOcr('), 'the allowance is checked before the paid OCR call');
+    assert.match(bot, /mime_type/, 'only images are accepted as files');
+    for (const [, query] of bot.matchAll(/rest\(`((?:telegram_pending|telegram_links)[^`]*)`/g)) {
+        assert.match(query, /chat_id=eq\.\$\{(chatId|chat|link\.chat_id)\}|user_id=eq\.\$\{q\(userId\)\}|expires_at=lt\.|\?on_conflict=chat_id/, `unscoped chat query: ${query}`);
+    }
+    const ocr = read('supabase/functions/_shared/ocr.ts');
+    assert.match(ocr, /mimeFromBytes/, 'the real file type decides, not what the sender claims');
+    assert.ok(!/console\./.test(ocr), 'receipt images and text are never logged');
+});
+
 test('every edge function has an explicit entry in config.toml, and only the intended ones are public', () => {
     const toml = read('supabase/config.toml');
     const settings = Object.fromEntries([...toml.matchAll(/\[functions\.([a-z-]+)\]\s*\n\s*verify_jwt\s*=\s*(true|false)/g)].map((m) => [m[1], m[2]]));
     for (const name of functions) assert.ok(name in settings, `${name} missing from config.toml`);
-    assert.deepEqual(Object.keys(settings).filter((n) => settings[n] === 'false').sort(), ['email-action', 'monthly-report-email', 'telegram-bot']);
+    assert.deepEqual(Object.keys(settings).filter((n) => settings[n] === 'false').sort(), ['email-action', 'monthly-report-email', 'telegram-bot', 'telegram-digest']);
 });
 
 test('no function allows every website (CORS *) and none builds its own CORS headers', () => {

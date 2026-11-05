@@ -37,3 +37,7 @@ verify_jwt = false
 # The website's "Connect Telegram" card: signed-in users only.
 [functions.telegram-link]
 verify_jwt = true
+
+# Called by the database scheduler (secret header), like monthly-report-email.
+[functions.telegram-digest]
+verify_jwt = false

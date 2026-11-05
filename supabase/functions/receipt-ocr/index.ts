@@ -1,7 +1,5 @@
 import { consumeQuota, dailyLimit, json, preflight, requireUser } from "../_shared/guard.ts";
-
-const OCR_ENDPOINT = "https://api.ocr.space/parse/image";
-const MAX_IMAGE_BYTES = 1_000_000;
+import { MAX_IMAGE_BYTES, runOcr } from "../_shared/ocr.ts";
 
 Deno.serve(async (request: Request) => {
   const early = preflight(request);
@@ -23,42 +21,23 @@ Deno.serve(async (request: Request) => {
     const match = dataUrl.match(/^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=]+)$/i);
     if (!match) return json(request, { error: "Choose a JPG, PNG, WebP or PDF receipt." }, 400);
 
-    const mimeType = match[1].toLowerCase();
     const encoded = match[2];
     if (encoded.length > Math.ceil(MAX_IMAGE_BYTES * 4 / 3) + 8) {
       return json(request, { error: "Receipt image must be 1 MB or smaller." }, 413);
     }
+    const bytes = Uint8Array.from(atob(encoded), (character) => character.charCodeAt(0));
 
-    const binary = atob(encoded);
-    if (binary.length > MAX_IMAGE_BYTES) {
-      return json(request, { error: "Receipt image must be 1 MB or smaller." }, 413);
+    const result = await runOcr(apiKey, bytes);
+    if (result.ok) {
+      // Do not log or persist receipt images or OCR text.
+      return json(request, { text: result.text });
     }
-    const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
-    const extension = mimeType === "image/png" ? "png" : mimeType === "image/webp" ? "webp" : "jpg";
-    const form = new FormData();
-    form.append("file", new Blob([bytes], { type: mimeType }), `receipt.${extension}`);
-    form.append("language", "auto");
-    form.append("OCREngine", "2");
-    form.append("scale", "true");
-    form.append("detectOrientation", "true");
-    form.append("isOverlayRequired", "false");
-
-    const response = await fetch(OCR_ENDPOINT, {
-      method: "POST",
-      headers: { apikey: apiKey },
-      body: form,
-    });
-    if (!response.ok) return json(request, { error: "OCR.space could not process this receipt. Try again or enter it manually." }, 502);
-
-    const result = await response.json();
-    const parsed = Array.isArray(result.ParsedResults) ? result.ParsedResults : [];
-    const text = parsed.map((page: { ParsedText?: string }) => page.ParsedText || "").join("\n").trim();
-    if (result.IsErroredOnProcessing || !text) {
+    if (result.reason === "too_large") return json(request, { error: "Receipt image must be 1 MB or smaller." }, 413);
+    if (result.reason === "bad_type") return json(request, { error: "Choose a JPG, PNG, WebP or PDF receipt." }, 400);
+    if (result.reason === "unreadable") {
       return json(request, { error: "I couldn’t read this receipt clearly. Try a sharper, well-lit photo or enter it manually." }, 422);
     }
-
-    // Do not log or persist receipt images or OCR text.
-    return json(request, { text: text.slice(0, 30000) });
+    return json(request, { error: "OCR.space could not process this receipt. Try again or enter it manually." }, 502);
   } catch (_error) {
     return json(request, { error: "Receipt scanning failed. Please try again or enter it manually." }, 500);
   }

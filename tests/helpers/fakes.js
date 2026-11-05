@@ -156,7 +156,7 @@ function fakeSupabase() {
         monthly_report_preferences: [],
         expenses: [], incomes: [], user_categories: [],
         app_admins: [],
-        telegram_links: [], telegram_link_codes: [], telegram_seen: [], user_payment_methods: [],
+        telegram_links: [], telegram_link_codes: [], telegram_seen: [], telegram_pending: [], user_payment_methods: [], budgets: [],
         counters: new Map(),
         requests: [],
         quotaCalls: [],
@@ -170,7 +170,7 @@ function fakeSupabase() {
         const url = new URL(typeof input === 'string' ? input : input.url);
         const method = (init.method || 'GET').toUpperCase();
         const headers = Object.fromEntries(Object.entries(init.headers || {}).map(([k, v]) => [k.toLowerCase(), v]));
-        db.requests.push({ method, path: url.pathname + url.search, headers });
+        db.requests.push({ method, path: url.pathname + url.search, headers, body: init.body });
         const path = url.pathname;
 
         if (path === '/auth/v1/user') {
@@ -191,6 +191,13 @@ function fakeSupabase() {
             db.counters.set(body.p_scope, used + 1);
             return respond(true);
         }
+        if (table === 'rpc/consume_receipt_quota') {
+            const key = `ocr:${body.p_user}`;
+            const used = db.counters.get(key) || 0;
+            if (used >= body.p_limit) return respond(false);
+            db.counters.set(key, used + 1);
+            return respond(true);
+        }
         if (table === 'rpc/claim_first_admin') {
             if (db.app_admins.length) return respond(false);
             const real = [...db.users.values()].find((u) => u.id === body.p_user && u.email.toLowerCase() === body.p_email.toLowerCase() && u.email_confirmed_at);
@@ -204,13 +211,17 @@ function fakeSupabase() {
         const filtered = [...url.searchParams.keys()].some((k) => !['select', 'order', 'limit', 'offset', 'on_conflict'].includes(k));
         const wantsRows = (headers.prefer || '').includes('return=representation');
         if (method === 'POST') {
-            const pk = { telegram_seen: 'update_id', telegram_links: 'chat_id', telegram_link_codes: 'code_hash' }[table];
+            const pk = { telegram_seen: 'update_id', telegram_links: 'chat_id', telegram_link_codes: 'code_hash', telegram_pending: 'chat_id' }[table];
             const inserted = [];
             for (const item of Array.isArray(body) ? body : [body]) {
                 const row = { ...item };
-                if (table === 'expenses') { row.id = row.id || crypto.randomUUID(); row.created_at = row.created_at || new Date().toISOString(); }
+                if (table === 'expenses' || table === 'incomes') { row.id = row.id || crypto.randomUUID(); row.created_at = row.created_at || new Date().toISOString(); }
                 const clash = (pk && rows.some((r) => String(r[pk]) === String(row[pk])))
                     || (table === 'telegram_links' && rows.some((r) => r.user_id === row.user_id));
+                if (clash && (headers.prefer || '').includes('merge-duplicates')) {
+                    Object.assign(rows.find((r) => String(r[pk]) === String(row[pk])), row);
+                    continue;
+                }
                 if (clash) {
                     if ((headers.prefer || '').includes('ignore-duplicates')) continue;
                     return respond({ code: '23505' }, 409);

@@ -43,8 +43,13 @@ async function call(method, payload) {
         commands: [
             { command: 'today', description: "Today's spending" },
             { command: 'month', description: 'This month at a glance' },
+            { command: 'top', description: 'Top categories and places this month' },
+            { command: 'recent', description: 'Edit or delete a recent expense' },
             { command: 'undo', description: 'Remove the last expense added here' },
+            { command: 'language', description: 'English / Bahasa Melayu / \u4e2d\u6587' },
+            { command: 'digest', description: 'Weekly summary on or off' },
             { command: 'help', description: 'How to add an expense' },
+            { command: 'cancel', description: 'Cancel what I asked you to type' },
             { command: 'unlink', description: 'Disconnect this chat' },
         ],
     });

@@ -174,6 +174,25 @@ export async function takeQuota(scope: string, limit: number, fetchImpl: typeof 
   }
 }
 
+/**
+ * Counts one receipt scan against the person's daily scan allowance (the SAME allowance as scanning in the app).
+ * Fails closed: if the counter cannot be reached, no scan is allowed. Returns true when the scan may go ahead.
+ */
+export async function takeReceiptQuota(userId: string, limit: number, fetchImpl: typeof fetch = fetch): Promise<boolean> {
+  const access = projectAccess();
+  if (!access) return false;
+  try {
+    const response = await fetchImpl(`${access.url}/rest/v1/rpc/consume_receipt_quota`, {
+      method: "POST",
+      headers: { apikey: access.serviceKey, Authorization: `Bearer ${access.serviceKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ p_user: userId, p_kind: "ocr", p_limit: limit }),
+    });
+    return response.ok && (await response.json()) === true;
+  } catch (_error) {
+    return false;
+  }
+}
+
 /** Constant-time string comparison (does not stop early at the first wrong character). */
 export function safeEqual(a: string, b: string): boolean {
   const encoder = new TextEncoder();

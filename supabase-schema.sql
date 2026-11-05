@@ -513,3 +513,75 @@ create table if not exists public.telegram_seen (
 );
 alter table public.telegram_seen enable row level security;
 revoke all on public.telegram_seen from anon, authenticated;
+
+
+-- ================================================================
+-- Telegram bot, part 2: language, weekly summary, receipts waiting for confirmation
+-- ================================================================
+alter table public.telegram_links add column if not exists lang text not null default 'en';
+alter table public.telegram_links drop constraint if exists telegram_links_lang_check;
+alter table public.telegram_links add constraint telegram_links_lang_check check (lang in ('en', 'ms', 'zh'));
+alter table public.telegram_links add column if not exists digest_on boolean not null default false;
+alter table public.telegram_links add column if not exists last_digest_week date;
+
+-- A receipt photo that has been read and is waiting for "Save", or an amount the person is about to type.
+-- One row per chat; it expires by itself and is replaced by the next one.
+create table if not exists public.telegram_pending (
+  chat_id bigint primary key,
+  kind text not null check (kind in ('receipt', 'receipt_amount', 'edit_amount')),
+  payload jsonb not null default '{}'::jsonb,
+  expires_at timestamptz not null
+);
+alter table public.telegram_pending enable row level security;
+revoke all on public.telegram_pending from anon, authenticated;
+
+-- Weekly summary scheduler (opt-in per person with /digest on). Runs hourly; the function itself only sends on
+-- Monday morning in Kuala Lumpur and never twice in the same week. Installed once the three Vault secrets used by
+-- the monthly report exist (see the README), exactly like the monthly job above.
+do $setup$
+declare
+  vault_secret_count integer := 0;
+begin
+  if to_regclass('vault.decrypted_secrets') is not null then
+    execute $query$
+      select count(*)::integer
+      from vault.decrypted_secrets
+      where name in ('project_url', 'publishable_key', 'monthly_report_cron_secret')
+    $query$ into vault_secret_count;
+  end if;
+
+  if vault_secret_count = 3 then
+    begin
+      execute 'create extension if not exists pg_cron with schema pg_catalog';
+      execute 'create extension if not exists pg_net with schema extensions';
+      execute $query$
+        select cron.unschedule(jobid)
+        from cron.job
+        where jobname = 'telegram-weekly-digest'
+      $query$;
+      execute $query$
+        select cron.schedule(
+          'telegram-weekly-digest',
+          '10 * * * *',
+          $job$
+            select net.http_post(
+              url := (select decrypted_secret from vault.decrypted_secrets where name = 'project_url') || '/functions/v1/telegram-digest',
+              headers := jsonb_build_object(
+                'Content-Type', 'application/json',
+                'apikey', (select decrypted_secret from vault.decrypted_secrets where name = 'publishable_key'),
+                'x-cron-secret', (select decrypted_secret from vault.decrypted_secrets where name = 'monthly_report_cron_secret')
+              ),
+              body := '{}'::jsonb
+            ) as request_id;
+          $job$
+        )
+      $query$;
+      raise notice 'Telegram weekly summary scheduler configured.';
+    exception when others then
+      raise notice 'Schema setup completed, but the Telegram weekly summary was not scheduled: %', sqlerrm;
+    end;
+  else
+    raise notice 'Telegram weekly summary will be scheduled after the three Vault secrets exist and this file is run again.';
+  end if;
+end
+$setup$;
