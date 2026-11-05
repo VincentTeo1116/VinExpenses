@@ -11,6 +11,8 @@
 // The token is only read from the environment (never from arguments, so it does not end up in shell history),
 // and it is never printed.
 
+const { COMMANDS } = require('./telegram-commands.js');
+
 const token = process.env.TELEGRAM_BOT_TOKEN || '';
 const secret = process.env.TELEGRAM_WEBHOOK_SECRET || '';
 const base = (process.env.SUPABASE_URL || '').replace(/\/+$/, '');
@@ -39,20 +41,13 @@ async function call(method, payload) {
         allowed_updates: ['message', 'callback_query'],
         max_connections: 20,
     });
-    await call('setMyCommands', {
-        commands: [
-            { command: 'today', description: "Today's spending" },
-            { command: 'month', description: 'This month at a glance' },
-            { command: 'top', description: 'Top categories and places this month' },
-            { command: 'recent', description: 'Edit or delete a recent expense' },
-            { command: 'undo', description: 'Remove the last expense added here' },
-            { command: 'language', description: 'English / Bahasa Melayu / \u4e2d\u6587' },
-            { command: 'digest', description: 'Weekly summary on or off' },
-            { command: 'help', description: 'How to add an expense' },
-            { command: 'cancel', description: 'Cancel what I asked you to type' },
-            { command: 'unlink', description: 'Disconnect this chat' },
-        ],
-    });
+    // The "/" menu, in English (default), Malay and Chinese: Telegram shows the one matching the person's app language.
+    for (const [language, list] of Object.entries(COMMANDS)) {
+        await call('setMyCommands', {
+            commands: list.map(([command, description]) => ({ command, description })),
+            ...(language === 'default' ? {} : { language_code: language }),
+        });
+    }
     const info = await call('getWebhookInfo', {});
     console.log('Webhook set:', info.url);
     console.log('Pending updates:', info.pending_update_count, info.last_error_message ? '| last error: ' + info.last_error_message : '');

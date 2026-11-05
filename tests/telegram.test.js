@@ -255,14 +255,14 @@ test('link: a valid code connects the chat once; the same code never works twice
     const make = async () => (await (await handle(new Request('https://x', { method: 'POST', headers: { authorization: 'Bearer tok-a', origin: 'https://me.github.io' }, body: '{"action":"create"}' }))).json()).code;
     const code = await make();
     await deliver(tg, message(CHAT_A, `/start ${code}`));
-    assert.match(tg.last().html, /Connected/);
+    assert.match(tg.last().html, /connected/i);
     assert.deepEqual(db.telegram_links.map((l) => [l.chat_id, l.user_id]), [[CHAT_A, A]]);
     assert.equal(db.telegram_link_codes.length, 0, 'code consumed');
     await deliver(tg, message(CHAT_B, `/start ${code}`));
     assert.match(tg.last().html, /invalid or has expired/);
     assert.equal(db.telegram_links.length, 1);
     await deliver(tg, message(CHAT_B, `/link ${(await make()).toLowerCase()}`));
-    assert.match(tg.last().html, /Connected/, 'codes are accepted in lower case and with /link');
+    assert.match(tg.last().html, /connected/i, 'codes are accepted in lower case and with /link');
 });
 
 test('link: expired, malformed and guessed codes fail; guessing is rate-limited', async () => {
@@ -324,7 +324,7 @@ test('expense: typing "kedai ali 4.50" saves for the linked user, learns the cat
     assert.equal(saved.note, 'via Telegram');
     assert.match(tg.last().html, /Saved/);
     assert.match(tg.last().html, /RM\s?4\.50/);
-    assert.deepEqual(tg.last().buttons[0].map((b) => b.text), ['↩️ Undo', '🏷 Category']);
+    assert.deepEqual(tg.last().buttons.at(-1).map((b) => b.text), ['➕ More', '↩️ Undo', '✏️ Edit']);
     assert.equal(db.telegram_links[0].last_expense_id, saved.id);
 });
 

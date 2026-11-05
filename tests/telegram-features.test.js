@@ -25,7 +25,7 @@ test('backdating: "yesterday" and "3/11" save on that day, shown on the card; th
     await deliver(tg, message(CHAT_A, 'yesterday petrol 50'));
     assert.equal(db.expenses[0].created_at, '2026-11-04T04:00:00.000Z', 'noon in Kuala Lumpur, so it can not slip across a day boundary');
     assert.equal(db.expenses[0].merchant, 'petrol');
-    assert.match(tg.last().html, /📅 4 Nov/);
+    assert.match(tg.last().html, /📅 Yesterday/);
     await deliver(tg, message(CHAT_A, '3/11 coffee 6'));
     assert.equal(db.expenses[1].created_at, '2026-11-03T04:00:00.000Z');
     await deliver(tg, message(CHAT_A, '28/12 gift 40'));
@@ -259,7 +259,7 @@ test('language: /language offers three choices, the choice is remembered, and re
     assert.match(tg.lastEdit().html, /Bahasa Melayu/);
     await deliver(tg, message(CHAT_A, 'makan tengah hari 12.50'));
     assert.match(tg.last().html, /Disimpan/);
-    assert.deepEqual(tg.last().buttons[0].map((b) => b.text), ['↩️ Buat asal', '🏷 Kategori']);
+    assert.deepEqual(tg.last().buttons.at(-1).map((b) => b.text), ["➕ Lagi", "↩️ Buat asal", "✏️ Ubah"]);
     await deliver(tg, message(CHAT_A, '/today'));
     assert.match(tg.last().html, /Hari ini/);
     await deliver(tg, callback(CHAT_A, 'l:zh'));
@@ -280,7 +280,7 @@ test('language: the first greeting and the first link follow the person\'s Teleg
     assert.match(tg.last().html, /尚未连接/);
     seedChoices(db, A);
     await link(db, tg, 'tok-a', CHAT_A, { language_code: 'zh-hans' });
-    assert.match(tg.last().html, /已连接/);
+    assert.match(tg.last().html, /连接成功/);
     assert.equal(db.telegram_links[0].lang, 'zh');
 });
 
@@ -326,8 +326,10 @@ test('receipt: a photo is read, shown for confirmation, and saved only after Sav
     ocrReturns(hooks, { ParsedResults: [{ ParsedText: RECEIPT }] });
     tg.file = { bytes: JPEG };
     await deliver(tg, photoMessage(CHAT_A));
-    assert.match(tg.sent.at(-2).html, /Reading your receipt/);
+    assert.match(tg.lastSent().html, /Reading your receipt/);
     const card = tg.last();
+    assert.equal(tg.lastEdit().messageId, tg.lastSent().id, 'ONE live message: "Reading…" itself turns into the card');
+    assert.equal(tg.sent.length > 0 && tg.sent.filter((m) => /Receipt found/.test(m.html)).length, 0, 'no second message for the result');
     assert.match(card.html, /Receipt found/);
     assert.match(card.html, /<b>RM\s?125\.40<\/b> · Food/);
     assert.match(card.html, /Sarawak/);

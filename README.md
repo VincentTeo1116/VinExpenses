@@ -394,6 +394,24 @@ list; the reply has **Undo** and **Category** buttons. Commands: `/today`, `/mon
 (3) otherwise **Other**. The reply says which rule it used, and the **Category** button corrects
 it; a correction is remembered for next time.
 
+**How it looks and feels.**
+
+| What you see | Why |
+|---|---|
+| A **menu that is always at the bottom**: ➕ Add · 📊 Today · 🗓 Month · 🧾 Recent · ⚙️ Settings (in your language) | No commands to remember. `/menu` brings it back. |
+| A quick 👌 **reaction on your own message** the moment the expense is saved | Instant "got it" without another message. |
+| A **card**: amount first, then category, place, payment and "Today / Yesterday"; budget bars and the reason for the category tucked into a **collapsible quote**; budget warnings and duplicate warnings stay visible | The important part reads in one glance. |
+| **Category chips** on every card (✓ the current one, then the ones you use most) | Fixing a category is one tap, not two. |
+| **➕ Add** shows **🔁 Repeat last** and your usual expenses (same place and amount logged at least twice) | One tap for the things you buy every day. |
+| Receipt photos use **one live message**: "Reading…" turns into the result | No pile of messages. |
+| Small **pop-ups** ("Moved to Food ✓", "Undone ✓") and a "typing…" indicator | Feedback for every tap. |
+| **⚙️ Settings**: language, weekly summary on/off, disconnect, and **🔗 Open VinExpenses** | Everything in one place (the open button needs the `SITE_URL` secret). |
+
+If Telegram ever refuses the pretty formatting, the same message is sent as plain text, so nothing is lost. If a
+nice-to-have (reaction, chips, favourites, menu) is unavailable, the expense is still saved and the card still appears.
+After updating, run `node tools/set-telegram-webhook.js` again: it also sets the "/" command list in English, Malay
+and Chinese (edit them in `tools/telegram-commands.js`).
+
 **More things the bot does.**
 
 | You do | The bot does |

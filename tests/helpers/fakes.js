@@ -240,7 +240,25 @@ function fakeSupabase() {
         if (method === 'GET') {
             const offset = Number(url.searchParams.get('offset') || 0);
             const limit = Number(url.searchParams.get('limit') || 1000);
-            return respond(matched.slice(offset, offset + limit));
+            const order = (url.searchParams.get('order') || '').split(',').filter(Boolean).map((part) => {
+                const [column, direction] = part.split('.');
+                return { column, sign: direction === 'desc' ? -1 : 1 };
+            });
+            const sorted = order.length
+                ? matched.slice().sort((a, b) => {
+                    for (const { column, sign } of order) {
+                        const x = a[column];
+                        const y = b[column];
+                        if (x === y) continue;
+                        if (x === undefined || x === null) return 1;
+                        if (y === undefined || y === null) return -1;
+                        const numeric = !Number.isNaN(Number(x)) && !Number.isNaN(Number(y)) && column !== 'created_at';
+                        return (numeric ? Number(x) - Number(y) : String(x) < String(y) ? -1 : 1) * sign;
+                    }
+                    return 0;
+                })
+                : matched;
+            return respond(sorted.slice(offset, offset + limit));
         }
         if (method === 'PATCH') {
             matched.forEach((row) => Object.assign(row, body));

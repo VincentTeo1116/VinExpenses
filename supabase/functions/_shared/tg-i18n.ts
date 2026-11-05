@@ -3,7 +3,7 @@
 //   {{name}}  is replaced as-is (use only for text we built ourselves, already escaped)
 // A missing translation falls back to English, so a new message can never show a blank or a raw key.
 
-import { escapeHtml, type Lang } from "./tg-format.ts";
+import { escapeHtml, formatDay, type Lang } from "./tg-format.ts";
 
 export const LANGS: Lang[] = ["en", "ms", "zh"];
 export const LANG_NAMES: Record<Lang, string> = { en: "English", ms: "Bahasa Melayu", zh: "中文" };
@@ -35,9 +35,6 @@ const en: Dict = {
   date_old: "📅 That date is more than a year ago. Add old records in the app.",
   photo_unavailable: "📸 Photo reading isn't available right now. Please type the expense, like <code>lunch 12.50</code>.",
 
-  saved: "✅ <b>Saved</b>",
-  updated: "🏷 <b>Updated</b>",
-  amount_updated: "✏️ <b>Amount updated</b>",
   income_saved: "💰 <b>Income saved</b>",
   btn_undo: "↩️ Undo",
   btn_category: "🏷 Category",
@@ -101,7 +98,6 @@ const en: Dict = {
   receipt_expired: "⌛ That receipt expired. Please send the photo again.",
   receipt_cancelled: "👌 Receipt discarded.",
   receipt_foreign: "⚠️ This receipt may not be in RM. Please check the amount.",
-  receipt_saved: "✅ <b>Saved from receipt</b>",
 
   lang_prompt: "🌐 Choose your language:",
   lang_set: "✅ Language set to <b>{name}</b>.",
@@ -137,9 +133,6 @@ const ms: Dict = {
   date_old: "📅 Tarikh itu lebih setahun yang lalu. Tambah rekod lama dalam aplikasi.",
   photo_unavailable: "📸 Bacaan foto tidak tersedia sekarang. Sila taip perbelanjaan, contohnya <code>makan 12.50</code>.",
 
-  saved: "✅ <b>Disimpan</b>",
-  updated: "🏷 <b>Dikemas kini</b>",
-  amount_updated: "✏️ <b>Jumlah dikemas kini</b>",
   income_saved: "💰 <b>Pendapatan disimpan</b>",
   btn_undo: "↩️ Buat asal",
   btn_category: "🏷 Kategori",
@@ -203,7 +196,6 @@ const ms: Dict = {
   receipt_expired: "⌛ Resit itu telah tamat tempoh. Sila hantar foto semula.",
   receipt_cancelled: "👌 Resit dibuang.",
   receipt_foreign: "⚠️ Resit ini mungkin bukan dalam RM. Sila semak jumlahnya.",
-  receipt_saved: "✅ <b>Disimpan daripada resit</b>",
 
   lang_prompt: "🌐 Pilih bahasa anda:",
   lang_set: "✅ Bahasa ditetapkan kepada <b>{name}</b>.",
@@ -239,9 +231,6 @@ const zh: Dict = {
   date_old: "📅 这个日期超过一年了。旧记录请在应用里添加。",
   photo_unavailable: "📸 暂时无法读取照片。请直接输入支出，例如 <code>午餐 12.50</code>。",
 
-  saved: "✅ <b>已保存</b>",
-  updated: "🏷 <b>已更新</b>",
-  amount_updated: "✏️ <b>金额已更新</b>",
   income_saved: "💰 <b>收入已保存</b>",
   btn_undo: "↩️ 撤销",
   btn_category: "🏷 分类",
@@ -305,7 +294,6 @@ const zh: Dict = {
   receipt_expired: "⌛ 这张收据已过期。请重新发送照片。",
   receipt_cancelled: "👌 已放弃这张收据。",
   receipt_foreign: "⚠️ 这张收据可能不是令吉。请核对金额。",
-  receipt_saved: "✅ <b>已从收据保存</b>",
 
   lang_prompt: "🌐 请选择语言：",
   lang_set: "✅ 语言已设为 <b>{name}</b>。",
@@ -315,6 +303,123 @@ const zh: Dict = {
   digest_status_off: "🔕 每周摘要<b>已关闭</b>。发送 /digest on 可开启。",
   digest_unavailable: "😕 该设置暂不可用。请联系管理员运行最新的数据库更新。",
 };
+
+
+// ---- Phase 1 UX additions --------------------------------------------------------------------------------------
+Object.assign(en, {
+  st_income: "Income saved", st_saved: "Saved", st_updated: "Updated", st_amount: "Amount updated", st_receipt: "Saved from receipt", st_repeat: "Saved again",
+  today_word: "Today", yesterday_word: "Yesterday",
+  menu_add: "➕ Add", menu_today: "📊 Today", menu_month: "🗓 Month", menu_recent: "🧾 Recent", menu_settings: "⚙️ Settings",
+  menu_ready: "👇 Use the menu below, or just type an expense like <code>lunch 12.50</code>.",
+  onboard:
+    "🎉 <b>You're connected!</b>\n\nAdd an expense by typing it. Tap an example to copy it, then send:\n" +
+    "<code>lunch 12.50</code>\n<code>kopi 4 ewallet</code>\n<code>yesterday petrol 50</code>\n\n" +
+    "📸 You can also send a photo of a receipt.\n👇 The menu below is always there.",
+  add_prompt: "➕ <b>What did you spend?</b>\nType it like <code>lunch 12.50</code>, or send a receipt photo.",
+  add_favs: "\n\n⭐ Or tap one of your usual ones:",
+  btn_repeat: "🔁 Repeat last: {what}",
+  btn_more: "➕ More",
+  btn_edit: "✏️ Edit",
+  btn_open: "🔗 Open VinExpenses",
+  settings_title: "⚙️ <b>Settings</b>",
+  settings_lang: "🌐 Language: <b>{name}</b>",
+  settings_digest_on: "🔔 Weekly summary: <b>on</b>",
+  settings_digest_off: "🔕 Weekly summary: <b>off</b>",
+  btn_set_lang: "🌐 Language",
+  btn_digest_on: "🔔 Turn on weekly summary",
+  btn_digest_off: "🔕 Turn off weekly summary",
+  btn_unlink: "🔌 Disconnect",
+  btn_yes_unlink: "Yes, disconnect",
+  unlink_confirm: "🔌 Disconnect this chat from your VinExpenses account?\nYour expenses stay in the app.",
+  toast_undone: "Undone ✓", toast_moved: "Moved to {cat} ✓", toast_same: "Already in {cat}", toast_deleted: "Deleted ✓",
+  toast_saved: "Saved ✓", toast_unavailable: "Not available yet",
+});
+Object.assign(ms, {
+  st_income: "Pendapatan disimpan", st_saved: "Disimpan", st_updated: "Dikemas kini", st_amount: "Jumlah dikemas kini", st_receipt: "Disimpan daripada resit", st_repeat: "Disimpan semula",
+  today_word: "Hari ini", yesterday_word: "Semalam",
+  menu_add: "➕ Tambah", menu_today: "📊 Hari ini", menu_month: "🗓 Bulan ini", menu_recent: "🧾 Terkini", menu_settings: "⚙️ Tetapan",
+  menu_ready: "👇 Guna menu di bawah, atau taip terus perbelanjaan seperti <code>makan 12.50</code>.",
+  onboard:
+    "🎉 <b>Berjaya disambung!</b>\n\nTambah perbelanjaan dengan menaipnya. Tekan contoh untuk salin, kemudian hantar:\n" +
+    "<code>makan tengah hari 12.50</code>\n<code>kopi 4 ewallet</code>\n<code>semalam minyak 50</code>\n\n" +
+    "📸 Anda juga boleh hantar foto resit.\n👇 Menu di bawah sentiasa ada.",
+  add_prompt: "➕ <b>Apa yang anda belanjakan?</b>\nTaip seperti <code>makan 12.50</code>, atau hantar foto resit.",
+  add_favs: "\n\n⭐ Atau tekan salah satu yang biasa:",
+  btn_repeat: "🔁 Ulang yang terakhir: {what}",
+  btn_more: "➕ Lagi",
+  btn_edit: "✏️ Ubah",
+  btn_open: "🔗 Buka VinExpenses",
+  settings_title: "⚙️ <b>Tetapan</b>",
+  settings_lang: "🌐 Bahasa: <b>{name}</b>",
+  settings_digest_on: "🔔 Ringkasan mingguan: <b>hidup</b>",
+  settings_digest_off: "🔕 Ringkasan mingguan: <b>mati</b>",
+  btn_set_lang: "🌐 Bahasa",
+  btn_digest_on: "🔔 Hidupkan ringkasan mingguan",
+  btn_digest_off: "🔕 Matikan ringkasan mingguan",
+  btn_unlink: "🔌 Putuskan sambungan",
+  btn_yes_unlink: "Ya, putuskan",
+  unlink_confirm: "🔌 Putuskan sambungan sembang ini daripada akaun VinExpenses anda?\nPerbelanjaan anda kekal dalam aplikasi.",
+  toast_undone: "Dibuat asal ✓", toast_moved: "Dialih ke {cat} ✓", toast_same: "Sudah dalam {cat}", toast_deleted: "Dipadam ✓",
+  toast_saved: "Disimpan ✓", toast_unavailable: "Belum tersedia",
+});
+Object.assign(zh, {
+  st_income: "收入已保存", st_saved: "已保存", st_updated: "已更新", st_amount: "金额已更新", st_receipt: "已从收据保存", st_repeat: "已再次保存",
+  today_word: "今天", yesterday_word: "昨天",
+  menu_add: "➕ 记一笔", menu_today: "📊 今天", menu_month: "🗓 本月", menu_recent: "🧾 最近", menu_settings: "⚙️ 设置",
+  menu_ready: "👇 使用下方菜单，或直接输入支出，例如 <code>午餐 12.50</code>。",
+  onboard:
+    "🎉 <b>连接成功！</b>\n\n直接输入就能记账。点一下示例即可复制，然后发送：\n" +
+    "<code>午餐 12.50</code>\n<code>咖啡 4 ewallet</code>\n<code>昨天 加油 50</code>\n\n" +
+    "📸 也可以发收据照片。\n👇 下方菜单会一直在。",
+  add_prompt: "➕ <b>花了什么？</b>\n像这样输入 <code>午餐 12.50</code>，或发一张收据照片。",
+  add_favs: "\n\n⭐ 或点一下常用的：",
+  btn_repeat: "🔁 重复上一笔：{what}",
+  btn_more: "➕ 更多",
+  btn_edit: "✏️ 编辑",
+  btn_open: "🔗 打开 VinExpenses",
+  settings_title: "⚙️ <b>设置</b>",
+  settings_lang: "🌐 语言：<b>{name}</b>",
+  settings_digest_on: "🔔 每周摘要：<b>开</b>",
+  settings_digest_off: "🔕 每周摘要：<b>关</b>",
+  btn_set_lang: "🌐 语言",
+  btn_digest_on: "🔔 开启每周摘要",
+  btn_digest_off: "🔕 关闭每周摘要",
+  btn_unlink: "🔌 断开连接",
+  btn_yes_unlink: "是，断开",
+  unlink_confirm: "🔌 要断开此聊天与你的 VinExpenses 账户的连接吗？\n你的支出仍保留在应用中。",
+  toast_undone: "已撤销 ✓", toast_moved: "已移到 {cat} ✓", toast_same: "已经是 {cat}", toast_deleted: "已删除 ✓",
+  toast_saved: "已保存 ✓", toast_unavailable: "暂不可用",
+});
+
+/** "Today", "Yesterday", or the date: friendlier than always printing a date. Days follow Kuala Lumpur time. */
+export function dayLabel(date: Date, now: Date, lang: Lang): string {
+  const day = (d: Date) => Math.floor((d.getTime() + 8 * 3600_000) / 86_400_000);
+  const diff = day(now) - day(date);
+  if (diff === 0) return tr(lang, "today_word");
+  if (diff === 1) return tr(lang, "yesterday_word");
+  return formatDay(date, lang);
+}
+
+/** The persistent menu at the bottom of the chat, in the person's language. */
+export function menuKeyboard(lang: Lang): string[][] {
+  return [
+    [tr(lang, "menu_add"), tr(lang, "menu_today")],
+    [tr(lang, "menu_month"), tr(lang, "menu_recent")],
+    [tr(lang, "menu_settings")],
+  ];
+}
+
+/** Which menu button a message is (in ANY language, so switching language never strands the old buttons). */
+export function menuAction(text: string): "add" | "today" | "month" | "recent" | "settings" | null {
+  const wanted = text.trim();
+  for (const lang of LANGS) {
+    const pairs: [string, "add" | "today" | "month" | "recent" | "settings"][] = [
+      ["menu_add", "add"], ["menu_today", "today"], ["menu_month", "month"], ["menu_recent", "recent"], ["menu_settings", "settings"],
+    ];
+    for (const [key, action] of pairs) if (tr(lang, key) === wanted) return action;
+  }
+  return null;
+}
 
 const DICTS: Record<Lang, Dict> = { en, ms, zh };
 

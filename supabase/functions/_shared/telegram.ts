@@ -5,27 +5,45 @@ import { escapeHtml, ringgit } from "./email-templates.ts";
 
 export { escapeHtml, ringgit };
 
-export interface InlineButton {
-  text: string;
-  callback_data: string;
-}
+/** A button under a message: either sends `callback_data` back to the bot, or opens a web `url`. */
+export type InlineButton = { text: string; callback_data: string } | { text: string; url: string };
 export interface SendOptions {
+  /** Buttons under the message. */
   buttons?: InlineButton[][];
+  /** A persistent menu at the bottom of the chat (cannot be combined with `buttons` on the same message). */
+  keyboard?: string[][];
 }
 
 export interface TelegramClient {
-  send(chatId: number, html: string, options?: SendOptions): Promise<void>;
+  /** Returns the new message's id, or null when Telegram did not accept it (callers fall back gracefully). */
+  send(chatId: number, html: string, options?: SendOptions): Promise<number | null>;
   /** Like send, but says what happened: "blocked" means the person blocked the bot or deleted the chat (stop sending). */
-  sendChecked(chatId: number, html: string): Promise<"ok" | "blocked" | "failed">;
+  sendChecked(chatId: number, html: string, options?: SendOptions): Promise<"ok" | "blocked" | "failed">;
   edit(chatId: number, messageId: number, html: string, options?: SendOptions): Promise<void>;
   answer(callbackId: string, text?: string): Promise<void>;
+  /** Puts a small emoji reaction on a message the person sent: instant feedback without another message. */
+  react(chatId: number, messageId: number, emoji: string): Promise<void>;
+  /** Shows "typing…" while the bot works. */
+  action(chatId: number): Promise<void>;
   /** Downloads a photo/file the user sent. `too_large` when it is bigger than maxBytes, `failed` for anything else. */
   fileBytes(fileId: string, maxBytes: number): Promise<{ bytes: Uint8Array } | { error: "too_large" | "failed" }>;
 }
 
-/** The real client. Failures are logged by status only and never stop the webhook from answering Telegram. */
+/** Plain-text version of a Telegram-HTML message, used if Telegram refuses the formatting. */
+export function stripTags(html: string): string {
+  return html
+    .replace(/<[^>]*>/g, "")
+    .replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, "&");
+}
+
+/**
+ * The real client. Failures are logged by status only and never stop the webhook from answering Telegram.
+ * If Telegram rejects a message because of its formatting, the same message is sent again as plain text, so a
+ * formatting problem can make a message less pretty but never make it disappear.
+ */
 export function telegramClient(token: string, fetchImpl: typeof fetch = fetch): TelegramClient {
-  const call = async (method: string, payload: Record<string, unknown>) => {
+  type Outcome = { ok: boolean; status: number; result?: { message_id?: number } };
+  const post = async (method: string, payload: Record<string, unknown>): Promise<{ outcome: Outcome; description: string }> => {
     try {
       const response = await fetchImpl(`https://api.telegram.org/bot${token}/${method}`, {
         method: "POST",
@@ -33,33 +51,63 @@ export function telegramClient(token: string, fetchImpl: typeof fetch = fetch): 
         body: JSON.stringify(payload),
         signal: AbortSignal.timeout(8000),
       });
-      if (!response.ok) console.error(`telegram ${method} failed with status ${response.status}`);
+      const data = await response.json().catch(() => ({}));
+      return { outcome: { ok: response.ok, status: response.status, result: data?.result }, description: String(data?.description ?? "") };
     } catch (_error) {
-      console.error(`telegram ${method} failed (network)`);
+      return { outcome: { ok: false, status: 0 }, description: "network" };
     }
   };
-  const markup = (options?: SendOptions) => (options?.buttons ? { reply_markup: { inline_keyboard: options.buttons } } : {});
+
+  const call = async (method: string, payload: Record<string, unknown>): Promise<Outcome> => {
+    let { outcome, description } = await post(method, payload);
+    if (!outcome.ok && outcome.status === 400 && /parse entities|unsupported start tag/i.test(description) && typeof payload.text === "string") {
+      const { parse_mode: _drop, ...plain } = payload;
+      ({ outcome, description } = await post(method, { ...plain, text: stripTags(payload.text) }));
+    }
+    // Pressing a button that changes nothing makes Telegram answer "not modified": that is fine, not an error.
+    if (!outcome.ok && !/not modified/i.test(description)) {
+      console.error(outcome.status === 0 ? `telegram ${method} failed (network)` : `telegram ${method} failed with status ${outcome.status}`);
+    }
+    return outcome;
+  };
+
+  const markup = (options?: SendOptions) => {
+    if (options?.buttons) return { reply_markup: { inline_keyboard: options.buttons } };
+    if (options?.keyboard) {
+      return {
+        reply_markup: {
+          keyboard: options.keyboard.map((row) => row.map((text) => ({ text }))),
+          resize_keyboard: true,
+          is_persistent: true,
+        },
+      };
+    }
+    return {};
+  };
+  const html = (chatId: number, text: string, options?: SendOptions) =>
+    ({ chat_id: chatId, text, parse_mode: "HTML", link_preview_options: { is_disabled: true }, ...markup(options) });
+
   return {
-    async sendChecked(chatId, html) {
-      try {
-        const response = await fetchImpl(`https://api.telegram.org/bot${token}/sendMessage`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ chat_id: chatId, text: html, parse_mode: "HTML", disable_web_page_preview: true }),
-          signal: AbortSignal.timeout(8000),
-        });
-        if (response.ok) return "ok";
-        console.error(`telegram sendMessage failed with status ${response.status}`);
-        return response.status === 403 ? "blocked" : "failed";
-      } catch (_error) {
-        console.error("telegram sendMessage failed (network)");
-        return "failed";
-      }
+    async send(chatId, text, options) {
+      const outcome = await call("sendMessage", html(chatId, text, options));
+      return outcome.ok && Number.isSafeInteger(outcome.result?.message_id) ? (outcome.result!.message_id as number) : null;
     },
-    send: (chatId, html, options) => call("sendMessage", { chat_id: chatId, text: html, parse_mode: "HTML", disable_web_page_preview: true, ...markup(options) }),
-    edit: (chatId, messageId, html, options) =>
-      call("editMessageText", { chat_id: chatId, message_id: messageId, text: html, parse_mode: "HTML", disable_web_page_preview: true, ...markup(options) }),
-    answer: (callbackId, text) => call("answerCallbackQuery", { callback_query_id: callbackId, ...(text ? { text: text.slice(0, 180) } : {}) }),
+    async sendChecked(chatId, text, options) {
+      const outcome = await call("sendMessage", html(chatId, text, options));
+      return outcome.ok ? "ok" : outcome.status === 403 ? "blocked" : "failed";
+    },
+    async edit(chatId, messageId, text, options) {
+      await call("editMessageText", { ...html(chatId, text, options), message_id: messageId });
+    },
+    async answer(callbackId, text) {
+      await call("answerCallbackQuery", { callback_query_id: callbackId, ...(text ? { text: text.slice(0, 180) } : {}) });
+    },
+    async react(chatId, messageId, emoji) {
+      await call("setMessageReaction", { chat_id: chatId, message_id: messageId, reaction: [{ type: "emoji", emoji }] });
+    },
+    async action(chatId) {
+      await call("sendChatAction", { chat_id: chatId, action: "typing" });
+    },
     async fileBytes(fileId, maxBytes) {
       try {
         const info = await fetchImpl(`https://api.telegram.org/bot${token}/getFile`, {

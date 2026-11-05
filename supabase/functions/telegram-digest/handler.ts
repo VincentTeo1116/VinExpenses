@@ -8,7 +8,8 @@
 
 import { dailyLimit, env, safeEqual } from "../_shared/guard.ts";
 import { q, rest } from "../_shared/db.ts";
-import { asLang } from "../_shared/tg-i18n.ts";
+import { cleanSiteUrl } from "../_shared/email-setup.ts";
+import { asLang, tr } from "../_shared/tg-i18n.ts";
 import { aggregate, budgetUsage, loadBudgets, loadExpenses, renderDigest } from "../_shared/tg-reports.ts";
 import { type TelegramClient, telegramClient } from "../_shared/telegram.ts";
 import { klWindow } from "../_shared/telegram.ts";
@@ -117,7 +118,8 @@ export async function handle(request: Request, now = new Date(), clientOverride?
         budgets: budgetUsage(budgets, aggregate(monthRows)),
         labels: (key) => names.get(key) ?? key,
       });
-      const result = await tg.sendChecked(chatId, text);
+      const site = cleanSiteUrl(env("SITE_URL"));
+      const result = await tg.sendChecked(chatId, text, site ? { buttons: [[{ text: tr(lang, "btn_open"), url: site }]] } : undefined);
       if (result === "ok") { sent++; continue; }
       if (result === "blocked") {
         blocked++;

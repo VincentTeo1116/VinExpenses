@@ -39,16 +39,33 @@ function setup(extraEnv = {}) {
         }
         return db.fetch(input, init);
     };
-    const tg = { sent: [], edited: [], answered: [], file: null, checkedResult: 'ok' };
+    // A recording Telegram that behaves like the real one: messages get ids, edits keep them, buttons can be toasts.
+    const tg = { sent: [], edited: [], answered: [], reactions: [], actions: [], file: null, checkedResult: 'ok', noIds: false, throwOn: new Set() };
+    let seq = 0;
+    let nextId = 900;
+    const maybeThrow = (name) => { if (tg.throwOn.has(name)) throw new Error(`${name} failed`); };
     tg.client = {
-        send: async (chatId, html, options) => { tg.sent.push({ chatId, html, buttons: options?.buttons }); },
-        edit: async (chatId, messageId, html, options) => { tg.edited.push({ chatId, messageId, html, buttons: options?.buttons }); },
-        answer: async (id) => { tg.answered.push(id); },
-        sendChecked: async (chatId, html) => { tg.sent.push({ chatId, html, checked: true }); return tg.checkedResult; },
+        send: async (chatId, html, options) => {
+            maybeThrow('send');
+            const id = tg.noIds ? null : ++nextId;
+            tg.sent.push({ seq: ++seq, chatId, html, buttons: options?.buttons, keyboard: options?.keyboard, id });
+            return id;
+        },
+        edit: async (chatId, messageId, html, options) => {
+            maybeThrow('edit');
+            tg.edited.push({ seq: ++seq, chatId, messageId, html, buttons: options?.buttons });
+        },
+        answer: async (id, text) => { tg.answered.push({ id, text }); },
+        react: async (chatId, messageId, emoji) => { maybeThrow('react'); tg.reactions.push({ chatId, messageId, emoji }); },
+        action: async (chatId) => { maybeThrow('action'); tg.actions.push(chatId); },
+        sendChecked: async (chatId, html, options) => { tg.sent.push({ seq: ++seq, chatId, html, buttons: options?.buttons, checked: true }); return tg.checkedResult; },
         fileBytes: async () => (tg.file ? tg.file : { error: 'failed' }),
     };
-    tg.last = () => tg.sent[tg.sent.length - 1];
+    // The newest thing the person can see: a new message or an edited one.
+    tg.last = () => [...tg.sent, ...tg.edited].sort((a, b) => a.seq - b.seq).at(-1);
+    tg.lastSent = () => tg.sent[tg.sent.length - 1];
     tg.lastEdit = () => tg.edited[tg.edited.length - 1];
+    tg.toasts = () => tg.answered.map((a) => a.text).filter(Boolean);
     return { db, tg, env, hooks };
 }
 
