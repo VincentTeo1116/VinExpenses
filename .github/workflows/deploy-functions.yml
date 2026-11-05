@@ -59,4 +59,5 @@ jobs:
             exit 1
           fi
           # Exact version pinned: a newly published package can not change what runs here until you update this line.
-          npx --yes supabase@3.0.0 functions deploy --project-ref "$SUPABASE_PROJECT_REF"
+          # --yes: CI can not answer the "Deploy N functions?" question. Without it nothing is deployed.
+          npx --yes supabase@3.0.0 functions deploy --yes --remote="$SUPABASE_PROJECT_REF"
