@@ -41,3 +41,9 @@ verify_jwt = true
 # Called by the database scheduler (secret header), like monthly-report-email.
 [functions.telegram-digest]
 verify_jwt = false
+
+# The Mini App's data service. It has no login of its own: every request must carry Telegram's signed initData, which
+# the function verifies (HMAC with your bot token) before touching any data. The gateway's JWT check is off because the
+# Mini App has no Supabase session.
+[functions.miniapp-api]
+verify_jwt = false

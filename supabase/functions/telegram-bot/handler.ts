@@ -25,7 +25,7 @@ import { extractDate } from "../_shared/tg-dates.ts";
 import { bar, emojiFor, escapeHtml, type Lang, RULE, ringgit, truncate } from "../_shared/tg-format.ts";
 import { asLang, dayLabel, LANG_NAMES, LANGS, menuAction, menuKeyboard, tr } from "../_shared/tg-i18n.ts";
 import { aggregate, budgetUsage, loadBudgets, loadExpenses } from "../_shared/tg-reports.ts";
-import { buildView, MAX_OFFSET, pagerButtons, type ViewKind, type ViewResult } from "../_shared/tg-views.ts";
+import { buildView, MAX_OFFSET, miniAppUrl, pagerButtons, type ViewKind, type ViewResult } from "../_shared/tg-views.ts";
 import {
   CODE_PATTERN,
   type InlineButton,
@@ -102,7 +102,14 @@ const plainText = (text: string) => stripTags(text);
 /** A "🔗 Open VinExpenses" button, only when the website address is configured. */
 function siteRow(lang: Lang): InlineButton[][] {
   const site = cleanSiteUrl(env("SITE_URL"));
-  return site ? [[{ text: tr(lang, "btn_open"), url: site }]] : [];
+  return site ? [[{ text: tr(lang, "btn_dashboard"), web_app: { url: miniAppUrl(site) } }], [{ text: tr(lang, "btn_open"), url: site }]] : [];
+}
+
+/** /app: opens the dashboard (the Mini App) with one tap; says so plainly when the website address is not configured. */
+async function sendApp(tg: TelegramClient, link: Link): Promise<void> {
+  const site = cleanSiteUrl(env("SITE_URL"));
+  if (!site) return void await tg.send(link.chat_id, tr(link.lang, "app_unavailable"));
+  await tg.send(link.chat_id, tr(link.lang, "app_intro"), { buttons: [[{ text: tr(link.lang, "btn_dashboard"), web_app: { url: miniAppUrl(site) } }]] });
 }
 
 // ---------------------------------------------------------------- data access (every query is scoped to one user)
@@ -746,6 +753,7 @@ async function onText(tg: TelegramClient, chatId: number, rawText: string, now: 
   switch (name) {
     case "today": case "week": case "month": case "top": await showView(tg, link, VIEW_OF_COMMAND[name], 0, now); return;
     case "recent": return sendRecent(tg, link);
+    case "app": case "dashboard": return sendApp(tg, link);
     case "add": return sendAddPrompt(tg, link);
     case "settings": return sendSettings(tg, link);
     case "menu": await tg.send(chatId, tr(lang, "menu_ready"), { keyboard: menuKeyboard(lang) }); return;

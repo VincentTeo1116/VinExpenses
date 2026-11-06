@@ -58,6 +58,7 @@ jobs:
           cp index.html app.js receipt-parser.js smart-entry.js csv-import.js config.js style.css fonts.css frame-guard.js email-action.html email-action.js email-action.css sw.js manifest.json icon.png dist/
           cp -r icons dist/icons
           cp -r vendor dist/vendor
+          cp -r miniapp dist/miniapp   # the Telegram Mini App (opened from the bot)
           rm dist/vendor/vendor.config.json dist/vendor/VENDOR.lock.json   # build metadata, not part of the site
           # Stamp this deploy with the commit id: it versions the CSS/JS URLs (cache busting),
           # renames the service-worker cache, and is shown in the app's Account sheet.
@@ -69,7 +70,7 @@ jobs:
       - name: Pin the Content-Security-Policy to your Supabase project
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-        run: node tools/pin-csp.js dist/index.html dist/email-action.html
+        run: node tools/pin-csp.js dist/index.html dist/email-action.html dist/miniapp/index.html
 
       - uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5.0.0
 

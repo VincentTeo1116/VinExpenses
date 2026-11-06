@@ -15,7 +15,7 @@ const en: Dict = {
     "<b>🤖 VinExpenses bot</b>\n\n" +
     "✍️ <b>Add an expense</b>\n<code>lunch 12.50</code>\n<code>grab rm8.90 ewallet</code>\n<code>yesterday petrol 50</code> · <code>3/11 coffee 6</code>\n" +
     "💰 Income: <code>+3000 salary</code>\n📸 Or send a photo of a receipt.\n\n" +
-    "📊 /today · /month · /top\n🧾 /recent  edit or delete\n↩️ /undo  remove the last one\n🌐 /language · 🔔 /digest · 🔌 /unlink",
+    "📊 /today · /month · /top · 📱 /app\n🧾 /recent  edit or delete\n↩️ /undo  remove the last one\n🌐 /language · 🔔 /digest · 🔌 /unlink",
   welcome: "👋 <b>Hi!</b> To connect, open <b>VinExpenses → Account → Connect Telegram</b> and tap the button there.",
   not_connected: "🔌 This chat isn't connected yet. Open <b>VinExpenses → Account → Connect Telegram</b>.",
   connected_ok: "✅ <b>Connected!</b> Expenses you add here go straight to your VinExpenses account.",
@@ -113,7 +113,7 @@ const ms: Dict = {
     "<b>🤖 Bot VinExpenses</b>\n\n" +
     "✍️ <b>Tambah perbelanjaan</b>\n<code>makan tengah hari 12.50</code>\n<code>grab rm8.90 ewallet</code>\n<code>semalam minyak 50</code> · <code>3/11 kopi 6</code>\n" +
     "💰 Pendapatan: <code>+3000 gaji</code>\n📸 Atau hantar foto resit.\n\n" +
-    "📊 /today · /month · /top\n🧾 /recent  ubah atau padam\n↩️ /undo  buang yang terakhir\n🌐 /language · 🔔 /digest · 🔌 /unlink",
+    "📊 /today · /month · /top · 📱 /app\n🧾 /recent  ubah atau padam\n↩️ /undo  buang yang terakhir\n🌐 /language · 🔔 /digest · 🔌 /unlink",
   welcome: "👋 <b>Hai!</b> Untuk menyambung, buka <b>VinExpenses → Akaun → Connect Telegram</b> dan tekan butang di sana.",
   not_connected: "🔌 Sembang ini belum disambungkan. Buka <b>VinExpenses → Akaun → Connect Telegram</b>.",
   connected_ok: "✅ <b>Berjaya disambung!</b> Perbelanjaan yang anda tambah di sini terus masuk ke akaun VinExpenses anda.",
@@ -211,7 +211,7 @@ const zh: Dict = {
     "<b>🤖 VinExpenses 机器人</b>\n\n" +
     "✍️ <b>记一笔支出</b>\n<code>午餐 12.50</code>\n<code>grab rm8.90 ewallet</code>\n<code>昨天 加油 50</code> · <code>3/11 咖啡 6</code>\n" +
     "💰 收入：<code>+3000 工资</code>\n📸 也可以直接发收据照片。\n\n" +
-    "📊 /today · /month · /top\n🧾 /recent  修改或删除\n↩️ /undo  撤销上一笔\n🌐 /language · 🔔 /digest · 🔌 /unlink",
+    "📊 /today · /month · /top · 📱 /app\n🧾 /recent  修改或删除\n↩️ /undo  撤销上一笔\n🌐 /language · 🔔 /digest · 🔌 /unlink",
   welcome: "👋 <b>你好！</b>要连接账户，请打开 <b>VinExpenses → 账户 → Connect Telegram</b>，然后点击那里的按钮。",
   not_connected: "🔌 此聊天尚未连接。请打开 <b>VinExpenses → 账户 → Connect Telegram</b>。",
   connected_ok: "✅ <b>已连接！</b>你在这里记录的支出会直接进入你的 VinExpenses 账户。",
@@ -321,6 +321,9 @@ Object.assign(en, {
   btn_more: "➕ More",
   btn_edit: "✏️ Edit",
   btn_open: "🔗 Open VinExpenses",
+  btn_dashboard: "📱 Dashboard",
+  app_intro: "📱 <b>Your dashboard</b>\nCharts, budgets, history, and add or edit expenses, all inside Telegram.",
+  app_unavailable: "📱 The dashboard isn't set up yet. Ask the owner to set SITE_URL for the bot.",
   settings_title: "⚙️ <b>Settings</b>",
   settings_lang: "🌐 Language: <b>{name}</b>",
   settings_digest_on: "🔔 Weekly summary: <b>on</b>",
@@ -349,6 +352,9 @@ Object.assign(ms, {
   btn_more: "➕ Lagi",
   btn_edit: "✏️ Ubah",
   btn_open: "🔗 Buka VinExpenses",
+  btn_dashboard: "📱 Papan pemuka",
+  app_intro: "📱 <b>Papan pemuka anda</b>\nCarta, bajet, sejarah, tambah atau ubah perbelanjaan, semuanya dalam Telegram.",
+  app_unavailable: "📱 Papan pemuka belum disediakan. Minta pemilik tetapkan SITE_URL untuk bot.",
   settings_title: "⚙️ <b>Tetapan</b>",
   settings_lang: "🌐 Bahasa: <b>{name}</b>",
   settings_digest_on: "🔔 Ringkasan mingguan: <b>hidup</b>",
@@ -377,6 +383,9 @@ Object.assign(zh, {
   btn_more: "➕ 更多",
   btn_edit: "✏️ 编辑",
   btn_open: "🔗 打开 VinExpenses",
+  btn_dashboard: "📱 仪表板",
+  app_intro: "📱 <b>你的仪表板</b>\n图表、预算、历史记录，还能记账和修改，全在 Telegram 里。",
+  app_unavailable: "📱 仪表板尚未设置。请让管理员为机器人设置 SITE_URL。",
   settings_title: "⚙️ <b>设置</b>",
   settings_lang: "🌐 语言：<b>{name}</b>",
   settings_digest_on: "🔔 每周摘要：<b>开</b>",

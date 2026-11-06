@@ -39,7 +39,7 @@ export function corsHeaders(request: Request): Record<string, string> {
   const origin = (request.headers.get("origin") ?? "").replace(/\/$/, "");
   const headers: Record<string, string> = {
     "Vary": "Origin",
-    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-telegram-init-data",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
     "X-Content-Type-Options": "nosniff",
     "Cache-Control": "no-store",

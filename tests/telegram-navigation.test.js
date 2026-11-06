@@ -286,7 +286,7 @@ test('weekly summary: a picture with the week in the caption, a tip, and navigat
     assert.match(text, /Spent\s+RM 80\.00/);
     assert.match(text, /digest off/, 'the tip is added when it fits');
     assert.ok(text.length <= 1024);
-    assert.deepEqual(m.buttons.flat().map((b) => b.callback_data ?? b.url).slice(4), ['n:w:2', 'n:w:0', 'https://me.github.io/VinExpenses', 'n:fw:1'], 'earlier / later continue from the week that was reported');
+    assert.deepEqual(m.buttons.flat().map((b) => b.callback_data ?? b.url ?? b.web_app?.url).slice(4), ['n:w:2', 'n:w:0', 'https://me.github.io/VinExpenses', 'n:fw:1', 'https://me.github.io/VinExpenses/miniapp/'], 'earlier / later continue from the week that was reported');
 });
 
 test('weekly summary: if the picture fails it falls back to the complete text; if the person blocked the bot nothing else is tried', async () => {

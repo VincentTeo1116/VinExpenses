@@ -90,6 +90,22 @@ Run all checks: `npm test` (also runs before every deploy) and `node tools/vendo
   nobody's spending numbers are sent to a chart service. Every report query is scoped to the linked person (a test fails
   if one is not), navigation buttons carry only a view letter and a bounded number, and report views are limited per chat.
 
+## 4b-2. Telegram Mini App
+
+- **Identity** comes only from Telegram's signed launch data (`initData`). `miniapp-api` recomputes the HMAC-SHA256 signature with the bot token,
+  rejects anything unsigned, tampered, duplicated, malformed, in the future, or older than 6 hours (`MINIAPP_MAX_AGE_SECONDS`), then looks up the linked
+  account by the verified Telegram id. The page cannot name a user: no request field is ever read as a user id.
+- The function runs with the service key (it has to read and write for the person), so **every query carries `user_id=eq.<verified user>`**, and updates/deletes
+  require ownership. Tests cover cross-user access. It is public to the internet (`verify_jwt = false`, like the bot) and protected by the signature,
+  daily request and write limits that fail closed, a 20 KB body cap, strict value checks, and CORS limited to `ALLOWED_ORIGINS`.
+- **The page** has a strict Content-Security-Policy (own scripts only, no inline code or styles, connects only to your Supabase project once deployed).
+  It does not load Telegram's script: it speaks the small protocol itself, so no third-party code runs next to your data. All text from the server or a person
+  is HTML-escaped; colours are validated before use.
+- **Not framed-protected on purpose:** Telegram Web shows Mini Apps in a frame, so the page cannot refuse framing as the main site does. A framed copy has no
+  launch data, so it is inert, and the bridge also refuses frames from anything but Telegram's web clients where the browser reports it.
+- **Honest limit:** a signed launch pass can be replayed by whoever holds it until it expires (6 hours). It only reaches that one person's own data, and it is only
+  ever delivered to that person inside Telegram.
+
 ## 4c. Auto-deploy of the functions
 
 * The workflow runs only on pushes to `main` and manually, **never for pull requests**, so nobody can run code with

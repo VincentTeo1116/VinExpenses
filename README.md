@@ -465,6 +465,29 @@ run `supabase-schema.sql` yourself when it changes. The Pages workflow still pub
 If it does not answer: `node tools/set-telegram-webhook.js` prints Telegram's
 `last error`, and Edge Functions → telegram-bot → Logs shows what the function saw.
 
+## 4c. Telegram Mini App (the dashboard inside Telegram)
+
+The bot has a **📱 Dashboard** button (and a `/app` command) that opens a full dashboard inside Telegram: the month at a glance
+(donut chart), days (bars and a calendar heat map), budgets, a 6-month trend and a searchable history where you can add, edit
+and delete expenses. It is part of this same website: the page lives in the `miniapp/` folder and is published to GitHub Pages
+with everything else, at `https://<you>.github.io/<repo>/miniapp/`.
+
+**Set up (nothing new to create):**
+1. Make sure the bot secrets from section 4b exist, including `SITE_URL` (your GitHub Pages address, `https` only) and `ALLOWED_ORIGINS`.
+2. Push. The deploy publishes `miniapp/`, and the functions workflow publishes the `miniapp-api` function.
+3. Refresh the bot's command list once: `node tools/set-telegram-webhook.js` (adds `/app`; same steps as section 4b).
+4. In Telegram send `/app` and tap **Dashboard**. Optional: in @BotFather choose *Bot Settings → Menu Button* and set the same address, so the dashboard is one tap away at any time.
+
+**How it knows who you are:** Telegram hands the page a signed "launch pass". The function `miniapp-api` checks the signature with the
+bot token (only the bot and Telegram can make a valid one), checks it is recent (6 hours by default, `MINIAPP_MAX_AGE_SECONDS`) and
+finds the account linked to that Telegram chat. There is no password and no user id sent by the page. A chat that is not connected
+gets a friendly "connect first" screen.
+
+**Try the design in any browser, with made-up data:** open `miniapp/index.html?demo=1` (for example `http://localhost:8000/miniapp/index.html?demo=1`).
+Nothing is read from or saved to any account in this mode.
+
+Limits (all adjustable secrets): `MINIAPP_DAILY_LIMIT` (3000 requests/day/person) and `MINIAPP_WRITE_LIMIT` (300 changes/day/person).
+
 ## 5. Using it on mobile
 
 **A. Install as a PWA.** Once hosted (e.g. GitHub Pages), open the site on your

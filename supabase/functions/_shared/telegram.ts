@@ -6,7 +6,8 @@ import { escapeHtml, ringgit } from "./email-templates.ts";
 export { escapeHtml, ringgit };
 
 /** A button under a message: either sends `callback_data` back to the bot, or opens a web `url`. */
-export type InlineButton = { text: string; callback_data: string } | { text: string; url: string };
+/** `web_app` opens the Mini App (a page inside Telegram) and works only in private chats. */
+export type InlineButton = { text: string; callback_data: string } | { text: string; url: string } | { text: string; web_app: { url: string } };
 export interface SendOptions {
   /** Buttons under the message. */
   buttons?: InlineButton[][];

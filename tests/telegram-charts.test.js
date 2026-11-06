@@ -493,7 +493,8 @@ test('pager: four views with the current one marked, earlier / later, details on
     assert.deepEqual(rows[1].map((b) => b.text), ['• 🍩 Overview', '📅 Days', '🎯 Budgets', '📈 Trend'], 'the month has its own tab row');
     assert.deepEqual(rows[1].map((b) => b.callback_data), ['n:m:0', 'n:y:0', 'n:b:0', 'n:t:0']);
     assert.deepEqual(rows[2].map((b) => b.callback_data ?? b.url), ['n:m:1', 'https://me.github.io/VinExpenses'], 'earlier (no "later" in the current month) and the website');
-    assert.equal(rows.length, 3, 'no Details button on the month: the tabs already hold the detail');
+    assert.equal(rows.length, 4, 'no Details button on the month: the tabs already hold the detail; the last row opens the dashboard');
+    assert.deepEqual(rows[3], [{ text: '📱 Dashboard', web_app: { url: 'https://me.github.io/VinExpenses/miniapp/' } }], 'a Mini App button, only when the website address is known');
     const days = pagerButtons('en', 'y', 2, { details: true, siteUrl: null });
     assert.equal(days[0][2].text, '• 🗓 Month', 'the Month family stays marked while a tab is open');
     assert.equal(days[1][1].text, '• 📅 Days');
@@ -505,7 +506,7 @@ test('pager: four views with the current one marked, earlier / later, details on
     assert.deepEqual(middle[2].map((b) => b.callback_data), ['n:fw:3']);
     const oldest = pagerButtons('zh', 'm', MAX_OFFSET.m, { details: false, siteUrl: null });
     assert.deepEqual(oldest[2].map((b) => b.callback_data), [`n:m:${MAX_OFFSET.m - 1}`], 'no "earlier" past the limit');
-    assert.equal(oldest.length, 3);
+    assert.equal(oldest.length, 3, 'no dashboard row without a website address');
     for (const view of ['d', 'p']) {
         const text = pagerButtons('en', view, 0, { details: true, siteUrl: null });
         assert.ok(!JSON.stringify(text).includes('n:f'), 'today and top have no details button');
@@ -513,6 +514,7 @@ test('pager: four views with the current one marked, earlier / later, details on
     for (const lang of ['en', 'ms', 'zh']) for (const view of ['d', 'w', 'm', 'y', 'b', 't', 'p']) for (const offset of [0, 7, MAX_OFFSET[view]]) {
         for (const b of pagerButtons(lang, view, offset, { details: true, siteUrl: 'https://x.example' }).flat()) {
             assert.ok(!/&(amp|lt|gt|quot|#39);|<|>/.test(b.text), `plain button text: ${b.text}`);
+            if (b.web_app) assert.equal(b.web_app.url, 'https://x.example/miniapp/');
             if (b.callback_data) assert.ok(Buffer.byteLength(b.callback_data) <= 64 && /^n:(f?[dwmpybt]):\d{1,3}$/.test(b.callback_data), b.callback_data);
         }
     }

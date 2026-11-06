@@ -243,6 +243,54 @@ async function loadMonth(input: ViewInput): Promise<MonthModel> {
   };
 }
 
+/** Everything the Mini App needs to draw a month, as plain numbers (the bot's reports use exactly the same model). */
+export interface MonthData {
+  offset: number;
+  start: string; // ISO instant of the first moment of the month in Kuala Lumpur
+  end: string;
+  days: number;
+  /** 0 = Monday ... 6 = Sunday, for the first day of the month (so a calendar can be laid out). */
+  firstWeekday: number;
+  total: number;
+  count: number;
+  previousTotal: number;
+  previousCount: number;
+  income: number;
+  byCategory: [string, number][];
+  daily: number[];
+  todayIndex: number | null;
+  budgets: { key: string; limit: number; used: number }[];
+  monthTotals: number[];
+  monthStarts: string[];
+  streak: number;
+  insights: Insight[];
+}
+
+export async function monthData(userId: string, now: Date, offset: number): Promise<MonthData> {
+  const clamped = Math.max(0, Math.min(MAX_OFFSET.m, Math.floor(offset)));
+  const m = await loadMonth({ userId, lang: "en", now, view: "m", offset: clamped, labels: (key) => key });
+  return {
+    offset: clamped,
+    start: m.win.start.toISOString(),
+    end: m.win.end.toISOString(),
+    days: m.win.days,
+    firstWeekday: mondayBased(m.win.day),
+    total: m.agg.total,
+    count: m.agg.count,
+    previousTotal: m.previous.total,
+    previousCount: m.previous.count,
+    income: m.income,
+    byCategory: m.agg.byCategory,
+    daily: m.daily,
+    todayIndex: m.todayIndex,
+    budgets: m.usage.map((u) => ({ key: u.key, limit: u.limit, used: u.used })),
+    monthTotals: m.monthTotals,
+    monthStarts: [5, 4, 3, 2, 1, 0].map((k) => monthWindow(now, clamped + k).start.toISOString()),
+    streak: m.streak,
+    insights: m.insights,
+  };
+}
+
 const passedDays = (m: MonthModel) => (m.todayIndex === null ? m.win.days : m.todayIndex + 1);
 
 /** The one thing worth knowing first: a blown budget, then a risky pace, then a nearly-full budget, then a trend. */
@@ -464,7 +512,12 @@ export async function buildView(input: ViewInput): Promise<ViewResult> {
 
 // ---------------------------------------------------------------- navigation buttons
 
-export type NavButton = { text: string; callback_data: string } | { text: string; url: string };
+export type NavButton = { text: string; callback_data: string } | { text: string; url: string } | { text: string; web_app: { url: string } };
+
+/** Where the Mini App lives on the website (a folder of the same GitHub Pages site). */
+export function miniAppUrl(siteUrl: string): string {
+  return `${siteUrl.replace(/\/+$/, "")}/miniapp/`;
+}
 
 /**
  * [Today | Week | Month | Top]; for the month also its tabs [Overview | Days | Budgets | Trend]; then Earlier / Later
@@ -484,5 +537,6 @@ export function pagerButtons(lang: Lang, view: ViewKind, offset: number, options
   if (options.siteUrl) step.push({ text: tr(lang, "btn_open"), url: options.siteUrl });
   if (step.length) rows.push(step);
   if (options.details && view === "w") rows.push([{ text: tr(lang, "nav_details"), callback_data: `n:fw:${offset}` }]);
+  if (options.siteUrl) rows.push([{ text: tr(lang, "btn_dashboard"), web_app: { url: miniAppUrl(options.siteUrl) } }]);
   return rows;
 }

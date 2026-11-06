@@ -197,7 +197,7 @@ test('every edge function has an explicit entry in config.toml, and only the int
     const toml = read('supabase/config.toml');
     const settings = Object.fromEntries([...toml.matchAll(/\[functions\.([a-z-]+)\]\s*\n\s*verify_jwt\s*=\s*(true|false)/g)].map((m) => [m[1], m[2]]));
     for (const name of functions) assert.ok(name in settings, `${name} missing from config.toml`);
-    assert.deepEqual(Object.keys(settings).filter((n) => settings[n] === 'false').sort(), ['email-action', 'monthly-report-email', 'telegram-bot', 'telegram-digest']);
+    assert.deepEqual(Object.keys(settings).filter((n) => settings[n] === 'false').sort(), ['email-action', 'miniapp-api', 'monthly-report-email', 'telegram-bot', 'telegram-digest']);
 });
 
 test('no function allows every website (CORS *) and none builds its own CORS headers', () => {
