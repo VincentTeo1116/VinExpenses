@@ -82,6 +82,7 @@ test('page: strict security policy, only its own scripts, no inline code or styl
     // every script file named in the page exists
     for (const attrs of scripts) {
         const src = attrs.match(/src="([^"]+)"/)[1];
+        if (src === '../config.js') continue; // written from your secrets during the build, never committed
         assert.ok(fs.existsSync(path.join(root, 'miniapp', src)), `${src} exists`);
     }
 });
