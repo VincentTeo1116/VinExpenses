@@ -241,7 +241,7 @@ test('/month shows income, spending, savings, last-month trend, categories and b
     assert.match(month, /Net\s+<b>RM\s?2,650\.00/);
     assert.match(month, /Saved\s+▰▰▰▰▰▰▰▰▰▱ <b>88%/);
     assert.match(month, /🟦 🍜 Food\s+<b>RM\s300\.00<\/b> · 86%/, 'legend: coloured square matches the donut slice');
-    assert.match(month, /🟢 🍜 Food\s+▰▰▰▰▰▰▰▰▱▱ <b>75%/);
+    assert.match(month, /🟢 🍜 Food\s+▰▰▰▰▰▰▱▱ <b>75%/);
     await deliver(tg, message(CHAT_A, '/top'));
     const top = tg.last().html;
     assert.match(top, /<pre>/);

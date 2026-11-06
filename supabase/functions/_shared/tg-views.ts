@@ -174,7 +174,7 @@ const light = (ratio: number) => (ratio > 1 ? "🔴" : ratio >= 0.8 ? "🟡" : "
 function budgetLines(lang: Lang, usage: BudgetUsage[], labels: Labels, max: number): string[] {
   return usage.slice(0, max).map((u) => {
     const name = u.key === "all" ? tr(lang, "budget_overall") : labels(u.key);
-    return `${light(u.ratio)} ${u.key === "all" ? "🎯" : emojiFor(u.key)} ${escapeHtml(truncate(name, 14))} ${bar(u.ratio)} <b>${pct(u.ratio)}</b>`;
+    return `${light(u.ratio)} ${u.key === "all" ? "🎯" : emojiFor(u.key)} ${escapeHtml(truncate(name, 11))} ${bar(u.ratio, 8)} <b>${pct(u.ratio)}</b>`; // 8 blocks: ten wrapped on a phone
   });
 }
 
