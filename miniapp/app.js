@@ -46,7 +46,7 @@
     function applyDom(scope) {
         // widths and colours were written as data-* attributes (inline styles are not allowed): apply them with the style API
         Array.prototype.forEach.call(scope.querySelectorAll('[data-w]'), function (el) { el.style.width = Math.max(0, Math.min(100, Number(el.getAttribute('data-w')) || 0)) + '%'; });
-        Array.prototype.forEach.call(scope.querySelectorAll('[data-color]'), function (el) { el.style.background = F.safeColor(el.getAttribute('data-color'), '#5a6272'); });
+        Array.prototype.forEach.call(scope.querySelectorAll('[data-color]'), function (el) { el.style.setProperty('--cat-color', F.safeColor(el.getAttribute('data-color'), '#6b7280')); });
     }
 
     function toast(message, kind) {
@@ -63,7 +63,7 @@
 
     function themeColors() {
         var cs = getComputedStyle(rootEl);
-        return { text: cs.getPropertyValue('--text').trim() || '#222', hint: cs.getPropertyValue('--hint').trim() || '#888', grid: cs.getPropertyValue('--line').trim() || '#ddd', accent: cs.getPropertyValue('--accent').trim() || '#2f6fd0', bg: cs.getPropertyValue('--card').trim() || '#fff' };
+        return { text: cs.getPropertyValue('--text').trim() || '#0f172a', hint: cs.getPropertyValue('--muted').trim() || '#5b6785', grid: cs.getPropertyValue('--border').trim() || '#e4e7f0', accent: cs.getPropertyValue('--brand').trim() || '#4f46e5', bg: cs.getPropertyValue('--surface').trim() || '#ffffff' };
     }
 
     // ---------------------------------------------------------------- rendering
@@ -74,7 +74,7 @@
         bar.innerHTML = state.status === 'ready' ? views.monthBar() : '';
         tabs.innerHTML = state.status === 'ready' ? views.tabBar() : '';
         tabs.hidden = bar.hidden = state.status !== 'ready';
-        fab.hidden = state.status !== 'ready';
+        fab.hidden = state.status !== 'ready' || Boolean(state.sheet);
         var html;
         if (state.status === 'loading') html = views.skeleton();
         else if (state.status === 'problem') html = views.problem(state.problemCode, { demoUrl: !bridge.isTelegram });
@@ -121,7 +121,7 @@
             if (trendEl && state.tab === 'trend') {
                 charts.trend = new window.Chart(trendEl, {
                     type: 'bar',
-                    data: { labels: data.monthStarts.map(function (s) { return F.monthShort(s, state.lang); }), datasets: [{ data: data.monthTotals, backgroundColor: data.monthTotals.map(function (_, i) { return i === data.monthTotals.length - 1 ? c.accent : c.grid; }), borderRadius: 6, maxBarThickness: 36 }] },
+                    data: { labels: data.monthStarts.map(function (s) { return F.monthShort(s, state.lang); }), datasets: [{ data: data.monthTotals, backgroundColor: data.monthTotals.map(function (_, i) { return i === data.monthTotals.length - 1 ? c.accent : c.accent + '33'; }), borderRadius: 6, maxBarThickness: 36 }] },
                     options: { responsive: true, maintainAspectRatio: false, animation: { duration: 400 }, plugins: { legend: { display: false }, tooltip: { callbacks: { label: function (ctx) { return ' ' + F.money(ctx.parsed.y); } } } }, scales: { x: { grid: { display: false } }, y: { beginAtZero: true, grid: { color: c.grid }, ticks: { maxTicksLimit: 4, callback: function (v) { return F.compactMoney(v); } } } } },
                 });
             }

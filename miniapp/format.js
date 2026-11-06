@@ -14,7 +14,7 @@
     var DAY_MS = 86400000;
     var LOCALES = { en: 'en-MY', ms: 'ms-MY', zh: 'zh-CN' };
     var EMOJI = { food: '🍜', beverages: '☕', travel: '✈️', entertain: '🎬', work: '💼', shopping: '🛍️', utilities: '💡', car: '🚗', health: '💊', other: '📦' };
-    var PALETTE = ['#2f6fd0', '#f28c28', '#3ba55d', '#f2c230', '#8e5cc8', '#d64545', '#8b5e3c', '#5a6272'];
+    var PALETTE = ['#ef4444', '#4f46e5', '#06b6d4', '#f59e0b', '#8b5cf6', '#10b981', '#0ea5e9', '#6b7280'];
 
     /** Makes any text safe to place inside HTML (text or a quoted attribute). */
     function escapeHtml(value) {
@@ -30,6 +30,13 @@
 
     function emojiFor(key) {
         return Object.prototype.hasOwnProperty.call(EMOJI, key) ? EMOJI[key] : '🏷️';
+    }
+
+    // The same icons the website uses for the built-in categories (Font Awesome names, from the site's own copy).
+    var ICONS = { food: 'fa-utensils', beverages: 'fa-mug-hot', travel: 'fa-plane', entertain: 'fa-film', work: 'fa-briefcase', shopping: 'fa-bag-shopping', utilities: 'fa-bolt', car: 'fa-car', health: 'fa-heart-pulse', other: 'fa-ellipsis' };
+    var COLORS = { food: '#ef4444', beverages: '#4f46e5', travel: '#06b6d4', entertain: '#f59e0b', work: '#10b981', shopping: '#8b5cf6', utilities: '#0ea5e9', car: '#f97316', health: '#ec4899', other: '#6b7280' };
+    function iconFor(key) {
+        return Object.prototype.hasOwnProperty.call(ICONS, key) ? ICONS[key] : 'fa-tag';
     }
 
     function toNumber(value) {
@@ -151,6 +158,6 @@
         escapeHtml: escapeHtml, safeColor: safeColor, emojiFor: emojiFor, money: money, compactMoney: compactMoney,
         percent: percent, trend: trend, dayKey: dayKey, dayNumber: dayNumber, formatKey: formatKey, dayLabel: dayLabel,
         monthTitle: monthTitle, monthShort: monthShort, weekdayShort: weekdayShort, keyOfMonthDay: keyOfMonthDay,
-        heatLevel: heatLevel, truncate: truncate, toNumber: toNumber,
+        heatLevel: heatLevel, truncate: truncate, toNumber: toNumber, iconFor: iconFor, COLORS: COLORS,
     };
 });

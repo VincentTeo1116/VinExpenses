@@ -1,7 +1,7 @@
 /* miniapp/views.js
  *
- * Builds the HTML of every screen from plain data. These are pure functions (data in, HTML text out), which keeps the
- * rules easy to check:
+ * Builds the HTML of every screen from plain data. The look follows the VinExpenses website (same cards, colours, icons).
+ * These are pure functions (data in, HTML text out), which keeps the rules easy to check:
  *   - everything that came from a person or the server goes through escapeHtml before it is placed in HTML;
  *   - no inline style="" attributes (the page's security policy forbids them): widths and colours are written as data-w /
  *     data-color attributes and applied by app.js with the DOM style API after the HTML is in place;
@@ -15,23 +15,25 @@
 
     var h = F.escapeHtml;
     var TABS = [
-        { id: 'overview', icon: '🍩', key: 'tab_overview' },
-        { id: 'days', icon: '📅', key: 'tab_days' },
-        { id: 'budgets', icon: '🎯', key: 'tab_budgets' },
-        { id: 'trend', icon: '📈', key: 'tab_trend' },
-        { id: 'history', icon: '🧾', key: 'tab_history' },
+        { id: 'overview', icon: 'fa-house', key: 'tab_overview' },
+        { id: 'days', icon: 'fa-calendar-days', key: 'tab_days' },
+        { id: 'budgets', icon: 'fa-bullseye', key: 'tab_budgets' },
+        { id: 'trend', icon: 'fa-chart-line', key: 'tab_trend' },
+        { id: 'history', icon: 'fa-clock-rotate-left', key: 'tab_history' },
     ];
+    var icon = function (name) { return '<i class="fas ' + h(name) + '" aria-hidden="true"></i>'; };
 
     function create(state) {
         var t = function (key, vars) { return I18n.t(state.lang, key, vars); };
 
         function category(key) {
             var found = (state.categories || []).filter(function (c) { return c.key === key; })[0];
+            var builtIn = Object.prototype.hasOwnProperty.call(F.COLORS, key) ? F.COLORS[key] : F.PALETTE[7];
             return {
                 key: key,
                 label: found ? found.label : key,
-                color: F.safeColor(found && found.color, F.PALETTE[7]),
-                emoji: F.emojiFor(key),
+                color: F.safeColor(found && found.color, builtIn),
+                icon: F.iconFor(key),
             };
         }
         function payment(key) {
@@ -46,18 +48,18 @@
             var data = state.month;
             var title = data ? F.monthTitle(data.start, state.lang) : '';
             var maxOffset = state.maxOffset || 60;
-            return '<header class="month-bar">' +
-                '<button type="button" class="icon-btn" data-action="month-prev" aria-label="' + h(t('prev_month')) + '"' + (state.offset >= maxOffset ? ' disabled' : '') + '>‹</button>' +
-                '<h1 class="month-title">' + h(title || t('loading')) + '</h1>' +
-                '<button type="button" class="icon-btn" data-action="month-next" aria-label="' + h(t('next_month')) + '"' + (state.offset <= 0 ? ' disabled' : '') + '>›</button>' +
-                '</header>';
+            return '<header class="month-bar"><div class="month-selector">' +
+                '<button type="button" class="month-nav-btn" data-action="month-prev" aria-label="' + h(t('prev_month')) + '"' + (state.offset >= maxOffset ? ' disabled' : '') + '><i class="fas fa-chevron-left" aria-hidden="true"></i></button>' +
+                '<h1 class="month-display">' + h(title || t('loading')) + '</h1>' +
+                '<button type="button" class="month-nav-btn" data-action="month-next" aria-label="' + h(t('next_month')) + '"' + (state.offset <= 0 ? ' disabled' : '') + '><i class="fas fa-chevron-right" aria-hidden="true"></i></button>' +
+                '</div></header>';
         }
 
         function tabBar() {
             return TABS.map(function (tab) {
                 var active = state.tab === tab.id;
-                return '<button type="button" role="tab" class="tab' + (active ? ' active' : '') + '" data-action="tab" data-tab="' + tab.id + '" aria-selected="' + active + '"' + (active ? ' aria-current="page"' : '') + '>' +
-                    '<span class="tab-icon" aria-hidden="true">' + tab.icon + '</span><span class="tab-label">' + h(t(tab.key)) + '</span></button>';
+                return '<button type="button" role="tab" class="nav-item' + (active ? ' active' : '') + '" data-action="tab" data-tab="' + tab.id + '" aria-selected="' + active + '"' + (active ? ' aria-current="page"' : '') + '>' +
+                    icon(tab.icon) + '<span class="nav-label">' + h(t(tab.key)) + '</span></button>';
             }).join('');
         }
 
@@ -67,51 +69,51 @@
         }
 
         function emptyMonth() {
-            return '<section class="card empty"><div class="empty-icon" aria-hidden="true">🌱</div><h2>' + h(t('no_data')) + '</h2><p>' + h(t('no_data_hint')) + '</p>' +
-                '<button type="button" class="btn primary" data-action="add">' + h(t('add_expense')) + '</button></section>';
+            return '<section class="card empty"><div class="empty-icon" aria-hidden="true"><i class="fas fa-seedling"></i></div><h2>' + h(t('no_data')) + '</h2><p>' + h(t('no_data_hint')) + '</p>' +
+                '<button type="button" class="btn btn-primary" data-action="add">' + h(t('add_expense')) + '</button></section>';
         }
 
         /** A full-screen explanation: code is an ApiError code or 'open_telegram'. */
         function problem(code, extra) {
             var map = {
-                open_telegram: ['🔒', 'err_open_telegram', 'err_open_telegram_hint'],
-                unauthorized: ['🔒', 'err_open_telegram', 'err_open_telegram_hint'],
-                expired: ['⏳', 'err_expired', 'err_expired_hint'],
-                not_linked: ['🔗', 'err_not_linked', 'err_not_linked_hint'],
-                limit: ['⛔', 'err_limit', 'err_limit'],
-                network: ['📡', 'err_network', 'err_generic'],
+                open_telegram: ['fa-lock', 'err_open_telegram', 'err_open_telegram_hint'],
+                unauthorized: ['fa-lock', 'err_open_telegram', 'err_open_telegram_hint'],
+                expired: ['fa-hourglass-half', 'err_expired', 'err_expired_hint'],
+                not_linked: ['fa-link', 'err_not_linked', 'err_not_linked_hint'],
+                limit: ['fa-ban', 'err_limit', 'err_limit'],
+                network: ['fa-wifi', 'err_network', 'err_generic'],
             };
-            var entry = map[code] || ['😕', 'err_generic', 'err_generic'];
+            var entry = map[code] || ['fa-circle-exclamation', 'err_generic', 'err_generic'];
             var buttons = '';
-            if (code === 'network' || (!map[code] && code !== 'open_telegram')) buttons += '<button type="button" class="btn primary" data-action="retry">' + h(t('retry')) + '</button>';
-            if (code === 'expired' || code === 'unauthorized') buttons += '<button type="button" class="btn" data-action="close">' + h(t('close')) + '</button>';
-            if (code === 'not_linked' || code === 'open_telegram') buttons += '<button type="button" class="btn primary" data-action="open-website">' + h(t('open_website')) + '</button>';
-            if (code === 'open_telegram' && extra && extra.demoUrl) buttons += '<button type="button" class="btn" data-action="demo">' + h(t('try_preview')) + '</button>';
-            return '<section class="card problem" role="alert"><div class="empty-icon" aria-hidden="true">' + entry[0] + '</div><h2>' + h(t(entry[1])) + '</h2>' +
+            if (code === 'network' || (!map[code] && code !== 'open_telegram')) buttons += '<button type="button" class="btn btn-primary" data-action="retry">' + h(t('retry')) + '</button>';
+            if (code === 'expired' || code === 'unauthorized') buttons += '<button type="button" class="btn btn-outline" data-action="close">' + h(t('close')) + '</button>';
+            if (code === 'not_linked' || code === 'open_telegram') buttons += '<button type="button" class="btn btn-primary" data-action="open-website">' + h(t('open_website')) + '</button>';
+            if (code === 'open_telegram' && extra && extra.demoUrl) buttons += '<button type="button" class="btn btn-outline" data-action="demo">' + h(t('try_preview')) + '</button>';
+            return '<section class="card problem" role="alert"><div class="empty-icon" aria-hidden="true">' + icon(entry[0]) + '</div><h2>' + h(t(entry[1])) + '</h2>' +
                 '<p>' + h(t(entry[2])) + '</p><div class="btn-row">' + buttons + '</div></section>';
         }
 
         // ------------------------------------------------------------ overview
 
         function insightText(i) {
-            if (i.kind === 'cat') return { icon: category(i.key).emoji, text: t(i.up ? 'ins_cat_up' : 'ins_cat_down', { cat: category(i.key).label, pct: i.pct + '%' }) };
-            if (i.kind === 'weekend') return { icon: i.weekendHeavy ? '🎉' : '💼', text: t(i.weekendHeavy ? 'ins_weekend_heavy' : 'ins_weekday_heavy', { x: i.ratio }) };
+            if (i.kind === 'cat') return { icon: category(i.key).icon, text: t(i.up ? 'ins_cat_up' : 'ins_cat_down', { cat: category(i.key).label, pct: i.pct + '%' }) };
+            if (i.kind === 'weekend') return { icon: i.weekendHeavy ? 'fa-champagne-glasses' : 'fa-briefcase', text: t(i.weekendHeavy ? 'ins_weekend_heavy' : 'ins_weekday_heavy', { x: i.ratio }) };
             var name = i.key === 'all' ? t('budget_overall') : category(i.key).label;
             return i.warn
-                ? { icon: '⚠️', text: t('ins_pace_warn', { name: name, pct: Math.round(i.projected * 100) + '%' }) }
-                : { icon: '🎯', text: t('ins_pace_ok', { name: name, used: Math.round(i.used * 100) + '%', day: i.day }) };
+                ? { icon: 'fa-triangle-exclamation', text: t('ins_pace_warn', { name: name, pct: Math.round(i.projected * 100) + '%' }) }
+                : { icon: 'fa-bullseye', text: t('ins_pace_ok', { name: name, used: Math.round(i.used * 100) + '%', day: i.day }) };
         }
 
-        /** The slices of the donut and the legend rows: the top 6 categories, then everything else together. */
+        /** The slices of the donut and the list rows: the top 6 categories, then everything else together. */
         function slices(data) {
             var top = data.byCategory.slice(0, 6);
             var rest = data.byCategory.slice(6);
             var list = top.map(function (entry, i) {
                 var info = category(entry[0]);
-                return { key: entry[0], label: info.label, emoji: info.emoji, color: info.color, amount: entry[1], fallback: F.PALETTE[i % F.PALETTE.length] };
+                return { key: entry[0], label: info.label, icon: info.icon, color: info.color, amount: entry[1], fallback: F.PALETTE[i % F.PALETTE.length] };
             });
             if (rest.length) {
-                list.push({ key: '', label: t('others'), emoji: '', color: F.PALETTE[7], amount: rest.reduce(function (s, e) { return s + e[1]; }, 0), count: rest.length, fallback: F.PALETTE[7] });
+                list.push({ key: '', label: t('others'), icon: 'fa-ellipsis', color: F.PALETTE[7], amount: rest.reduce(function (s, e) { return s + e[1]; }, 0), count: rest.length, fallback: F.PALETTE[7] });
             }
             return list;
         }
@@ -120,37 +122,40 @@
             var data = state.month;
             if (!data.count) return emptyMonth();
             var change = data.previousCount ? F.trend(data.total, data.previousTotal) : null;
-            var chips = '';
-            if (change) chips += '<span class="chip ' + (change.flat ? '' : change.up ? 'up' : 'down') + '">' + h(change.arrow + ' ' + change.text + ' ' + t('vs_last')) + '</span>';
-            if (data.streak >= 2) chips += '<span class="chip">🔥 ' + h(t('streak', { n: data.streak })) + '</span>';
-            var stats = '';
+            var pills = '';
+            if (change) pills += '<span class="delta ' + (change.flat ? '' : change.up ? 'up' : 'down') + '">' + h(change.arrow + ' ' + change.text + ' ' + t('vs_last')) + '</span>';
+            if (data.streak >= 2) pills += '<span class="delta"><i class="fas fa-fire" aria-hidden="true"></i> ' + h(t('streak', { n: data.streak })) + '</span>';
+            var meta = '';
             if (data.income > 0) {
                 var rate = Math.max(0, (data.income - data.total) / data.income);
-                stats = '<dl class="stats">' +
-                    '<div><dt>' + h(t('income')) + '</dt><dd>' + h(F.money(data.income)) + '</dd></div>' +
-                    '<div><dt>' + h(t('net')) + '</dt><dd>' + h(F.money(data.income - data.total)) + '</dd></div>' +
-                    '<div><dt>' + h(t('saved')) + '</dt><dd>' + h(F.percent(rate)) + '</dd></div></dl>';
+                var net = data.income - data.total;
+                meta = '<div class="total-meta">' +
+                    '<span class="meta-pill"><i class="fas fa-arrow-down" aria-hidden="true"></i>' + h(t('income')) + ' <b>' + h(F.money(data.income)) + '</b></span>' +
+                    '<span class="meta-pill' + (net < 0 ? ' negative' : '') + '"><i class="fas fa-scale-balanced" aria-hidden="true"></i>' + h(t('net')) + ' <b>' + h(F.money(net)) + '</b></span>' +
+                    '<span class="meta-pill"><i class="fas fa-piggy-bank" aria-hidden="true"></i>' + h(t('saved')) + ' <b>' + h(F.percent(rate)) + '</b></span></div>';
             }
             var list = slices(data);
-            var legend = list.map(function (s) {
-                var body = '<i class="dot" data-color="' + h(s.color) + '"></i><span class="legend-name">' + h(s.emoji ? s.emoji + ' ' + s.label : s.label + (s.count ? ' (' + s.count + ')' : '')) + '</span>' +
-                    '<span class="legend-amount">' + h(F.money(s.amount)) + '</span><span class="legend-share">' + h(F.percent(s.amount / data.total)) + '</span>';
+            var rows = list.map(function (s) {
+                var share = data.total > 0 ? s.amount / data.total : 0;
+                var name = s.key ? s.label : s.label + (s.count ? ' (' + s.count + ')' : '');
+                var body = '<span class="cat-ico" data-color="' + h(s.color) + '">' + icon(s.icon) + '</span>' +
+                    '<span class="cat-main"><span class="cat-name">' + h(name) + '</span><span class="cat-bar"><span data-w="' + (Math.min(1, share) * 100).toFixed(1) + '" data-color="' + h(s.color) + '"></span></span></span>' +
+                    '<span class="cat-amt"><b>' + h(F.money(s.amount)) + '</b><small>' + h(F.percent(share)) + '</small></span>';
                 return s.key
-                    ? '<li><button type="button" class="legend-row" data-action="pick-category" data-key="' + h(s.key) + '">' + body + '</button></li>'
-                    : '<li><div class="legend-row static">' + body + '</div></li>';
+                    ? '<li><button type="button" class="cat-row" data-action="pick-category" data-key="' + h(s.key) + '">' + body + '</button></li>'
+                    : '<li><div class="cat-row static">' + body + '</div></li>';
             }).join('');
             var insights = (data.insights || []).map(insightText).slice(0, 3).map(function (i) {
-                return '<li><span aria-hidden="true">' + i.icon + '</span><span>' + h(i.text) + '</span></li>';
+                return '<li class="insight"><span class="insight-icon">' + icon(i.icon) + '</span><span class="insight-text">' + h(i.text) + '</span></li>';
             }).join('');
-            return '<section class="card hero">' +
-                '<div class="hero-label">' + h(t('spent')) + '</div>' +
-                '<div class="hero-amount">' + h(F.money(data.total)) + '</div>' +
-                '<div class="chips">' + chips + '</div>' + stats + '</section>' +
-                '<section class="card"><h2>' + h(t('where_it_went')) + '</h2>' +
-                '<div class="donut-wrap"><canvas id="chart-donut" role="img" aria-label="' + h(t('chart_donut')) + '"></canvas>' +
-                '<div class="donut-center"><b>' + h(F.compactMoney(data.total)) + '</b><span>' + h(t('categories_count', { n: data.byCategory.length })) + '</span></div></div>' +
-                '<ul class="legend">' + legend + '</ul><p class="hint small">' + h(t('ranked')) + '</p></section>' +
-                (insights ? '<section class="card"><ul class="insights">' + insights + '</ul></section>' : '');
+            return '<section class="hero-card">' +
+                '<div class="hero-top"><span class="label">' + h(t('spent')) + '</span><span class="pills">' + pills + '</span></div>' +
+                '<div class="amount">' + h(F.money(data.total)) + '</div>' + meta + '</section>' +
+                '<section class="card"><div class="card-head"><h2 class="card-title">' + h(t('where_it_went')) + '</h2></div>' +
+                '<div class="donut"><canvas id="chart-donut" role="img" aria-label="' + h(t('chart_donut')) + '"></canvas>' +
+                '<div class="donut-center"><b class="donut-value">' + h(F.compactMoney(data.total)) + '</b><span class="donut-label">' + h(t('categories_count', { n: data.byCategory.length })) + '</span></div></div>' +
+                '<ul class="cat-list">' + rows + '</ul><p class="card-hint">' + h(t('ranked')) + '</p></section>' +
+                (insights ? '<ul class="insights">' + insights + '</ul>' : '');
         }
 
         // ------------------------------------------------------------ days
@@ -187,16 +192,18 @@
             var busiest = data.daily[top] > 0
                 ? F.formatKey(F.keyOfMonthDay(data.start, top), state.lang, { weekday: 'short', day: 'numeric', month: 'short' }) + ' · ' + F.money(data.daily[top])
                 : '–';
-            var tile = function (label, value) { return '<div class="tile"><span class="tile-label">' + h(label) + '</span><b class="tile-value">' + h(value) + '</b></div>'; };
+            var tile = function (ico, label, value) {
+                return '<div class="insight stat"><span class="insight-icon">' + icon(ico) + '</span><span class="stat-text"><span class="insight-label">' + h(label) + '</span><b class="insight-value">' + h(value) + '</b></span></div>';
+            };
             var weekend = (data.insights || []).filter(function (i) { return i.kind === 'weekend'; }).map(insightText).map(function (i) {
-                return '<p class="insight"><span aria-hidden="true">' + i.icon + '</span> ' + h(i.text) + '</p>';
+                return '<p class="insight-note">' + icon(i.icon) + ' ' + h(i.text) + '</p>';
             }).join('');
-            return '<section class="tiles">' +
-                tile(t('busiest'), busiest) + tile(t('average_day'), F.money(data.total / Math.max(1, passed))) +
-                tile(t('active_days'), active + ' / ' + passed) + tile('🔥', data.streak >= 2 ? t('streak', { n: data.streak }) : '–') + '</section>' +
-                '<section class="card"><h2>' + h(t('daily_spending')) + '</h2><div class="chart-box"><canvas id="chart-days" role="img" aria-label="' + h(t('chart_days')) + '"></canvas></div>' + weekend + '</section>' +
-                '<section class="card"><h2>' + h(t('daily_spending')) + '</h2>' + heatCalendar(data) +
-                '<p class="heat-detail hint" id="heat-detail" aria-live="polite">' + h(t('heat_legend')) + '</p></section>';
+            return '<section class="stat-grid">' +
+                tile('fa-trophy', t('busiest'), busiest) + tile('fa-calculator', t('average_day'), F.money(data.total / Math.max(1, passed))) +
+                tile('fa-calendar-check', t('active_days'), active + ' / ' + passed) + tile('fa-fire', t('streak', { n: data.streak >= 2 ? data.streak : 0 }), data.streak >= 2 ? String(data.streak) : '–') + '</section>' +
+                '<section class="card"><div class="card-head"><h2 class="card-title">' + h(t('daily_spending')) + '</h2></div><div class="chart-wrap"><canvas id="chart-days" role="img" aria-label="' + h(t('chart_days')) + '"></canvas></div>' + weekend + '</section>' +
+                '<section class="card"><div class="card-head"><h2 class="card-title">' + h(t('daily_spending')) + '</h2></div>' + heatCalendar(data) +
+                '<p class="heat-detail card-hint" id="heat-detail" aria-live="polite">' + h(t('heat_legend')) + '</p></section>';
         }
 
         // ------------------------------------------------------------ budgets
@@ -204,8 +211,8 @@
         function budgets() {
             var data = state.month;
             if (!data.budgets.length) {
-                return '<section class="card empty"><div class="empty-icon" aria-hidden="true">🎯</div><h2>' + h(t('no_budgets')) + '</h2><p>' + h(t('no_budgets_hint')) + '</p>' +
-                    '<button type="button" class="btn" data-action="open-website">' + h(t('open_website')) + '</button></section>';
+                return '<section class="card empty"><div class="empty-icon" aria-hidden="true"><i class="fas fa-bullseye"></i></div><h2>' + h(t('no_budgets')) + '</h2><p>' + h(t('no_budgets_hint')) + '</p>' +
+                    '<button type="button" class="btn btn-outline" data-action="open-website">' + h(t('open_website')) + '</button></section>';
             }
             var list = data.budgets.map(function (b) {
                 var ratio = b.limit > 0 ? b.used / b.limit : 0;
@@ -213,12 +220,12 @@
             }).sort(function (a, b) { return b.ratio - a.ratio; });
             return list.map(function (b) {
                 var status = b.ratio > 1 ? 'over' : b.ratio >= 0.8 ? 'watch' : 'ok';
-                var name = b.key === 'all' ? '🎯 ' + t('budget_overall') : category(b.key).emoji + ' ' + category(b.key).label;
+                var info = b.key === 'all' ? { icon: 'fa-bullseye', label: t('budget_overall'), color: '#4f46e5' } : category(b.key);
                 var note = b.ratio > 1 ? t('budget_over', { amount: F.money(b.used - b.limit) }) : t('budget_left', { amount: F.money(b.limit - b.used) });
                 return '<article class="card budget ' + status + '">' +
-                    '<div class="row"><b>' + h(name) + '</b><span class="pct">' + h(F.percent(b.ratio)) + '</span></div>' +
+                    '<div class="budget-top"><span class="cat-ico" data-color="' + h(info.color) + '">' + icon(info.icon) + '</span><b class="budget-name">' + h(info.label) + '</b><span class="pct">' + h(F.percent(b.ratio)) + '</span></div>' +
                     '<div class="track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + Math.min(100, Math.round(b.ratio * 100)) + '"><div class="fill" data-w="' + Math.min(100, b.ratio * 100).toFixed(1) + '"></div></div>' +
-                    '<div class="row hint small"><span>' + h(F.money(b.used) + ' / ' + F.money(b.limit)) + '</span><span>' + h(note) + '</span></div></article>';
+                    '<div class="budget-foot card-hint"><span>' + h(F.money(b.used) + ' / ' + F.money(b.limit)) + '</span><span>' + h(note) + '</span></div></article>';
             }).join('');
         }
 
@@ -232,13 +239,13 @@
             var average = totals.reduce(function (s, v) { return s + v; }, 0) / totals.length;
             var rows = totals.map(function (v, i) {
                 var change = i > 0 ? F.trend(v, totals[i - 1]) : null;
-                var chip = change && !change.flat ? '<span class="chip ' + (change.up ? 'up' : 'down') + '">' + h(change.arrow + ' ' + change.text) + '</span>' : '';
+                var chip = change && !change.flat ? '<span class="delta-chip ' + (change.up ? 'up' : 'down') + '">' + h(change.arrow + ' ' + change.text) + '</span>' : '';
                 return '<li class="trend-row' + (i === totals.length - 1 ? ' current' : '') + '"><span>' + h(F.monthShort(data.monthStarts[i], state.lang)) + '</span><b>' + h(F.money(v)) + '</b>' + chip + '</li>';
             }).join('');
-            return '<section class="tiles two">' +
-                '<div class="tile"><span class="tile-label">' + h(t('average_month')) + '</span><b class="tile-value">' + h(F.money(average)) + '</b></div>' +
-                '<div class="tile"><span class="tile-label">' + h(t('highest_month')) + '</span><b class="tile-value">' + h(F.monthShort(data.monthStarts[best], state.lang) + ' · ' + F.money(totals[best])) + '</b></div></section>' +
-                '<section class="card"><h2>' + h(t('trend_title')) + '</h2><div class="chart-box"><canvas id="chart-trend" role="img" aria-label="' + h(t('chart_trend')) + '"></canvas></div>' +
+            return '<section class="stat-grid">' +
+                '<div class="insight stat"><span class="insight-icon">' + icon('fa-chart-simple') + '</span><span class="stat-text"><span class="insight-label">' + h(t('average_month')) + '</span><b class="insight-value">' + h(F.money(average)) + '</b></span></div>' +
+                '<div class="insight stat"><span class="insight-icon">' + icon('fa-arrow-trend-up') + '</span><span class="stat-text"><span class="insight-label">' + h(t('highest_month')) + '</span><b class="insight-value">' + h(F.monthShort(data.monthStarts[best], state.lang) + ' · ' + F.money(totals[best])) + '</b></span></div></section>' +
+                '<section class="card"><div class="card-head"><h2 class="card-title">' + h(t('trend_title')) + '</h2></div><div class="chart-wrap"><canvas id="chart-trend" role="img" aria-label="' + h(t('chart_trend')) + '"></canvas></div>' +
                 '<ul class="trend-list">' + rows + '</ul></section>';
         }
 
@@ -246,10 +253,11 @@
 
         function history() {
             var hs = state.history;
-            var chips = '<button type="button" class="chip-btn' + (!hs.category ? ' active' : '') + '" data-action="filter-category" data-key="" aria-pressed="' + !hs.category + '">' + h(t('all_categories')) + '</button>' +
+            var chips = '<button type="button" class="chip' + (!hs.category ? ' active' : '') + '" data-action="filter-category" data-key="" aria-pressed="' + !hs.category + '">' + h(t('all_categories')) + '</button>' +
                 (state.categories || []).filter(function (c) { return c.active || c.key === hs.category; }).map(function (c) {
                     var on = hs.category === c.key;
-                    return '<button type="button" class="chip-btn' + (on ? ' active' : '') + '" data-action="filter-category" data-key="' + h(c.key) + '" aria-pressed="' + on + '">' + h(F.emojiFor(c.key) + ' ' + c.label) + '</button>';
+                    var info = category(c.key);
+                    return '<button type="button" class="chip' + (on ? ' active' : '') + '" data-color="' + h(info.color) + '" data-action="filter-category" data-key="' + h(c.key) + '" aria-pressed="' + on + '">' + icon(info.icon) + h(F.truncate(c.label, 16)) + '</button>';
                 }).join('');
             var groups = [];
             hs.items.forEach(function (item) {
@@ -259,23 +267,23 @@
             });
             var list = groups.map(function (g) {
                 var sum = g.items.reduce(function (s, i) { return s + Math.round(F.toNumber(i.amount) * 100); }, 0) / 100;
-                return '<h3 class="day-head"><span>' + h(F.dayLabel(g.key, state.today, state.lang, { today: t('today'), yesterday: t('yesterday') })) + '</span><span>' + h(F.money(sum)) + '</span></h3><ul class="tx">' +
+                return '<h3 class="day-head"><span class="day-name">' + h(F.dayLabel(g.key, state.today, state.lang, { today: t('today'), yesterday: t('yesterday') })) + '</span><span class="day-total">' + h(F.money(sum)) + '</span></h3><ul class="day-group">' +
                     g.items.map(function (item) {
                         var info = category(item.category);
                         var title = item.merchant || info.label;
-                        return '<li><button type="button" class="tx-row" data-action="edit" data-id="' + h(item.id) + '">' +
-                            '<span class="tx-icon" data-color="' + h(info.color) + '" aria-hidden="true">' + h(info.emoji) + '</span>' +
-                            '<span class="tx-main"><b>' + h(F.truncate(title, 40)) + '</b><small>' + h(info.label + ' · ' + payment(item.payment)) + '</small></span>' +
-                            '<span class="tx-amount">' + h(F.money(item.amount)) + '</span></button></li>';
+                        return '<li><button type="button" class="history-item" data-action="edit" data-id="' + h(item.id) + '">' +
+                            '<span class="h-icon" data-color="' + h(info.color) + '" aria-hidden="true">' + icon(info.icon) + '</span>' +
+                            '<span class="h-left"><b class="h-title">' + h(F.truncate(title, 40)) + '</b><small class="h-detail">' + h(info.label + ' · ' + payment(item.payment)) + '</small></span>' +
+                            '<span class="h-amount">' + h(F.money(item.amount)) + '</span></button></li>';
                     }).join('') + '</ul>';
             }).join('');
             var body = hs.loading && !hs.items.length
                 ? '<div class="skeleton"><div class="sk-card sk-list"></div></div>'
-                : hs.items.length ? list : '<section class="card empty"><div class="empty-icon" aria-hidden="true">🌱</div><h2>' + h(t('no_data')) + '</h2></section>';
-            return '<div class="toolbar"><input type="search" class="search" id="search" data-action="search" placeholder="' + h(t('search')) + '" aria-label="' + h(t('search')) + '" value="' + h(hs.q) + '" maxlength="60" autocomplete="off" enterkeyhint="search"></div>' +
-                '<div class="chip-scroll" role="group" aria-label="' + h(t('category')) + '">' + chips + '</div>' +
-                '<p class="summary hint">' + h(countText(hs.total) + ' · ' + t('total') + ' ' + F.money(hs.sum)) + '</p>' + body +
-                (hs.items.length < hs.total ? '<button type="button" class="btn wide" data-action="load-more"' + (hs.loading ? ' disabled' : '') + '>' + h(t('load_more')) + '</button>' : '');
+                : hs.items.length ? list : '<section class="card empty"><div class="empty-icon" aria-hidden="true"><i class="fas fa-seedling"></i></div><h2>' + h(t('no_data')) + '</h2></section>';
+            return '<div class="history-overview"><div class="history-overview-main"><span class="history-overview-label">' + h(t('total')) + '</span><strong>' + h(F.money(hs.sum)) + '</strong><span>' + h(countText(hs.total)) + '</span></div></div>' +
+                '<div class="search-wrap"><i class="fas fa-magnifying-glass" aria-hidden="true"></i><input type="search" class="search" id="search" data-action="search" placeholder="' + h(t('search')) + '" aria-label="' + h(t('search')) + '" value="' + h(hs.q) + '" maxlength="60" autocomplete="off" enterkeyhint="search"></div>' +
+                '<div class="chip-scroll" role="group" aria-label="' + h(t('category')) + '">' + chips + '</div>' + body +
+                (hs.items.length < hs.total ? '<button type="button" class="btn btn-outline wide" data-action="load-more"' + (hs.loading ? ' disabled' : '') + '>' + h(t('load_more')) + '</button>' : '');
         }
 
         // ------------------------------------------------------------ add / edit
@@ -286,7 +294,7 @@
             var item = s.item || {};
             var editing = s.mode === 'edit';
             var today = state.today;
-            var oldest = F.formatKey(today, 'en', {}) && minDate(today, state.maxDaysBack || 400);
+            var oldest = minDate(today, state.maxDaysBack || 400);
             var typed = s.values || {};
             var pick = function (name, fallback) { return typeof typed[name] === 'string' ? typed[name] : fallback; };
             var date = pick('date', editing ? F.dayKey(item.created_at) : today);
@@ -295,27 +303,28 @@
             var selectedPayment = pick('payment', item.payment || (state.payments.filter(function (p) { return p.active; })[0] || {}).key || '');
             var payments = (state.payments || []).filter(function (p) { return p.active || p.key === item.payment; });
             var categoriesHtml = choices.map(function (c) {
-                return '<label class="choice"><input type="radio" name="category" value="' + h(c.key) + '"' + (c.key === selectedCategory ? ' checked' : '') + '><span>' + h(F.emojiFor(c.key) + ' ' + F.truncate(c.label, 14)) + '</span></label>';
+                var info = category(c.key);
+                return '<label class="choice" data-color="' + h(info.color) + '"><input type="radio" name="category" value="' + h(c.key) + '"' + (c.key === selectedCategory ? ' checked' : '') + '><span>' + icon(info.icon) + h(F.truncate(c.label, 14)) + '</span></label>';
             }).join('');
             var paymentsHtml = payments.map(function (p) {
                 return '<label class="choice"><input type="radio" name="payment" value="' + h(p.key) + '"' + (p.key === selectedPayment ? ' checked' : '') + '><span>' + h(F.truncate(p.label, 16)) + '</span></label>';
             }).join('');
             return '<div class="sheet-backdrop" data-action="close-sheet"></div>' +
                 '<div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title">' +
-                '<div class="sheet-grab" aria-hidden="true"></div>' +
-                '<h2 id="sheet-title">' + h(t(editing ? 'edit_expense' : 'add_expense')) + '</h2>' +
+                '<div class="sheet-grabber" aria-hidden="true"></div>' +
+                '<div class="sheet-head"><h2 id="sheet-title">' + h(t(editing ? 'edit_expense' : 'add_expense')) + '</h2>' +
+                '<button type="button" class="icon-btn" data-action="close-sheet" aria-label="' + h(t('cancel')) + '"><i class="fas fa-xmark" aria-hidden="true"></i></button></div>' +
                 '<form id="expense-form" novalidate data-id="' + h(item.id || '') + '">' +
-                '<label class="field"><span>' + h(t('amount')) + '</span><div class="amount-box"><span aria-hidden="true">RM</span><input name="amount" inputmode="decimal" autocomplete="off" enterkeyhint="done" maxlength="10" placeholder="0.00" value="' + h(pick('amount', editing ? Number(item.amount).toFixed(2) : '')) + '" required></div></label>' +
-                '<label class="field"><span>' + h(t('merchant')) + '</span><input name="merchant" maxlength="80" autocomplete="off" placeholder="' + h(t('merchant_placeholder')) + '" value="' + h(pick('merchant', item.merchant || '')) + '"></label>' +
-                '<fieldset class="field"><legend>' + h(t('category')) + '</legend><div class="choices">' + categoriesHtml + '</div></fieldset>' +
-                '<fieldset class="field"><legend>' + h(t('payment')) + '</legend><div class="choices">' + paymentsHtml + '</div></fieldset>' +
-                '<div class="two-cols"><label class="field"><span>' + h(t('date')) + '</span><input type="date" name="date" value="' + h(date) + '" min="' + h(oldest) + '" max="' + h(today) + '"></label>' +
-                '<label class="field"><span>' + h(t('note')) + '</span><input name="note" maxlength="200" autocomplete="off" value="' + h(pick('note', item.note && item.note !== 'via Telegram' && item.note !== 'via Mini App' ? item.note : '')) + '"></label></div>' +
+                '<label class="amount-field"><span class="amount-prefix" aria-hidden="true">RM</span><input name="amount" inputmode="decimal" autocomplete="off" enterkeyhint="done" maxlength="10" placeholder="0.00" aria-label="' + h(t('amount')) + '" value="' + h(pick('amount', editing ? Number(item.amount).toFixed(2) : '')) + '" required></label>' +
+                '<div class="input-group"><label for="f-merchant">' + h(t('merchant')) + '</label><div class="input-icon-wrap"><i class="fas fa-store" aria-hidden="true"></i><input id="f-merchant" name="merchant" maxlength="80" autocomplete="off" placeholder="' + h(t('merchant_placeholder')) + '" value="' + h(pick('merchant', item.merchant || '')) + '"></div></div>' +
+                '<fieldset class="input-group"><legend class="label">' + h(t('category')) + '</legend><div class="chip-group">' + categoriesHtml + '</div></fieldset>' +
+                '<fieldset class="input-group"><legend class="label">' + h(t('payment')) + '</legend><div class="chip-group">' + paymentsHtml + '</div></fieldset>' +
+                '<div class="field-row"><div class="input-group"><label for="f-date">' + h(t('date')) + '</label><div class="input-icon-wrap"><i class="fas fa-calendar" aria-hidden="true"></i><input id="f-date" type="date" name="date" value="' + h(date) + '" min="' + h(oldest) + '" max="' + h(today) + '"></div></div>' +
+                '<div class="input-group"><label for="f-note">' + h(t('note')) + '</label><div class="input-icon-wrap"><i class="fas fa-pen" aria-hidden="true"></i><input id="f-note" name="note" maxlength="200" autocomplete="off" value="' + h(pick('note', item.note && item.note !== 'via Telegram' && item.note !== 'via Mini App' ? item.note : '')) + '"></div></div></div>' +
                 '<p class="form-error" role="alert">' + h(s.error || '') + '</p>' +
                 '<div class="sheet-actions">' +
-                (editing ? '<button type="button" class="btn danger" data-action="delete">' + h(s.confirmDelete ? t('delete_confirm') : t('delete')) + '</button>' : '') +
-                '<button type="button" class="btn" data-action="close-sheet">' + h(t('cancel')) + '</button>' +
-                '<button type="submit" class="btn primary"' + (s.saving ? ' disabled' : '') + '>' + h(t('save')) + '</button></div></form></div>';
+                (editing ? '<button type="button" class="btn btn-danger-soft" data-action="delete">' + h(s.confirmDelete ? t('delete_confirm') : t('delete')) + '</button>' : '') +
+                '<button type="submit" class="btn btn-primary"' + (s.saving ? ' disabled' : '') + '>' + h(t('save')) + '</button></div></form></div>';
         }
 
         /** "YYYY-MM-DD" a number of days before today. */

@@ -11,19 +11,19 @@
     'use strict';
 
     var CATEGORIES = [
-        { key: 'food', label: 'Food', color: '#f28c28', active: true },
-        { key: 'beverages', label: 'Beverages', color: '#8b5e3c', active: true },
-        { key: 'travel', label: 'Travel', color: '#2f6fd0', active: true },
-        { key: 'entertain', label: 'Entertainment', color: '#8e5cc8', active: true },
-        { key: 'shopping', label: 'Shopping', color: '#d64545', active: true },
-        { key: 'utilities', label: 'Utilities', color: '#f2c230', active: true },
-        { key: 'car', label: 'Car', color: '#5a6272', active: true },
-        { key: 'other', label: 'Other', color: '#3ba55d', active: true },
+        { key: 'food', label: 'Food', color: '#ef4444', active: true },
+        { key: 'beverages', label: 'Beverages', color: '#4f46e5', active: true },
+        { key: 'travel', label: 'Travel', color: '#06b6d4', active: true },
+        { key: 'entertain', label: 'Entertainment', color: '#f59e0b', active: true },
+        { key: 'shopping', label: 'Shopping', color: '#8b5cf6', active: true },
+        { key: 'utilities', label: 'Utilities', color: '#0ea5e9', active: true },
+        { key: 'car', label: 'Car', color: '#f97316', active: true },
+        { key: 'other', label: 'Other', color: '#6b7280', active: true },
     ];
     var PAYMENTS = [
-        { key: 'cash', label: 'Cash', color: '#3ba55d', active: true },
-        { key: 'card', label: 'Card', color: '#2f6fd0', active: true },
-        { key: 'ewallet', label: 'E-wallet', color: '#8e5cc8', active: true },
+        { key: 'cash', label: 'Cash', color: '#4f46e5', active: true },
+        { key: 'card', label: 'Card', color: '#4f46e5', active: true },
+        { key: 'ewallet', label: 'E-wallet', color: '#4f46e5', active: true },
     ];
     var SHOPS = {
         food: ['Nasi Lemak Wanjo', 'Village Park', 'Kopitiam Ah Heng', 'Sushi Zanmai'], beverages: ['Starbucks', 'ZUS Coffee', 'Tealive'],

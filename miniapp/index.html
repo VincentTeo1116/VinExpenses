@@ -7,14 +7,16 @@
     <meta name="referrer" content="no-referrer" />
     <meta name="robots" content="noindex, nofollow" />
     <title>VinExpenses</title>
+    <link rel="stylesheet" href="../vendor/fontawesome/css/all.min.css" />
+    <link rel="stylesheet" href="../fonts.css" />
     <link rel="stylesheet" href="style.css" />
 </head>
 <body>
     <div id="banner" class="banner" hidden></div>
     <div id="bar" hidden></div>
     <main id="main" aria-live="polite"></main>
-    <button type="button" id="fab" class="fab" data-action="add" aria-label="Add expense" hidden>+</button>
-    <nav id="tabs" class="tabs" role="tablist" hidden></nav>
+    <button type="button" id="fab" class="fab" data-action="add" aria-label="Add expense" hidden><i class="fas fa-plus" aria-hidden="true"></i></button>
+    <nav id="tabs" class="tabbar" role="tablist" hidden></nav>
     <div id="sheet-host"></div>
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
     <noscript><p>VinExpenses needs JavaScript.</p></noscript>
