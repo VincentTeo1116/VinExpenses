@@ -298,3 +298,61 @@ export async function renderBarsPng(values: number[], options: BarsOptions = {})
   });
   return encodePng(width, height, canvas.data);
 }
+
+// ---------------------------------------------------------------- budget progress bars
+
+const TRACK: RGB = [229, 232, 241];
+const OK: RGB = [59, 165, 93]; // under 80%
+const WATCH: RGB = [242, 194, 48]; // 80% to 100%
+const OVER: RGB = [214, 69, 69]; // over budget
+const OVER_CAP: RGB = [140, 38, 38];
+const TICK: RGB = [186, 192, 208];
+
+/** Coverage (0..1) of a rounded rectangle (all four corners), anti-aliased. */
+function rounded(px: number, py: number, left: number, top: number, right: number, bottom: number, radius: number): number {
+  const r = Math.min(radius, (right - left) / 2, (bottom - top) / 2);
+  const dx = Math.max(left + r - px, 0, px - (right - r));
+  const dy = Math.max(top + r - py, 0, py - (bottom - r));
+  const outside = Math.hypot(dx, dy) - r;
+  const edge = Math.max(left - px, px - right, top - py, py - bottom); // straight edges
+  return clamp01(0.5 - (dx > 0 || dy > 0 ? outside : edge));
+}
+
+export interface ProgressOptions {
+  width?: number;
+}
+
+/**
+ * One horizontal bar per budget (top to bottom, in the order given): green under 80%, amber to 100%, red when over,
+ * with a faint tick at 80% and a dark cap on the end of bars that went over. `ratios` are used / limit (1 = 100%).
+ * At most 10 bars are drawn. Like the other charts it has no text: the caption names every bar.
+ */
+export async function renderProgressPng(ratios: number[], options: ProgressOptions = {}): Promise<Uint8Array> {
+  const clean = ratios.slice(0, 10).map((v) => (Number.isFinite(v) && v > 0 ? v : 0));
+  const rows = Math.max(1, clean.length);
+  const width = options.width ?? 720;
+  const rowHeight = 58;
+  const height = 24 + rows * rowHeight + 8;
+  const canvas = new Canvas(width, height, BACKGROUND);
+  const left = 36;
+  const right = width - 36;
+  const trackWidth = right - left;
+  const barHeight = 26;
+
+  clean.forEach((ratio, index) => {
+    const top = 24 + index * rowHeight + (rowHeight - barHeight) / 2;
+    const bottom = top + barHeight;
+    const fillRight = left + Math.max(barHeight, Math.min(1, ratio) * trackWidth); // never thinner than a dot
+    const colour = ratio > 1 ? OVER : ratio >= 0.8 ? WATCH : OK;
+    const tickX = left + trackWidth * 0.8;
+    for (let y = Math.floor(top) - 1; y <= Math.ceil(bottom) + 1; y++) {
+      for (let x = left - 1; x <= right + 1; x++) {
+        canvas.blend(x, y, TRACK, rounded(x + 0.5, y + 0.5, left, top, right, bottom, barHeight / 2));
+        if (ratio > 0 && x + 0.5 <= fillRight + 1) canvas.blend(x, y, colour, rounded(x + 0.5, y + 0.5, left, top, fillRight, bottom, barHeight / 2));
+        if (Math.abs(x + 0.5 - tickX) < 1.1 && y >= top && y <= bottom && x + 0.5 > fillRight) canvas.blend(x, y, TICK, 0.9);
+        if (ratio > 1 && x + 0.5 > right - 16 && x + 0.5 < right - 10 && y >= top + 5 && y <= bottom - 5) canvas.blend(x, y, OVER_CAP, 0.95);
+      }
+    }
+  });
+  return encodePng(width, height, canvas.data);
+}

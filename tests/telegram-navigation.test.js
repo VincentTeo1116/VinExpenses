@@ -41,11 +41,13 @@ test('/month and /week send a picture with a caption and the navigation buttons;
     assert.match(await plain(month.html), /November 2026/);
     assert.deepEqual(month.buttons[0].map((b) => b.callback_data), ['n:d:0', 'n:w:0', 'n:m:0', 'n:p:0']);
     assert.match(month.buttons[0][2].text, /^• /, 'the current view is marked');
-    assert.ok(month.buttons.flat().some((b) => b.callback_data === 'n:fm:0'), 'a Details button for the full text');
+    assert.deepEqual(month.buttons[1].map((b) => b.callback_data), ['n:m:0', 'n:y:0', 'n:b:0', 'n:t:0'], 'the month has Overview / Days / Budgets / Trend tabs');
+    assert.match(month.buttons[1][0].text, /^• /, 'and the open tab is marked');
     assert.deepEqual(tg.actions, [CHAT_A], 'typing… while the picture is made');
     await deliver(tg, message(CHAT_A, '/week'));
     assert.equal(tg.last().photo, true);
     assert.match(await plain(tg.last().html), /Week · 2 Nov – 8 Nov/);
+    assert.ok(tg.last().buttons.flat().some((b) => b.callback_data === 'n:fw:0'), 'the week keeps a Details button');
     await deliver(tg, message(CHAT_A, '/today'));
     assert.equal(tg.last().photo, undefined);
     assert.ok(!tg.last().buttons.flat().some((b) => b.callback_data?.startsWith('n:f')), 'no details button on a text view');
@@ -108,16 +110,17 @@ test('navigation: text to text is an ordinary edit', async () => {
 
 test('navigation: Details sends the complete text as a NEW message and leaves the picture alone', async () => {
     const { tg } = await linked();
-    await deliver(tg, message(CHAT_A, '/month'));
+    await deliver(tg, message(CHAT_A, '/week'));
     const id = tg.lastSent().id;
     const edits = tg.edited.length;
-    await deliver(tg, nav(CHAT_A, 'n:fm:0', { photo: true, messageId: id }));
+    await deliver(tg, nav(CHAT_A, 'n:fw:0', { photo: true, messageId: id }));
     const details = tg.lastSent();
     assert.equal(details.photo, undefined);
-    assert.match(details.html, /<b>Categories<\/b>/);
-    assert.match(await plain(details.html), /Daily spending/);
+    assert.match(await plain(details.html), /Week · 2 Nov – 8 Nov/);
     assert.equal(tg.edited.length, edits);
     assert.deepEqual(tg.removed, []);
+    await deliver(tg, nav(CHAT_A, 'n:fm:0', { photo: true, messageId: id }));
+    assert.match(tg.lastSent().html, /<b>Categories<\/b>/, 'the month still has a complete text version');
     await deliver(tg, nav(CHAT_A, 'n:fw:1', { photo: true, messageId: id }));
     assert.match(await plain(tg.lastSent().html), /Week · 26 Oct – 1 Nov/);
 });
@@ -157,8 +160,8 @@ test('fallback: when the picture cannot be sent the same report arrives as text,
     const text = tg.last();
     assert.equal(text.photo, undefined);
     assert.match(await plain(text.html), /November 2026/);
-    assert.match(await plain(text.html), /Daily spending/, 'the complete report, not a cut-down caption');
-    assert.match(await plain(text.html), /Last 6 months/);
+    assert.match(await plain(text.html), /Categories/, 'the complete overview text');
+    assert.ok(text.buttons[1].some((b) => b.callback_data === 'n:y:0'), 'the other tabs stay reachable');
     assert.ok(text.buttons[0].some((b) => b.callback_data === 'n:w:0'), 'navigation survives');
     assert.ok(!text.buttons.flat().some((b) => b.callback_data?.startsWith('n:f')), 'no Details button when the report already is the details');
     tg.photoFails = false;
@@ -283,7 +286,7 @@ test('weekly summary: a picture with the week in the caption, a tip, and navigat
     assert.match(text, /Spent\s+RM 80\.00/);
     assert.match(text, /digest off/, 'the tip is added when it fits');
     assert.ok(text.length <= 1024);
-    assert.deepEqual(m.buttons.flat().map((b) => b.callback_data ?? b.url).slice(4), ['n:w:2', 'n:w:0', 'n:fw:1', 'https://me.github.io/VinExpenses'], 'earlier / later continue from the week that was reported');
+    assert.deepEqual(m.buttons.flat().map((b) => b.callback_data ?? b.url).slice(4), ['n:w:2', 'n:w:0', 'https://me.github.io/VinExpenses', 'n:fw:1'], 'earlier / later continue from the week that was reported');
 });
 
 test('weekly summary: if the picture fails it falls back to the complete text; if the person blocked the bot nothing else is tried', async () => {
@@ -429,4 +432,53 @@ test('client: editPhoto replaces the picture and caption in place; "not modified
         assert.match(t.calls[3].url, /deleteMessage$/);
         assert.deepEqual(JSON.parse(t.calls[3].body), { chat_id: 5, message_id: 9 });
     } finally { t.restore(); }
+});
+
+// ------------------------------------------------------------------ the month's tabs
+test('tabs: switching Overview / Days / Budgets / Trend edits the same picture message in place and keeps the month', async () => {
+    const { db, tg } = await linked();
+    db.budgets.push({ user_id: A, category: 'all', amount: '2000' });
+    await deliver(tg, message(CHAT_A, '/month'));
+    const id = tg.lastSent().id;
+    const sent = tg.sent.length;
+    for (const [data, expected] of [['n:y:0', /daily spending/], ['n:b:0', /Budgets/], ['n:t:0', /Last 6 months/], ['n:m:0', /November 2026/]]) {
+        await deliver(tg, nav(CHAT_A, data, { photo: true, messageId: id }));
+        const edit = tg.lastEdit();
+        assert.equal(edit.photo, true, data);
+        assert.equal(edit.messageId, id, `${data}: same message`);
+        assert.match(await plain(edit.html), expected, data);
+    }
+    assert.equal(tg.sent.length, sent, 'no new messages, nothing removed');
+    assert.deepEqual(tg.removed, []);
+    await deliver(tg, nav(CHAT_A, 'n:y:1', { photo: true, messageId: id }));
+    assert.match(await plain(tg.lastEdit().html), /October 2026 · daily spending/, 'paging back keeps the tab');
+    assert.deepEqual(tg.lastEdit().buttons[1].map((b) => b.callback_data), ['n:m:1', 'n:y:1', 'n:b:1', 'n:t:1'], 'and the tabs follow the month');
+    assert.match(tg.lastEdit().buttons[1][1].text, /^• /);
+});
+
+test('tabs: a tab with nothing to draw (no budgets) is text, so it replaces the picture by a new message', async () => {
+    const { tg } = await linked();
+    await deliver(tg, message(CHAT_A, '/month'));
+    const id = tg.lastSent().id;
+    await deliver(tg, nav(CHAT_A, 'n:b:0', { photo: true, messageId: id }));
+    const note = tg.lastSent();
+    assert.equal(note.photo, undefined);
+    assert.match(await plain(note.html), /No budgets yet/);
+    assert.deepEqual(tg.removed, [{ chatId: CHAT_A, messageId: id }]);
+    assert.ok(note.buttons[1].some((b) => b.callback_data === 'n:m:0'), 'the tabs are still there to go back');
+    await deliver(tg, nav(CHAT_A, 'n:m:0', { photo: false, messageId: note.id }));
+    assert.equal(tg.lastSent().photo, true, 'and back to a picture');
+});
+
+test('tabs: the same fallbacks apply - a picture that cannot be sent arrives as that tab\'s text', async () => {
+    const { db, tg } = await linked();
+    db.budgets.push({ user_id: A, category: 'all', amount: '2000' });
+    tg.photoFails = true;
+    tg.editPhotoFails = true;
+    for (const [data, expected] of [['n:y:0', /Busiest day/], ['n:b:0', /Overall/], ['n:t:0', /Average/]]) {
+        await deliver(tg, nav(CHAT_A, data, { photo: true }));
+        assert.equal(tg.last().photo, undefined, data);
+        assert.match(await plain(tg.last().html), expected, data);
+        assert.ok(tg.last().buttons[1].some((b) => b.callback_data?.startsWith('n:y:')), `${data}: tabs survive`);
+    }
 });

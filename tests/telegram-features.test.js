@@ -238,10 +238,12 @@ test('/month shows income, spending, savings, last-month trend, categories and b
     const month = tg.last().html;
     assert.match(month, /🗓 <b>November 2026<\/b>/);
     assert.match(month, /Spent\s+<b>RM\s?350\.00<\/b>\s+🔺 100% <i>vs last month/);
-    assert.match(month, /Net\s+<b>RM\s?2,650\.00/);
-    assert.match(month, /Saved\s+▰▰▰▰▰▰▰▰▰▱ <b>88%/);
-    assert.match(month, /🟦 🍜 Food\s+<b>RM\s300\.00<\/b> · 86%/, 'legend: coloured square matches the donut slice');
-    assert.match(month, /🟢 🍜 Food\s+▰▰▰▰▰▰▱▱ <b>75%/);
+    assert.match(month, /<b>RM\s2,650\.00<\/b> net/);
+    assert.match(month, /<b>88%<\/b> saved/);
+    assert.match(month, /🟦 Food\s+<b>RM\s300\.00<\/b> · 86%/, 'legend: coloured square matches the donut slice');
+    assert.ok(!/▰/.test(month), 'the overview is short: budgets live on their own tab');
+    await deliver(tg, H.callback(CHAT_A, 'n:b:0'));
+    assert.match(tg.last().html, /🟢 Food\s+▰▰▰▰▰▰▱▱ <b>75%/);
     await deliver(tg, message(CHAT_A, '/top'));
     const top = tg.last().html;
     assert.match(top, /<pre>/);

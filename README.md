@@ -394,21 +394,25 @@ list; the reply has **Undo** and **Category** buttons. Commands: `/today`, `/mon
 (3) otherwise **Other**. The reply says which rule it used, and the **Category** button corrects
 it; a correction is remembered for next time.
 
-**Charts and reports.**
+**Charts and reports.** Reports show the answer first and keep the detail one tap away.
 
 | Report | What you get |
 |---|---|
-| `/month` (or 🗓 Month) | A **donut chart picture** of where the month went. The caption has the legend (coloured squares match the slices), totals, income, net, savings rate, budgets, up to two insights ("🍜 Food is up 18% vs last month", "⚠️ At this pace Overall will reach 118% of its budget"), a **calendar heat-strip** of daily spending (🟩🟨🟧🟥, with the busiest day named in words), a **6-month mini trend** (▂▄▅▃▇▆) and your 🔥 **logging streak**. |
-| `/week` | A **bar chart** of the week (biggest day in orange, today marked, days still to come faded), a day-by-day table, last-week comparison and budgets that need attention. |
+| `/month` (or 🗓 Month) | **Overview:** a donut picture and a short card: spending (with the change vs last month), income / net / saved, the top 5 categories with colour squares that match the slices, and the single most important thing (a blown budget, a risky pace, a big change). Four **tabs** sit under it: |
+| &nbsp;&nbsp;🍩 Overview | The card above. |
+| &nbsp;&nbsp;📅 Days | A picture of daily spending (busiest day in orange, today marked, days still to come faded), the busiest day, the daily average, weekend vs weekday, your 🔥 streak, and a **calendar heat-strip** (weekdays down the side, one column per week). |
+| &nbsp;&nbsp;🎯 Budgets | A **progress-bar picture** (green under 80%, amber to 100%, red over) and, for each budget, used / limit and how much is left or over, worst first, plus the pace warning. |
+| &nbsp;&nbsp;📈 Trend | A 6-month bar picture, an aligned table with the change versus the previous month, the average and the highest month. |
+| `/week` | **Bars** for the week (biggest day in orange, today marked, days to come faded), a day-by-day table, last-week comparison, budgets that need attention, and a 📋 Details button. |
 | `/today` | Today's total by category, plus your streak. |
 | `/top` | Top categories and places in **aligned tables**. |
-| **Buttons under every report** | `📅 Today · 📊 Week · 🗓 Month · 🏆 Top`, `◀ Earlier / Later ▶` to page back through months and weeks, `📋 Details` (the complete text version) and `🔗 Open VinExpenses`. The report updates **in place**. |
+| **Buttons under every report** | `📅 Today · 📊 Week · 🗓 Month · 🏆 Top`; for the month also the tabs; `◀ Earlier / Later ▶` to page back (the tab and month are kept); `🔗 Open VinExpenses`. The report updates **in place**. |
 | The Monday **weekly summary** | The same week chart, with the buttons continuing from last week. |
 
 Charts are drawn by the bot itself (no chart service, nothing to pay, your numbers never leave your server). The pictures
 contain no text: all names and amounts are in the caption, so Malay and Chinese work the same as English and colours are
-never the only information. If a picture cannot be drawn or sent, you get the complete text report instead; if an edit
-fails, the new view arrives as a new message; the report buttons are limited to 300 views a day per chat.
+never the only information. If a picture cannot be drawn or sent, you get that report as text instead (the tabs stay);
+if an edit fails, the new view arrives as a new message; the report buttons are limited to 300 views a day per chat.
 After updating, run `node tools/set-telegram-webhook.js` again to add `/week` to the command list.
 
 **How it looks and feels.**

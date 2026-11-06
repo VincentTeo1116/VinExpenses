@@ -8,7 +8,7 @@
 import { fetchAll, q } from "./db.ts";
 import { bar, categoryRow, emojiFor, escapeHtml, formatDay, formatMonth, type Lang, pct, RULE, ringgit, trend, truncate } from "./tg-format.ts";
 import { tr } from "./tg-i18n.ts";
-import { renderBarsPng, renderDonutPng, SQUARES } from "./tg-chart.ts";
+import { renderBarsPng, renderDonutPng, renderProgressPng, SQUARES } from "./tg-chart.ts";
 import {
   alignTable,
   bucketByDay,
@@ -37,8 +37,10 @@ import {
 } from "./tg-reports.ts";
 import { stripTags } from "./telegram.ts";
 
-export type ViewKind = "d" | "w" | "m" | "p";
-export const MAX_OFFSET: Record<ViewKind, number> = { d: 366, w: 104, m: 60, p: 60 };
+/** d = today, w = week, p = top; m / y / b / t = the month's Overview / Days / Budgets / Trend tabs. */
+export type ViewKind = "d" | "w" | "m" | "y" | "b" | "t" | "p";
+export const MAX_OFFSET: Record<ViewKind, number> = { d: 366, w: 104, m: 60, y: 60, b: 60, t: 60, p: 60 };
+const MONTH_VIEWS: ViewKind[] = ["m", "y", "b", "t"];
 export const CAPTION_LIMIT = 1000; // Telegram allows 1,024; keep a margin
 
 export interface ViewInput {
@@ -51,7 +53,7 @@ export interface ViewInput {
   /** The Monday summary uses the friendlier "Your week" title. */
   digest?: boolean;
   /** Picture renderers; only tests pass this (to prove the text fallback works when drawing fails). */
-  render?: { donut?: typeof renderDonutPng; bars?: typeof renderBarsPng };
+  render?: { donut?: typeof renderDonutPng; bars?: typeof renderBarsPng; progress?: typeof renderProgressPng };
 }
 export interface ViewResult {
   kind: "photo" | "text";
@@ -123,7 +125,7 @@ export function fitCaption(sections: Section[], limit = CAPTION_LIMIT): string {
   let lines: string[] = [];
   sections.forEach((section, index) => {
     if (!section.compact.length) return;
-    const candidate = lines.length ? [...lines, RULE, ...section.compact] : [...section.compact];
+    const candidate = lines.length ? [...lines, "", ...section.compact] : [...section.compact];
     if (index === 0 || plainLength(candidate) <= limit) lines = candidate;
   });
   // The first section alone could in theory be too long (huge names): cut plain text rather than send a refused caption.
@@ -131,7 +133,7 @@ export function fitCaption(sections: Section[], limit = CAPTION_LIMIT): string {
 }
 
 export const fullText = (sections: Section[]): string =>
-  sections.filter((s) => (s.full ?? s.compact).length).map((s) => (s.full ?? s.compact).join("\n")).join(`\n${RULE}\n`);
+  sections.filter((s) => (s.full ?? s.compact).length).map((s) => (s.full ?? s.compact).join("\n")).join("\n\n");
 
 // ---------------------------------------------------------------- small renderers
 
@@ -182,47 +184,42 @@ const streakLine = (lang: Lang, n: number) => (n >= 2 ? [tr(lang, "streak_line",
 
 // ---------------------------------------------------------------- the four views
 
-async function monthView(input: ViewInput): Promise<ViewResult> {
+// ---- the month: one model, four tabs ------------------------------------------------------------------------------------
+
+interface MonthModel {
+  lang: Lang;
+  labels: Labels;
+  win: ReturnType<typeof monthWindow>;
+  monthLabel: string;
+  hasNewer: boolean;
+  agg: Aggregate;
+  previous: Aggregate;
+  income: number;
+  usage: BudgetUsage[];
+  daily: number[];
+  todayIndex: number | null;
+  streak: number;
+  monthTotals: number[]; // the 6 months ending with this one
+  monthNames: string[];
+  insights: Insight[];
+}
+
+async function loadMonth(input: ViewInput): Promise<MonthModel> {
   const { userId, lang, now, labels } = input;
   const win = monthWindow(now, input.offset);
-  const sixStart = monthWindow(now, input.offset + 5).start;
-  const rows = await loadDated(userId, sixStart, win.end);
+  const rows = await loadDated(userId, monthWindow(now, input.offset + 5).start, win.end);
   const current = between(rows, win.start, win.end);
   const prevWin = monthWindow(now, input.offset + 1);
   const agg = aggregate(current);
   const previous = aggregate(between(rows, prevWin.start, prevWin.end));
-  const [income, budgetRows] = await Promise.all([safe(() => loadIncomeTotal(userId, win.start.toISOString(), win.end.toISOString()), 0), safe(() => loadBudgets(userId), [])]);
+  const [income, budgetRows] = await Promise.all([
+    safe(() => loadIncomeTotal(userId, win.start.toISOString(), win.end.toISOString()), 0),
+    safe(() => loadBudgets(userId), []),
+  ]);
   const usage = budgetUsage(budgetRows, agg);
-
-  const monthLabel = formatMonth(new Date(win.start.getTime() + 12 * 3600_000), lang);
-  const hasNewer = input.offset > 0;
-  const title = tr(lang, "month_title", { month: monthLabel });
-  if (!agg.count) {
-    return { kind: "text", text: [title, RULE, tr(lang, "no_expenses")].join("\n"), full: [title, RULE, tr(lang, "no_expenses")].join("\n"), hasNewer, hasData: false };
-  }
-
-  const t = previous.count ? trend(agg.total, previous.total) : { arrow: "", text: "", up: false };
-  const versus = t.arrow ? `  ${t.up ? "🔺" : "🔻"} ${t.text} <i>${escapeHtml(tr(lang, "vs_last", { period: tr(lang, "period_month") }))}</i>` : "";
-  const head = [title, `${tr(lang, "spent")}  <b>${escapeHtml(ringgit(agg.total))}</b>${versus}`];
-  if (income > 0) {
-    const rate = Math.max(0, (income - agg.total) / income);
-    head.push(`${tr(lang, "income")}  <b>${escapeHtml(ringgit(income))}</b>  ·  ${tr(lang, "net")}  <b>${escapeHtml(ringgit(income - agg.total))}</b>`);
-    head.push(`${tr(lang, "savings")}  ${bar(rate)} <b>${pct(rate)}</b>`);
-  }
-
-  // legend: top 6 in the caption, everything in the details; squares match the picture's slice colours
-  const top = agg.byCategory.slice(0, 8);
-  const restSum = agg.byCategory.slice(8).reduce((s, [, v]) => s + v, 0);
-  const legend = (limit: number) => {
-    const out = top.slice(0, limit).map(([key, amount], i) => `${SQUARES[i]} ${emojiFor(key)} ${escapeHtml(truncate(labels(key), 14))}  <b>${escapeHtml(ringgit(amount))}</b> · ${pct(amount / agg.total)}`);
-    const hidden = agg.byCategory.slice(limit).reduce((s, [, v]) => s + v, 0);
-    if (hidden > 0) out.push(`${SQUARES[8]} ${escapeHtml(tr(lang, "legend_others"))}  <b>${escapeHtml(ringgit(hidden))}</b> · ${pct(hidden / agg.total)}`);
-    return out;
-  };
-
-  // extras
   const todayIndex = input.offset === 0 ? klDay(now) - win.day : null;
   const daily = bucketByDay(current, win.start, win.days);
+
   const insights: Insight[] = [];
   const pace = input.offset === 0 ? paceInsight(usage.map((u) => ({ key: u.key, limit: u.limit, used: u.used })), (todayIndex ?? 0) + 1, win.days) : null;
   if (pace?.kind === "pace" && pace.warn) insights.push(pace);
@@ -231,38 +228,145 @@ async function monthView(input: ViewInput): Promise<ViewResult> {
   const weekend = weekendInsight(win.day, daily, todayIndex === null ? win.days : todayIndex + 1);
   if (weekend) insights.push(weekend);
   if (pace && !(pace.kind === "pace" && pace.warn)) insights.push(pace);
-  const insightLines = insights.slice(0, 2).map((i) => insightLine(lang, i, labels));
-  const allInsightLines = insights.map((i) => insightLine(lang, i, labels));
-
-  const heat = heatStrip(lang, win.day, daily, todayIndex);
-  const heatLines = [tr(lang, "heat_title"), ...heat.lines, tr(lang, "heat_legend")];
-  if (heat.biggest) heatLines.push(tr(lang, "heat_biggest", { day: dayName(win.day + heat.biggest.index, lang), amount: ringgit(heat.biggest.amount) }));
 
   const monthTotals: number[] = [];
+  const monthNames: string[] = [];
   for (let k = 5; k >= 0; k--) {
     const w = monthWindow(now, input.offset + k);
-    monthTotals.push(between(rows, w.start, w.end).reduce((s, r) => s + Math.round(Number(r.amount) * 100), 0) / 100);
+    monthTotals.push(between(rows, w.start, w.end).reduce((sum, r) => sum + Math.round(Number(r.amount) * 100), 0) / 100);
+    monthNames.push(monthShort(new Date(w.start.getTime() + 12 * 3600_000), lang));
   }
-  const short = (k: number) => monthShort(new Date(monthWindow(now, input.offset + k).start.getTime() + 12 * 3600_000), lang);
-  const trendLines = [tr(lang, "trend_title"), tr(lang, "trend_line", { spark: sparkline(monthTotals), from: short(5), to: short(0) })];
-  const streak = input.offset === 0 ? streakLine(lang, streakDays(daysWithEntries(rows), klDay(now))) : [];
+  return {
+    lang, labels, win, hasNewer: input.offset > 0, agg, previous, income, usage, daily, todayIndex, insights, monthTotals, monthNames,
+    monthLabel: formatMonth(new Date(win.start.getTime() + 12 * 3600_000), lang),
+    streak: input.offset === 0 ? streakDays(daysWithEntries(rows), klDay(now)) : 0,
+  };
+}
 
-  const sections: Section[] = [
-    { compact: head },
-    { compact: legend(6), full: [tr(lang, "top_categories"), ...top.map(([key, amount]) => categoryRow(key, labels(key), amount, agg.total)), ...(restSum > 0 ? [`${SQUARES[8]} ${escapeHtml(tr(lang, "legend_others"))}  <b>${escapeHtml(ringgit(restSum))}</b>`] : [])] },
-    { compact: budgetLines(lang, usage, labels, 3), full: usage.length ? [tr(lang, "budgets_title"), ...budgetLines(lang, usage, labels, 12)] : [] },
-    { compact: insightLines, full: allInsightLines },
-    { compact: heatLines },
-    { compact: trendLines },
-    { compact: streak },
-  ];
-  const full = fullText([{ compact: [...head, `🧮 ${countText(lang, agg.count)}`] }, ...sections.slice(1)]);
+const passedDays = (m: MonthModel) => (m.todayIndex === null ? m.win.days : m.todayIndex + 1);
+
+/** The one thing worth knowing first: a blown budget, then a risky pace, then a nearly-full budget, then a trend. */
+function highlightLines(m: MonthModel): string[] {
+  const { lang, labels } = m;
+  const name = (key: string) => (key === "all" ? tr(lang, "budget_overall") : labels(key));
+  const out: string[] = [];
+  const over = m.usage.find((u) => u.ratio > 1);
+  if (over) out.push(tr(lang, "hl_over", { name: name(over.key), pct: pct(over.ratio) }));
+  const pace = m.insights.find((i) => i.kind === "pace" && i.warn);
+  if (pace) out.push(insightLine(lang, pace, labels));
+  const near = m.usage.find((u) => u.ratio >= 0.8 && u.ratio <= 1);
+  if (near) out.push(tr(lang, "hl_near", { name: name(near.key), pct: pct(near.ratio) }));
+  for (const i of m.insights) if (i.kind === "cat" || i.kind === "weekend") out.push(insightLine(lang, i, labels));
+  out.push(...streakLine(lang, m.streak >= 7 ? m.streak : 0));
+  return out;
+}
+
+function overviewSections(m: MonthModel): { sections: Section[]; top: [string, number][]; rest: { count: number; amount: number } } {
+  const { lang, labels, agg } = m;
+  const t = m.previous.count ? trend(agg.total, m.previous.total) : { arrow: "", text: "", up: false };
+  const versus = t.arrow ? `  ${t.up ? "🔺" : "🔻"} ${t.text} <i>${escapeHtml(tr(lang, "vs_last", { period: tr(lang, "period_month") }))}</i>` : "";
+  const head = [tr(lang, "month_title", { month: m.monthLabel }), `${tr(lang, "spent")}  <b>${escapeHtml(ringgit(agg.total))}</b>${versus}`];
+  if (m.income > 0) {
+    const rate = Math.max(0, (m.income - agg.total) / m.income);
+    head.push(tr(lang, "month_cash", { income: ringgit(m.income), net: ringgit(m.income - agg.total), rate: pct(rate) }));
+  }
+  const top = agg.byCategory.slice(0, 5);
+  const restList = agg.byCategory.slice(5);
+  const rest = { count: restList.length, amount: restList.reduce((s, [, v]) => s + v, 0) };
+  const legend = top.map(([key, amount], i) => `${SQUARES[i]} ${escapeHtml(truncate(labels(key), 16))}  <b>${escapeHtml(ringgit(amount))}</b> · ${pct(amount / agg.total)}`);
+  if (rest.count) legend.push(`${SQUARES[8]} ${escapeHtml(tr(lang, "legend_others"))} (${rest.count})  <b>${escapeHtml(ringgit(rest.amount))}</b> · ${pct(rest.amount / agg.total)}`);
+  // the complete text lists up to 12 categories and sums the rest (60 category rows would not fit one Telegram message)
+  const allLegend = agg.byCategory.slice(0, 12).map(([key, amount]) => categoryRow(key, labels(key), amount, agg.total));
+  const tail = agg.byCategory.slice(12);
+  if (tail.length) allLegend.push(`${SQUARES[8]} ${escapeHtml(tr(lang, "legend_others"))} (${tail.length})  <b>${escapeHtml(ringgit(tail.reduce((sum, [, v]) => sum + v, 0)))}</b>`);
+  const hl = highlightLines(m);
+  return { sections: [{ compact: head }, { compact: legend, full: [tr(lang, "top_categories"), ...allLegend] }, { compact: hl.slice(0, 1), full: hl }], top, rest };
+}
+
+function daysSections(m: MonthModel): Section[] {
+  const { lang, daily } = m;
+  const passed = passedDays(m);
+  const active = daily.slice(0, passed).filter((v) => v > 0).length;
+  const head = [tr(lang, "days_title", { month: m.monthLabel })];
+  const heat = heatStrip(lang, m.win.day, daily, m.todayIndex);
+  if (heat.biggest) head.push(tr(lang, "heat_biggest", { day: dayName(m.win.day + heat.biggest.index, lang), amount: ringgit(heat.biggest.amount) }));
+  head.push(tr(lang, "days_average", { amount: ringgit(m.agg.total / passed), active, total: passed }));
+  for (const i of m.insights) if (i.kind === "weekend") head.push(insightLine(lang, i, m.labels));
+  head.push(...streakLine(lang, m.streak));
+  return [{ compact: head }, { compact: [tr(lang, "heat_title"), ...heat.lines, tr(lang, "heat_legend")] }];
+}
+
+function budgetsSections(m: MonthModel): Section[] {
+  const { lang, labels } = m;
+  const name = (key: string) => (key === "all" ? tr(lang, "budget_overall") : labels(key));
+  const rows = (limit: number) => m.usage.slice(0, limit).flatMap((u) => [
+    `${light(u.ratio)} ${escapeHtml(truncate(name(u.key), 12))} ${bar(u.ratio, 8)} <b>${pct(u.ratio)}</b>`,
+    `<i>${escapeHtml(ringgit(u.used))} / ${escapeHtml(ringgit(u.limit))} · ${tr(lang, u.ratio > 1 ? "budget_over_by" : "budget_left", { amount: ringgit(Math.abs(u.limit - u.used)) })}</i>`,
+  ]);
+  const pace = m.insights.filter((i) => i.kind === "pace").map((i) => insightLine(lang, i, labels));
+  return [{ compact: [tr(lang, "budgets_view_title", { month: m.monthLabel })] }, { compact: rows(5), full: rows(12) }, { compact: pace }];
+}
+
+function trendSections(m: MonthModel): Section[] {
+  const { lang } = m;
+  const rows = m.monthTotals.map((v, i) => {
+    const before = i > 0 ? m.monthTotals[i - 1] : 0;
+    const change = before > 0 ? trend(v, before) : null;
+    return [m.monthNames[i], ringgit(v).replace(/\u00a0/g, " "), change && change.arrow ? `${change.arrow} ${change.text}` : ""];
+  });
+  const table = `<pre>${escapeHtml(alignTable(rows, ["l", "r", "r"]).join("\n"))}</pre>`;
+  const best = m.monthTotals.reduce((b, v, i) => (v > m.monthTotals[b] ? i : b), 0);
+  const summary = [tr(lang, "trend_avg", { amount: ringgit(m.monthTotals.reduce((a, b) => a + b, 0) / m.monthTotals.length) })];
+  if (m.monthTotals[best] > 0) summary.push(tr(lang, "trend_best", { month: m.monthNames[best], amount: ringgit(m.monthTotals[best]) }));
+  return [{ compact: [tr(lang, "trend_title")] }, { compact: [table] }, { compact: summary }];
+}
+
+async function monthFamilyView(input: ViewInput): Promise<ViewResult> {
+  const m = await loadMonth(input);
+  const { lang } = m;
+  const hasData = m.agg.count > 0;
+  const plainResult = (lines: string[]): ViewResult => {
+    const text = lines.join("\n");
+    return { kind: "text", text, full: text, hasNewer: m.hasNewer, hasData };
+  };
+  const empty = [tr(lang, "month_title", { month: m.monthLabel }), RULE, tr(lang, "no_expenses")];
+
+  let sections: Section[];
+  let draw: () => Promise<Uint8Array>;
+  switch (input.view) {
+    case "y":
+      if (!hasData) return plainResult(empty);
+      sections = daysSections(m);
+      draw = () => (input.render?.bars ?? renderBarsPng)(m.daily, {
+        highlight: m.daily.some((v) => v > 0) ? m.daily.indexOf(Math.max(...m.daily)) : undefined,
+        marker: m.todayIndex ?? undefined,
+        muted: m.todayIndex === null ? undefined : m.daily.map((_, i) => i > (m.todayIndex as number)),
+      });
+      break;
+    case "b":
+      if (!m.usage.length) return plainResult([tr(lang, "budgets_view_title", { month: m.monthLabel }), RULE, tr(lang, "budgets_none")]);
+      sections = budgetsSections(m);
+      draw = () => (input.render?.progress ?? renderProgressPng)(m.usage.slice(0, 8).map((u) => u.ratio));
+      break;
+    case "t":
+      if (!m.monthTotals.some((v) => v > 0)) return plainResult(empty);
+      sections = trendSections(m);
+      draw = () => (input.render?.bars ?? renderBarsPng)(m.monthTotals, { highlight: m.monthTotals.indexOf(Math.max(...m.monthTotals)), marker: m.monthTotals.length - 1 });
+      break;
+    default: {
+      if (!hasData) return plainResult(empty);
+      const overview = overviewSections(m);
+      sections = overview.sections;
+      const values = [...overview.top.map(([, v]) => v), 0, 0, 0, 0, 0].slice(0, 5); // slices 1-5
+      draw = () => (input.render?.donut ?? renderDonutPng)([...values, 0, 0, 0, overview.rest.amount]); // the grey 9th slice = "others"
+    }
+  }
   const text = fitCaption(sections);
+  const full = fullText(sections);
   try {
-    const png = await (input.render?.donut ?? renderDonutPng)([...top.map(([, v]) => v), ...(restSum > 0 ? [restSum] : [])]); // "others" is the 9th, grey, slice
-    return { kind: "photo", text, png, full, hasNewer, hasData: true };
+    return { kind: "photo", text, png: await draw(), full, hasNewer: m.hasNewer, hasData };
   } catch (_error) {
-    return { kind: "text", text: full, full, hasNewer, hasData: true };
+    return { kind: "text", text: full, full, hasNewer: m.hasNewer, hasData };
   }
 }
 
@@ -351,7 +455,7 @@ export async function buildView(input: ViewInput): Promise<ViewResult> {
   const offset = Math.max(0, Math.min(MAX_OFFSET[input.view], Math.floor(input.offset)));
   const request = { ...input, offset };
   switch (input.view) {
-    case "m": return monthView(request);
+    case "m": case "y": case "b": case "t": return monthFamilyView(request);
     case "w": return weekView(request);
     case "p": return topView(request);
     default: return todayView(request);
@@ -362,17 +466,23 @@ export async function buildView(input: ViewInput): Promise<ViewResult> {
 
 export type NavButton = { text: string; callback_data: string } | { text: string; url: string };
 
-/** [Today | Week | Month | Top], then Earlier / Later, then Details (picture views) and Open VinExpenses. */
+/**
+ * [Today | Week | Month | Top]; for the month also its tabs [Overview | Days | Budgets | Trend]; then Earlier / Later
+ * and Open VinExpenses; the week also gets a Details button. The current view and tab are marked with a dot.
+ */
 export function pagerButtons(lang: Lang, view: ViewKind, offset: number, options: { details: boolean; siteUrl: string | null }): NavButton[][] {
-  const labels: [ViewKind, string][] = [["d", "nav_today"], ["w", "nav_week"], ["m", "nav_month"], ["p", "nav_top"]];
-  const rows: NavButton[][] = [labels.map(([v, key]) => ({ text: `${v === view ? "• " : ""}${tr(lang, key)}`, callback_data: `n:${v}:0` }))];
+  const family: ViewKind = MONTH_VIEWS.includes(view) ? "m" : view;
+  const top: [ViewKind, string][] = [["d", "nav_today"], ["w", "nav_week"], ["m", "nav_month"], ["p", "nav_top"]];
+  const rows: NavButton[][] = [top.map(([v, key]) => ({ text: `${v === family ? "• " : ""}${tr(lang, key)}`, callback_data: `n:${v}:0` }))];
+  if (family === "m") {
+    const tabs: [ViewKind, string][] = [["m", "tab_overview"], ["y", "tab_days"], ["b", "tab_budgets"], ["t", "tab_trend"]];
+    rows.push(tabs.map(([v, key]) => ({ text: `${v === view ? "• " : ""}${tr(lang, key)}`, callback_data: `n:${v}:${offset}` })));
+  }
   const step: NavButton[] = [];
   if (offset < MAX_OFFSET[view]) step.push({ text: tr(lang, "nav_prev"), callback_data: `n:${view}:${offset + 1}` });
   if (offset > 0) step.push({ text: tr(lang, "nav_next"), callback_data: `n:${view}:${offset - 1}` });
+  if (options.siteUrl) step.push({ text: tr(lang, "btn_open"), url: options.siteUrl });
   if (step.length) rows.push(step);
-  const extra: NavButton[] = [];
-  if (options.details && (view === "w" || view === "m")) extra.push({ text: tr(lang, "nav_details"), callback_data: `n:f${view}:${offset}` });
-  if (options.siteUrl) extra.push({ text: tr(lang, "btn_open"), url: options.siteUrl });
-  if (extra.length) rows.push(extra);
+  if (options.details && view === "w") rows.push([{ text: tr(lang, "nav_details"), callback_data: `n:fw:${offset}` }]);
   return rows;
 }

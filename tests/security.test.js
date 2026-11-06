@@ -188,7 +188,7 @@ test('Telegram charts: drawn locally with no outside service, every report query
     const bot = read('supabase/functions/telegram-bot/handler.ts');
     assert.match(bot, /takeQuota\(`tg-view:/, 'report views are counted per chat');
     assert.match(bot, /MAX_OFFSET\[kind\]/, 'navigation offsets are bounded');
-    assert.match(bot, /\^n:\(\[dwmp\]\):\(\\d\{1,3\}\)\$/, 'navigation data is strictly validated');
+    assert.match(bot, /\^n:\(\[dwmpybt\]\):\(\\d\{1,3\}\)\$/, 'navigation data is strictly validated');
     assert.match(read('supabase/functions/telegram-digest/handler.ts'), /buildView\(/, 'the Monday summary uses the same view code');
     assert.ok(!/api\.quickchart|chart\.googleapis|image-charts/i.test([chart, views, bot].join('\n')), 'no third-party chart service');
 });

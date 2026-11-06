@@ -330,12 +330,12 @@ test('month view: a donut picture with a legend whose squares match the slices, 
     const plain = stripTags(r.text).replace(/ /g, ' ');
     assert.match(plain, /^🗓 November 2026/);
     assert.match(plain, /Spent\s+RM 527\.00/);
-    assert.match(plain, /Income\s+RM 6,000\.00/);
+    assert.match(plain, /RM 6,000\.00 in/);
     assert.ok(!/999|9,999/.test(plain), 'only this person\'s numbers');
-    assert.match(plain, /🟦 💡 Utilities\s+RM 300\.00 · 57%/);
-    assert.match(plain, /🟧 🛍️ Shopping/);
-    assert.match(plain, /Daily spending/);
-    assert.match(plain, /Last 6 months/);
+    assert.match(plain, /🟦 Utilities\s+RM 300\.00 · 57%/);
+    assert.match(plain, /🟧 Shopping/);
+    assert.ok(!/Daily spending|Last 6 months/.test(plain), 'the overview is short: days and trend have their own tabs');
+    assert.ok(stripTags(r.text).length <= 450, `a short overview (${stripTags(r.text).length} characters)`);
     assert.equal(r.hasData, true);
     assert.equal(r.hasNewer, false);
     assert.ok(r.full.length >= r.text.length, 'the details text is at least as complete');
@@ -464,7 +464,7 @@ test('views: a database error is thrown to the caller (the bot turns it into a p
     const { db } = world();
     const views = await shared('tg-views');
     db.failures.add('expenses');
-    for (const view of ['d', 'w', 'm', 'p']) await assert.rejects(views.buildView({ userId: A, lang: 'en', now: KL_NOW, view, offset: 0, labels: labelsOf }), view);
+    for (const view of ['d', 'w', 'm', 'y', 'b', 't', 'p']) await assert.rejects(views.buildView({ userId: A, lang: 'en', now: KL_NOW, view, offset: 0, labels: labelsOf }), view);
 });
 
 test('views: every view, every language, valid Telegram HTML', async () => {
@@ -474,7 +474,7 @@ test('views: every view, every language, valid Telegram HTML', async () => {
     for (let d = 1; d <= 28; d += 3) add(A, 30 + d, `2026-10-${String(d).padStart(2, '0')}T04:00:00Z`, ['food', 'car'][d % 2], 'Oct place');
     db.budgets.push({ user_id: A, category: 'all', amount: '300' });
     for (const lang of ['en', 'ms', 'zh']) {
-        for (const view of ['d', 'w', 'm', 'p']) {
+        for (const view of ['d', 'w', 'm', 'y', 'b', 't', 'p']) {
             for (const offset of [0, 1]) {
                 const r = await views.buildView({ userId: A, lang, now: KL_NOW, view, offset, labels: (k) => `${labelsOf(k)} & <i>x</i>` });
                 assertTelegramHtml(r.text, `${lang}/${view}/${offset}`);
@@ -490,23 +490,156 @@ test('pager: four views with the current one marked, earlier / later, details on
     const rows = pagerButtons('en', 'm', 0, { details: true, siteUrl: 'https://me.github.io/VinExpenses' });
     assert.deepEqual(rows[0].map((b) => b.text), ['📅 Today', '📊 Week', '• 🗓 Month', '🏆 Top']);
     assert.deepEqual(rows[0].map((b) => b.callback_data), ['n:d:0', 'n:w:0', 'n:m:0', 'n:p:0']);
-    assert.deepEqual(rows[1].map((b) => b.callback_data), ['n:m:1'], 'the current period has nothing "later"');
-    assert.deepEqual(rows[2].map((b) => b.callback_data ?? b.url), ['n:fm:0', 'https://me.github.io/VinExpenses']);
+    assert.deepEqual(rows[1].map((b) => b.text), ['• 🍩 Overview', '📅 Days', '🎯 Budgets', '📈 Trend'], 'the month has its own tab row');
+    assert.deepEqual(rows[1].map((b) => b.callback_data), ['n:m:0', 'n:y:0', 'n:b:0', 'n:t:0']);
+    assert.deepEqual(rows[2].map((b) => b.callback_data ?? b.url), ['n:m:1', 'https://me.github.io/VinExpenses'], 'earlier (no "later" in the current month) and the website');
+    assert.equal(rows.length, 3, 'no Details button on the month: the tabs already hold the detail');
+    const days = pagerButtons('en', 'y', 2, { details: true, siteUrl: null });
+    assert.equal(days[0][2].text, '• 🗓 Month', 'the Month family stays marked while a tab is open');
+    assert.equal(days[1][1].text, '• 📅 Days');
+    assert.deepEqual(days[1].map((b) => b.callback_data), ['n:m:2', 'n:y:2', 'n:b:2', 'n:t:2'], 'tabs keep the month being viewed');
+    assert.deepEqual(days[2].map((b) => b.callback_data), ['n:y:3', 'n:y:1'], 'paging stays on the same tab');
     const middle = pagerButtons('ms', 'w', 3, { details: true, siteUrl: null });
     assert.deepEqual(middle[1].map((b) => b.callback_data), ['n:w:4', 'n:w:2']);
     assert.equal(middle[0][1].text, '• 📊 Minggu');
     assert.deepEqual(middle[2].map((b) => b.callback_data), ['n:fw:3']);
     const oldest = pagerButtons('zh', 'm', MAX_OFFSET.m, { details: false, siteUrl: null });
-    assert.deepEqual(oldest[1].map((b) => b.callback_data), [`n:m:${MAX_OFFSET.m - 1}`], 'no "earlier" past the limit');
-    assert.equal(oldest.length, 2);
+    assert.deepEqual(oldest[2].map((b) => b.callback_data), [`n:m:${MAX_OFFSET.m - 1}`], 'no "earlier" past the limit');
+    assert.equal(oldest.length, 3);
     for (const view of ['d', 'p']) {
         const text = pagerButtons('en', view, 0, { details: true, siteUrl: null });
         assert.ok(!JSON.stringify(text).includes('n:f'), 'today and top have no details button');
     }
-    for (const lang of ['en', 'ms', 'zh']) for (const view of ['d', 'w', 'm', 'p']) for (const offset of [0, 7, MAX_OFFSET[view]]) {
+    for (const lang of ['en', 'ms', 'zh']) for (const view of ['d', 'w', 'm', 'y', 'b', 't', 'p']) for (const offset of [0, 7, MAX_OFFSET[view]]) {
         for (const b of pagerButtons(lang, view, offset, { details: true, siteUrl: 'https://x.example' }).flat()) {
             assert.ok(!/&(amp|lt|gt|quot|#39);|<|>/.test(b.text), `plain button text: ${b.text}`);
-            if (b.callback_data) assert.ok(Buffer.byteLength(b.callback_data) <= 64 && /^n:(f?[dwmp]):\d{1,3}$/.test(b.callback_data), b.callback_data);
+            if (b.callback_data) assert.ok(Buffer.byteLength(b.callback_data) <= 64 && /^n:(f?[dwmpybt]):\d{1,3}$/.test(b.callback_data), b.callback_data);
+        }
+    }
+});
+
+// ------------------------------------------------------------------ the month's tabs and the progress chart
+test('progress chart: green under 80%, amber to 100%, red over with a dark cap, a tick at 80%, never more than 10 bars', async () => {
+    const { renderProgressPng } = await shared('tg-chart');
+    const png = decodePng(await renderProgressPng([0.3, 0.9, 1.5, 0]));
+    assert.deepEqual([png.width, png.colorType], [720, 2]);
+    const y = (row) => 24 + row * 58 + 29; // the middle of each bar
+    assert.ok(near(png.pixel(100, y(0)), [59, 165, 93]), 'under 80%: green');
+    assert.ok(near(png.pixel(100, y(1)), [242, 194, 48]), '80% to 100%: amber');
+    assert.ok(near(png.pixel(100, y(2)), [214, 69, 69]), 'over budget: red');
+    assert.ok(near(png.pixel(684 - 12, y(2)), [140, 38, 38], 12), 'a dark cap marks the overflow');
+    assert.ok(near(png.pixel(600, y(0)), [229, 232, 241], 4), 'the unfilled part is a light track');
+    assert.ok(near(png.pixel(36 + Math.round(648 * 0.8), y(3)), [186, 192, 208], 12), 'a tick at 80%');
+    assert.ok(near(png.pixel(2, 2), [247, 248, 252]));
+    const many = decodePng(await renderProgressPng(new Array(25).fill(0.5)));
+    assert.equal(many.height, 24 + 10 * 58 + 8, 'at most 10 bars');
+    for (const values of [[], [NaN, -1, Infinity, undefined]]) assert.equal(decodePng(await renderProgressPng(values)).width, 720);
+    assert.deepEqual(await renderProgressPng([0.5]), await renderProgressPng([0.5]), 'deterministic');
+});
+
+function monthWorld() {
+    const ctx = world();
+    const { db, add } = ctx;
+    add(A, 300, '2026-11-03T04:00:00Z', 'utilities', 'TNB'); add(A, 160, '2026-11-02T04:00:00Z', 'shopping', 'Mydin');
+    add(A, 55, '2026-11-05T01:00:00Z', 'health', 'Guardian'); add(A, 12, '2026-11-04T04:00:00Z', 'food', 'Lunch');
+    for (let m = 5; m <= 10; m++) add(A, 100 * (m - 4), `2026-${String(m).padStart(2, '0')}-10T04:00:00Z`, 'food', 'Cafe');
+    add(B, 4242, '2026-11-03T04:00:00Z', 'car', 'Bobs');
+    db.incomes.push({ id: 'i1', user_id: A, amount: '6000', source: 'Salary', created_at: '2026-11-01T01:00:00Z' });
+    db.budgets.push({ user_id: A, category: 'shopping', amount: '100' }, { user_id: A, category: 'all', amount: '2500' }, { user_id: A, category: 'food', amount: '400' });
+    return ctx;
+}
+
+test('month tabs: every tab is a picture with a short caption about one topic, for the same month', async () => {
+    monthWorld();
+    const views = await shared('tg-views');
+    const { stripTags } = await shared('telegram');
+    const get = async (view, offset = 0, lang = 'en') => views.buildView({ userId: A, lang, now: KL_NOW, view, offset, labels: labelsOf });
+    const caption = async (r) => stripTags(r.text).replace(/\u00a0/g, ' ');
+
+    const overview = await get('m');
+    const days = await get('y');
+    const budgets = await get('b');
+    const trend = await get('t');
+    for (const r of [overview, days, budgets, trend]) {
+        assert.equal(r.kind, 'photo');
+        decodePng(r.png);
+        assert.ok(stripTags(r.text).length <= 450, `short caption (${stripTags(r.text).length})`);
+        assertTelegramHtml(r.text, 'caption');
+        assertTelegramHtml(r.full, 'full');
+        assert.equal(r.hasData, true);
+        assert.ok(!/4,?242|Bobs/.test(r.full), "only this person's data");
+    }
+    assert.match(await caption(overview), /Shopping is over budget \(160%\)/, 'the single most important thing is up front');
+
+    const d = await caption(days);
+    assert.match(d, /November 2026 · daily spending/);
+    assert.match(d, /Busiest day: Tue 3 · RM 300\.00/);
+    assert.match(d, /Average RM 105\.40 a day · 4 of 5 days with spending/);
+    assert.match(d, /Mon [▫️⬜🟩🟨🟧🟥]+/u);
+    assert.match(d, /heaviest/);
+
+    const b = await caption(budgets);
+    assert.match(b, /Budgets · November 2026/);
+    assert.match(b, /🔴 Shopping ▰▰▰▰▰▰▰▰ 160%\s+RM 160\.00 \/ RM 100\.00 · RM 60\.00 over/);
+    assert.match(b, /🟢 Overall ▰▰▱▱▱▱▱▱ 21%\s+RM 527\.00 \/ RM 2,500\.00 · RM 1,973\.00 left/);
+    assert.ok(b.indexOf('Shopping') < b.indexOf('Overall'), 'the budget in most trouble comes first');
+
+    const t = await caption(trend);
+    assert.match(t, /Last 6 months/);
+    for (const month of ['Jun', 'Jul', 'Aug', 'Sept', 'Oct', 'Nov']) assert.match(t, new RegExp(`${month}\\s+RM`));
+    assert.match(t, /Oct\s+RM 600\.00\s+▲ 20%/);
+    assert.match(t, /Average RM 421\.17 a month/, '(200 + 300 + 400 + 500 + 600 + 527) / 6');
+    assert.match(t, /Highest: Oct · RM 600\.00/);
+    assert.match(trend.text, /<pre>/);
+});
+
+test('month tabs: older months keep the tab, other languages work, and empty states are plain and helpful', async () => {
+    const { db } = monthWorld();
+    const views = await shared('tg-views');
+    const { stripTags } = await shared('telegram');
+    const oct = await views.buildView({ userId: A, lang: 'zh', now: KL_NOW, view: 'y', offset: 1, labels: labelsOf });
+    assert.match(stripTags(oct.text), /2026年10月 · 每日支出/);
+    assert.equal(oct.hasNewer, true);
+    const ms = await views.buildView({ userId: A, lang: 'ms', now: KL_NOW, view: 'b', offset: 0, labels: labelsOf });
+    assert.match(stripTags(ms.text), /Bajet · November 2026/);
+    assert.match(stripTags(ms.text), /berbaki|melebihi/);
+
+    db.budgets.length = 0;
+    const none = await views.buildView({ userId: A, lang: 'en', now: KL_NOW, view: 'b', offset: 0, labels: labelsOf });
+    assert.deepEqual([none.kind, none.png], ['text', undefined]);
+    assert.match(none.text, /No budgets yet\. Set one in VinExpenses/);
+    for (const view of ['m', 'y']) {
+        const quiet = await views.buildView({ userId: A, lang: 'en', now: KL_NOW, view, offset: 8, labels: labelsOf }); // March 2026: no entries
+        assert.deepEqual([quiet.kind, quiet.hasData], ['text', false], `${view}: a month with nothing in it`);
+        assert.match(quiet.text, /No expenses yet/);
+    }
+    db.expenses.length = 0;
+    const nothing = await views.buildView({ userId: A, lang: 'en', now: KL_NOW, view: 't', offset: 0, labels: labelsOf });
+    assert.equal(nothing.kind, 'text', 'six empty months: no chart');
+});
+
+test('month tabs: a failing renderer on any tab gives that tab as text; 60 categories and 20 budgets still fit every tab', async () => {
+    const { db, add } = world();
+    const views = await shared('tg-views');
+    const { stripTags } = await shared('telegram');
+    for (let i = 0; i < 60; i++) {
+        add(A, 10 + i, '2026-11-03T04:00:00Z', `cat${i}`, `Place ${i}`);
+        add(A, 5 + i, '2026-10-03T04:00:00Z', `cat${i}`, `Place ${i}`);
+        if (i < 20) db.budgets.push({ user_id: A, category: `cat${i}`, amount: String(20 + i) });
+    }
+    const labels = (key) => `<b>${key}</b> & a very long category name "${key}"`;
+    const broken = { donut: async () => { throw new Error('x'); }, bars: async () => { throw new Error('x'); }, progress: async () => { throw new Error('x'); } };
+    for (const lang of ['en', 'ms', 'zh']) {
+        for (const view of ['m', 'y', 'b', 't']) {
+            const ok = await views.buildView({ userId: A, lang, now: KL_NOW, view, offset: 0, labels });
+            assert.equal(ok.kind, 'photo', `${lang}/${view}`);
+            assert.ok(stripTags(ok.text).length <= 1000, `${lang}/${view} caption ${stripTags(ok.text).length}`);
+            assertTelegramHtml(ok.text, `${lang}/${view}`);
+            assert.ok(ok.full.length < 4096, `${lang}/${view} details ${ok.full.length}`);
+            const down = await views.buildView({ userId: A, lang, now: KL_NOW, view, offset: 0, labels, render: broken });
+            assert.deepEqual([down.kind, down.png], ['text', undefined], `${lang}/${view}`);
+            assert.equal(down.text, down.full);
+            assertTelegramHtml(down.text, `${lang}/${view} text fallback`);
         }
     }
 });

@@ -456,6 +456,47 @@ Object.assign(zh, {
   view_failed: "😕 无法更新该视图，请重试。",
 });
 
+// ---- Phase 2b: month tabs (Overview / Days / Budgets / Trend) --------------------------------------------------------
+Object.assign(en, {
+  tab_overview: "🍩 Overview", tab_days: "📅 Days", tab_budgets: "🎯 Budgets", tab_trend: "📈 Trend",
+  month_cash: "💰 <b>{income}</b> in  ·  📈 <b>{net}</b> net  ·  🏦 <b>{rate}</b> saved",
+  days_title: "📅 <b>{month}</b> · daily spending",
+  days_average: "📊 Average <b>{amount}</b> a day · {active} of {total} days with spending",
+  budgets_view_title: "🎯 <b>Budgets</b> · {month}",
+  budgets_none: "🎯 No budgets yet. Set one in VinExpenses → Budget and it will appear here with a progress bar.",
+  budget_left: "{amount} left", budget_over_by: "{amount} over",
+  hl_over: "🔴 {name} is over budget ({pct})",
+  hl_near: "🟡 {name} is at {pct} of its budget",
+  trend_avg: "📊 Average <b>{amount}</b> a month",
+  trend_best: "🥇 Highest: <b>{month}</b> · {amount}",
+});
+Object.assign(ms, {
+  tab_overview: "🍩 Ringkasan", tab_days: "📅 Harian", tab_budgets: "🎯 Bajet", tab_trend: "📈 Aliran",
+  month_cash: "💰 <b>{income}</b> masuk  ·  📈 <b>{net}</b> bersih  ·  🏦 <b>{rate}</b> simpanan",
+  days_title: "📅 <b>{month}</b> · perbelanjaan harian",
+  days_average: "📊 Purata <b>{amount}</b> sehari · {active} daripada {total} hari berbelanja",
+  budgets_view_title: "🎯 <b>Bajet</b> · {month}",
+  budgets_none: "🎯 Belum ada bajet. Tetapkan dalam VinExpenses → Bajet dan ia akan dipaparkan di sini dengan bar kemajuan.",
+  budget_left: "{amount} berbaki", budget_over_by: "{amount} melebihi",
+  hl_over: "🔴 {name} melebihi bajet ({pct})",
+  hl_near: "🟡 {name} mencecah {pct} daripada bajetnya",
+  trend_avg: "📊 Purata <b>{amount}</b> sebulan",
+  trend_best: "🥇 Tertinggi: <b>{month}</b> · {amount}",
+});
+Object.assign(zh, {
+  tab_overview: "🍩 概览", tab_days: "📅 每日", tab_budgets: "🎯 预算", tab_trend: "📈 趋势",
+  month_cash: "💰 收入 <b>{income}</b>  ·  📈 结余 <b>{net}</b>  ·  🏦 储蓄率 <b>{rate}</b>",
+  days_title: "📅 <b>{month}</b> · 每日支出",
+  days_average: "📊 日均 <b>{amount}</b> · {total} 天中有 {active} 天有支出",
+  budgets_view_title: "🎯 <b>预算</b> · {month}",
+  budgets_none: "🎯 还没有预算。在 VinExpenses → 预算 中设置后，会连同进度条显示在这里。",
+  budget_left: "剩余 {amount}", budget_over_by: "超出 {amount}",
+  hl_over: "🔴 {name}已超出预算（{pct}）",
+  hl_near: "🟡 {name}已用预算的 {pct}",
+  trend_avg: "📊 月均 <b>{amount}</b>",
+  trend_best: "🥇 最高：<b>{month}</b> · {amount}",
+});
+
 /** "Today", "Yesterday", or the date: friendlier than always printing a date. Days follow Kuala Lumpur time. */
 export function dayLabel(date: Date, now: Date, lang: Lang): string {
   const day = (d: Date) => Math.floor((d.getTime() + 8 * 3600_000) / 86_400_000);

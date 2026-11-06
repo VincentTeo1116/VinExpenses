@@ -510,9 +510,9 @@ test('/today and /month add up the right period, in Kuala Lumpur time, for the r
     await deliver(tg, message(CHAT_A, '/month'));
     const month = tg.last().html;
     assert.match(month, /November 2026/);
-    assert.match(month, /Income\s+<b>RM\s?3,000\.00/);
+    assert.match(month, /<b>RM\s?3,000\.00<\/b> in/);
     assert.match(month, /Spent\s+<b>RM\s?122\.50<\/b>/);
-    assert.match(month, /Net\s+<b>RM\s?2,877\.50/);
+    assert.match(month, /<b>RM\s?2,877\.50<\/b> net/);
     assert.ok(!/1,?000\.00/.test(month.replace('3,000.00', '')), "no one else's money");
 });
 

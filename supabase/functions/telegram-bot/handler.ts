@@ -875,7 +875,7 @@ async function runCallback(tg: TelegramClient, cb: CallbackQuery, now: Date): Pr
   }
 
   // ---- report navigation: n:<view>:<offset> switches or pages in place, n:f<view>:<offset> shows the full text
-  const nav = /^n:([dwmp]):(\d{1,3})$/.exec(data);
+  const nav = /^n:([dwmpybt]):(\d{1,3})$/.exec(data);
   if (nav) {
     const kind = nav[1] as ViewKind;
     const offset = Number(nav[2]);
