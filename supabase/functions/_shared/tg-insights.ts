@@ -46,14 +46,22 @@ export function streakDays(days: Set<number>, today: number): number {
 // ---------------------------------------------------------------- calendar heat-strip
 
 const toFullWidth = (text: string) => text.replace(/[A-Za-z]/g, (c) => String.fromCharCode(c.charCodeAt(0) + 0xfee0));
-const INITIALS: Record<Lang, string> = {
-  en: toFullWidth("MTWTFSS"),
-  ms: toFullWidth("ISRKJSA"), // Isnin Selasa Rabu Khamis Jumaat Sabtu Ahad
-  zh: "一二三四五六日",
+const INITIALS: Record<Lang, string[]> = {
+  en: [..."MTWTFSS"].map(toFullWidth),
+  ms: [..."ISRKJSA"].map(toFullWidth), // Isnin Selasa Rabu Khamis Jumaat Sabtu Ahad
+  zh: [..."一二三四五六日"],
 };
 
+/**
+ * A full-width letter is exactly 1em wide but an emoji square is about 1.2em on most phones, so each letter is followed
+ * by a thin space (U+2009, about 0.2em) to make the two the same width. This is an approximation: emoji width differs a
+ * little between iPhone, Android and desktop. If the letters drift on your devices, change HEAT_GAP (a hair space,
+ * U+200A, is narrower; an en space, U+2002, is wider).
+ */
+export const HEAT_GAP = String.fromCharCode(0x2009);
+
 export interface Heat {
-  /** The header row of weekday initials, then one line per week. */
+  /** The weekday header, then one line per week, Monday first: the row's first date in a fixed-width label, then seven squares. */
   lines: string[];
   /** The busiest day (0-based index into the month), or null when nothing was spent. */
   biggest: { index: number; amount: number } | null;
@@ -88,11 +96,19 @@ export function heatStrip(lang: Lang, monthStartDay: number, totals: number[], t
     }
   });
   while (cells.length % 7 !== 0) cells.push("▫️");
-  const lines = [INITIALS[lang]];
-  for (let i = 0; i < cells.length; i += 7) lines.push(cells.slice(i, i + 7).join(""));
+  // Every row starts with the date of its first day in a monospace label; the header starts with the same label made of
+  // spaces, so both begin at exactly the same place whatever the font.
+  const rows: string[][] = [];
+  for (let i = 0; i < cells.length; i += 7) rows.push(cells.slice(i, i + 7));
   // Weeks that have not started yet add nothing: drop them (always keep at least one week).
-  while (lines.length > 2 && !lines[lines.length - 1].replace(/▫️/g, "")) lines.pop();
-  return { lines, biggest };
+  while (rows.length > 1 && rows[rows.length - 1].every((c) => c === "▫️")) rows.pop();
+  const lead = mondayBased(monthStartDay);
+  const lines = rows.map((row, r) => {
+    const firstDay = Math.max(0, r * 7 - lead) + 1;
+    return `<code>${String(firstDay).padStart(2, " ")}</code> ${row.join("")}`;
+  });
+  const header = `<code>  </code> ${INITIALS[lang].map((letter) => letter + HEAT_GAP).join("")}`;
+  return { lines: [header, ...lines], biggest };
 }
 
 // ---------------------------------------------------------------- mini trend

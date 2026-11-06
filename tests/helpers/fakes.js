@@ -160,6 +160,7 @@ function fakeSupabase() {
         counters: new Map(),
         requests: [],
         quotaCalls: [],
+        now: () => new Date().toISOString(), // tests replace this with their fixed clock, so stored times agree with the bot's
         failures: new Set(),         // e.g. 'rpc/consume_quota' to simulate an outage
     };
     db.addUser = (token, id, email, confirmed = true) => db.users.set(token, { id, email, email_confirmed_at: confirmed ? '2026-01-01T00:00:00Z' : null });
@@ -215,7 +216,7 @@ function fakeSupabase() {
             const inserted = [];
             for (const item of Array.isArray(body) ? body : [body]) {
                 const row = { ...item };
-                if (table === 'expenses' || table === 'incomes') { row.id = row.id || crypto.randomUUID(); row.created_at = row.created_at || new Date().toISOString(); }
+                if (table === 'expenses' || table === 'incomes') { row.id = row.id || crypto.randomUUID(); row.created_at = row.created_at || db.now(); }
                 const clash = (pk && rows.some((r) => String(r[pk]) === String(row[pk])))
                     || (table === 'telegram_links' && rows.some((r) => r.user_id === row.user_id));
                 if (clash && (headers.prefer || '').includes('merge-duplicates')) {

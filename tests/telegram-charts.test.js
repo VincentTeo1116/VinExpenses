@@ -150,12 +150,14 @@ test('heat-strip: Monday-first calendar, rank-based colours, future weeks droppe
     const start = klDay('2026-11-01T00:00:00+08:00');
     const totals = Array.from({ length: 30 }, (_, i) => [0, 10, 50, 300, 20][i] ?? 0);
     const now = heatStrip('en', start, totals, 4);
-    assert.equal(now.lines[0], 'ＭＴＷＴＦＳＳ');
-    assert.deepEqual(now.lines.slice(1), ['▫️▫️▫️▫️▫️▫️⬜', '🟩🟧🟥🟨▫️▫️▫️'], 'week 1 is just the Sunday; days after today are blank squares; empty future weeks are gone');
+    const gap = String.fromCharCode(0x2009);
+    assert.equal(now.lines[0], `<code>  </code> ${[...'ＭＴＷＴＦＳＳ'].map((c) => c + gap).join('')}`, 'weekday header: same label width as the rows, then full-width letters each followed by a thin space');
+    assert.deepEqual(now.lines.slice(1), ['<code> 1</code> ▫️▫️▫️▫️▫️▫️⬜', '<code> 2</code> 🟩🟧🟥🟨▫️▫️▫️'], 'rows are labelled with their first date; week 1 is just the Sunday; days after today are blank; empty future weeks are gone');
     assert.deepEqual(now.biggest, { index: 3, amount: 300 });
     const done = heatStrip('en', klDay('2026-10-01T00:00:00+08:00'), Array.from({ length: 31 }, (_, i) => i + 1), null);
-    assert.equal(done.lines.length, 1 + 5, 'October 2026 spans 5 calendar weeks');
-    assert.equal(done.lines[1], '▫️▫️▫️🟩🟩🟩🟩', '1 Oct 2026 is a Thursday');
+    assert.equal(done.lines.length, 1 + 5, 'a header and the 5 calendar weeks of October 2026');
+    assert.equal(done.lines[1], '<code> 1</code> ▫️▫️▫️🟩🟩🟩🟩', '1 Oct 2026 is a Thursday: three blank squares first');
+    assert.deepEqual(done.lines.slice(1).map((l) => /<code>(.*?)<\/code>/.exec(l)[1]), [' 1', ' 5', '12', '19', '26'], 'every row starts at the right date');
     assert.equal(done.lines.at(-1).slice(-2), '▫️', 'a finished month is padded to full weeks');
     assert.match(done.lines.join(''), /🟥/);
     const flat = heatStrip('en', start, new Array(30).fill(0), null);
@@ -163,8 +165,11 @@ test('heat-strip: Monday-first calendar, rank-based colours, future weeks droppe
     assert.equal(flat.biggest, null);
     const one = heatStrip('en', start, [0, 5, ...new Array(28).fill(0)], null);
     assert.ok(one.lines.join('').includes('🟨'), 'a single spending day gets a neutral colour');
-    assert.equal(heatStrip('zh', start, [1], 0).lines[0], '一二三四五六日');
-    assert.equal(heatStrip('ms', start, [1], 0).lines[0], 'ＩＳＲＫＪＳＡ');
+    const zh = heatStrip('zh', start, [1], 0).lines;
+    assert.equal(zh[0], `<code>  </code> ${[...'一二三四五六日'].map((c) => c + gap).join('')}`);
+    assert.equal(heatStrip('ms', start, [1], 0).lines[0], `<code>  </code> ${[...'ＩＳＲＫＪＳＡ'].map((c) => c + gap).join('')}`);
+    assert.deepEqual(zh.slice(1), heatStrip('en', start, [1], 0).lines.slice(1), 'the squares are the same in every language');
+    for (const line of done.lines.slice(1)) assert.equal(line.replace(/<code>.*?<\/code> /, '').match(/▫️|⬜|🟩|🟨|🟧|🟥/gu).length, 7, 'always exactly seven squares per row');
 });
 
 test('trend and sparkline: relative blocks, empty months are the lowest block', async () => {

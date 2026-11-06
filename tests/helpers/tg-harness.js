@@ -23,6 +23,7 @@ function setup(extraEnv = {}) {
     for (const key of Object.keys(env)) if (env[key] === undefined) delete env[key];
     globalThis.Deno = { env: { get: (name) => env[name] } };
     const db = fakeSupabase();
+    db.now = () => NOW.toISOString();
     db.addUser('tok-a', A, 'a@gmail.com');
     db.addUser('tok-b', B, 'b@gmail.com');
     // Extra stand-ins (OCR.space, simulated missing columns) can be added by wrapping db.fetch.
