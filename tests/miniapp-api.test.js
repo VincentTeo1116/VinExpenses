@@ -409,7 +409,8 @@ test('the signature of one person can never act on another person\'s data, throu
     for (const attempt of attempts) {
         const res = await call(attempt, { chat: CHAT_A });
         const text = JSON.stringify(await res.json());
-        assert.ok(!/Bobs|321/.test(text), `${attempt.action} leaked Bob's data`);
+        // look for Bob's actual values, never a bare number: a response also holds random ids and timestamps that can contain any digits
+        assert.ok(!text.includes('Bobs') && !text.includes(bobs.id) && !/"amount":321(\.0+)?[,}]/.test(text), `${attempt.action} leaked Bob's data`);
     }
     assert.equal(JSON.stringify(db.expenses.filter((e) => e.user_id === B)), JSON.stringify(JSON.parse(snapshot).filter((e) => e.user_id === B)), "Bob's rows are unchanged");
     assert.equal(db.expenses.filter((e) => e.user_id === B).length, 1);
