@@ -179,7 +179,7 @@ body.is-auth .main > .screen { max-width: none; }
 
     .sidebar {
         display: flex; flex-direction: column; gap: var(--s-5);
-        position: sticky; top: 0; height: 100vh; height: 100dvh;
+        position: sticky; top: 0; align-self: start; height: 100vh; height: 100dvh; overflow-y: auto;
         padding: var(--s-6) var(--s-4);
         background: var(--surface); border-right: 1px solid var(--border);
     }
@@ -1520,7 +1520,8 @@ body:has(.modal-overlay-full.active) .plan-sticky { display: none; }
 .ad-action.danger > i:first-child { color: var(--danger); }
 .ad-manage { min-height: 44px; }
 
-html, body { max-width: 100%; overflow-x: hidden; }
+html { max-width: 100%; overflow-x: hidden; }
+body { max-width: 100%; overflow-x: clip; }
 img, svg, canvas, video { max-width: 100%; }
 input, select, textarea { font-size: 16px; } /* stops iOS zooming in when a field is focused */
 .btn, .icon-btn { min-height: 44px; }
