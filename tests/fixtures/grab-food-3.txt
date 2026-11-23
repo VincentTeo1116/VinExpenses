@@ -1,0 +1,61 @@
+Outlook
+Your Grab E-Receipt
+From Grab <no-reply@grab.com>
+Date Tue 2026-08-25 11:43
+To
+Test Customer <test.customer@example.com>
+Hope you enjoyed your food!
+TOTAL
+RM 74.80
+DATE  |  TIME
+Pick-up time: 25 Aug 26 11:02 +0800
+Booking Details
+Vehicle type:
+GrabFood
+Issued to
+Test Customer
+Booking code
+A-TESTCODE0003
+Order location:
+Sarawak Cuisine Lin Li Xiang - SS22
+[Non-Halal]
+Delivery location:
+no 1, Jalan Contoh
+Profile:
+Grab Corporate Incentive
+GrabCoins earned:
++2
+Receipt Summary
+Payment Method:
+PayLater
+Description:
+  Amount:
+2x   L02 Sarawak Laksa Special
+砂拉越叻沙加料
+  RM 49.80
+         Big 大
+         Bee Hoon 米粉
+1x   KC01 Kuey Chap 粿杂
+  RM 17.90
+         Big 大
+1x   KC03 Kuey Chap (no
+Internal Part) 粿杂(没内脏)
+  RM 17.90
+         Big 大
+ 
+ 
+Subtotal
+  RM 85.60
+Delivery fee
+  RM 9.20
+RM3 off delivery
+- RM 3.00
+GFBTHANKYOU010726K
+- RM 5.00
+HOTDEALSPROMO3GPON
+- RM 12.00
+Syarikat bayar
+  RM 0.00
+Anda bayar
+  RM 74.80
+TOTAL (INCL. TAX)      RM 74.80

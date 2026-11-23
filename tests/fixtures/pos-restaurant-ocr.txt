@@ -1,0 +1,30 @@
+Tucker & Co.
+Table #
+22
+Printed On: 2026.08.27 13:43:51
+Cashier: Tucker & Co.
+Register #: 3
+Item Price Qty Discount Amount
+Lunch - Starter
+Soup of The Day
+0.00 4 0.00 0.00
+Lunch - Mains
+Tagliatelle
+37.00 2 0.00 74.00
+Lunch - Mains
+Fish & Chips
+37.00 2 0.00 74.00
+Lunch - Beverage
+Lunch House Drinks
+less i
+0.00 4 0.00 0.00
+Ready Go
+0.00 1 0.00 0.00
+Total Sales (Exc. Tax) RM 148.00
+DISCOUNT - RM 0.00
+Service Charge (10%) RM 14.80
+Tax RM 8.88
+TOTAL RM 171.68
+SST Summary Amount Tax
+*SST6 @ 6.0% 148.00 8.88
+Thank you for shopping at our store

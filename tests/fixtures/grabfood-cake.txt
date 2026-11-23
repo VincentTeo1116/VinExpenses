@@ -1,0 +1,56 @@
+Outlook
+Your Grab E-Receipt
+From Grab <no-reply@grab.com>
+Date Tue 2026-09-08 17:53
+To
+Test Customer <test.customer@example.com>
+Hope you enjoyed your food!
+TOTAL
+RM 122.70
+DATE  |  TIME
+Pick-up time: 08 Sep 26 17:36 +0800
+Booking Details
+Vehicle type:
+GrabFood
+Issued to
+Test Customer
+Booking code
+A-TESTCODE0004
+Order location:
+Inside Scoop (Whole Cakes) -
+Damansara Jaya
+Delivery location:
+4, Jalan Contoh 1/2,
+Petaling Jaya, 46100,
+Petaling, Selangor, Malaysia
+Profile:
+Grab Corporate Incentive
+GrabCoins earned:
++352
+Receipt Summary
+Payment Method:
+PayLater
+Description:
+  Amount:
+1x   Burgembira Ice Cream Cake  RM 125.00
+         Candles
+         Happy Birthday Topper
+         Plastic Cake Knife
+ 
+ 
+Subtotal
+  RM 125.00
+incl. Tax
+  RM 7.08
+Delivery fee
+  RM 5.70
+RM3 off delivery
+- RM 3.00
+GFBTHANKYOU010726K
+- RM 5.00
+Syarikat bayar
+  RM 0.00
+Anda bayar
+  RM 122.70
+TOTAL (INCL. TAX)      RM 122.70
+RATE YOUR MEAL!

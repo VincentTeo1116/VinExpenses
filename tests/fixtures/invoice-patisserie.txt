@@ -1,0 +1,44 @@
+This is computer-generated. No signature is required.
+Thank you for choosing Lachér!
+lacherpatisserie.com
+Lacher Patisserie
+Company: Lacher Malaysia Sdn Bhd
+Address: 17, Jalan Contoh 3/3A, Industrial Park, Kota
+Damansara, 47810 Selangor, Malaysia
+Tax Number: W10-0000-00000000
+Registered Number: 000000000000
+INVOICE
+Invoice #440283  
+26-08-2026
+RM151.30
+SHIPPING ADDRESS
+Name: Test Customer
+Company: Test Company Sdn Bhd
+Address: No. 1, Jalan Contoh,
+Kuala Lumpur, Kuala Lumpur, 50000, Malaysia
+PAYMENT INFORMATION
+Name: Test Customer
+Company: Test Company Sdn Bhd
+Address: No. 1, Jalan Contoh,
+Kuala Lumpur, Kuala Lumpur, 50000, Malaysia
+Airwallex
+Items
+Qty
+Price
+Subtotal
+Kochi Yuzu Mango Tart
+1
+RM131.30
+RM131.30
+Subtotal
+RM131.30
+Shipping
+RM20.00
+Tax (Included)
+RM6.25
+Grand total
+RM151.30
+Paid by customer
+RM151.30
+Net payment
+RM151.30
