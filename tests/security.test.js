@@ -19,7 +19,7 @@ const cspOf = (html) => /http-equiv="Content-Security-Policy"[^>]*content="([^"]
 const directive = (csp, name) => (csp.split(';').map((d) => d.trim()).find((d) => d.startsWith(name + ' ')) || '').split(/\s+/).slice(1);
 
 // Pages and the Content-Security-Policy Section
-for (const page of ['index.html', 'email-action.html', 'welcome.html', 'privacy.html', 'terms.html']) {
+for (const page of ['index.html', 'email-action.html', 'welcome.html', 'privacy.html', 'terms.html', '404.html']) {
     test(`${page}: strict Content-Security-Policy, placed before anything that loads`, () => {
         const html = read(page);
         const csp = cspOf(html);
@@ -43,7 +43,7 @@ for (const page of ['index.html', 'email-action.html', 'welcome.html', 'privacy.
         assert.ok(!/javascript:/i.test(html), 'javascript: URL');
         assert.ok(!/<style[\s>]/i.test(html), 'inline <style> block');
         assert.match(html, /name="referrer"/);
-        assert.match(html, /src="frame-guard\.js"/, 'clickjacking guard');
+        assert.match(html, /src="(?:__BASE__)?frame-guard\.js"/, 'clickjacking guard');
     });
 }
 
@@ -493,4 +493,23 @@ test('authenticator: when it is on, the database itself refuses a password-only 
     assert.match(fn, /aal.*aal2/s);
     const guard = read('supabase/functions/_shared/guard.ts');
     assert.match(guard, /hasMfa && aal !== "aal2"/);
+});
+
+// 404 page Section
+test('404 page: served for any missing address, goes back or to the welcome page, and is shipped with the site', () => {
+    const html = read('404.html');
+    const deploy = read('.github/workflows/deploy.yml');
+    assert.deepEqual([...html.matchAll(/<script src="([^"]+)"/g)].map((m) => m[1]), ['__BASE__frame-guard.js', '__BASE__404.js']);
+    assert.ok(!/<form|<input|<iframe|\sstyle=/i.test(html));
+    assert.match(html, /id="nfHome"[^>]*welcome\.html/);
+    assert.match(html, /name="robots" content="noindex"/);
+    assert.deepEqual(directive(cspOf(html), 'connect-src'), [], 'the 404 page must not call any server');
+    for (const attr of [...html.matchAll(/(?:src|href)="([^"]+)"/g)].map((m) => m[1]).filter((v) => !v.startsWith('#'))) {
+        assert.ok(attr.startsWith('__BASE__'), `${attr}: links must use the base so deep addresses still work`);
+    }
+    assert.match(deploy, /404\.html 404\.js/);
+    assert.match(deploy, /__BASE__/);
+    const script = read('404.js');
+    assert.match(script, /location\.origin/, 'only a page on this website counts as the previous page');
+    assert.ok(!/eval\(|innerHTML|document\.write/.test(script));
 });

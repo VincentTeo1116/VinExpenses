@@ -50,7 +50,7 @@ jobs:
       - name: Stage site files
         run: |
           mkdir dist
-          cp index.html app.js plan.js auth.js admin.js finance-calc.js receipt-parser.js smart-entry.js csv-import.js config.js style.css fonts.css frame-guard.js email-action.html email-action.js email-action.css welcome.html privacy.html terms.html pages.css sw.js manifest.json icon.png dist/
+          cp index.html app.js plan.js auth.js admin.js finance-calc.js receipt-parser.js smart-entry.js csv-import.js config.js style.css fonts.css frame-guard.js email-action.html email-action.js email-action.css welcome.html privacy.html terms.html 404.html 404.js pages.css sw.js manifest.json icon.png dist/
           cp -r icons dist/icons
           cp -r landing dist/landing   # screenshots for welcome.html
           cp -r vendor dist/vendor
@@ -58,7 +58,10 @@ jobs:
           rm dist/vendor/vendor.config.json dist/vendor/VENDOR.lock.json   # build metadata, not part of the site
           # Stamp the build with the commit id so browsers fetch the new files.
           BUILD="${GITHUB_SHA::7}"
-          sed -i "s/__BUILD__/${BUILD}/g" dist/index.html dist/app.js dist/style.css dist/sw.js
+          sed -i "s/__BUILD__/${BUILD}/g" dist/index.html dist/app.js dist/style.css dist/sw.js dist/404.html
+          # The 404 page is served for any missing address, even a deep one, so its links must not depend on where it is shown.
+          if [ -f CNAME ]; then BASE="/"; else BASE="/${GITHUB_REPOSITORY#*/}/"; fi
+          sed -i "s#__BASE__#${BASE}#g" dist/404.html
 
       # Limit the page to your own Supabase project; the deploy fails if a wildcard is left.
       - name: Pin the Content-Security-Policy to your Supabase project
