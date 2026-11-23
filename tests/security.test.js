@@ -196,7 +196,7 @@ test('every edge function has an explicit entry in config.toml, and only the int
     const toml = read('supabase/config.toml');
     const settings = Object.fromEntries([...toml.matchAll(/\[functions\.([a-z-]+)\]\s*\n\s*verify_jwt\s*=\s*(true|false)/g)].map((m) => [m[1], m[2]]));
     for (const name of functions) assert.ok(name in settings, `${name} missing from config.toml`);
-    assert.deepEqual(Object.keys(settings).filter((n) => settings[n] === 'false').sort(), ['email-action', 'miniapp-api', 'monthly-report-email', 'plan-reminders', 'telegram-bot', 'telegram-digest']);
+    assert.deepEqual(Object.keys(settings).filter((n) => settings[n] === 'false').sort(), ['auth-gate', 'email-action', 'feedback', 'miniapp-api', 'monthly-report-email', 'plan-reminders', 'telegram-bot', 'telegram-digest']);
 });
 
 test('no function allows every website (CORS *) and none builds its own CORS headers', () => {
@@ -208,7 +208,7 @@ test('no function allows every website (CORS *) and none builds its own CORS hea
 });
 
 test('browser-facing functions all sit behind the same guard: allowed website + signed-in user', () => {
-    for (const name of ['receipt-ocr', 'receipt-ai', 'nearby-place', 'delete-account', 'email-verify', 'admin-email-test', 'telegram-link']) {
+    for (const name of ['receipt-ocr', 'receipt-ai', 'nearby-place', 'delete-account', 'email-verify', 'admin-email-test', 'telegram-link', 'admin', 'report-resend']) {
         const code = read(`supabase/functions/${name}/${fs.existsSync(path.join(root, `supabase/functions/${name}/handler.ts`)) ? 'handler' : 'index'}.ts`);
         assert.match(code, /preflight\(request\)/, `${name}: preflight`);
         assert.match(code, /requireUser\(request\)/, `${name}: requireUser`);
@@ -228,7 +228,8 @@ test('the scheduler-only function compares its secret in constant time and refus
 test('mail code: no SMTP port other than 465, no plain-text fallback, no old provider left', () => {
     const files = walk('supabase/functions').filter((f) => f.endsWith('.ts'));
     const joined = files.map(read).join('\n');
-    assert.ok(!/resend/i.test(joined), 'Resend references should be gone');
+    // the old mail provider called Resend; "send again" features may still use the ordinary word
+    assert.ok(!/api\.resend\.com|RESEND_API_KEY|RESEND_FROM/i.test(joined), 'the old Resend mail provider should be gone');
     assert.ok(!/STARTTLS|connect\(\s*\{[^}]*port:\s*(25|587)/i.test(joined.replace(/\/\/.*$/gm, '')), 'no STARTTLS / plaintext SMTP');
     assert.match(read('supabase/functions/_shared/smtp.ts'), /account\.port !== 465/);
     assert.match(read('supabase/functions/_shared/smtp.ts'), /connectTls/);
@@ -263,7 +264,9 @@ test('schema: the new tables are locked down and the email columns can only be w
         assert.match(sql, new RegExp(`revoke all on function public\\.${fn} from public, anon, authenticated`));
         assert.match(sql, new RegExp(`grant execute on function public\\.${fn} to service_role`));
     }
-    assert.equal((sql.match(/security definer\s*\n\s*set search_path = public/g) || []).length, 3, 'every SECURITY DEFINER function pins its search_path');
+    const definers = (sql.match(/security definer/g) || []).length;
+    assert.ok(definers >= 6, 'the SECURITY DEFINER functions are still there');
+    assert.equal((sql.match(/security definer\s*\n\s*set search_path = public/g) || []).length, definers, 'every SECURITY DEFINER function pins its search_path');
     assert.match(sql, /revoke all on public\.monthly_report_preferences from anon, authenticated/);
     assert.match(sql, /grant insert \(user_id, recipient_email, enabled\) on public\.monthly_report_preferences to authenticated/);
     const updateGrant = /grant update \(([^)]*)\) on public\.monthly_report_preferences/.exec(sql)[1];
@@ -410,7 +413,7 @@ test('public pages: no code of their own, no forms, no outside requests, and the
 
 test('privacy policy: names every outside service the code actually uses, and the app links to it', () => {
     const policy = read('privacy.html');
-    for (const provider of ['Supabase', 'GitHub Pages', 'OCR.space', 'OpenStreetMap', 'Telegram', 'Gmail', 'Gemini', 'Google']) {
+    for (const provider of ['Supabase', 'GitHub Pages', 'OCR.space', 'OpenStreetMap', 'Telegram', 'Gmail', 'Gemini', 'Google', 'Cloudflare']) {
         assert.ok(policy.includes(provider), `the privacy policy does not mention ${provider}`);
     }
     // if a function starts calling a new outside service, this list (and the policy) must be updated
@@ -419,11 +422,75 @@ test('privacy policy: names every outside service the code actually uses, and th
         for (const m of read(file).matchAll(/https:\/\/([a-z0-9.-]+\.[a-z]{2,})/g)) hosts.add(m[1]);
     }
     const known = ['api.ocr.space', 'api.telegram.org', 't.me', 'nominatim.openstreetmap.org', 'overpass-api.de', 'generativelanguage.googleapis.com', 'smtp.gmail.com', 'www.openstreetmap.org',
-        'myaccount.google.com', 'aistudio.google.com']; // the last two are only links in setup comments
+        'myaccount.google.com', 'aistudio.google.com', // only links in setup notes
+        'challenges.cloudflare.com'];
     const unknown = [...hosts].filter((h) => !known.includes(h) && !/supabase\.co$|github\.io$|example\.|^x$|^me\./.test(h));
     assert.deepEqual(unknown, [], 'an outside service is used by a function but not covered by the privacy policy');
     const app = read('index.html');
     assert.match(app, /href="privacy\.html"/);
     assert.match(app, /href="terms\.html"/);
     assert.match(read('terms.html'), /not financial advice|financial, investment, tax, legal or accounting advice/);
+});
+
+// ------------------------------------------------------------------ sign-in, admin and the security check
+test('security check (Cloudflare): off by default, and when switched on it widens the policy for the sign-in page only', () => {
+    const { pinCsp, cspOf: cspFrom } = require('../tools/pin-csp.js');
+    const html = read('index.html');
+    const plain = cspFrom(pinCsp(html, 'https://abcdefghij.supabase.co'));
+    assert.ok(!plain.includes('cloudflare'), 'the committed page and the default build allow no third-party script');
+    const withCheck = cspFrom(pinCsp(html, 'https://abcdefghij.supabase.co', { turnstile: true }));
+    assert.deepEqual(directive(withCheck, 'script-src'), ["'self'", 'https://challenges.cloudflare.com']);
+    assert.deepEqual(directive(withCheck, 'frame-src'), ['https://challenges.cloudflare.com']);
+    assert.ok(directive(withCheck, 'connect-src').includes('https://challenges.cloudflare.com'));
+    assert.ok(!withCheck.includes('*'));
+    assert.deepEqual(directive(withCheck, 'default-src'), ["'none'"]);
+    const tool = read('tools/pin-csp.js');
+    assert.match(tool, /index\\\.html/);
+    assert.match(tool, /!\/miniapp\/\.test\(file\)/, 'the Telegram Mini App never gets the third-party allowance');
+    assert.match(read('build-config.js'), /TURNSTILE_SITE_KEY/);
+    assert.ok(!/TURNSTILE_SECRET/.test(read('build-config.js') + read('auth.js') + read('app.js') + read('admin.js')), 'the secret key never reaches the browser');
+});
+
+test('sign-in code: no password or code is ever stored in the browser, logged, or sent anywhere but the sign-in function', () => {
+    const auth = read('auth.js');
+    assert.ok(!/localStorage\.setItem\([^)]*(pass|code|token)/i.test(auth), 'nothing secret goes into browser storage');
+    assert.ok(!/console\.(log|error|warn)/.test(auth), 'auth.js never logs');
+    assert.ok(!/innerHTML\s*=\s*[^;]*(value|\.message|reply)/.test(auth.replace(/el\('(mfaCodes|mfaQrBox)'\)\.innerHTML[^;]*;/g, '')), 'text from the page or the server is not put into HTML');
+    assert.match(auth, /textContent/);
+    // the QR picture is only ever shown from an SVG data address, as an image
+    assert.match(auth, /\^data:image\\\/svg\\\+xml/);
+    assert.ok(!/eval\(|new Function|document\.write/.test(auth + read('admin.js')));
+    const app = read('app.js');
+    assert.ok(!/signInWithPassword|signUp\(|resetPasswordForEmail|auth\.resend/.test(app), 'every password, sign-up and reset call goes through the sign-in function (limits and lockouts)');
+});
+
+test('admin screen: server-checked, and the page code can not read anyone\'s records', () => {
+    const admin = read('admin.js');
+    assert.ok(!/from\(['"`](expenses|incomes|budgets|recurring|fixed_deposits|loans)/.test(admin), 'the admin page never queries money tables');
+    assert.match(admin, /functions\.invoke\('admin'/);
+    const server = read('supabase/functions/admin/handler.ts');
+    assert.match(server, /isAdmin\(auth\.userId\)/);
+    assert.ok(server.indexOf('isAdmin(auth.userId)') < server.indexOf('switch (body.action)'), 'the role is checked before any action runs');
+    assert.ok(!/select=amount|expenses\?select|incomes\?select|merchant|from\("expenses"/.test(server), 'the admin function never selects expense or income rows');
+    assert.match(server, /audit\(adminId/);
+    // every admin action writes to the log first, and the log can not be edited or deleted
+    const sql = read('supabase-schema.sql');
+    assert.match(sql, /create trigger admin_audit_log_locked before update or delete on public\.admin_audit_log/);
+    for (const table of ['auth_code_requests', 'auth_lockouts', 'mfa_recovery_codes', 'admin_audit_log', 'feedback']) {
+        assert.match(sql, new RegExp(`alter table public\\.${table} enable row level security`), `${table}: RLS`);
+        assert.match(sql, new RegExp(`revoke all on public\\.${table} from anon, authenticated`), `${table}: server only`);
+    }
+    assert.match(sql, /revoke all on function public\.record_signin_failure\(text, text, integer, integer, integer\) from public, anon, authenticated/);
+    assert.match(sql, /revoke all on function public\.admin_user_stats\(uuid\[\]\) from public, anon, authenticated/);
+});
+
+test('authenticator: when it is on, the database itself refuses a password-only session, and a fault never locks everyone out', () => {
+    const sql = read('supabase-schema.sql');
+    assert.match(sql, /as restrictive for all to authenticated using \(\(select public\.mfa_ok\(\)\)\)/);
+    for (const table of ['expenses', 'incomes', 'budgets', 'fixed_deposits', 'loans', 'monthly_report_preferences']) assert.ok(sql.includes(`'${table}'`), table);
+    const fn = sql.slice(sql.indexOf('create or replace function public.mfa_ok'), sql.indexOf('revoke all on function public.mfa_ok'));
+    assert.match(fn, /exception when others then\s+return true;/, 'if the check itself fails it lets the request through');
+    assert.match(fn, /aal.*aal2/s);
+    const guard = read('supabase/functions/_shared/guard.ts');
+    assert.match(guard, /hasMfa && aal !== "aal2"/);
 });

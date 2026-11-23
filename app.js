@@ -8,10 +8,10 @@ const configMissing = !SUPABASE_URL || !SUPABASE_ANON_KEY;
 const APP_BUILD = '__BUILD__';
 const BUILD_PLACEHOLDER = '__BUILD' + '__'; // split so the stamping step can't rewrite it
 
-const cameFromEmailConfirmation = window.location.hash.includes('type=signup');
-let recoveryMode = window.location.hash.includes('type=recovery'); // opened from a reset-password email
+const oldEmailLink = /type=(signup|recovery|magiclink|invite|email_change)/.test(window.location.hash); // an old emailed link: we use codes now
 const hashError = new URLSearchParams(window.location.hash.replace(/^#/, '')).get('error_description');
 const supabaseClient = (window.supabase && !configMissing) ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+window.supabaseClient = supabaseClient; // auth.js and admin.js use it
 
 // Explains why the backend isn't available (missing config vs. library failed to load)
 function backendUnavailable() {
@@ -57,7 +57,6 @@ const prefersReducedMotion = window.matchMedia && window.matchMedia('(prefers-re
 let currentUser = null;
 let expenses = [];
 let incomes = [];
-let lastRegisteredEmail = null;
 let isLoading = false;
 let historyLoadError = '';
 let expCategoryValue = CATEGORIES[0].key;
@@ -114,29 +113,8 @@ document.querySelectorAll('[data-theme-choice]').forEach(button => {
     button.addEventListener('click', () => setTheme(button.dataset.themeChoice, { persist: true }));
 });
 
-const authTitle = $('authTitle');
-const authSub = $('authSub');
-const emailInput = $('emailInput');
-const passInput = $('passInput');
-const userInput = $('userInput');
-const confirmPass = $('confirmPass');
-const emailInput2 = $('emailInput2');
-const passInput2 = $('passInput2');
-const authActionBtn = $('authActionBtn');
-const googleBtn = $('googleBtn');
 const logoutBtn = $('logoutBtn');
-const resendRow = $('resendRow');
-const resendBtn = $('resendBtn');
-const loginTab = $('loginTab');
-const registerTab = $('registerTab');
-const loginFields = $('loginFields');
-const registerFields = $('registerFields');
-const passStrength = $('passStrength');
-
-const setupUsername = $('setupUsername');
-const setupPassword = $('setupPassword');
-const setupConfirmPassword = $('setupConfirmPassword');
-const setupCompleteBtn = $('setupCompleteBtn');
+const googleBtn = $('googleBtn');
 
 const userNameDisplay = $('userNameDisplay');
 const totalCard = $('totalCard');
@@ -370,7 +348,9 @@ document.addEventListener('keydown', (e) => {
         else if (addSheet.classList.contains('active')) closeAddSheet();
         else if (accountSheet.classList.contains('active')) closeAccountSheet();
         else if ($('budgetSheet').classList.contains('active')) closeBudgetSheet();
-        else if ($('resetSheet').classList.contains('active')) closeResetSheet();
+        else if ($('mfaSheet').classList.contains('active')) { if ($('mfaStepCodes').classList.contains('hidden')) Auth.closeMfaSetup(); }
+        else if ($('feedbackSheet').classList.contains('active')) Auth.closeFeedback();
+        else if ($('adminMonthPick').classList.contains('active')) Admin.closeMonthPick();
         return;
     }
     // "N" opens the quick-add sheet from anywhere (desktop shortcut)
@@ -428,7 +408,8 @@ const SCREEN_BY_NAV = {
     dashboard: 'dashboardScreen',
     plan: 'recurringScreen',
     recurring: 'recurringScreen',
-    history: 'historyScreen'
+    history: 'historyScreen',
+    admin: 'adminScreen'
 };
 
 // Sidebar and tab bar share the .nav-item class, so one call keeps both in sync
@@ -453,10 +434,12 @@ function showScreen(screenId) {
     if (screenId === 'dashboardScreen') { updateDashboard(); Plan.renderDueSoon(); }
     if (screenId === 'historyScreen') renderHistory();
     if (screenId === 'recurringScreen') { renderRecurring(); Plan.render(); }
+    if (screenId === 'adminScreen') Admin.open();
     window.scrollTo({ top: 0, behavior: prefersReducedMotion ? 'auto' : 'smooth' });
 }
 
 function navigate(nav) {
+    if (nav === 'admin' && !Admin.isAllowed()) nav = 'dashboard'; // the menu is hidden for everyone else, and the server refuses anyway
     if (nav === 'recurring') { Plan.setSegment('recurring'); nav = 'plan'; }
     setActiveNav(nav);
     showScreen(SCREEN_BY_NAV[nav]);
@@ -510,6 +493,7 @@ function openAccountSheet() {
     loadDisplayPreferences();
     updateAccountSyncStatus();
     Plan.renderSettings();
+    renderSecurity();
     $('deleteAccountConfirm').value = '';
     $('deleteAccountBtn').disabled = true;
     $('deleteAccountStatus').textContent = '';
@@ -569,27 +553,118 @@ function setReportPreferenceStatus(message, isError = false) {
     status.classList.toggle('error', isError);
 }
 
+let reportChannel = 'auto';
+let telegramLinked = null; // null = not known yet
+
 async function loadMonthlyReportPreference() {
     const emailInput = $('monthlyReportEmail');
     const enabledInput = $('monthlyReportEnabled');
     emailInput.value = monthlyReportPreference?.recipient_email || currentUser?.email || '';
     enabledInput.checked = !!monthlyReportPreference?.enabled;
-    setReportPreferenceStatus(enabledInput.checked ? 'Monthly reports are enabled.' : 'Reports are off until you turn them on.');
+    reportChannel = monthlyReportPreference?.channel === 'email' ? 'email' : 'auto';
+    renderReportChannel();
+    setReportPreferenceStatus(enabledInput.checked ? 'Monthly reports are on.' : 'Reports are off until you turn them on.');
     if (!supabaseClient || !navigator.onLine) return;
-    const { data, error } = await supabaseClient.from('monthly_report_preferences')
-        .select('recipient_email, enabled, sent_for_month, verified_email').eq('user_id', currentUser.id).maybeSingle();
+    const { data, error } = await supabaseClient.from('monthly_report_preferences').select('*').eq('user_id', currentUser.id).maybeSingle();
     if (error) {
-        setReportPreferenceStatus('Run supabase-schema.sql in Supabase to enable email reports.', true);
+        setReportPreferenceStatus('Run supabase-schema.sql in Supabase to enable monthly reports.', true);
         return;
     }
     monthlyReportPreference = data || { recipient_email: currentUser.email || '', enabled: false, sent_for_month: null, verified_email: null, unsaved: true };
-    emailInput.value = monthlyReportPreference.recipient_email || currentUser.email || '';
+    emailInput.value = monthlyReportPreference.recipient_email || (monthlyReportPreference.unsaved ? currentUser.email : '') || '';
     enabledInput.checked = !!monthlyReportPreference.enabled;
-    setReportPreferenceStatus(enabledInput.checked ? 'Monthly reports are enabled.' : 'Reports are off until you turn them on.');
+    reportChannel = monthlyReportPreference.channel === 'email' ? 'email' : 'auto';
+    renderReportChannel();
+    setReportPreferenceStatus(enabledInput.checked ? 'Monthly reports are on.' : 'Reports are off until you turn them on.');
     renderReportVerification();
+    renderReportLast();
     loadAdminStatus();
     loadTelegramStatus();
 }
+
+// Which way a report will go, in words, and whether an email address is needed
+function renderReportChannel() {
+    document.querySelectorAll('#reportChannel [data-value]').forEach(b => {
+        const on = b.dataset.value === reportChannel;
+        b.classList.toggle('active', on);
+        b.setAttribute('aria-pressed', String(on));
+    });
+    const linked = telegramLinked === true;
+    const needsEmail = reportChannel === 'email' || !linked;
+    $('reportEmailGroup').classList.toggle('hidden', !needsEmail && !$('monthlyReportEmail').value);
+    $('reportEmailGroup').querySelector('label').textContent = needsEmail ? 'Report email address' : 'Backup email address (used only if Telegram fails)';
+    let hint;
+    if (reportChannel === 'email') hint = 'Reports go to your email address.';
+    else if (linked) hint = 'Telegram is connected, so reports go there. If that fails, we email you instead (add a confirmed email below as a backup).';
+    else if (telegramLinked === false) hint = 'Telegram is not connected yet, so reports go by email. Connect Telegram below to get them there.';
+    else hint = 'Reports go to Telegram when it is connected, and by email otherwise.';
+    $('reportChannelHint').querySelector('span').textContent = hint;
+}
+document.querySelector('#reportChannel').addEventListener('click', (event) => {
+    const b = event.target.closest('[data-value]');
+    if (!b) return;
+    reportChannel = b.dataset.value;
+    renderReportChannel();
+});
+
+// What happened to the last report, and "Send again" when it failed
+const REPORT_PENDING_KEY = () => `et_report_pending_${currentUser && currentUser.id}`;
+function renderReportLast() {
+    const box = $('reportLast');
+    const pref = monthlyReportPreference;
+    if (!pref || pref.unsaved || !pref.enabled || !pref.last_status) {
+        // a resend just made may still be on its way
+        const waiting = Number(localStorage.getItem(REPORT_PENDING_KEY()) || 0) > Date.now();
+        box.classList.toggle('hidden', !waiting);
+        if (waiting) box.innerHTML = '<div class="report-last-note pending"><i class="fas fa-paper-plane" aria-hidden="true"></i><span>Your report is on its way. Please be patient and allow about 15 minutes. If it still has not arrived, contact the admin.</span></div>';
+        return;
+    }
+    const month = pref.last_month ? new Date(`${String(pref.last_month).slice(0, 7)}-01T12:00:00`).toLocaleDateString('en-MY', { month: 'long', year: 'numeric' }) : 'last month';
+    const how = pref.last_channel === 'telegram' ? 'Telegram' : 'email';
+    const used = Number(pref.resend_count || 0);
+    const left = Math.max(0, 2 - used);
+    const waiting = Number(localStorage.getItem(REPORT_PENDING_KEY()) || 0) > Date.now();
+    box.classList.remove('hidden');
+    if (waiting) {
+        box.innerHTML = `<div class="report-last-note pending"><i class="fas fa-paper-plane" aria-hidden="true"></i><span>Your ${escapeHtml(month)} report is on its way. Please be patient and allow about 15 minutes. If it still has not arrived, contact the admin.</span></div>
+            <button type="button" class="link-btn" data-open-feedback="report">Contact the admin</button>`;
+    } else if (pref.last_status === 'failed') {
+        box.innerHTML = `<div class="report-last-note bad"><i class="fas fa-triangle-exclamation" aria-hidden="true"></i><span>Your ${escapeHtml(month)} report could not be sent.${left ? '' : ' It was already sent again 2 times.'}</span></div>
+            ${left ? `<button type="button" class="btn btn-outline btn-block" id="reportResendBtn"><i class="fas fa-rotate" aria-hidden="true"></i> Send it again (${left} left)</button>` : '<button type="button" class="btn btn-outline btn-block" data-open-feedback="report"><i class="fas fa-life-ring" aria-hidden="true"></i> Contact the admin</button>'}`;
+    } else {
+        box.innerHTML = `<div class="report-last-note good"><i class="fas fa-circle-check" aria-hidden="true"></i><span>Your ${escapeHtml(month)} report was sent by ${how}${pref.last_attempt_at ? ` on ${escapeHtml(formatDateDisplay(pref.last_attempt_at))}` : ''}.</span></div>
+            <button type="button" class="link-btn" id="reportResendBtn">Didn't get it? Send again${left < 2 ? ` (${left} left)` : ''}</button>`;
+        if (!left) {
+            const contact = document.createElement('button');
+            contact.type = 'button';
+            contact.className = 'link-btn';
+            contact.dataset.openFeedback = 'report';
+            contact.textContent = 'Didn\'t get it? Contact the admin';
+            box.querySelector('#reportResendBtn').replaceWith(contact);
+        }
+    }
+}
+
+$('reportLast').addEventListener('click', async (event) => {
+    const button = event.target.closest('#reportResendBtn');
+    if (!button) return;
+    if (!navigator.onLine) return showToast('error', 'You appear to be offline.');
+    setBusy(button, true, 'Sending…');
+    try {
+        const { data, error } = await supabaseClient.functions.invoke('report-resend', { body: {} });
+        let reply = data;
+        if (error) { try { reply = await error.context.clone().json(); } catch (_) { reply = null; } }
+        if (reply && reply.ok) {
+            try { localStorage.setItem(REPORT_PENDING_KEY(), String(Date.now() + 15 * 60000)); } catch (_) { /* optional */ }
+            showToast('success', 'Your report is on its way');
+        } else {
+            showToast('error', (reply && (reply.message || reply.error)) || 'The report could not be sent. Please try again later.');
+        }
+        await loadMonthlyReportPreference();
+    } finally {
+        setBusy(button, false);
+    }
+});
 
 // Reports are only emailed to an address the person confirmed by clicking the link in a confirmation email.
 function isReportEmailVerified(pref) {
@@ -639,6 +714,44 @@ $('verifyReportEmailBtn').addEventListener('click', async () => {
     showToast('success', 'Confirmation email sent');
 });
 
+// Security Section: the optional authenticator
+async function renderSecurity() {
+    const text = $('mfaStatusText');
+    $('mfaPanelStatus').textContent = '';
+    $('mfaPanelStatus').classList.remove('error');
+    $('mfaDisableGroup').classList.add('hidden');
+    ['mfaEnableBtn', 'mfaCodesBtn', 'mfaDisableBtn'].forEach(id => { $(id).hidden = true; });
+    if (!supabaseClient || !navigator.onLine) { text.textContent = 'Connect to the internet to manage this.'; return; }
+    const state = await Auth.mfaStatus();
+    if (!state.known) { text.textContent = 'Not available right now.'; return; }
+    $('mfaStatus').classList.toggle('on', state.enabled);
+    text.textContent = state.enabled ? 'Two-step verification is on' : 'Two-step verification is off';
+    $('mfaEnableBtn').hidden = state.enabled;
+    $('mfaCodesBtn').hidden = !state.enabled;
+    $('mfaDisableBtn').hidden = !state.enabled;
+}
+function securityStatus(message, error) {
+    $('mfaPanelStatus').textContent = message;
+    $('mfaPanelStatus').classList.toggle('error', !!error);
+}
+$('mfaEnableBtn').addEventListener('click', () => Auth.openMfaSetup(() => renderSecurity()));
+$('mfaCodesBtn').addEventListener('click', () => Auth.openRecoveryCodesSheet());
+$('mfaDisableBtn').addEventListener('click', () => { $('mfaDisableGroup').classList.remove('hidden'); $('mfaDisablePass').value = ''; $('mfaDisablePass').focus(); });
+$('mfaDisableConfirm').addEventListener('click', async () => {
+    const button = $('mfaDisableConfirm');
+    setBusy(button, true, 'Checking…');
+    try {
+        const checked = await Auth.confirmPassword(currentUser.email, $('mfaDisablePass').value);
+        if (!checked.ok) return securityStatus(checked.message, true);
+        const result = await Auth.disableMfa();
+        if (!result.ok) return securityStatus(result.message, true);
+        showToast('success', 'Two-step verification is off');
+        await renderSecurity();
+    } finally {
+        setBusy(button, false);
+    }
+});
+
 // Telegram connection Section
 async function telegramCall(action) {
     const { data, error } = await supabaseClient.functions.invoke('telegram-link', { body: { action } });
@@ -657,7 +770,36 @@ function renderTelegram(linked) {
     $('telegramUnlinkBtn').hidden = !linked;
     $('telegramOpenLink').hidden = true;
     setTelegramStatus(linked ? 'Connected. Chat with the bot to add expenses, or send /today and /month.' : 'Not connected.');
+    telegramLinked = !!linked;
+    renderReportChannel();
+    renderTelegramPrompt();
 }
+
+// The dashboard nudge to connect Telegram: shown until they connect or choose "Don't ask again"
+const tgPromptKey = () => `et_tg_prompt_${currentUser && currentUser.id}`;
+function renderTelegramPrompt() {
+    const card = $('telegramPrompt');
+    if (!card || !currentUser) return;
+    let hidden = !!currentUser.user_metadata?.tg_prompt_hidden;
+    try { hidden = hidden || localStorage.getItem(tgPromptKey()) === '1'; } catch (_) { /* optional */ }
+    card.classList.toggle('hidden', telegramLinked !== false || hidden);
+}
+async function refreshTelegramPrompt() {
+    if (!supabaseClient || !currentUser || !navigator.onLine) return;
+    try { telegramLinked = !!(await telegramCall('status')).linked; } catch (_) { return; } // unknown: no nudge
+    renderTelegramPrompt();
+    renderReportChannel();
+}
+$('telegramPromptConnect').addEventListener('click', () => {
+    openAccountSheet();
+    setTimeout(() => $('telegramSection').scrollIntoView({ behavior: prefersReducedMotion ? 'auto' : 'smooth', block: 'center' }), 250);
+});
+$('telegramPromptHide').addEventListener('click', async () => {
+    $('telegramPrompt').classList.add('hidden');
+    try { localStorage.setItem(tgPromptKey(), '1'); } catch (_) { /* optional */ }
+    try { await supabaseClient.auth.updateUser({ data: { tg_prompt_hidden: true } }); } catch (_) { /* the device copy is enough */ }
+    showToast('info', 'OK. You can connect Telegram any time in Account.');
+});
 
 async function loadTelegramStatus() {
     if (!supabaseClient || !currentUser || !navigator.onLine) { setTelegramStatus('Connect to the internet to manage Telegram.'); return; }
@@ -716,6 +858,8 @@ async function loadAdminStatus() {
     if (data.justCreated) setAdminStatus('You were registered as the administrator of this app.', false);
 }
 
+$('adminOpenBtn').addEventListener('click', () => { closeAccountSheet(); navigate('admin'); });
+
 function setAdminStatus(message, isError) {
     const status = $('adminEmailStatus');
     status.textContent = message;
@@ -752,16 +896,19 @@ $('saveReportEmailBtn').addEventListener('click', async () => {
     if (!currentUser || !supabaseClient) return showToast('error', 'Sign in to save this preference.');
     const email = $('monthlyReportEmail').value.trim();
     const enabled = $('monthlyReportEnabled').checked;
-    if (enabled && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-        setReportPreferenceStatus('Enter a valid email address before enabling reports.', true);
+    const emailOk = /^[A-Za-z0-9._%+'-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/.test(email) && email.length <= 254;
+    const needsEmail = reportChannel === 'email' || telegramLinked !== true;
+    $('reportEmailError').textContent = '';
+    if (enabled && ((needsEmail && !emailOk) || (email && !emailOk))) {
+        $('reportEmailError').textContent = needsEmail ? 'Enter a valid email address so we can send your report.' : 'That does not look like an email address.';
         $('monthlyReportEmail').focus();
         return;
     }
     const button = $('saveReportEmailBtn');
     setBusy(button, true, 'Saving...');
-    const preference = { user_id: currentUser.id, recipient_email: (email || currentUser.email || '').toLowerCase(), enabled };
+    const preference = { user_id: currentUser.id, recipient_email: email ? email.toLowerCase() : null, enabled, channel: reportChannel };
     const { data, error } = await supabaseClient.from('monthly_report_preferences')
-        .upsert(preference, { onConflict: 'user_id' }).select('recipient_email, enabled, sent_for_month, verified_email').single();
+        .upsert(preference, { onConflict: 'user_id' }).select('*').single();
     setBusy(button, false);
     if (error) {
         console.error('Could not save monthly report preference:', error);
@@ -770,10 +917,13 @@ $('saveReportEmailBtn').addEventListener('click', async () => {
     }
     monthlyReportPreference = data;
     renderReportVerification();
-    if (!data.enabled) setReportPreferenceStatus('Monthly report emails are turned off.');
+    renderReportLast();
+    const linked = telegramLinked === true && reportChannel !== 'email';
+    if (!data.enabled) setReportPreferenceStatus('Monthly reports are turned off.');
+    else if (linked) setReportPreferenceStatus('Reports will be sent to Telegram on the first day of each month.' + (isReportEmailVerified(data) ? ' Your confirmed email is the backup.' : ''));
     else if (isReportEmailVerified(data)) setReportPreferenceStatus(`Reports will be sent to ${data.recipient_email} on the first day of each month.`);
-    else setReportPreferenceStatus('Saved. Now press \u201cSend confirmation email\u201d and open the link we send you: reports start only after you confirm.');
-    showToast('success', 'Monthly report preference saved');
+    else setReportPreferenceStatus('Saved. Now press \u201cSend confirmation email\u201d and open the link we send you: email reports start only after you confirm.');
+    showToast('success', 'Report settings saved');
 });
 
 function closeAccountSheet() {
@@ -1119,6 +1269,26 @@ function renderExpenseTemplates() {
         : '';
     container._templates = templates;
 }
+
+// One tap on a usual purchase opens the add sheet with it filled in
+function renderQuickAdd() {
+    const row = $('quickAddRow');
+    if (!row) return;
+    renderExpenseTemplates();
+    const templates = $('expenseTemplates')._templates || [];
+    row.classList.toggle('hidden', !templates.length);
+    row.innerHTML = templates.length
+        ? `<span class="template-label">Quick add</span>${templates.map((item, index) => `<button type="button" class="template-chip" data-quick-index="${index}">${escapeHtml(item.merchant)} <small>${formatMoney(item.latest.amount)}</small></button>`).join('')}`
+        : '';
+}
+$('quickAddRow').addEventListener('click', (event) => {
+    const button = event.target.closest('[data-quick-index]');
+    if (!button) return;
+    openAddSheet('expense');
+    const holder = $('expenseTemplates');
+    const chip = holder.querySelector(`[data-template-index="${button.dataset.quickIndex}"]`);
+    if (chip) chip.click();
+});
 
 // Receipt Reading Section: text PDFs are read on the device; photos and scans go through OCR
 const RECEIPT_MAX_PDF_BYTES = 10 * 1024 * 1024;
@@ -1672,20 +1842,42 @@ $('expenseTemplates').addEventListener('click', (event) => {
     showToast('info', `${template.merchant} details filled in — review before saving`);
 });
 
+// A bill that a recurring entry posted by itself (rent, a loan payment, a subscription). They are the same every month,
+// so the "everyday" figures below leave them out; the totals still include them.
+function isFixedBill(expense) {
+    const name = String(expense.merchant || '').trim();
+    return !!name && name === String(expense.note || '').trim() && recurring.some(r => r.name === name);
+}
+
 // Spending-vs-last-month chip, "% of income used" bar, and the three insight tiles
 function renderHeroAndInsights(spent, income) {
     const monthName = selectedDate.toLocaleString('en-MY', { month: 'long' });
-    heroLabel.textContent = `Spent in ${monthName}`;
     $('dashSubtitle').textContent = `Here's ${formatMonthDisplay(selectedDate)} at a glance`;
 
-    // vs the previous month
+    // The headline is what is LEFT (of the budget, or else of the income). Without either, it is what was spent.
+    const overallBudget = budgetFor('all');
+    const leftBase = overallBudget > 0 ? overallBudget : (income > 0 ? income : 0);
+    const leftMode = leftBase > 0;
+    heroLabel.textContent = leftMode ? `Left in ${monthName}${overallBudget > 0 ? ' · of your budget' : ' · of your income'}` : `Spent in ${monthName}`;
+    totalCard.classList.toggle('negative', leftMode && leftBase - spent < 0);
+    $('spentPill').classList.toggle('hidden', !leftMode);
+    $('balancePill').classList.toggle('hidden', leftMode);
+    $('spentValue').textContent = formatMoney(spent);
+    const kept = income > 0 ? Math.round(((income - spent) / income) * 100) : null;
+    $('savingsLine').textContent = kept === null ? '' : kept >= 0 ? `You kept ${kept}% of what came in.` : `You spent ${Math.abs(kept)}% more than came in.`;
+
+    // Compare with the SAME days of the previous month, so a part month is not set against a whole one
     const prev = new Date(selectedDate.getFullYear(), selectedDate.getMonth() - 1, 1);
-    const prevSpent = sumAmount(expenses.filter(e => isSameMonth(e.created_at, prev)));
+    const nowForCompare = new Date();
+    const viewingNow = nowForCompare.getFullYear() === selectedDate.getFullYear() && nowForCompare.getMonth() === selectedDate.getMonth();
+    const cutoffDay = viewingNow ? nowForCompare.getDate() : 31;
+    const prevSpent = sumAmount(expenses.filter(e => isSameMonth(e.created_at, prev) && new Date(e.created_at).getDate() <= cutoffDay));
     if (prevSpent > 0) {
         const change = ((spent - prevSpent) / prevSpent) * 100;
         const up = change > 0.5, down = change < -0.5;
         spendDelta.className = `delta ${up ? 'up' : down ? 'down' : ''}`;
-        spendDelta.innerHTML = `<i class="fas ${up ? 'fa-arrow-up' : down ? 'fa-arrow-down' : 'fa-equals'}"></i> ${Math.abs(change).toFixed(0)}% vs ${prev.toLocaleString('en-MY', { month: 'short' })}`;
+        spendDelta.title = viewingNow ? `Compared with the first ${cutoffDay} day${cutoffDay === 1 ? '' : 's'} of ${prev.toLocaleString('en-MY', { month: 'long' })}` : '';
+        spendDelta.innerHTML = `<i class="fas ${up ? 'fa-arrow-up' : down ? 'fa-arrow-down' : 'fa-equals'}"></i> ${Math.abs(change).toFixed(0)}% vs ${prev.toLocaleString('en-MY', { month: 'short' })}${viewingNow ? ' (same days)' : ''}`;
     } else {
         spendDelta.className = 'delta hidden';
     }
@@ -1720,16 +1912,23 @@ function renderHeroAndInsights(spent, income) {
     renderBudgetForecast(spent, isCurrent);
 
     // insights
-    const monthExpenses = expenses.filter(e => isSameMonth(e.created_at));
+    const allMonth = expenses.filter(e => isSameMonth(e.created_at));
+    const fixedBills = allMonth.filter(isFixedBill);
+    const monthExpenses = fixedBills.length && fixedBills.length < allMonth.length ? allMonth.filter(e => !isFixedBill(e)) : allMonth; // everyday spending, unless there is nothing else
+    const everyday = sumAmount(monthExpenses);
+    const separated = monthExpenses !== allMonth;
     const days = isCurrent ? now.getDate() : daysInMonth(selectedDate.getFullYear(), selectedDate.getMonth() + 1);
-    $('insightDaily').textContent = formatMoney(isFuture ? 0 : spent / Math.max(1, days));
-    $('insightDailySub').textContent = isCurrent ? `over ${days} day${days === 1 ? '' : 's'} so far` : `over ${days} days`;
+    $('insightDailyLabel').textContent = separated ? 'Everyday per day' : 'Daily average';
+    $('insightDaily').textContent = formatMoney(isFuture ? 0 : everyday / Math.max(1, days));
+    $('insightDailySub').textContent = separated
+        ? `leaves out ${formatMoney(sumAmount(fixedBills))} of fixed bills`
+        : (isCurrent ? `over ${days} day${days === 1 ? '' : 's'} so far` : `over ${days} days`);
 
-    const topCat = CATEGORIES.map(c => ({ ...c, total: getCategoryTotal(c.key) })).sort((a, b) => b.total - a.total)[0];
+    const topCat = CATEGORIES.map(c => ({ ...c, total: sumAmount(monthExpenses.filter(e => e.category === c.key)) })).sort((a, b) => b.total - a.total)[0];
     const topIcon = $('insightTopIcon');
     if (topCat && topCat.total > 0) {
         $('insightTop').textContent = topCat.label;
-        $('insightTopSub').textContent = `${formatMoney(topCat.total)} · ${((topCat.total / spent) * 100).toFixed(0)}% of spending`;
+        $('insightTopSub').textContent = `${formatMoney(topCat.total)} · ${((topCat.total / Math.max(1, everyday)) * 100).toFixed(0)}% of ${separated ? 'everyday ' : ''}spending`;
         topIcon.innerHTML = `<i class="fas ${safeIcon(topCat.icon)}"></i>`;
         topIcon.style.color = topCat.color;
         topIcon.style.background = `color-mix(in srgb, ${topCat.color} 14%, var(--surface))`;
@@ -1763,7 +1962,8 @@ function updateDashboard() {
     const spent = getTotalSpent();
     const income = getTotalIncome();
     const balance = income - spent;
-    animateAmount(totalSpent, spent);
+    const leftBase = budgetFor('all') > 0 ? budgetFor('all') : (income > 0 ? income : 0);
+    animateAmount(totalSpent, leftBase > 0 ? leftBase - spent : spent);
     animateAmount(totalIncomeDisplay, income);
     animateAmount(totalBalance, balance);
     balancePill.classList.toggle('negative', balance < 0);
@@ -1774,6 +1974,7 @@ function updateDashboard() {
     renderCategoryGrid();
     renderRecent();
     renderUpcoming();
+    renderQuickAdd();
     renderSpendingPatterns();
 
     const meta = currentUser.user_metadata || {};
@@ -2336,6 +2537,7 @@ async function fetchAllData() {
         updateAccountSyncStatus();
         if ($('historyScreen').classList.contains('active')) renderHistory();
         Plan.load(); // deposits, loans and reminders: loads by itself and never blocks the rest
+        refreshTelegramPrompt(); // the dashboard nudge to connect Telegram
     }
 }
 
@@ -2465,216 +2667,24 @@ syncIncomeChips();
 expDate.value = toInputDate();
 incomeDate.value = toInputDate();
 
-// Password Visibility & Strength Section
-document.querySelectorAll('.toggle-visibility').forEach(btn => {
-    btn.addEventListener('click', () => {
-        const target = $(btn.dataset.target);
-        const icon = btn.querySelector('i');
-        if (target.type === 'password') {
-            target.type = 'text';
-            icon.classList.replace('fa-eye', 'fa-eye-slash');
-        } else {
-            target.type = 'password';
-            icon.classList.replace('fa-eye-slash', 'fa-eye');
-        }
-    });
-});
+// Sign-in Section: the screens, codes and authenticator live in auth.js
+const signInHooks = {
+    signedIn: (user) => onLoginSuccess(user),
+    toast: (type, message) => showToast(type, message),
+    syncScroll: () => syncBodyScroll(),
+    download: (blob, name) => downloadBlob(blob, name),
+    signedInEmail: () => (currentUser && currentUser.email) || ''
+};
+Auth.init(signInHooks);
+Admin.init({ toast: (type, message) => showToast(type, message), modal: (options) => showModal(options) });
 
-passInput2.addEventListener('input', () => {
-    const v = passInput2.value;
-    let score = 0;
-    if (v.length >= 6) score++;
-    if (v.length >= 10) score++;
-    if (/[A-Z]/.test(v) && /[a-z]/.test(v)) score++;
-    if (/\d/.test(v) && /[^A-Za-z0-9]/.test(v)) score++;
-    if (!v) score = 0;
-    passStrength.dataset.score = score;
-});
-
-// Auth Tabs Section
-let isLoginMode = true;
-
-function switchAuthTab(tab) {
-    const isLogin = tab === 'login';
-
-    loginTab.classList.toggle('active', isLogin);
-    registerTab.classList.toggle('active', !isLogin);
-    loginFields.classList.toggle('collapsed', !isLogin);
-    registerFields.classList.toggle('collapsed', isLogin);
-
-    if (isLogin) {
-        authTitle.textContent = 'Welcome back 👋';
-        authSub.textContent = 'Sign in to keep tracking your spending';
-        authActionBtn.innerHTML = '<i class="fas fa-arrow-right-to-bracket"></i> Sign In';
-        if (emailInput2.value) emailInput.value = emailInput2.value;
-        if (passInput2.value) passInput.value = passInput2.value;
-    } else {
-        authTitle.textContent = 'Create account ✨';
-        authSub.textContent = 'Register with your email — we\'ll send a verification link';
-        authActionBtn.innerHTML = '<i class="fas fa-user-plus"></i> Create Account';
-        if (emailInput.value) emailInput2.value = emailInput.value;
-        if (passInput.value) passInput2.value = passInput.value;
-    }
-
-    isLoginMode = isLogin;
-    resendRow.classList.add('hidden');
-}
-
-loginTab.addEventListener('click', () => switchAuthTab('login'));
-registerTab.addEventListener('click', () => switchAuthTab('register'));
-
-// Enter submits the active form
-[emailInput, passInput, userInput, emailInput2, passInput2, confirmPass].forEach(el => {
-    el.addEventListener('keydown', (e) => { if (e.key === 'Enter') authActionBtn.click(); });
-});
-[setupUsername, setupPassword, setupConfirmPassword].forEach(el => {
-    el.addEventListener('keydown', (e) => { if (e.key === 'Enter') setupCompleteBtn.click(); });
-});
-
-// Auth Action Section
-async function handleAuthAction(email, password, isLogin) {
-    if (!supabaseClient) {
-        return showModal({ type: 'error', ...backendUnavailable() });
-    }
-    if (!email || !email.includes('@')) {
-        return showModal({ type: 'warning', title: 'Check your email', message: 'Please enter a valid email address.' });
-    }
-    if (!password) {
-        return showModal({ type: 'warning', title: 'Password required', message: 'Please enter your password.' });
-    }
-
-    if (isLogin) {
-        setBusy(authActionBtn, true, 'Signing in...');
-        try {
-            const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
-            if (error) throw error;
-            await onLoginSuccess(data.user);
-        } catch (err) {
-            console.error('Login error:', err);
-            const notConfirmed = /confirm/i.test(err.message || '');
-            showModal({
-                type: 'error',
-                title: notConfirmed ? 'Email not verified yet' : 'Sign in failed',
-                message: notConfirmed
-                    ? 'Please click the verification link we emailed you before signing in.'
-                    : (err.message || 'Invalid email or password.')
-            });
-            if (notConfirmed) {
-                lastRegisteredEmail = email;
-                resendRow.classList.remove('hidden');
-            }
-        } finally {
-            setBusy(authActionBtn, false);
-        }
-        return;
-    }
-
-    // REGISTER
-    const username = userInput.value.trim();
-    const confirm = confirmPass.value.trim();
-
-    if (!username) {
-        return showModal({ type: 'warning', title: 'Username required', message: 'Please choose a username.' });
-    }
-    if (password.length < 6) {
-        return showModal({ type: 'warning', title: 'Weak password', message: 'Password must be at least 6 characters.' });
-    }
-    if (password !== confirm) {
-        return showModal({ type: 'warning', title: 'Passwords don\'t match', message: 'Please make sure both password fields match.' });
-    }
-
-    setBusy(authActionBtn, true, 'Creating account...');
-    try {
-        const { data, error } = await supabaseClient.auth.signUp({
-            email,
-            password,
-            options: {
-                // setup_complete marks the profile as finished, so email users skip the Setup screen
-                data: { username, setup_complete: true },
-                emailRedirectTo: window.location.origin + window.location.pathname
-            }
-        });
-
-        if (error) throw error;
-
-        if (data?.user?.identities?.length === 0) {
-            showModal({
-                type: 'warning',
-                title: 'Account already exists',
-                message: `${email} is already registered. Please sign in instead.`,
-                confirmText: 'Go to Login',
-                onConfirm: () => { switchAuthTab('login'); }
-            });
-            return;
-        }
-
-        if (data.session) {
-            await onLoginSuccess(data.user);
-            return;
-        }
-
-        lastRegisteredEmail = email;
-        showModal({
-            type: 'success',
-            title: 'Verify your email',
-            message: `We've sent a verification link to ${email}. Open your inbox and click the link — you'll be brought back here to log in.`,
-            confirmText: 'Got it',
-            onConfirm: () => {
-                switchAuthTab('login');
-                emailInput.value = email;
-                passInput.value = '';
-                userInput.value = '';
-                confirmPass.value = '';
-                emailInput2.value = '';
-                passInput2.value = '';
-                passStrength.dataset.score = 0;
-                resendRow.classList.remove('hidden'); // switchAuthTab hides it, so show it after
-            }
-        });
-    } catch (err) {
-        console.error('Signup error:', err);
-        showModal({ type: 'error', title: 'Couldn\'t create account', message: err.message || 'Please try again.' });
-    } finally {
-        setBusy(authActionBtn, false);
-    }
-}
-
-authActionBtn.addEventListener('click', () => {
-    const isLogin = loginTab.classList.contains('active');
-    const email = isLogin ? emailInput.value.trim() : emailInput2.value.trim();
-    const password = isLogin ? passInput.value.trim() : passInput2.value.trim();
-    handleAuthAction(email, password, isLogin);
-});
-
-// Resend Section
-resendBtn.addEventListener('click', async () => {
-    const email = lastRegisteredEmail || emailInput.value.trim();
-    if (!email) {
-        return showModal({ type: 'warning', title: 'Enter your email', message: 'Type your email above first, then tap Resend.' });
-    }
-    setBusy(resendBtn, true, 'Sending...');
-    try {
-        const { error } = await supabaseClient.auth.resend({
-            type: 'signup',
-            email,
-            options: { emailRedirectTo: window.location.origin + window.location.pathname }
-        });
-        if (error) throw error;
-        showModal({ type: 'success', title: 'Email sent', message: `A new verification link is on its way to ${email}.` });
-    } catch (err) {
-        console.error('Resend error:', err);
-        showModal({ type: 'error', title: 'Couldn\'t resend', message: err.message || 'Please try again in a moment.' });
-    } finally {
-        setBusy(resendBtn, false);
-    }
-});
-
-// Google Login Section
+// Google sign-in: the first time, the person also chooses a name and a strong password (see the Setup screen)
 googleBtn.addEventListener('click', async () => {
     if (!supabaseClient) {
         return showModal({ type: 'error', ...backendUnavailable() });
     }
     try {
+        Auth.setRemember(true);
         const { error } = await supabaseClient.auth.signInWithOAuth({
             provider: 'google',
             options: { redirectTo: window.location.origin + window.location.pathname }
@@ -2683,46 +2693,34 @@ googleBtn.addEventListener('click', async () => {
     } catch (err) {
         console.error('Google login error:', err);
         if (/provider is not enabled/i.test(err.message || '')) {
-            showModal({ type: 'error', title: 'Google sign-in unavailable', message: 'Google login isn\'t enabled yet for this app. Please use email & password.' });
+            showModal({ type: 'error', title: 'Google sign-in unavailable', message: 'Google login isn\'t enabled yet for this app. Please use your email and password.' });
         } else {
             showModal({ type: 'error', title: 'Google sign-in failed', message: err.message || 'Please try again.' });
         }
     }
 });
 
-// Setup Complete Section: for new Google users
-setupCompleteBtn.addEventListener('click', async () => {
-    const username = setupUsername.value.trim();
-    const password = setupPassword.value.trim();
-    const confirm = setupConfirmPassword.value.trim();
-
-    if (!username) {
-        return showModal({ type: 'warning', title: 'Username required', message: 'Please choose a username.' });
-    }
-    if (password.length < 6) {
-        return showModal({ type: 'warning', title: 'Weak password', message: 'Password must be at least 6 characters.' });
-    }
-    if (password !== confirm) {
-        return showModal({ type: 'warning', title: 'Passwords don\'t match', message: 'Please make sure both password fields match.' });
-    }
-
-    setBusy(setupCompleteBtn, true, 'Saving...');
-    try {
-        const { data, error } = await supabaseClient.auth.updateUser({
-            password,
-            data: { username, setup_complete: true }
-        });
-        if (error) throw error;
-
-        currentUser = data.user;
+// Setup Complete Section: for new Google users (name, strong password, then the optional authenticator)
+Auth.initSetup({
+    saveProfile: async (username, password) => {
+        try {
+            const { data, error } = await supabaseClient.auth.updateUser({ password, data: { username, setup_complete: true } });
+            if (error) throw error;
+            currentUser = data.user;
+            return { ok: true };
+        } catch (err) {
+            console.error('Setup error:', err);
+            return { ok: false, message: /same|different/i.test(err.message || '') ? 'Choose a different password.' : (err.message || 'Could not save. Please try again.') };
+        }
+    },
+    finished: async () => {
         enterApp();
         await fetchAllData();
-        showModal({ type: 'success', title: 'Setup complete!', message: 'Your account is ready. Welcome aboard!' });
-    } catch (err) {
-        console.error('Setup error:', err);
-        showModal({ type: 'error', title: 'Setup failed', message: err.message || 'Could not update your profile. Please try again.' });
-    } finally {
-        setBusy(setupCompleteBtn, false);
+        showToast('success', 'Your account is ready. Welcome aboard!');
+    },
+    signOut: async () => {
+        await supabaseClient.auth.signOut();
+        resetSession();
     }
 });
 
@@ -2769,9 +2767,9 @@ function resetSession() {
     closeAddSheet();
     closeAccountSheet();
     closeBudgetSheet();
-    emailInput.value = '';
-    passInput.value = '';
-    switchAuthTab('login');
+    Admin.reset();
+    Auth.resetSetup();
+    Auth.startFresh('login');
     showScreen('authScreen');
 }
 
@@ -2792,16 +2790,13 @@ async function onLoginSuccess(user) {
     // A new Google account has no username yet, so finish the profile first.
     const meta = user.user_metadata || {};
     if (!meta.username) {
-        setupUsername.value = '';
-        setupPassword.value = '';
-        setupConfirmPassword.value = '';
+        Auth.resetSetup();
         showScreen('setupScreen');
         return;
     }
 
-    [emailInput, passInput, userInput, confirmPass, emailInput2, passInput2].forEach(el => { el.value = ''; });
-    resendRow.classList.add('hidden');
     enterApp();
+    Admin.check(); // shows the Admin menu to administrators only
     await fetchAllData();
 }
 
@@ -2809,30 +2804,19 @@ if (supabaseClient) {
     supabaseClient.auth.onAuthStateChange((event, session) => {
         // Don't await Supabase calls directly inside this callback (can deadlock the client)
         setTimeout(async () => {
-            if (event === 'PASSWORD_RECOVERY' || (event === 'SIGNED_IN' && recoveryMode && session?.user)) {
-                recoveryMode = true;
-                $('newPassword').value = '';
-                $('newPasswordConfirm').value = '';
-                showScreen('resetPasswordScreen');
+            if (event === 'PASSWORD_RECOVERY') {
+                // An old reset link: signing in works with codes now
+                await supabaseClient.auth.signOut();
+                Auth.startFresh('login');
+                Auth.notice('Password resets now use a 6-digit code. Choose "Forgot password?" to get one.', 'bad');
                 return;
             }
             if (event === 'SIGNED_IN' && session?.user) {
-                if (cameFromEmailConfirmation) {
-                    await supabaseClient.auth.signOut();
-                    history.replaceState(null, '', window.location.pathname);
-                    switchAuthTab('login');
-                    emailInput.value = session.user.email || '';
-                    showModal({
-                        type: 'success',
-                        title: 'Email verified! ✅',
-                        message: 'Your account is active. Please log in with your password to continue.'
-                    });
-                    return;
-                }
-                if (!currentUser) await onLoginSuccess(session.user);
+                // Signing in with the password or a code is handled by auth.js itself; this is for Google and for a returning session
+                if (!currentUser && !Auth.isAdopting() && !Auth.pendingMfa()) await Auth.continueSignIn(session.user);
             } else if (event === 'SIGNED_OUT') {
                 if (currentUser) resetSession();
-                else showScreen('authScreen');
+                else if (!Auth.pendingMfa()) showScreen('authScreen');
             }
         }, 0);
     });
@@ -4305,15 +4289,23 @@ recurringList.addEventListener('click', async (e) => {
 
 // Dashboard "Upcoming" card Section
 function renderUpcoming() {
-    const next = [
+    // Loans and deposits that need attention come first (they are already in order of urgency), then bills by date.
+    // A loan that is paid through recurring appears once, as its recurring bill.
+    const reminders = Plan.upcoming().filter(r => !(r.kind === 'loan' && recurring.some(x => x.loan_id === r.id && x.active))).slice(0, 3);
+    const bills = [
         ...recurring.filter(item => item.active).map(item => ({ ...item, kind: 'expense', title: item.name })),
         ...recurringIncomes.filter(item => item.active).map(item => ({ ...item, kind: 'income', title: item.source }))
-    ].sort((a, b) => a.next_due.localeCompare(b.next_due)).slice(0, 3);
-    if (!next.length) {
-        upcomingList.innerHTML = '<div class="history-empty small">No recurring bills yet — add your utilities and subscriptions.</div>';
+    ].sort((a, b) => a.next_due.localeCompare(b.next_due)).slice(0, Math.max(1, 4 - reminders.length));
+    const next = bills;
+    const reminderHtml = reminders.map(r => `<button type="button" class="reminder-row ${r.group}" data-kind="${r.kind}" data-id="${escapeHtml(r.id)}">
+            <span class="reminder-icon" aria-hidden="true"><i class="fas ${r.kind === 'fd' ? 'fa-piggy-bank' : 'fa-hand-holding-dollar'}"></i></span>
+            <span class="reminder-text"><b>${escapeHtml(r.name)}</b><span>${escapeHtml(Plan.reminderText(r))}</span></span>
+            <span class="reminder-amount">${formatMoney(r.amount)}</span></button>`).join('');
+    if (!next.length && !reminders.length) {
+        upcomingList.innerHTML = '<div class="history-empty small">Nothing coming up. Add your bills, deposits and loans in Plan.</div>';
         return;
     }
-    upcomingList.innerHTML = next.map(item => {
+    upcomingList.innerHTML = reminderHtml + next.map(item => {
         const isIncome = item.kind === 'income';
         const category = isIncome ? null : catByKey[item.category];
         const soon = daysUntil(item.next_due) <= 3;
@@ -4326,6 +4318,8 @@ function renderUpcoming() {
 }
 $('manageRecurringBtn').addEventListener('click', () => navigate('recurring'));
 upcomingList.addEventListener('click', (e) => {
+    const reminder = e.target.closest('.reminder-row');
+    if (reminder) return Plan.openItem(reminder.dataset.kind, reminder.dataset.id);
     const row = e.target.closest('.history-item');
     if (!row) return navigate('recurring');
     navigate('recurring');
@@ -4477,97 +4471,6 @@ function checkBudgetAlerts(category, amount, createdAt) {
     });
 }
 
-// Forgot Password Section
-const resetSheet = $('resetSheet');
-const resetEmail = $('resetEmail');
-const resetSendBtn = $('resetSendBtn');
-
-function openResetSheet() {
-    resetEmail.value = emailInput.value.trim();
-    resetSheet.classList.add('active');
-    syncBodyScroll();
-    setTimeout(() => resetEmail.focus(), 60);
-}
-
-function closeResetSheet() {
-    resetSheet.classList.remove('active');
-    syncBodyScroll();
-}
-
-$('forgotBtn').addEventListener('click', openResetSheet);
-$('resetSheetClose').addEventListener('click', closeResetSheet);
-resetSheet.addEventListener('click', (e) => { if (e.target === resetSheet) closeResetSheet(); });
-resetEmail.addEventListener('keydown', (e) => { if (e.key === 'Enter') resetSendBtn.click(); });
-
-resetSendBtn.addEventListener('click', async () => {
-    if (!supabaseClient) return showModal({ type: 'error', ...backendUnavailable() });
-    const email = resetEmail.value.trim();
-    if (!email || !email.includes('@')) {
-        resetEmail.focus();
-        return showModal({ type: 'warning', title: 'Check your email', message: 'Please enter the email you signed up with.' });
-    }
-    setBusy(resetSendBtn, true, 'Sending...');
-    try {
-        const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
-            redirectTo: window.location.origin + window.location.pathname
-        });
-        if (error) throw error;
-        closeResetSheet();
-        // Same message whether or not the address has an account, so this can't be used to probe for accounts
-        showModal({
-            type: 'success',
-            title: 'Check your inbox',
-            message: `If an account exists for ${email}, a link to reset your password is on its way. It may take a minute — check your spam folder too.`
-        });
-    } catch (err) {
-        console.error('Reset password error:', err);
-        showModal({
-            type: 'error',
-            title: 'Couldn\'t send the link',
-            message: /rate|too many|seconds/i.test(err.message || '')
-                ? 'Too many requests. Please wait a minute and try again.'
-                : (isNetworkError(err) ? 'You appear to be offline. Please check your connection.' : (err.message || 'Please try again.'))
-        });
-    } finally {
-        setBusy(resetSendBtn, false);
-    }
-});
-
-// The page the emailed link opens: choose a new password
-$('newPasswordBtn').addEventListener('click', async () => {
-    const pw = $('newPassword').value.trim();
-    const confirm = $('newPasswordConfirm').value.trim();
-    if (pw.length < 6) {
-        return showModal({ type: 'warning', title: 'Weak password', message: 'Password must be at least 6 characters.' });
-    }
-    if (pw !== confirm) {
-        return showModal({ type: 'warning', title: 'Passwords don\'t match', message: 'Please make sure both password fields match.' });
-    }
-    setBusy($('newPasswordBtn'), true, 'Updating...');
-    try {
-        const { data, error } = await supabaseClient.auth.updateUser({ password: pw });
-        if (error) throw error;
-        recoveryMode = false;
-        history.replaceState(null, '', window.location.pathname);
-        showToast('success', 'Password updated — you\'re signed in');
-        await onLoginSuccess(data.user);
-    } catch (err) {
-        console.error('Update password error:', err);
-        showModal({ type: 'error', title: 'Couldn\'t update password', message: err.message || 'The link may have expired. Request a new one from the sign-in page.' });
-    } finally {
-        setBusy($('newPasswordBtn'), false);
-    }
-});
-$('newPasswordCancel').addEventListener('click', async () => {
-    recoveryMode = false;
-    history.replaceState(null, '', window.location.pathname);
-    await supabaseClient.auth.signOut();
-    currentUser = null;
-    switchAuthTab('login');
-    showScreen('authScreen');
-});
-[$('newPassword'), $('newPasswordConfirm')].forEach(el => el.addEventListener('keydown', (e) => { if (e.key === 'Enter') $('newPasswordBtn').click(); }));
-
 // Init Section
 Plan.init(); // the Deposits and Loans sections of the Plan tab (plan.js)
 
@@ -4585,12 +4488,21 @@ Plan.init(); // the Deposits and Loans sections of the Plan tab (plan.js)
         showModal({ type: 'error', title: 'Link problem', message: hashError.replace(/\+/g, ' ') + ' Try signing in, or resend the verification email.' });
     }
 
-    if (cameFromEmailConfirmation || recoveryMode) return; // handled by the auth listener
+    if (oldEmailLink) {
+        history.replaceState(null, '', window.location.pathname);
+        Auth.notice('That link is out of date. Sign-in and password resets now use a 6-digit code. Sign in, or choose "Forgot password?".', 'bad');
+    }
 
     try {
         const { data: { session }, error } = await supabaseClient.auth.getSession();
         if (error) throw error;
-        if (session?.user && !currentUser) await onLoginSuccess(session.user);
+        if (session?.user && !currentUser) {
+            if (Auth.shouldSignOutOnStart()) {               // this device was not asked to remember the person, or the 30 days are over
+                await supabaseClient.auth.signOut();
+                return;
+            }
+            await Auth.continueSignIn(session.user);
+        }
     } catch (err) {
         console.error('Init error:', err);
     }

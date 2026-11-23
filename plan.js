@@ -1197,14 +1197,9 @@ window.Plan = (function () {
         </button>`;
     }
 
+    // The dashboard's "Coming up" card draws these itself (app.js), so there is one list, not two
     function renderDueSoon() {
-        const card = el('dueSoonCard');
-        if (!card) return;
-        const list = reminders();
-        card.classList.toggle('hidden', !list.length);
-        if (!list.length) return;
-        const shown = list.slice(0, 4);
-        el('dueSoonList').innerHTML = shown.map(reminderRow).join('') + (list.length > shown.length ? `<div class="reminder-more">and ${list.length - shown.length} more</div>` : '');
+        if (typeof renderUpcoming === 'function' && currentUser) renderUpcoming();
     }
 
     const GROUP_TITLE = { overdue: 'Needs attention', today: 'Today', soon: 'Coming up' };
@@ -1529,8 +1524,6 @@ window.Plan = (function () {
 
         // notices, reminders, settings
         el('recurringScreen').addEventListener('click', (event) => { if (event.target.closest('[data-plan-retry]')) load(); });
-        el('dueSoonList').addEventListener('click', onReminderClick);
-        el('dueSoonAllBtn').addEventListener('click', () => openReminders({ manual: true }));
         el('remindersList').addEventListener('click', onReminderClick);
         el('remindersClose').addEventListener('click', closeReminders);
         el('remindersDone').addEventListener('click', closeReminders);
@@ -1565,7 +1558,7 @@ window.Plan = (function () {
 
     return {
         init, load, reset, render, setSegment, renderSettings, renderDueSoon,
-        closeReminders, openReminders, openItem, forgetDevice,
+        closeReminders, openReminders, openItem, forgetDevice, upcoming: reminders, reminderText,
         remindersOpen: () => !!el('remindersSheet') && el('remindersSheet').classList.contains('active')
     };
 })();

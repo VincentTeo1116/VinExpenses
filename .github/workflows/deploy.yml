@@ -44,12 +44,13 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          TURNSTILE_SITE_KEY: ${{ secrets.TURNSTILE_SITE_KEY }}   # optional: the public key of the Cloudflare security check
         run: node build-config.js
 
       - name: Stage site files
         run: |
           mkdir dist
-          cp index.html app.js plan.js finance-calc.js receipt-parser.js smart-entry.js csv-import.js config.js style.css fonts.css frame-guard.js email-action.html email-action.js email-action.css welcome.html privacy.html terms.html pages.css sw.js manifest.json icon.png dist/
+          cp index.html app.js plan.js auth.js admin.js finance-calc.js receipt-parser.js smart-entry.js csv-import.js config.js style.css fonts.css frame-guard.js email-action.html email-action.js email-action.css welcome.html privacy.html terms.html pages.css sw.js manifest.json icon.png dist/
           cp -r icons dist/icons
           cp -r landing dist/landing   # screenshots for welcome.html
           cp -r vendor dist/vendor
@@ -63,6 +64,7 @@ jobs:
       - name: Pin the Content-Security-Policy to your Supabase project
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          TURNSTILE_SITE_KEY: ${{ secrets.TURNSTILE_SITE_KEY }}
         run: node tools/pin-csp.js dist/index.html dist/email-action.html dist/miniapp/index.html
 
       - uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5.0.0

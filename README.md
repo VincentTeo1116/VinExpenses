@@ -551,6 +551,16 @@ Nothing is read from or saved to any account in this mode.
 
 Limits (all adjustable secrets): `MINIAPP_DAILY_LIMIT` (3000 requests/day/person) and `MINIAPP_WRITE_LIMIT` (300 changes/day/person).
 
+## 4d. Accounts, codes, authenticator and admin (v4)
+
+- **Sign-up and password reset** use a 6-digit emailed code (valid 5 minutes; 3 codes a day and 10 a month per address). Sign-in is password only, with "Remember me" for 30 days.
+- **Wrong passwords**: 5 wrong tries on one device block that device for 3 hours; the admin can block or unblock an account by hand.
+- **Authenticator (optional)**: turn it on in Account. Eight one-time recovery codes are shown once. Where it is on, the database also refuses password-only sessions.
+- **Admin**: set `ADMIN_EMAIL`. The Admin screen lists accounts, last expense date, blocks, resets, report resends, feedback and a system check. It never reads expenses.
+- **Deploy**: run the updated `supabase-schema.sql`, deploy `auth-gate`, `admin`, `feedback`, `report-resend` and `monthly-report-email`, then run `node tools/auth-emails.js apply`.
+- **Supabase dashboard**: enable TOTP MFA, set email OTP length to 6 and expiry to 300 seconds.
+- **Optional bot check**: create a Cloudflare Turnstile site; put the site key in the GitHub secret `TURNSTILE_SITE_KEY` and the secret key in the Supabase secret `TURNSTILE_SECRET_KEY`.
+
 ## 5. Using it on mobile
 
 **A. Install as a PWA.** Once hosted (e.g. GitHub Pages), open the site on your

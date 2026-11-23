@@ -85,9 +85,11 @@ test('sign-in emails: six templates, each with what Supabase needs, safe, and sa
     for (const t of list) {
         assertEmailSafe(t.html, t.key);
         assert.ok(t.subject.includes('VinExpenses') && t.subject.length < 70, t.key);
-        if (t.key === 'reauthentication') {
+        if (['reauthentication', 'confirmation', 'recovery'].includes(t.key)) {
+            // these carry a 6-digit code to type into the app, never a link
             assert.match(t.html, /\{\{ \.Token \}\}/);
             assert.ok(!t.html.includes('{{ .ConfirmationURL }}'));
+            assert.ok(!/href=/.test(t.html), `${t.key}: a code email has nothing to click`);
         } else {
             assert.match(t.html, /href="\{\{ \.ConfirmationURL \}\}"/, `${t.key}: the button uses Supabase's link`);
             assert.match(t.html, /Copy this link into your browser/, `${t.key}: the link is also written out`);
@@ -98,6 +100,7 @@ test('sign-in emails: six templates, each with what Supabase needs, safe, and sa
         assert.equal(saved, t.html, `supabase/templates/${t.file} is out of date. Run: node tools/auth-emails.js`);
     }
     assert.match(list.find((t) => t.key === 'recovery').html, /Your current password still works/);
+    for (const key of ['confirmation', 'recovery']) assert.match(list.find((t) => t.key === key).html, /works once and expires in 5 minutes/);
     assert.match(list.find((t) => t.key === 'email_change').html, /\{\{ \.NewEmail \}\}/);
 });
 

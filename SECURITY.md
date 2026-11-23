@@ -144,6 +144,13 @@ Not done in this repository; these are the points that change when the site runs
 - [ ] **Backups**: exclude web storage from device/cloud backups, or the cached data leaves the phone.
 - [ ] Have someone other than the author test the built app (a penetration test) before it handles real users.
 
+## 4b-5. Accounts, lockout, authenticator and admin (v4)
+
+- All sign-up, sign-in and reset go through the `auth-gate` function, which counts wrong passwords per device and per email, limits codes, and gives generic errors. A direct call to Supabase's own token endpoint bypasses the counting on the Free plan; Turnstile and Supabase's built-in rate limits are the mitigation.
+- The authenticator is enforced in the database (a restrictive policy, aal2) and in `requireUser`. "Remember me" keeps the aal2 session for the remembered period.
+- The admin function checks the caller first, rate-limits, logs every action to an append-only table, and never selects expense or income rows. A password reset is emailed as a code by our own mail; the admin never sees it.
+- Known limit: the strong-password rule for Google sign-in users is checked in the browser only.
+
 ## 4c. Auto-deploy of the functions
 
 * The workflow runs only on pushes to `main` and manually, **never for pull requests**, so nobody can run code with

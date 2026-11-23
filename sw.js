@@ -20,6 +20,8 @@ const SHELL_FILES = [
     'smart-entry.js',
     'csv-import.js',
     'finance-calc.js',
+    'auth.js',
+    'admin.js',
     'plan.js',
     'manifest.json',
     'icon.png',

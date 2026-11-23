@@ -1,5 +1,7 @@
 // Shared protection for every function the website calls: who is calling, from which site, and how often.
 
+import { tokenAal } from "./auth-rules.ts";
+
 // deno-lint-ignore no-explicit-any
 const runtime = (): any => (globalThis as any).Deno;
 
@@ -68,6 +70,14 @@ export interface SignedInUser {
   userId: string;
   email: string;
   emailConfirmed: boolean;
+  hasMfa: boolean;
+  aal: string;
+}
+
+/** The caller's address as the gateway reports it, hashed so raw addresses are never stored. "" when unknown. */
+export async function callerKey(request: Request): Promise<string> {
+  const raw = (request.headers.get("cf-connecting-ip") ?? request.headers.get("x-forwarded-for") ?? "").split(",")[0].trim();
+  return raw ? (await sha256Hex(`ip:${raw}`)).slice(0, 24) : "";
 }
 
 // Resolves the signed-in user from the request's token. Returns a ready-made error response if there is none.
@@ -86,10 +96,16 @@ export async function requireUser(request: Request): Promise<SignedInUser | Resp
     const user = await response.json();
     // The public anon key is a valid JWT too, but it has no user id: that is what we reject here.
     if (!user?.id) return json(request, { error: "Please sign in first." }, 401);
+    // Someone who turned on an authenticator must have given its code: a password alone is not enough.
+    const hasMfa = Array.isArray(user.factors) && user.factors.some((factor: { status?: string }) => factor?.status === "verified");
+    const aal = tokenAal(token);
+    if (hasMfa && aal !== "aal2") return json(request, { error: "Finish signing in with your authenticator first." }, 401);
     return {
       userId: String(user.id),
       email: typeof user.email === "string" ? user.email.trim().toLowerCase() : "",
       emailConfirmed: Boolean(user.email_confirmed_at || user.confirmed_at),
+      hasMfa,
+      aal,
     };
   } catch (_error) {
     return json(request, { error: "Could not verify your sign-in. Try again." }, 503);

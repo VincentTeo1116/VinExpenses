@@ -29,7 +29,7 @@
     <main id="main" class="doc">
         <div class="wrap">
             <h1>Privacy Policy</h1>
-            <p class="updated">Effective 23 November 2026</p>
+            <p class="updated">Effective 24 November 2026</p>
             <p>VinExpenses ("the app") is a free personal expense tracker run by Vincent Teo, an individual in Malaysia ("I", "me"). This policy explains what personal data the app handles, why, who else receives it, and what you can do about it. It is written to follow Malaysia's Personal Data Protection Act 2010 (PDPA).</p>
 
             <div class="summary">
@@ -39,6 +39,7 @@
                     <li>There are no ads, no analytics and no tracking. Your data is not sold or used for marketing.</li>
                     <li>A few outside services help run the app. Each receives only what its job needs, listed in section 4.</li>
                     <li>You can export everything, and you can delete your account and its records from inside the app.</li>
+                    <li>An administrator can manage accounts (for example reset a password or unblock sign-in) but can never see your expenses, income or reports.</li>
                 </ul>
             </div>
 
@@ -62,7 +63,9 @@
                     <tr><td>Receipt photos or scanned PDFs you choose to scan.</td><td>You</td><td>Optional</td></tr>
                     <tr><td>Your location, once, when you tap "Nearby" to suggest a merchant name.</td><td>Your device, with your permission</td><td>Optional</td></tr>
                     <tr><td>Your Telegram chat ID and language, if you connect the Telegram bot; messages and photos you send to the bot.</td><td>You and Telegram</td><td>Optional</td></tr>
-                    <tr><td>An email address for the monthly report, if you turn it on.</td><td>You</td><td>Optional</td></tr>
+                    <tr><td>An email address for the monthly report, if you turn it on, and whether the last report was sent.</td><td>You</td><td>Optional</td></tr>
+                    <tr><td>Security records: when 6-digit codes were requested for your email, wrong-password counts per device (a random device number kept in your browser), a lockout time when sign-in is paused, and, if you turn on two-step verification, the authenticator registration and the hashes of your recovery codes.</td><td>Generated when you sign up or sign in</td><td>Yes, to protect your account</td></tr>
+                    <tr><td>Messages you send through the contact form: your email, the topic and your message.</td><td>You</td><td>Optional</td></tr>
                     <tr><td>Technical data: your IP address and browser details reach the hosting and database providers when your device connects, as with any website. Counters of how many receipt scans your account used each day.</td><td>Your device</td><td>Yes, to deliver and protect the service</td></tr>
                 </tbody>
             </table></div>
@@ -73,7 +76,8 @@
                 <li>To run your account and show your records, totals, charts, reports and reminders.</li>
                 <li>To read a receipt you scan and suggest its total, merchant, date and category.</li>
                 <li>To send messages you asked for: account verification and password reset emails, the monthly report, and Telegram replies and reminders.</li>
-                <li>To keep the service safe: daily limits on scans and messages, and investigating misuse.</li>
+                <li>To keep the service safe: limits on 6-digit codes (3 a day, 10 a month), a 3-hour pause after repeated wrong passwords, limits on scans and messages, and investigating misuse.</li>
+                <li>To help you: an administrator can see your email, name, sign-up date, whether your account is active, blocked or disabled, whether Telegram and an authenticator are on, and the date of your latest expense (a date only). Administrators can reset a password by emailing you a code, unblock or disable an account, reset an authenticator, resend your monthly report to you, and read contact-form messages. Every administrator action is recorded in a log that cannot be edited. Administrators cannot see your expenses, income, deposits, loans or reports, and cannot see or set your password.</li>
             </ul>
             <p>Your data is not used for advertising, profiling, or training artificial intelligence models by me, and it is not sold. I process it because you asked for the service by creating an account (your consent), and you can withdraw that consent by deleting your account.</p>
 
@@ -97,7 +101,8 @@
                     <tr><td>OCR.space (text recognition)</td><td>The receipt image you scan. It is not stored by the app.</td><td>Only when you scan a photo or a scanned PDF</td></tr>
                     <tr><td>OpenStreetMap (place lookup: Nominatim, and Overpass as a fallback)</td><td>Your coordinates for that one lookup. They are not saved by the app.</td><td>Only when you tap "Nearby"</td></tr>
                     <tr><td>Telegram</td><td>The messages, photos, summaries and reminders exchanged with the bot</td><td>Only if you connect Telegram</td></tr>
-                    <tr><td>Google Gmail (sending email)</td><td>The recipient address and the email's content, such as your monthly summary</td><td>When an email is sent to you</td></tr>
+                    <tr><td>Google Gmail (sending email)</td><td>The recipient address and the email's content, such as a 6-digit code or your monthly summary</td><td>When an email is sent to you</td></tr>
+                    <tr><td>Cloudflare Turnstile (security check)</td><td>Your browser's technical details, so it can tell you are not a robot</td><td>On sign-up, sign-in, password reset and the contact form, when the check is switched on</td></tr>
                     <tr><td>Google Gemini (AI reading of unclear receipts)</td><td>The text of the receipt, not the image</td><td>Only if "Let AI help" is switched on. It is off by default.</td></tr>
                 </tbody>
             </table></div>
@@ -109,12 +114,14 @@
                 <li>Deleting your account in the app (Account → Delete account) removes your account and the records linked to it from the server. Copies may remain in the provider's backups for a limited time before they are overwritten.</li>
                 <li>Receipt images are not stored after they are read. Daily usage counters are kept only to enforce limits.</li>
                 <li>An account that has been unused for a long time may be deleted after a notice is sent to its email address.</li>
+                <li>Code and lockout records are kept for a few days to a month, then removed. Contact-form messages are kept until resolved and then removed after a reasonable time.</li>
             </ul>
 
             <h2 id="security">6. How it is protected</h2>
             <ul>
                 <li>Connections are encrypted (HTTPS).</li>
                 <li>Database rules restrict every record to the account that owns it.</li>
+                <li>Sign-in uses 6-digit codes that work once and expire after 5 minutes, strong-password rules, and a pause after repeated wrong passwords. You can add an authenticator app as a second step.</li>
                 <li>The app loads its code from this site only, and server keys are never sent to your browser.</li>
             </ul>
             <p>No online service can promise perfect security. Use a strong, unique password, keep your device locked, and tell me at once if you think your account has been accessed by someone else. If a breach affects your data, I will inform you without undue delay.</p>

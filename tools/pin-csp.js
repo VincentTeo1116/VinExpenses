@@ -12,7 +12,22 @@ function cspOf(html) {
     return match[1];
 }
 
-function pinCsp(html, supabaseUrl) {
+const CLOUDFLARE = 'https://challenges.cloudflare.com';
+
+// Lets the Cloudflare security check run on the sign-in page, and nothing else from outside. Only used when a site key is set.
+function allowTurnstile(html) {
+    const tag = html.match(/<meta[^>]+http-equiv="Content-Security-Policy"[^>]*>/i)[0];
+    const policy = cspOf(html);
+    const parts = policy.split(';').map((p) => p.trim()).filter(Boolean).map((directive) => {
+        const [name, ...values] = directive.split(/\s+/);
+        if ((name === 'script-src' || name === 'connect-src') && !values.includes(CLOUDFLARE)) return `${name} ${[...values, CLOUDFLARE].join(' ')}`;
+        return directive;
+    });
+    if (!parts.some((p) => p.startsWith('frame-src'))) parts.push(`frame-src ${CLOUDFLARE}`);
+    return html.replace(tag, tag.replace(policy, parts.join('; ')));
+}
+
+function pinCsp(html, supabaseUrl, options = {}) {
     const origin = String(supabaseUrl || '').trim().replace(/\/+$/, '');
     if (!EXACT_ORIGIN.test(origin)) {
         throw new Error(`SUPABASE_URL must look like https://<project-ref>.supabase.co (got "${origin.slice(0, 60)}").`);
@@ -25,7 +40,7 @@ function pinCsp(html, supabaseUrl) {
     const after = cspOf(result);
     if (after.includes('*')) throw new Error('The pinned policy still contains a wildcard. Refusing to continue.');
     if (!after.includes(origin)) throw new Error('The pinned policy does not contain the project address.');
-    return result;
+    return options.turnstile ? allowTurnstile(result) : result;
 }
 
 if (require.main === module) {
@@ -33,7 +48,9 @@ if (require.main === module) {
     if (!files.length) { console.error('Usage: SUPABASE_URL=... node tools/pin-csp.js <page.html> [more pages...]'); process.exit(2); }
     try {
         for (const file of files) {
-            fs.writeFileSync(file, pinCsp(fs.readFileSync(file, 'utf8'), process.env.SUPABASE_URL));
+            const key = String(process.env.TURNSTILE_SITE_KEY || '').trim();
+            const turnstile = /^[0-9A-Za-z_-]{10,}$/.test(key) && /(^|[\\/])index\.html$/.test(file) && !/miniapp/.test(file);
+            fs.writeFileSync(file, pinCsp(fs.readFileSync(file, 'utf8'), process.env.SUPABASE_URL, { turnstile }));
             console.log(file + ': Content-Security-Policy pinned to ' + String(process.env.SUPABASE_URL).replace(/\/+$/, ''));
         }
     } catch (error) {
@@ -42,4 +59,4 @@ if (require.main === module) {
     }
 }
 
-module.exports = { pinCsp, cspOf };
+module.exports = { pinCsp, cspOf, allowTurnstile };

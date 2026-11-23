@@ -1,12 +1,13 @@
-// Runs hourly from the scheduler. On the 1st it emails last month's summary to users who opted in and confirmed.
+// Runs hourly from the scheduler. On the 1st it sends last month's report to everyone who opted in, by Telegram or email.
 
 import { dailyLimit, env, safeEqual, takeQuota } from "../_shared/guard.ts";
-import { fetchAll, q, rest } from "../_shared/db.ts";
-import { signToken } from "../_shared/email-tokens.ts";
+import { q, rest } from "../_shared/db.ts";
 import { loadEmailSetup } from "../_shared/email-setup.ts";
-import { reportEmail } from "../_shared/email-templates.ts";
-import { normalizeEmail, sendEmail } from "../_shared/mailer.ts";
+import { deliverReport, recordDelivery, reportWindow } from "../_shared/report-delivery.ts";
 import { type Connector, denoConnector } from "../_shared/smtp.ts";
+import { type TelegramClient, telegramClient } from "../_shared/telegram.ts";
+
+export { reportWindow };
 
 function reply(body: Record<string, unknown>, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -22,28 +23,9 @@ export function monthInKualaLumpur(now: Date): Record<string, string> {
   return Object.fromEntries(parts.map((part) => [part.type, part.value]));
 }
 
-/** The month being reported (the previous one) and the UTC instants that bound it in Kuala Lumpur time (UTC+8). */
-export function reportWindow(year: number, month: number) {
-  const first = new Date(Date.UTC(year, month - 2, 1));
-  const key = `${first.getUTCFullYear()}-${String(first.getUTCMonth() + 1).padStart(2, "0")}`;
-  const eight = 8 * 60 * 60 * 1000;
-  return {
-    key,
-    date: `${key}-01`,
-    label: first.toLocaleDateString("en-MY", { month: "long", year: "numeric", timeZone: "UTC" }),
-    start: new Date(Date.UTC(first.getUTCFullYear(), first.getUTCMonth(), 1) - eight).toISOString(),
-    end: new Date(Date.UTC(first.getUTCFullYear(), first.getUTCMonth() + 1, 1) - eight).toISOString(),
-  };
-}
+interface Preference { user_id: string; sent_for_month: string | null }
 
-interface Preference {
-  user_id: string;
-  recipient_email: string;
-  verified_email: string | null;
-  sent_for_month: string | null;
-}
-
-export async function handle(request: Request, now = new Date(), connector: Connector = denoConnector): Promise<Response> {
+export async function handle(request: Request, now = new Date(), connector: Connector = denoConnector, tgOverride?: TelegramClient): Promise<Response> {
   if (request.method !== "POST") return reply({ error: "Use POST." }, 405);
 
   const cronSecret = env("MONTHLY_REPORT_CRON_SECRET") ?? "";
@@ -56,9 +38,13 @@ export async function handle(request: Request, now = new Date(), connector: Conn
   const kl = monthInKualaLumpur(now);
   if (kl.day !== "01") return reply({ message: "Reports only run on the first day in Kuala Lumpur." });
 
+  // Either channel is enough to run: email needs the mail settings, Telegram needs the bot token.
   const setup = loadEmailSetup();
-  if (typeof setup === "string") {
-    console.error("monthly-report-email: email service is not set up:", setup);
+  const email = typeof setup === "string" ? null : setup;
+  const token = env("TELEGRAM_BOT_TOKEN") ?? "";
+  const tg = tgOverride ?? (token ? telegramClient(token) : null);
+  if (!email && !tg) {
+    console.error("monthly-report-email: neither email nor Telegram is set up:", typeof setup === "string" ? setup : "");
     return reply({ error: "Email service is not set up." }, 503);
   }
 
@@ -68,9 +54,7 @@ export async function handle(request: Request, now = new Date(), connector: Conn
   let preferences: Preference[];
   try {
     const notDone = `and=(or(sent_for_month.is.null,sent_for_month.neq.${period.date}),or(failed_for_month.is.null,failed_for_month.neq.${period.date}))`;
-    const response = await rest(
-      `monthly_report_preferences?select=user_id,recipient_email,verified_email,sent_for_month&enabled=eq.true&verified_email=not.is.null&${notDone}&order=user_id.asc&limit=${batch}`,
-    );
+    const response = await rest(`monthly_report_preferences?select=user_id,sent_for_month&enabled=eq.true&${notDone}&order=user_id.asc&limit=${batch}`);
     if (!response.ok) throw new Error(`status ${response.status}`);
     preferences = await response.json();
   } catch (error) {
@@ -82,16 +66,15 @@ export async function handle(request: Request, now = new Date(), connector: Conn
   let skipped = 0;
   let failed = 0;
   let stopped = "";
+  let emailCapHit = false;
+  const byChannel = { telegram: 0, email: 0 };
 
   for (const preference of preferences) {
     const userId = String(preference.user_id);
-    const address = normalizeEmail(preference.verified_email);
-    // The address must still be the one the person confirmed. Anything else is skipped, never emailed.
-    if (!address || normalizeEmail(preference.recipient_email) !== address) { skipped++; continue; }
 
     // Claim this user for this month before doing any work (a second overlapping run will find nothing to claim).
     const claim = await rest(
-      `monthly_report_preferences?user_id=eq.${q(userId)}&enabled=eq.true&verified_email=eq.${q(address)}&or=(sent_for_month.is.null,sent_for_month.neq.${period.date})`,
+      `monthly_report_preferences?user_id=eq.${q(userId)}&enabled=eq.true&or=(sent_for_month.is.null,sent_for_month.neq.${period.date})`,
       { method: "PATCH", headers: { Prefer: "return=representation" }, body: JSON.stringify({ sent_for_month: period.date }) },
     );
     if (!claim.ok || (await claim.json()).length !== 1) { skipped++; continue; }
@@ -103,63 +86,31 @@ export async function handle(request: Request, now = new Date(), connector: Conn
         body: JSON.stringify({ sent_for_month: preference.sent_for_month, ...(permanent ? { failed_for_month: period.date } : {}) }),
       }).catch(() => undefined);
 
-    if (!(await takeQuota("email:global", setup.dailyCap))) {
-      await release(false);
-      stopped = "The daily email limit was reached. The rest will be sent tomorrow.";
+    let capRefused = false;
+    const delivery = await deliverReport(userId, period, { now, tg, email, connector }, async () => {
+      if (emailCapHit) { capRefused = true; return false; }
+      const allowed = await takeQuota("email:global", email?.dailyCap ?? 400);
+      if (!allowed) { emailCapHit = true; capRefused = true; }
+      return allowed;
+    });
+
+    if (delivery.ok) {
+      sent++;
+      if (delivery.channel) byChannel[delivery.channel]++;
+      await recordDelivery(userId, period, delivery, now, { resend_count: 0 });
+      continue;
+    }
+    if (delivery.reason === "no_channel") { skipped++; continue; } // no Telegram and no confirmed email: nothing to send to
+    if (capRefused) { await release(false); skipped++; continue; }  // not a failure: it goes out tomorrow
+
+    failed++;
+    await release(delivery.permanent === true);
+    await recordDelivery(userId, period, delivery, now, { resend_count: 0 });
+    if (delivery.stop) {
+      stopped = "The mail account could not be reached or logged in to. Stopped to protect the account. Run the admin email test.";
       break;
     }
-
-    try {
-      const range = `created_at=gte.${q(period.start)}&created_at=lt.${q(period.end)}`;
-      const [expenses, incomes, labelRows] = await Promise.all([
-        fetchAll<{ amount: string | number; category: string }>(`expenses?select=amount,category&user_id=eq.${q(userId)}&${range}&order=created_at.asc,id.asc`),
-        fetchAll<{ amount: string | number }>(`incomes?select=amount&user_id=eq.${q(userId)}&${range}&order=created_at.asc,id.asc`),
-        fetchAll<{ category_key: string; label: string }>(`user_categories?select=category_key,label&user_id=eq.${q(userId)}&order=category_key.asc`).catch(() => []),
-      ]);
-      const labels = new Map(labelRows.map((row) => [row.category_key, row.label] as const));
-      const byCategory = new Map<string, number>();
-      let expenseTotal = 0;
-      for (const expense of expenses) {
-        const amount = Number(expense.amount);
-        expenseTotal += amount;
-        byCategory.set(expense.category, (byCategory.get(expense.category) ?? 0) + amount);
-      }
-      const incomeTotal = incomes.reduce((sum, row) => sum + Number(row.amount), 0);
-
-      const unsubToken = await signToken(setup.tokenSecret, "unsub", userId, address, 400 * 24 * 3600);
-      const rendered = reportEmail({
-        label: period.label,
-        incomeTotal,
-        expenseTotal,
-        expenseCount: expenses.length,
-        incomeCount: incomes.length,
-        categories: [...byCategory.entries()].sort((a, b) => b[1] - a[1]).map(([key, amount]) => ({ name: labels.get(key) ?? key, amount })),
-        unsubscribeUrl: `${setup.siteUrl}/email-action.html#a=unsub&t=${unsubToken}`,
-        appUrl: setup.siteUrl,
-      });
-      const result = await sendEmail(setup.mail, {
-        to: address,
-        ...rendered,
-        headers: {
-          "List-Unsubscribe": `<${setup.functionsUrl}/email-action?a=unsub&t=${unsubToken}>`,
-          "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
-          "Auto-Submitted": "auto-generated",
-        },
-      }, connector);
-
-      if (result.ok) { sent++; continue; }
-      failed++;
-      console.error(`monthly-report-email: send failed at stage ${result.stage} (code ${result.code})`);
-      await release(!result.retryable);
-      if (result.stage === "auth" || result.stage === "connect") {
-        stopped = "The mail account could not be reached or logged in to. Stopped to protect the account. Run the admin email test.";
-        break;
-      }
-    } catch (error) {
-      failed++;
-      console.error("monthly-report-email: user failed", error instanceof Error ? error.message : "unknown");
-      await release(false);
-    }
   }
-  return reply({ reportMonth: period.key, sent, skipped, failed, ...(stopped ? { stopped } : {}) });
+  if (emailCapHit && !stopped) stopped = "The daily email limit was reached. The rest will be sent tomorrow.";
+  return reply({ reportMonth: period.key, sent, skipped, failed, byChannel, ...(stopped ? { stopped } : {}) });
 }

@@ -46,3 +46,19 @@ verify_jwt = false
 # The Mini App has no login, so this function checks Telegram's signed launch data instead.
 [functions.miniapp-api]
 verify_jwt = false
+
+# Sign-up, sign-in and password reset. People are not signed in yet, so the gateway check is off; the function checks the website, limits codes and wrong passwords itself.
+[functions.auth-gate]
+verify_jwt = false
+
+# The contact form, which also works for people who can't sign in. Protected by limits and the security check.
+[functions.feedback]
+verify_jwt = false
+
+# Admin dashboard: signed-in administrators only (checked again inside the function).
+[functions.admin]
+verify_jwt = true
+
+# "Send again" for the monthly report: signed-in users only.
+[functions.report-resend]
+verify_jwt = true

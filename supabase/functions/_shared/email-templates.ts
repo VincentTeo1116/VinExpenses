@@ -185,29 +185,28 @@ export interface AuthTemplate {
 
 const URL_PLACEHOLDER = "{{ .ConfirmationURL }}";
 const writtenOut = `Button not working? Copy this link into your browser:<br><span style="word-break:break-all;color:${BRAND}">${URL_PLACEHOLDER}</span>`;
+const codeBlock = `<p style="margin:6px 0 14px;padding:16px;background:${SOFT};border-radius:12px;text-align:center;font-size:30px;font-weight:800;letter-spacing:0.3em;color:${INK}">{{ .Token }}</p>`;
 const notYou = (what: string) => `If you did not ${what}, you can ignore this email: nothing was changed. Never share this email with anyone.`;
 
 export function authTemplates(): AuthTemplate[] {
   return [
     {
-      key: "confirmation", file: "confirm-signup.html", subject: "Confirm your VinExpenses account",
+      key: "confirmation", file: "confirm-signup.html", subject: "Your VinExpenses verification code",
       html: emailLayout({
-        preheader: "One tap to activate your VinExpenses account.",
-        eyebrow: "Welcome", title: "Confirm your email address",
-        body: paragraph("Thanks for signing up for VinExpenses. Confirm that <strong>{{ .Email }}</strong> is your address to activate your account.") +
-          paragraph("The link can be used once and expires soon."),
-        button: { label: "Confirm my email", href: URL_PLACEHOLDER }, afterButton: writtenOut,
+        preheader: "Your 6-digit code to finish creating your VinExpenses account.",
+        eyebrow: "Welcome", title: "Verify your email address",
+        body: paragraph("Thanks for signing up for VinExpenses. Enter this code in the app to confirm that <strong>{{ .Email }}</strong> is yours:") +
+          codeBlock + paragraph("The code works once and expires in 5 minutes."),
         footer: notYou("create a VinExpenses account"),
       }),
     },
     {
-      key: "recovery", file: "reset-password.html", subject: "Reset your VinExpenses password",
+      key: "recovery", file: "reset-password.html", subject: "Your VinExpenses password-reset code",
       html: emailLayout({
-        preheader: "Choose a new password for your VinExpenses account.",
+        preheader: "Your 6-digit code to choose a new VinExpenses password.",
         eyebrow: "Account security", title: "Reset your password",
-        body: paragraph("We received a request to reset the password for <strong>{{ .Email }}</strong>.") +
-          paragraph("Press the button to choose a new password. The link can be used once and expires soon."),
-        button: { label: "Choose a new password", href: URL_PLACEHOLDER }, afterButton: writtenOut,
+        body: paragraph("We received a request to reset the password for <strong>{{ .Email }}</strong>. Enter this code in the app:") +
+          codeBlock + paragraph("The code works once and expires in 5 minutes."),
         footer: notYou("ask to reset your password") + " Your current password still works.",
       }),
     },

@@ -312,7 +312,8 @@ test('monthly: sends only to confirmed, still-current, enabled addresses, with c
     const { handle } = await handler('monthly-report-email');
     const smtp = fakeSmtp();
     const res = await call((r) => handle(r, NOW, smtp.connector), cron());
-    assert.deepEqual(await res.json(), { reportMonth: '2026-10', sent: 1, skipped: 1, failed: 0 }); // skipped = the user whose address changed after confirming
+    // skipped = never confirmed, and address changed after confirming: neither has anywhere a report may go
+    assert.deepEqual(await res.json(), { reportMonth: '2026-10', sent: 1, skipped: 2, failed: 0, byChannel: { telegram: 0, email: 1 } });
     assert.equal(smtp.state.opened, 1);
     assert.deepEqual(smtp.transcript.filter((l) => l.startsWith('RCPT')), ['RCPT TO:<a@example.com>']);
     const { headers, parts } = parseMessage(smtp.state.message);
@@ -324,8 +325,11 @@ test('monthly: sends only to confirmed, still-current, enabled addresses, with c
     assert.match(headers.subject.replace(/\s/g, ''), /^Your|=\?UTF-8/);
     const pref = (id) => db.monthly_report_preferences.find((r) => r.user_id === id);
     assert.equal(pref(A).sent_for_month, '2026-10-01');
-    assert.equal(pref(B).sent_for_month, null);
-    assert.equal(pref(C).sent_for_month, null);
+    assert.deepEqual([pref(A).last_status, pref(A).last_channel, pref(A).last_month], ['sent', 'email', '2026-10-01']);
+    // B and C are marked as handled for the month (so they are not looked at again every hour), but nothing was sent
+    assert.equal(pref(B).last_status, undefined);
+    assert.equal(pref(C).last_status, undefined);
+    assert.equal(pref(D).sent_for_month, null);
     // The one-click unsubscribe header carries a valid token for exactly this user and address.
     const { verifyToken } = await shared('email-tokens');
     const link = /^<(https:\/\/abcdefghij\.supabase\.co\/functions\/v1\/email-action\?a=unsub&t=([A-Za-z0-9_.-]+))>$/.exec(headers['list-unsubscribe']);

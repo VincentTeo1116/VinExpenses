@@ -725,3 +725,196 @@ create trigger fixed_deposits_row_limit before insert on public.fixed_deposits
 drop trigger if exists loans_row_limit on public.loans;
 create trigger loans_row_limit before insert on public.loans
   for each row execute function public.enforce_plan_row_limit();
+
+
+-- Sign-in Protection Section: codes, lockouts, recovery codes. Server only; the website can't read or change any of it.
+-- One row per emailed code (sign-up or password reset), used for the 3-a-day and 10-a-month limits.
+create table if not exists public.auth_code_requests (
+  id bigint generated always as identity primary key,
+  email text not null check (char_length(email) between 3 and 254),
+  purpose text not null check (purpose in ('signup', 'recovery')),
+  sent_at timestamptz not null default now()
+);
+create index if not exists auth_code_requests_email_idx on public.auth_code_requests (email, sent_at);
+alter table public.auth_code_requests enable row level security;
+revoke all on public.auth_code_requests from anon, authenticated;
+
+-- Wrong-password counts per email and device. device_id '*' is the whole email (many devices failing, or an admin block).
+create table if not exists public.auth_lockouts (
+  email text not null check (char_length(email) between 3 and 254),
+  device_id text not null check (char_length(device_id) between 1 and 80),
+  fails integer not null default 0,
+  last_fail_at timestamptz,
+  blocked_at timestamptz,
+  manual boolean not null default false,
+  primary key (email, device_id)
+);
+alter table public.auth_lockouts enable row level security;
+revoke all on public.auth_lockouts from anon, authenticated;
+
+-- Counts one wrong password and blocks after p_max within p_hours. Returns when the block started, or null.
+create or replace function public.record_signin_failure(p_email text, p_device text, p_max integer, p_email_max integer, p_hours integer)
+returns timestamptz
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  cutoff timestamptz := now() - make_interval(hours => p_hours);
+  device_fails integer;
+  email_fails integer;
+  blocked timestamptz;
+begin
+  if p_email is null or p_device is null or p_device = '*' then
+    return null;
+  end if;
+  insert into public.auth_lockouts as l (email, device_id, fails, last_fail_at)
+  values (p_email, p_device, 1, now())
+  on conflict (email, device_id) do update
+    set fails = case when l.last_fail_at is null or l.last_fail_at < cutoff then 1 else l.fails + 1 end,
+        last_fail_at = now()
+  returning fails into device_fails;
+
+  if device_fails >= p_max then
+    update public.auth_lockouts set blocked_at = now()
+    where email = p_email and device_id = p_device and (blocked_at is null or blocked_at < cutoff)
+    returning blocked_at into blocked;
+  end if;
+
+  -- Many devices failing for one email looks like guessing with a changing device id: block the email itself.
+  select coalesce(sum(fails), 0) into email_fails from public.auth_lockouts
+  where email = p_email and device_id <> '*' and last_fail_at >= cutoff;
+  if email_fails >= p_email_max then
+    insert into public.auth_lockouts as l (email, device_id, fails, last_fail_at, blocked_at)
+    values (p_email, '*', email_fails, now(), now())
+    on conflict (email, device_id) do update
+      set fails = excluded.fails, last_fail_at = now(),
+          blocked_at = case when l.manual or (l.blocked_at is not null and l.blocked_at >= cutoff) then l.blocked_at else now() end;
+    blocked := coalesce(blocked, now());
+  end if;
+
+  -- Old rows are no use: tidy a few at a time so the table stays small.
+  delete from public.auth_lockouts where ctid in (
+    select ctid from public.auth_lockouts where not manual and last_fail_at < now() - interval '7 days' limit 20);
+  return blocked;
+end;
+$$;
+revoke all on function public.record_signin_failure(text, text, integer, integer, integer) from public, anon, authenticated;
+grant execute on function public.record_signin_failure(text, text, integer, integer, integer) to service_role;
+
+-- One-time recovery codes for people who lose their authenticator. Only a hash is stored.
+create table if not exists public.mfa_recovery_codes (
+  id bigint generated always as identity primary key,
+  user_id uuid not null references auth.users (id) on delete cascade,
+  code_hash text not null,
+  used_at timestamptz,
+  created_at timestamptz not null default now()
+);
+create index if not exists mfa_recovery_codes_user_idx on public.mfa_recovery_codes (user_id);
+alter table public.mfa_recovery_codes enable row level security;
+revoke all on public.mfa_recovery_codes from anon, authenticated;
+
+-- Admin Section: what administrators did, the feedback inbox, and the numbers the user list needs.
+create table if not exists public.admin_audit_log (
+  id bigint generated always as identity primary key,
+  admin_id uuid not null,
+  action text not null check (char_length(action) between 1 and 60),
+  target_user uuid,
+  detail text check (detail is null or char_length(detail) <= 300),
+  created_at timestamptz not null default now()
+);
+create index if not exists admin_audit_log_time_idx on public.admin_audit_log (created_at desc);
+alter table public.admin_audit_log enable row level security;
+revoke all on public.admin_audit_log from anon, authenticated;
+
+-- The log can be added to but never changed or deleted, even by the server.
+create or replace function public.forbid_change() returns trigger language plpgsql as $$
+begin
+  raise exception 'This record can not be changed or deleted.' using errcode = 'insufficient_privilege';
+end;
+$$;
+drop trigger if exists admin_audit_log_locked on public.admin_audit_log;
+create trigger admin_audit_log_locked before update or delete on public.admin_audit_log
+  for each row execute function public.forbid_change();
+
+create table if not exists public.feedback (
+  id bigint generated always as identity primary key,
+  user_id uuid references auth.users (id) on delete set null,
+  email text not null check (char_length(email) between 3 and 254),
+  topic text not null check (topic in ('locked_out', 'code_limit', 'report', 'bug', 'other')),
+  message text not null check (char_length(message) between 5 and 2000),
+  status text not null default 'open' check (status in ('open', 'resolved')),
+  created_at timestamptz not null default now(),
+  resolved_at timestamptz
+);
+create index if not exists feedback_status_idx on public.feedback (status, created_at desc);
+alter table public.feedback enable row level security;
+revoke all on public.feedback from anon, authenticated;
+
+-- Per-user facts for the admin list: last expense date and whether Telegram is linked. No amounts, no records.
+create or replace function public.admin_user_stats(p_users uuid[])
+returns table (user_id uuid, last_expense_at timestamptz, telegram_linked boolean)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select u.id,
+         (select max(e.created_at) from public.expenses e where e.user_id = u.id),
+         exists (select 1 from public.telegram_links t where t.user_id = u.id)
+  from unnest(p_users) as u(id);
+$$;
+revoke all on function public.admin_user_stats(uuid[]) from public, anon, authenticated;
+grant execute on function public.admin_user_stats(uuid[]) to service_role;
+
+-- Monthly Report Delivery Section: Telegram or email, the last result, and how often it was sent again.
+alter table public.monthly_report_preferences alter column recipient_email drop not null;
+alter table public.monthly_report_preferences add column if not exists channel text not null default 'auto';
+alter table public.monthly_report_preferences drop constraint if exists monthly_report_channel_check;
+alter table public.monthly_report_preferences add constraint monthly_report_channel_check check (channel in ('auto', 'telegram', 'email'));
+alter table public.monthly_report_preferences add column if not exists last_status text;
+alter table public.monthly_report_preferences drop constraint if exists monthly_report_status_check;
+alter table public.monthly_report_preferences add constraint monthly_report_status_check check (last_status is null or last_status in ('sent', 'failed', 'pending'));
+alter table public.monthly_report_preferences add column if not exists last_channel text;
+alter table public.monthly_report_preferences add column if not exists last_attempt_at timestamptz;
+alter table public.monthly_report_preferences add column if not exists last_month date;
+alter table public.monthly_report_preferences add column if not exists resend_count smallint not null default 0;
+-- People may choose the channel; only the server writes the result columns.
+grant insert (user_id, recipient_email, enabled, channel) on public.monthly_report_preferences to authenticated;
+grant update (user_id, recipient_email, enabled, channel, updated_at) on public.monthly_report_preferences to authenticated;
+
+-- Authenticator Section: when someone has turned on an authenticator, their data needs a fully signed-in session.
+-- If this check itself ever fails it lets the request through, so a mistake here can never lock everyone out.
+create or replace function public.mfa_ok()
+returns boolean
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+begin
+  if coalesce(auth.jwt() ->> 'aal', '') = 'aal2' then
+    return true;
+  end if;
+  return not exists (select 1 from auth.mfa_factors f where f.user_id = auth.uid() and f.status::text = 'verified');
+exception when others then
+  return true;
+end;
+$$;
+revoke all on function public.mfa_ok() from public, anon;
+grant execute on function public.mfa_ok() to authenticated, service_role;
+
+do $mfa$
+declare
+  t text;
+begin
+  foreach t in array array['expenses', 'incomes', 'recurring_expenses', 'recurring_incomes', 'budgets', 'user_categories',
+                           'user_payment_methods', 'user_preferences', 'monthly_report_preferences', 'fixed_deposits', 'loans']
+  loop
+    if to_regclass('public.' || t) is not null then
+      execute format('drop policy if exists "Authenticator required when enabled" on public.%I', t);
+      execute format('create policy "Authenticator required when enabled" on public.%I as restrictive for all to authenticated using ((select public.mfa_ok())) with check ((select public.mfa_ok()))', t);
+    end if;
+  end loop;
+end
+$mfa$;
