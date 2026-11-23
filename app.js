@@ -4173,14 +4173,17 @@ function renderRecurring() {
         ...recurringIncomes.map(item => ({ ...item, kind: 'income', title: item.source }))
     ].sort((a, b) => a.next_due.localeCompare(b.next_due));
     const active = [...activeExpenses, ...activeIncomes];
-    const monthly = expenseMonthly + incomeMonthly;
+    const monthly = incomeMonthly - expenseMonthly; // money in minus money out
 
     if (recurringLoadError) {
         recurringSummary.innerHTML = '<div class="recurring-warn"><i class="fas fa-triangle-exclamation"></i> Recurring expenses aren\'t set up in your database yet. Run <b>supabase-schema.sql</b> in the Supabase SQL Editor, then reload.</div>';
     } else if (recurring.length || recurringIncomes.length) {
+        const signed = (value) => `${value < 0 ? '−' : value > 0 ? '+' : ''} ${formatMoney(Math.abs(value))}`;
         recurringSummary.innerHTML = `<span><b>${active.length}</b> active</span>
-            <span>≈ <b>${formatMoney(monthly)}</b> / month</span>
-            <span>≈ <b>${formatMoney(monthly * 12)}</b> / year</span>`;
+            <span class="income">+ ${formatMoney(incomeMonthly)} in / month</span>
+            <span class="expense">− ${formatMoney(expenseMonthly)} out / month</span>
+            <span class="${monthly < 0 ? 'negative' : 'income'}">Net ≈ <b>${signed(monthly)}</b> / month</span>
+            <span class="${monthly < 0 ? 'negative' : 'income'}">≈ <b>${signed(monthly * 12)}</b> / year</span>`;
     } else {
         recurringSummary.innerHTML = '';
     }

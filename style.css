@@ -1552,3 +1552,5 @@ input, select, textarea { font-size: 16px; } /* stops iOS zooming in when a fiel
 .stat-tile:not(.stat-budget) .stat-value { font-size: 18px; }
 @media (max-width: 359px) { .stat-tile:not(.stat-budget) .stat-value { font-size: 15px; } }
 .hero-card .amount { white-space: nowrap; font-size: clamp(30px, 9.5vw, 52px); }
+.history-summary .negative { color: var(--danger); font-weight: 600; }
+.history-summary .negative b { color: var(--danger); }
