@@ -1,5 +1,4 @@
-// Reads the text on a receipt image with OCR.space. Used by the receipt-ocr function (the app) and by the Telegram bot.
-// Receipt images and the text read from them are never logged or stored.
+// Reads receipt text with OCR.space. Images and text are never logged or stored.
 
 export const OCR_ENDPOINT = "https://api.ocr.space/parse/image";
 export const MAX_IMAGE_BYTES = 1_000_000; // OCR.space's free limit

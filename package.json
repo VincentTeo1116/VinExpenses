@@ -6,7 +6,8 @@
     "test": "node --test \"tests/*.test.js\"",
     "check": "node --check app.js && node --check build-config.js && node --test \"tests/*.test.js\"",
     "config": "node build-config.js",
-    "fixture": "node tools/make-fixture.js"
+    "fixture": "node tools/make-fixture.js",
+    "emails": "node tools/auth-emails.js"
   },
   "engines": { "node": ">=24" }
 }

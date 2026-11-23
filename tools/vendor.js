@@ -1,15 +1,5 @@
 #!/usr/bin/env node
-// Self-hosts third-party browser code so the site never loads scripts or styles from someone else's server.
-//
-//   node tools/vendor.js           download + verify + copy the packages in vendor/vendor.config.json, rewrite the lockfile
-//   node tools/vendor.js verify    offline: check that every file in vendor/ still matches vendor/VENDOR.lock.json
-//
-// WHY: a script tag pointing at a CDN lets that CDN (or anyone who hijacks the package) run code inside the page,
-// where it could read every signed-in user's session. Hosting pinned, hash-checked copies removes that risk, and
-// lets the Content-Security-Policy say `script-src 'self'` with no exceptions.
-//
-// `update` verifies each download against the integrity hash that the npm registry publishes for that exact
-// version, then records a SHA-384 for every file we keep. CI runs `verify`, so a modified vendor file fails the build.
+// Downloads third-party browser code into vendor/ and checks its hashes. Run with "verify" to check only.
 
 const fs = require('fs');
 const os = require('os');
@@ -57,8 +47,7 @@ function extract(tarball) {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vendor-'));
     const file = path.join(dir, 'package.tgz');
     fs.writeFileSync(file, tarball);
-    // Windows 10+, macOS and Linux all ship a `tar` that reads .tgz. Run it INSIDE the folder with relative names:
-    // GNU tar (Git Bash) reads "C:\..." as a remote host called "C".
+    // Run tar inside the folder with relative names, or Git Bash reads C: as a remote host.
     execFileSync('tar', ['-xzf', 'package.tgz'], { cwd: dir, stdio: 'pipe' });
     return path.join(dir, 'package');
 }

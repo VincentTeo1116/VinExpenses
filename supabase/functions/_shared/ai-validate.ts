@@ -1,5 +1,4 @@
-// Pure helpers for the AI receipt helper (no Deno APIs, so they are unit-tested in Node: tests/ai-validate.test.js).
-// The AI's answer is treated as untrusted input: every field is checked before it reaches the app.
+// Checks every field of the AI's answer before the app uses it. The answer is never trusted as is.
 
 export interface AiReceipt {
   amount: number; // ringgit, 0 when unknown or not in RM

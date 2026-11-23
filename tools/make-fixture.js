@@ -1,8 +1,4 @@
-// Turns a "scan details" file (saved from the app) into a test fixture.
-//   npm run fixture -- path/to/scan-details.json my-receipt-name
-// It writes tests/fixtures/<name>.txt with emails, phone numbers and long digit runs masked, and prints the
-// values the form held when the file was saved. READ THE FIXTURE before committing: names and addresses
-// are not masked automatically.
+// Turns a saved scan-details file into a test fixture. Usage: npm run fixture -- <file> <name>
 const fs = require('node:fs');
 const path = require('node:path');
 

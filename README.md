@@ -383,6 +383,30 @@ To register an administrator by hand instead: run
 Use `cron.job_run_details` in the SQL Editor to inspect scheduled runs. See
 [SECURITY.md](SECURITY.md) for how the email system is protected.
 
+## 4a. Sign-in emails through Gmail, with the VinExpenses look
+
+Sign-up confirmation, password reset and the other sign-in emails are sent by Supabase Auth, not by the
+functions. Two things make them yours: Supabase must send them through your Gmail, and it must use the styled
+templates in `supabase/templates/` (generated from the same layout as the monthly report).
+
+One command does both. In PowerShell, from the project folder:
+
+```
+$env:SUPABASE_ACCESS_TOKEN = "sbp_..."        # Supabase dashboard -> Account -> Access Tokens
+$env:SMTP_USER = "you@gmail.com"              # the Gmail address that sends
+$env:SMTP_PASS = "abcd efgh ijkl mnop"        # its 16-letter Gmail app password
+node tools/auth-emails.js apply
+Remove-Item Env:SMTP_PASS, Env:SUPABASE_ACCESS_TOKEN
+```
+
+- Leave out `SMTP_USER` and `SMTP_PASS` to update only the templates and subjects.
+- The secrets are read from the environment only, sent only to `api.supabase.com`, and never printed.
+- Prefer the dashboard? Authentication -> Emails: enter the Gmail settings (`smtp.gmail.com`, port `465`) under
+  SMTP Settings, and paste each file from `supabase/templates/` into the matching template.
+- After changing the layout in `supabase/functions/_shared/email-templates.ts`, run `node tools/auth-emails.js`
+  to rebuild the files (a test fails if they are out of date), then `apply` again.
+- Test it by signing up with an address that is not a member of your Supabase team.
+
 ## 4b. Telegram bot (add expenses by chatting)
 
 Each person (you and your friends) signs in to the app and connects **their own**

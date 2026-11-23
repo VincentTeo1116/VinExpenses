@@ -1,6 +1,5 @@
 'use strict';
-// Tests for the picture and report building blocks of Phase 2: the PNG drawing, the extras (daily buckets, heat-strip,
-// trend, streak, insights, aligned tables), the report windows and the four views. Pure logic plus the fake database.
+// Tests the bot's pictures and report maths: PNG drawing, heat-strip, trend, streaks and views.
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const zlib = require('node:zlib');
@@ -10,7 +9,7 @@ const shared = (name) => import(`../supabase/functions/_shared/${name}.ts`);
 const A = 'aaaaaaaa-0000-4000-8000-000000000001';
 const B = 'bbbbbbbb-0000-4000-8000-000000000002';
 
-// ------------------------------------------------------------------ a small PNG reader, to check what was drawn
+// PNG Reader Section: a small one, to check what was drawn
 function decodePng(bytes) {
     const buf = Buffer.from(bytes);
     assert.deepEqual([...buf.subarray(0, 8)], [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a], 'PNG signature');
@@ -37,7 +36,7 @@ function decodePng(bytes) {
 }
 const near = (a, b, tolerance = 3) => a.every((v, i) => Math.abs(v - b[i]) <= tolerance);
 
-// ------------------------------------------------------------------ PNG and charts
+// PNG and charts Section
 test('png: a valid, opaque RGB image whose checksums and compression decode exactly', async () => {
     const { encodePng, crc32 } = await shared('tg-chart');
     const rgb = new Uint8Array(4 * 3 * 3).map((_, i) => i * 7 % 256);
@@ -113,7 +112,7 @@ test('bars: the tallest is highlighted, today is marked, future days are faint, 
     }
 });
 
-// ------------------------------------------------------------------ extras
+// Extras Section
 const nov1 = (extra = '') => new Date(`2026-11-01T00:00:00+08:00${extra}`);
 
 test('days: a day number follows the Kuala Lumpur calendar, and weekdays are Monday-based', async () => {
@@ -246,7 +245,7 @@ test('tables: Chinese and emoji take two columns, columns line up, long cells ar
     assert.deepEqual(alignTable([], ['l']), []);
 });
 
-// ------------------------------------------------------------------ windows
+// Windows Section
 test('windows: day, week and month follow Kuala Lumpur time, across month ends, years and leap years', async () => {
     const { dayWindow, weekWindow, monthWindow } = await shared('tg-views');
     const now = new Date('2026-11-05T04:00:00Z'); // Thursday 5 Nov, 12:00 KL
@@ -268,7 +267,7 @@ test('windows: day, week and month follow Kuala Lumpur time, across month ends, 
     assert.equal(dayWindow(new Date('2026-11-05T17:00:00Z'), 0).start.toISOString(), '2026-11-05T16:00:00.000Z', '01:00 on 6 Nov in KL');
 });
 
-// ------------------------------------------------------------------ caption fitting
+// Caption fitting Section
 test('captions: sections are added by priority until the limit, others are skipped, a huge first section is cut cleanly', async () => {
     const { fitCaption, fullText } = await shared('tg-views');
     const { stripTags } = await shared('telegram');
@@ -287,7 +286,7 @@ test('captions: sections are added by priority until the limit, others are skipp
     assert.equal(fitCaption([{ compact: [] }, { compact: ['a'] }], 100), 'a');
 });
 
-// ------------------------------------------------------------------ the views, with data
+// The views, with data Section
 const KL_NOW = new Date('2026-11-05T04:00:00Z');
 const labelsOf = (key) => ({ food: 'Food', shopping: 'Shopping', car: 'Car', utilities: 'Utilities', beverages: 'Beverages', health: 'Health', other: 'Other' })[key] ?? key;
 
@@ -484,7 +483,7 @@ test('views: every view, every language, valid Telegram HTML', async () => {
     }
 });
 
-// ------------------------------------------------------------------ navigation buttons
+// Navigation buttons Section
 test('pager: four views with the current one marked, earlier / later, details only for pictures, safe sizes', async () => {
     const { pagerButtons, MAX_OFFSET } = await shared('tg-views');
     const rows = pagerButtons('en', 'm', 0, { details: true, siteUrl: 'https://me.github.io/VinExpenses' });
@@ -520,7 +519,7 @@ test('pager: four views with the current one marked, earlier / later, details on
     }
 });
 
-// ------------------------------------------------------------------ the month's tabs and the progress chart
+// The month's tabs and the progress chart Section
 test('progress chart: green under 80%, amber to 100%, red over with a dark cap, a tick at 80%, never more than 10 bars', async () => {
     const { renderProgressPng } = await shared('tg-chart');
     const png = decodePng(await renderProgressPng([0.3, 0.9, 1.5, 0]));

@@ -1,13 +1,4 @@
-// Sends email through Gmail SMTP (smtp.gmail.com, port 465, encrypted from the first byte).
-//
-// One-time Gmail setup (the account that will be the sender):
-//   1. Turn on 2-Step Verification:  https://myaccount.google.com/security
-//   2. Create an App Password:       https://myaccount.google.com/apppasswords   (16 characters)
-//   3. Store them as Supabase secrets:  SMTP_USER=you@gmail.com   SMTP_PASS=<the 16-character app password>
-// Never use your normal Gmail password here, and never put either value in the website code or in GitHub.
-//
-// Gmail always sends "From" the authenticated account, and limits a normal account to about 500 recipients per day
-// (a Google Workspace account about 2,000). EMAIL_DAILY_CAP (default 400) stops the app from reaching that limit.
+// Sends email through Gmail SMTP on port 465. Gmail setup steps are in the README.
 
 import { type Connector, denoConnector, SmtpError, type SmtpStage, sendSmtp } from "./smtp.ts";
 
@@ -57,10 +48,7 @@ export function singleLine(value: unknown, max = 200): string {
   return String(value ?? "").replace(/[\u0000-\u001f\u007f\u2028\u2029]+/g, " ").replace(/\s+/g, " ").trim().slice(0, max);
 }
 
-/**
- * Reads the mail settings. Returns an error MESSAGE (for the logs and the admin test only, never for ordinary users)
- * when something is missing or unsafe.
- */
+/* Reads the mail settings, or returns a message saying what is missing (for logs and the admin test only). */
 export function loadMailConfig(get: (name: string) => string | undefined): MailConfig | string {
   const user = normalizeEmail(get("SMTP_USER"));
   if (!user) return "SMTP_USER is missing or is not a valid email address (use the Gmail address that sends the mail).";

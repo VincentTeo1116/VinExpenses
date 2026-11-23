@@ -1,12 +1,4 @@
-// Signed, expiring tokens for the links inside emails (confirm an address, unsubscribe).
-//
-// Why signed tokens and not random strings in the database:
-//   - nothing to store, nothing to leak, and nothing to clean up;
-//   - the token itself says WHAT it allows (purpose), for WHICH account, for WHICH address, and UNTIL WHEN;
-//   - changing the address on the account silently kills every older link, because the address is inside the token;
-//   - tampering with any character fails the signature check (HMAC-SHA-256, compared in constant time by the platform).
-//
-// Needs one secret, EMAIL_TOKEN_SECRET (at least 32 random characters). Rotating it invalidates every outstanding link.
+// Signed, expiring tokens for email links. Nothing is stored, and each token says what it allows and for whom.
 
 export type TokenPurpose = "verify" | "unsub";
 

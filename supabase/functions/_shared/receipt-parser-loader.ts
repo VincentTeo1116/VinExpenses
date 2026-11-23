@@ -1,6 +1,4 @@
-// Loads the app's own receipt reader (receipt-parser.js, copied here by tools/sync-shared.js), the same code the
-// website uses to turn OCR text into merchant / total / date. If it cannot be loaded, the bot says so and asks the
-// person to type the expense instead.
+// Loads the app's own receipt reader. If it can't load, the bot asks the person to type the expense.
 
 export interface ParsedReceipt {
   merchant: string;

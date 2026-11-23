@@ -1,7 +1,5 @@
 'use strict';
-// Tests for the Mini App's server side: Telegram's signature check, and the data service behind it.
-// The signature is produced here with Node's own crypto (a separate implementation from the one in the function), so the
-// check is not simply agreeing with itself.
+// Tests the Mini App's server side. The signature is made here with Node's own crypto.
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const crypto = require('node:crypto');
@@ -25,7 +23,7 @@ const user = (id = CHAT_A, extra = {}) => JSON.stringify({ id, first_name: 'Vin'
 const seconds = (date) => Math.floor(date.getTime() / 1000);
 const fresh = (id = CHAT_A, over = {}) => ({ auth_date: String(seconds(NOW) - 60), query_id: 'AAH123', user: user(id), ...over });
 
-// ------------------------------------------------------------------ the signature check
+// The signature check Section
 test('initData: a genuine launch is accepted and gives the verified user', async () => {
     const { verifyInitData } = await webapp();
     const result = await verifyInitData(signedInitData(fresh()), TOKEN, NOW);
@@ -95,7 +93,7 @@ test('initData: malformed, duplicated and oversized input is refused without thr
     }
 });
 
-// ------------------------------------------------------------------ the service: set-up
+// The service Section: set-up
 function world(extraEnv = {}) {
     const ctx = setup(extraEnv);
     ctx.db.telegram_links.push({ chat_id: CHAT_A, user_id: A, lang: 'en', digest_on: false });
@@ -126,7 +124,7 @@ async function call(body, { chat = CHAT_A, initData, origin = SITE, method = 'PO
 }
 const ok = async (body, options) => { const res = await call(body, options); assert.equal(res.status, 200, JSON.stringify(await res.clone().json().catch(() => ({})))); return res.json(); };
 
-// ------------------------------------------------------------------ the service: the door
+// The service Section: the door
 test('service: refuses everything without a genuine, recent, linked Telegram launch - and touches no data when it does', async () => {
     const { db } = world();
     expense(db, A);
@@ -205,7 +203,7 @@ test('service: daily limits fail closed, and writes have a tighter limit than re
     assert.equal((await call({ action: 'bootstrap' })).status, 429, 'a broken counter blocks instead of allowing unlimited use');
 });
 
-// ------------------------------------------------------------------ the service: reading
+// The service Section: reading
 test('bootstrap: the person\'s name, language, today (Kuala Lumpur), categories and payment methods', async () => {
     world();
     const out = await ok({ action: 'bootstrap' });
@@ -309,7 +307,7 @@ test('transactions: a month with more than 1,000 rows is read completely', async
     assert.deepEqual([out.total, out.sum, out.items.length], [1500, 1500, 10]);
 });
 
-// ------------------------------------------------------------------ the service: writing
+// The service Section: writing
 test('expense_add: saves for this person, with validated values, and ignores anything else in the request', async () => {
     const { db } = world();
     const out = await ok({ action: 'expense_add', amount: '12,50', category: 'food', payment: 'bank', merchant: '  Nasi\u0000 Lemak\r\nINJECT  ', note: null, user_id: B, id: 'hijack', created_at: '2000-01-01T00:00:00Z' });

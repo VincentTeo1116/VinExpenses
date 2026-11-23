@@ -1,9 +1,4 @@
-// What the website's "Connect Telegram" card talks to. Signed-in users only; each person can only ever see and
-// change their OWN connection.
-//
-//   {action: "create"}  -> a one-time code and a t.me link that opens the bot with the code filled in
-//   {action: "status"}  -> {linked: true/false, remindersBlocked: true/false}
-//   {action: "unlink"}  -> disconnects this account's Telegram chat
+// Behind the website's Connect Telegram card. Signed-in users only, and only their own connection.
 
 import { dailyLimit, env, json, preflight, requireUser, sha256Hex, takeQuota } from "../_shared/guard.ts";
 import { q, rest } from "../_shared/db.ts";

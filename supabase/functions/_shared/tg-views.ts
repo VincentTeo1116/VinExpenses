@@ -1,9 +1,4 @@
-// The report "views" of the Telegram bot: Today, Week, Month and Top. Each view is built from one person's data into
-// either a PICTURE with a caption (Week = daily bars, Month = category donut) or plain text (Today, Top), plus a
-// complete text version used for the "Details" button and as the fallback if a picture cannot be made or sent.
-//
-// Telegram limits a photo caption to 1,024 characters, so captions are assembled from sections in priority order and
-// the lowest-priority sections are left out when they do not fit; nothing is ever cut in the middle of a tag.
+// The bot's report views (Today, Week, Month, Top): a picture with a caption, or text.
 
 import { fetchAll, q } from "./db.ts";
 import { bar, categoryRow, emojiFor, escapeHtml, formatDay, formatMonth, type Lang, pct, RULE, ringgit, trend, truncate } from "./tg-format.ts";
@@ -67,7 +62,7 @@ export interface ViewResult {
   hasData: boolean;
 }
 
-// ---------------------------------------------------------------- windows (Kuala Lumpur calendar)
+// Windows Section: Kuala Lumpur calendar
 
 const klMidnight = (dayNumber: number) => new Date(dayNumber * DAY_MS - KL_MS);
 
@@ -91,7 +86,7 @@ export function monthWindow(now: Date, offset: number) {
   return { start: new Date(first - KL_MS), end: new Date(next - KL_MS), days: Math.round((next - first) / DAY_MS), day: Math.floor(first / DAY_MS) };
 }
 
-// ---------------------------------------------------------------- data
+// Data Section
 
 interface DatedLine {
   amount: string | number;
@@ -110,7 +105,7 @@ const safe = async <T>(work: () => Promise<T>, fallback: T): Promise<T> => {
   try { return await work(); } catch (_error) { return fallback; }
 };
 
-// ---------------------------------------------------------------- caption assembly
+// Caption assembly Section
 
 interface Section {
   compact: string[];
@@ -135,7 +130,7 @@ export function fitCaption(sections: Section[], limit = CAPTION_LIMIT): string {
 export const fullText = (sections: Section[]): string =>
   sections.filter((s) => (s.full ?? s.compact).length).map((s) => (s.full ?? s.compact).join("\n")).join("\n\n");
 
-// ---------------------------------------------------------------- small renderers
+// Small renderers Section
 
 const weekdayShort = (day: number, lang: Lang) => {
   try {
@@ -182,9 +177,9 @@ function budgetLines(lang: Lang, usage: BudgetUsage[], labels: Labels, max: numb
 
 const streakLine = (lang: Lang, n: number) => (n >= 2 ? [tr(lang, "streak_line", { n })] : []);
 
-// ---------------------------------------------------------------- the four views
+// The four views Section
 
-// ---- the month: one model, four tabs ------------------------------------------------------------------------------------
+// The month Section: one model, four tabs
 
 interface MonthModel {
   lang: Lang;
@@ -510,7 +505,7 @@ export async function buildView(input: ViewInput): Promise<ViewResult> {
   }
 }
 
-// ---------------------------------------------------------------- navigation buttons
+// Navigation buttons Section
 
 export type NavButton = { text: string; callback_data: string } | { text: string; url: string } | { text: string; web_app: { url: string } };
 
@@ -519,10 +514,7 @@ export function miniAppUrl(siteUrl: string): string {
   return `${siteUrl.replace(/\/+$/, "")}/miniapp/`;
 }
 
-/**
- * [Today | Week | Month | Top]; for the month also its tabs [Overview | Days | Budgets | Trend]; then Earlier / Later
- * and Open VinExpenses; the week also gets a Details button. The current view and tab are marked with a dot.
- */
+/* Navigation buttons under a report. The current view and tab are marked with a dot. */
 export function pagerButtons(lang: Lang, view: ViewKind, offset: number, options: { details: boolean; siteUrl: string | null }): NavButton[][] {
   const family: ViewKind = MONTH_VIEWS.includes(view) ? "m" : view;
   const top: [ViewKind, string][] = [["d", "nav_today"], ["w", "nav_week"], ["m", "nav_month"], ["p", "nav_top"]];

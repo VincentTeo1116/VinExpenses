@@ -1,6 +1,5 @@
 'use strict';
-// How the Mini App connects to the rest of the project: the bot's /app command and Dashboard buttons, the page's
-// security policy, the files that are published, and the rules the data service must follow.
+// Tests how the Mini App fits the project: bot buttons, security policy and published files.
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -21,7 +20,7 @@ async function linked(extraEnv = {}) {
     return ctx;
 }
 
-// ------------------------------------------------------------------ the bot
+// The bot Section
 test('bot: /app sends one Dashboard button that opens the Mini App from the website address', async () => {
     const { tg } = await linked({ SITE_URL: 'https://me.github.io/VinExpenses' });
     await deliver(tg, message(CHAT_A, '/app'));
@@ -59,7 +58,7 @@ test('bot: the command list, help text and every language mention the dashboard'
     for (const key of ['btn_dashboard', 'app_intro', 'app_unavailable']) assert.equal((i18n.match(new RegExp(`^  ${key}:`, 'gm')) || []).length, 3, `${key} in every language`);
 });
 
-// ------------------------------------------------------------------ the page
+// The page Section
 test('page: strict security policy, only its own scripts, no inline code or styles, no third-party addresses', () => {
     const html = read('miniapp/index.html');
     const policy = html.match(/http-equiv="Content-Security-Policy"[^>]+content="([^"]*)"/)[1];
@@ -107,7 +106,7 @@ test('page: only this one folder is published for the Mini App, with its policy 
     for (const file of fs.readdirSync(path.join(root, 'miniapp'))) assert.match(file, /^[a-z0-9.\-]+\.(js|css|html)$/, `only page files live in miniapp/: ${file}`);
 });
 
-// ------------------------------------------------------------------ the data service
+// The data service Section
 test('service: signature is checked before any database access, every query is scoped to the verified user', () => {
     const handler = read('supabase/functions/miniapp-api/handler.ts');
     assert.ok(handler.indexOf('verifyInitData(') < handler.indexOf('telegram_links?'), 'who the person is comes from the verified signature first');

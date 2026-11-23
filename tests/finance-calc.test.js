@@ -9,7 +9,7 @@ const fd = (extra = {}) => ({ amount: '10000', rate: '3.5', tenureValue: '90', t
 const loan = (extra = {}) => ({ amount: '100000', rate: '4.5', termValue: '30', termUnit: 'years', method: 'reducing', firstPaymentDate: '2026-01-15', ...extra });
 const sum = (rows, key) => Math.round(rows.reduce((s, r) => s + r[key] * 100, 0)) / 100;
 
-// ------------------------------------------------------------------ dates
+// Dates Section
 test('dates: month arithmetic clamps to the month end, also across leap years', () => {
     assert.equal(F.addMonths('2026-01-31', 1), '2026-02-28');
     assert.equal(F.addMonths('2028-01-31', 1), '2028-02-29');
@@ -22,7 +22,7 @@ test('dates: month arithmetic clamps to the month end, also across leap years', 
     assert.equal(F.isDate('26-02-01'), false);
 });
 
-// ------------------------------------------------------------------ fixed deposit
+// Fixed deposit Section
 test('FD: RM10,000 at 3.5% for 90 days earns RM86.30', () => {
     const r = F.calcFd(fd(), { today: '2026-02-01' });
     assert.equal(r.ok, true);
@@ -134,7 +134,7 @@ test('FD chart: starts at zero, ends at the total interest, never more points th
     assert.equal(F.fdChartSeries(F.calcFd(fd({ tenureValue: '3' })), 40).length, 4);
 });
 
-// ------------------------------------------------------------------ loans
+// Loans Section
 test('loan, reducing balance: RM100,000 at 4.5% over 30 years is RM506.69 a month and ends at exactly zero', () => {
     const r = F.calcLoan(loan());
     assert.equal(r.ok, true);
@@ -213,7 +213,7 @@ test('loan schedule: 12 months a page and a yearly summary', () => {
     assert.equal(yearly.rows[2].balance, 0);
 });
 
-// ------------------------------------------------------------------ saved items
+// Saved items Section
 const fdRow = (extra = {}) => ({
     id: 'fd-1', name: 'Maybank 3M', principal: 10000, rate: 3.5, tenure_value: 90, tenure_unit: 'days', start_date: '2026-01-01',
     maturity_date: '2026-04-01', payout: 'maturity', tax_rate: 0, day_basis: 365, reminders_on: true, reminder_days: [7, 1, 0], status: 'open', ...extra,
@@ -256,7 +256,7 @@ test('loan progress: payments marked paid, overdue ones, the next due date and t
     assert.equal(F.lastDueBefore(loanRow(), '2026-01-15'), '');
 });
 
-// ------------------------------------------------------------------ reminders
+// Reminders Section
 test('reminder days: typed text is checked', () => {
     assert.deepEqual(F.readLeadDays('1, 7 0', [3]).days, [7, 1, 0]);
     assert.deepEqual(F.readLeadDays('', [3, 0]).days, [3, 0]);

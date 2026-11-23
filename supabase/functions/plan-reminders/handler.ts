@@ -1,13 +1,4 @@
-// Telegram reminders for the Plan tab: a fixed deposit that is about to mature, a loan payment that is about to
-// fall due. The database scheduler calls this every hour. Each person gets a reminder once, at or after the hour
-// they chose (09:00 Kuala Lumpur time unless changed in Account).
-//
-// Safety properties (same as the weekly summary): only the scheduler can start it (secret header, constant-time
-// comparison). Each reminder is "claimed" in reminder_log before it is sent, and that table's unique key means two
-// overlapping runs can never send the same one twice. A temporary failure is retried on later runs, three times
-// at most. Someone who blocked the bot is marked and left alone for a day instead of being retried every hour.
-// A run that was missed is caught up by the next one, but only with the reminder that matters now: never a backlog.
-// Nothing here changes a deposit or a loan.
+// Telegram reminders for deposits and loan payments. Runs hourly from the scheduler and sends each reminder once.
 
 import { dailyLimit, env, safeEqual } from "../_shared/guard.ts";
 import { fetchAll, q, rest } from "../_shared/db.ts";
@@ -141,8 +132,7 @@ export async function handle(request: Request, now = new Date(), clientOverride?
   }
 
   const prefs = new Map((await optional<PrefRow>("user_preferences?select=user_id,reminder_hour,reminder_hide_amounts&order=user_id.asc")).map((p) => [p.user_id, p] as const));
-  // A loan that was added to recurring expenses is paid automatically while that entry is running. If the entry is
-  // paused (or finished), everything before its next date was already posted, so only later dates can be overdue.
+  // A loan in recurring expenses is paid automatically; if that entry is paused, only later dates can be overdue.
   const entries = await optional<{ loan_id: string | null; next_due?: string | null; active?: boolean | null }>(
     "recurring_expenses?select=loan_id,next_due,active&loan_id=not.is.null&order=loan_id.asc",
   );

@@ -1,5 +1,4 @@
-// Run with:  node --test "tests/*.test.js"
-// The Telegram reminders for deposits and loans (supabase/functions/plan-reminders), against the in-memory database.
+// Tests the Telegram reminders for deposits and loans against the in-memory database.
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');

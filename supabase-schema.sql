@@ -1,7 +1,4 @@
--- ================================================================
--- Smart Expense Tracker — Supabase schema
--- Run this once in your Supabase project: SQL Editor → New query
--- ================================================================
+-- VinExpenses database schema. Run it in the Supabase SQL Editor; it is safe to run again.
 
 create table if not exists public.expenses (
   id uuid primary key default gen_random_uuid(),
@@ -25,10 +22,7 @@ create table if not exists public.incomes (
 create index if not exists expenses_user_id_idx on public.expenses (user_id);
 create index if not exists incomes_user_id_idx on public.incomes (user_id);
 
--- ---------- Row Level Security ----------
--- Without these policies, anyone with the anon key could read or
--- write every user's rows. These policies restrict each user to
--- their own data.
+-- Row Level Security: each user can only read and write their own rows.
 
 alter table public.expenses enable row level security;
 alter table public.incomes enable row level security;
@@ -75,7 +69,7 @@ create policy "Users can delete their own incomes"
   using (auth.uid() = user_id);
 
 
--- Recurring expenses (bills / subscriptions that post themselves) ----------
+-- Recurring expenses Section: bills / subscriptions that post themselves
 create table if not exists public.recurring_expenses (
   id uuid primary key default gen_random_uuid(),
   user_id uuid references auth.users (id) on delete cascade not null,
@@ -115,7 +109,7 @@ create policy "Users can delete their own recurring"
   on public.recurring_expenses for delete
   using (auth.uid() = user_id);
 
--- Recurring income (salary, allowance, rent, etc.) ---------------------------
+-- Recurring income Section: salary, allowance, rent, etc.
 create table if not exists public.recurring_incomes (
   id uuid primary key default gen_random_uuid(),
   user_id uuid references auth.users(id) on delete cascade not null,
@@ -143,7 +137,7 @@ create policy "Users can delete their own recurring incomes" on public.recurring
   for delete using (auth.uid() = user_id);
 
 
--- Budgets (monthly limits per category, plus an overall limit under category 'all') ------
+-- Budgets Section: monthly limits per category, plus an overall limit under category 'all'
 create table if not exists public.budgets (
   id uuid primary key default gen_random_uuid(),
   user_id uuid references auth.users (id) on delete cascade not null,
@@ -229,7 +223,7 @@ drop policy if exists "Users manage their own preferences" on public.user_prefer
 create policy "Users manage their own preferences" on public.user_preferences
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
--- Monthly report email preferences ------------------------------------------
+-- Monthly report email preferences Section
 create table if not exists public.monthly_report_preferences (
   user_id uuid primary key references auth.users (id) on delete cascade,
   recipient_email text not null,
@@ -251,10 +245,7 @@ create policy "Users can update their own monthly report preference"
   on public.monthly_report_preferences for update using (auth.uid() = user_id)
   with check (auth.uid() = user_id);
 
--- ---- Confirmed recipients (double opt-in) -----------------------------------
--- A report is only ever emailed to an address the account holder CONFIRMED by clicking the link in a confirmation
--- email. verified_email / verified_at / sent_for_month / failed_for_month can only be written by the edge functions
--- (service role): signed-in users get column-level permission for recipient_email and enabled only.
+-- Confirmed recipients: a report only goes to an address the user confirmed, and only the server can mark it so.
 alter table public.monthly_report_preferences add column if not exists verified_email text;
 alter table public.monthly_report_preferences add column if not exists verified_at timestamptz;
 alter table public.monthly_report_preferences add column if not exists failed_for_month date;
@@ -280,9 +271,7 @@ drop trigger if exists monthly_report_touch on public.monthly_report_preferences
 create trigger monthly_report_touch before update on public.monthly_report_preferences
   for each row execute function public.touch_updated_at();
 
--- ---- Administrators ----------------------------------------------------------
--- Nobody can read or change this table from the website. The first administrator is registered by the
--- admin-email-test function (ADMIN_EMAIL secret) or by running the one-line INSERT shown in SECURITY.md.
+-- Administrators: server-only table. The first one is registered by the admin-email-test function.
 create table if not exists public.app_admins (
   user_id uuid primary key references auth.users (id) on delete cascade,
   created_at timestamptz not null default now()
@@ -290,8 +279,7 @@ create table if not exists public.app_admins (
 alter table public.app_admins enable row level security;
 revoke all on public.app_admins from anon, authenticated;
 
--- Registers p_user as the FIRST administrator, and only if: nobody is an administrator yet, and p_user really is a
--- confirmed account with exactly this email address. Returns true when it did. Cannot add a second administrator.
+-- Registers the first administrator, only if none exists and the account is confirmed.
 create or replace function public.claim_first_admin(p_user uuid, p_email text)
 returns boolean
 language plpgsql
@@ -315,9 +303,7 @@ $$;
 revoke all on function public.claim_first_admin(uuid, text) from public, anon, authenticated;
 grant execute on function public.claim_first_admin(uuid, text) to service_role;
 
--- ---- Generic daily counters ---------------------------------------------------
--- Used for email limits (per user, per destination address, whole app) and the nearby-place lookup.
--- Same pattern as the receipt counters: one atomic statement, so two requests at the same instant cannot both pass.
+-- Daily counters for email and lookup limits, counted in one statement so two requests can't both pass.
 create table if not exists public.usage_counters (
   scope text not null check (char_length(scope) between 1 and 200),
   day date not null,
@@ -353,8 +339,7 @@ $$;
 revoke all on function public.consume_quota(text, integer) from public, anon, authenticated;
 grant execute on function public.consume_quota(text, integer) to service_role;
 
--- ---- Stricter values for icons and colours (they end up in HTML) --------------
--- NOT VALID = checked for every new or changed row, without failing on old rows that were already saved.
+-- Stricter values for icons and colours, because they end up in the page.
 alter table public.user_categories drop constraint if exists user_categories_icon_format;
 alter table public.user_categories add constraint user_categories_icon_format check (icon ~ '^fa-[a-z0-9-]{1,40}$') not valid;
 alter table public.user_categories drop constraint if exists user_categories_color_format;
@@ -377,9 +362,7 @@ alter table public.recurring_expenses drop constraint if exists recurring_expens
 alter table public.recurring_expenses drop constraint if exists recurring_expenses_payment_check;
 alter table public.budgets drop constraint if exists budgets_category_check;
 
--- Monthly email scheduling is optional. Configure and deploy the email function,
--- then add project_url, publishable_key, monthly_report_cron_secret to Vault.
--- If not ready, the schema still applies; rerun this file after setup to schedule.
+-- Schedules the monthly email once the three Vault secrets exist; run this file again after adding them.
 do $setup$
 declare
   vault_secret_count integer := 0;
@@ -429,12 +412,7 @@ end
 $setup$;
 
 
--- ================================================================
--- Receipt scanning limits (used by the receipt-ocr and receipt-ai edge functions)
--- Counts how many scans / AI calls each user has used today. Only the edge functions
--- (service role) can read or change this table: it has no policies and no grants for
--- signed-in users. Safe to run more than once.
--- ================================================================
+-- Receipt scanning limits: how many scans each user used today. Server only.
 create table if not exists public.receipt_scan_usage (
   user_id uuid not null references auth.users (id) on delete cascade,
   day date not null,
@@ -446,9 +424,7 @@ create table if not exists public.receipt_scan_usage (
 alter table public.receipt_scan_usage enable row level security;
 revoke all on public.receipt_scan_usage from anon, authenticated;
 
--- Atomically counts one use and says whether it was allowed. The INSERT ... ON CONFLICT ... WHERE only
--- updates (and so only returns a row) while the user is under the limit, so two scans at the same
--- moment can never both slip past the limit.
+-- Counts one use and says if it was allowed, safely even for two scans at the same moment.
 create or replace function public.consume_receipt_quota(p_user uuid, p_kind text, p_limit integer)
 returns boolean
 language plpgsql
@@ -482,11 +458,7 @@ revoke all on function public.consume_receipt_quota(uuid, text, integer) from pu
 grant execute on function public.consume_receipt_quota(uuid, text, integer) to service_role;
 
 
--- ================================================================
--- Telegram bot (functions telegram-bot and telegram-link)
--- None of these tables can be read or changed from the website or by other users: RLS is on and nobody but the
--- server (service role) has any permission. Safe to run more than once.
--- ================================================================
+-- Telegram bot tables. Server only: the website and other users can't read or change them.
 create table if not exists public.telegram_links (
   chat_id bigint primary key,
   user_id uuid not null unique references auth.users (id) on delete cascade,
@@ -515,17 +487,14 @@ alter table public.telegram_seen enable row level security;
 revoke all on public.telegram_seen from anon, authenticated;
 
 
--- ================================================================
--- Telegram bot, part 2: language, weekly summary, receipts waiting for confirmation
--- ================================================================
+-- Telegram bot, part 2: language, weekly summary and receipts waiting for confirmation.
 alter table public.telegram_links add column if not exists lang text not null default 'en';
 alter table public.telegram_links drop constraint if exists telegram_links_lang_check;
 alter table public.telegram_links add constraint telegram_links_lang_check check (lang in ('en', 'ms', 'zh'));
 alter table public.telegram_links add column if not exists digest_on boolean not null default false;
 alter table public.telegram_links add column if not exists last_digest_week date;
 
--- A receipt photo that has been read and is waiting for "Save", or an amount the person is about to type.
--- One row per chat; it expires by itself and is replaced by the next one.
+-- A receipt waiting for Save, or an amount about to be typed. One per chat, and it expires.
 create table if not exists public.telegram_pending (
   chat_id bigint primary key,
   kind text not null check (kind in ('receipt', 'receipt_amount', 'edit_amount')),
@@ -535,9 +504,7 @@ create table if not exists public.telegram_pending (
 alter table public.telegram_pending enable row level security;
 revoke all on public.telegram_pending from anon, authenticated;
 
--- Weekly summary scheduler (opt-in per person with /digest on). Runs hourly; the function itself only sends on
--- Monday morning in Kuala Lumpur and never twice in the same week. Installed once the three Vault secrets used by
--- the monthly report exist (see the README), exactly like the monthly job above.
+-- Schedules the weekly Telegram summary (hourly check; it only sends on Monday morning).
 do $setup$
 declare
   vault_secret_count integer := 0;
@@ -587,10 +554,7 @@ end
 $setup$;
 
 
--- ================================================================
--- Plan: fixed deposits, loans and their reminders (website "Plan" tab + function plan-reminders)
--- Each person can only see and change their own rows. Safe to run more than once.
--- ================================================================
+-- Plan: fixed deposits, loans and their reminders. Each person only sees their own rows.
 create table if not exists public.fixed_deposits (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users (id) on delete cascade,
@@ -647,14 +611,12 @@ drop policy if exists "Users manage their own loans" on public.loans;
 create policy "Users manage their own loans" on public.loans
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
--- A loan can be added to recurring expenses: the entry stops by itself after the last instalment (end_date).
--- One recurring entry per loan; deleting the loan keeps the entry but cuts the link.
+-- A loan added to recurring expenses stops by itself after the last instalment.
 alter table public.recurring_expenses add column if not exists end_date date;
 alter table public.recurring_expenses add column if not exists loan_id uuid references public.loans (id) on delete set null;
 create unique index if not exists recurring_expenses_loan_idx on public.recurring_expenses (loan_id) where loan_id is not null;
 
--- Reminder settings (Account -> Reminders). The snooze time is the "Don't show again for 24 hours" choice, kept
--- with the account so it applies on every device.
+-- Reminder settings, including the 24-hour snooze, kept with the account for every device.
 alter table public.user_preferences add column if not exists reminder_hour smallint not null default 9;
 alter table public.user_preferences add column if not exists reminder_hide_amounts boolean not null default false;
 alter table public.user_preferences add column if not exists reminder_popup text not null default 'auto';
@@ -667,8 +629,7 @@ alter table public.user_preferences add constraint user_preferences_reminder_pop
 -- Set when Telegram says the person blocked the bot, so reminders stop being retried and the app can say so.
 alter table public.telegram_links add column if not exists reminders_blocked_at timestamptz;
 
--- One row per reminder that was sent (or is being retried). The unique key is what stops a reminder being sent
--- twice, even if two runs overlap. Server only: nobody can read or change it from the website.
+-- One row per reminder sent. The unique key stops a reminder going out twice. Server only.
 create table if not exists public.reminder_log (
   id bigint generated always as identity primary key,
   user_id uuid not null references auth.users (id) on delete cascade,
@@ -685,8 +646,7 @@ create index if not exists reminder_log_user_idx on public.reminder_log (user_id
 alter table public.reminder_log enable row level security;
 revoke all on public.reminder_log from anon, authenticated;
 
--- Reminder scheduler. Runs hourly; the function sends each reminder once, at or after the hour the person chose
--- (09:00 Kuala Lumpur time unless changed). Installed once the three Vault secrets used by the monthly report exist.
+-- Schedules the reminder check every hour; each reminder is sent once.
 do $setup$
 declare
   vault_secret_count integer := 0;
@@ -736,8 +696,7 @@ end
 $setup$;
 
 
--- A limit of 200 deposits and 200 loans per account. The hourly reminder run reads every open item, so without a
--- limit one account could make it slow (or fail) for everybody. Editing an existing row is never blocked.
+-- At most 200 deposits and 200 loans per account, so one account can't slow reminders for everyone.
 create or replace function public.enforce_plan_row_limit()
 returns trigger
 language plpgsql

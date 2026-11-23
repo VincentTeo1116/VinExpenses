@@ -1,6 +1,4 @@
-// Run with:  node --test tests/
-// No dependencies. Fixtures in tests/fixtures are real receipt layouts with names, e-mail addresses,
-// phone numbers and addresses replaced (the amounts, labels and structure are the real ones).
+// Tests the receipt reader. Fixtures are real layouts with personal details replaced.
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -11,9 +9,7 @@ const NOW = new Date(2026, 9, 20); // fixed "today", so date checks never depend
 const fixture = name => fs.readFileSync(path.join(__dirname, 'fixtures', name), 'utf8');
 const parse = text => parseReceiptText(text, { now: NOW });
 
-// ---------------------------------------------------------------------------
-// Real receipts (anonymised): what the app must read correctly
-// ---------------------------------------------------------------------------
+// Real receipts (anonymised) Section: what the app must read correctly
 const REAL = [
     // file,                           amount,  merchant,                                       date,         template
     ['grab-food-1.txt',               111.55, 'Segambut Yong Tau Foo',                         '2026-08-25', 'grab-food'],
@@ -51,9 +47,7 @@ test('real receipt: Grab food orders are suggested as Food, and the restaurant (
     assert.notEqual(r.merchant, 'Outlook');
 });
 
-// ---------------------------------------------------------------------------
-// The layouts that failed with the old parser (13 cases, 3 passed before)
-// ---------------------------------------------------------------------------
+// Layouts that failed with the old parser Section
 const LAYOUTS = [
     ['simple: TOTAL on one line',                      12.50, 'KOPITIAM ABC\n12/10/2026\nNasi lemak 8.00\nTeh ais 4.50\nTOTAL 12.50\nCASH 20.00\nCHANGE 7.50'],
     ['RM12.50 with no space',                          12.50, 'MYDIN MART\nMilo 1kg\nTOTAL RM12.50\nTHANK YOU'],
@@ -80,9 +74,7 @@ for (const [name, want, text] of LAYOUTS) {
     });
 }
 
-// ---------------------------------------------------------------------------
-// Honesty: when it can't tell, it must not pre-fill a wrong number
-// ---------------------------------------------------------------------------
+// Honesty Section: when it can't tell, it must not fill in a wrong number
 test('no total label at all: nothing is pre-filled, but the biggest amounts are offered as choices', () => {
     const r = parse('SOME SHOP\nItem A 12.00\nItem B 30.00\nItem C 8.50');
     assert.equal(r.amount, 0);
@@ -109,9 +101,7 @@ test('empty and junk input never throws', () => {
     }
 });
 
-// ---------------------------------------------------------------------------
-// Pieces
-// ---------------------------------------------------------------------------
+// Pieces Section
 test('amounts: only money-shaped numbers count (not dates, times, phone numbers, quantities, litres)', () => {
     const values = line => findAmountsInLine(line).map(a => a.value);
     assert.deepEqual(values('Printed On: 2026.08.27 13:43:51'), []);
@@ -186,9 +176,7 @@ test('PDF text: fragments that touch are joined without a gap, wide gaps become 
     assert.equal(pdfItemsToText(null), '');
 });
 
-// ---------------------------------------------------------------------------
-// Found by running the real PDFs through a real browser
-// ---------------------------------------------------------------------------
+// Found by running real PDFs through a real browser Section
 const { parseBest, pdfContentOrderToText } = require('../receipt-parser.js');
 const parseBestNow = texts => parseBest(texts, { now: NOW });
 

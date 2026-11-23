@@ -1,11 +1,6 @@
 name: Deploy to GitHub Pages
 
-# Builds config.js from repository secrets, then publishes only the site files.
-# One-time setup:
-#   1. Repo → Settings → Secrets and variables → Actions → New repository secret:
-#        SUPABASE_URL        (e.g. https://xxxx.supabase.co)
-#        SUPABASE_ANON_KEY   (the public "anon" key)
-#   2. Repo → Settings → Pages → Build and deployment → Source: "GitHub Actions"
+# Builds config.js from repo secrets and publishes the site to GitHub Pages (setup steps are in the README).
 
 on:
   push:
@@ -28,8 +23,7 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      # Every action is pinned to an exact commit, not a tag: a tag can be moved to different code, a commit cannot.
-      # Dependabot (.github/dependabot.yml) proposes updates, and the comment names the release each hash is.
+      # Actions are pinned to a commit, because a tag can be moved to different code.
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           persist-credentials: false   # the build never needs to push, so don't leave a token lying around
@@ -61,13 +55,11 @@ jobs:
           cp -r vendor dist/vendor
           cp -r miniapp dist/miniapp   # the Telegram Mini App (opened from the bot)
           rm dist/vendor/vendor.config.json dist/vendor/VENDOR.lock.json   # build metadata, not part of the site
-          # Stamp this deploy with the commit id: it versions the CSS/JS URLs (cache busting),
-          # renames the service-worker cache, and is shown in the app's Account sheet.
+          # Stamp the build with the commit id so browsers fetch the new files.
           BUILD="${GITHUB_SHA::7}"
           sed -i "s/__BUILD__/${BUILD}/g" dist/index.html dist/app.js dist/style.css dist/sw.js
 
-      # The committed page allows any *.supabase.co address (so local development works). Production allows ONLY yours.
-      # This step fails the deploy if the result still contains a wildcard.
+      # Limit the page to your own Supabase project; the deploy fails if a wildcard is left.
       - name: Pin the Content-Security-Policy to your Supabase project
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}

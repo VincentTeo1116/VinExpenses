@@ -1,17 +1,10 @@
-// === PLAN: FIXED DEPOSITS, LOANS, REMINDERS ===
-// The Deposits and Loans sections of the Plan tab, plus the in-app reminders (dashboard strip and the one pop-up).
-// All the maths lives in finance-calc.js. This file is loaded BEFORE app.js and only defines things: it uses
-// app.js helpers ($, showModal, showToast, formatMoney, supabaseClient...) from inside functions, and app.js calls
-// Plan.init() once and the other hooks when data loads, the screen changes or the person signs out.
-//
-// Fallbacks: the calculators need no connection. A save made offline is kept on the device and retried. If the
-// database tables are missing the calculators still work and the screen says how to finish the setup.
+// Plan Section: Deposits, loans, reminders; loaded before app.js; only defines things, and app.js starts it
 window.Plan = (function () {
     'use strict';
     const F = window.FinanceCalc;
     const el = (id) => document.getElementById(id);
 
-    // ---------- state ----------
+    // State Section
     let deposits = [];
     let loans = [];
     const loadState = { fixed_deposits: '', loans: '' };   // '' | 'missing' | 'failed' | 'offline'
@@ -46,7 +39,7 @@ window.Plan = (function () {
     function store(key, value) { try { localStorage.setItem(key, JSON.stringify(value)); } catch (_) { /* storage blocked or full */ } }
     function read(key, fallback) { try { const raw = localStorage.getItem(key); return raw ? JSON.parse(raw) : fallback; } catch (_) { return fallback; } }
 
-    // ---------- small DOM helpers ----------
+    // Small DOM helpers Section
     function setFieldError(inputId, message) {
         const input = el(inputId);
         const error = el(errorIdOf(inputId));
@@ -145,9 +138,7 @@ window.Plan = (function () {
         }, 120);
     }
 
-    // =====================================================================
-    // SECTIONS (Recurring / Deposits / Loans)
-    // =====================================================================
+    // Sections: Recurring / Deposits / Loans
     const SEGMENTS = ['recurring', 'deposits', 'loans'];
     const paneId = (name) => `planPane${name[0].toUpperCase()}${name.slice(1)}`;
     const tabId = (name) => `planTab${name[0].toUpperCase()}${name.slice(1)}`;
@@ -168,9 +159,7 @@ window.Plan = (function () {
         updateSticky();
     }
 
-    // =====================================================================
-    // FIXED DEPOSIT CALCULATOR
-    // =====================================================================
+    // Fixed Deposit Calculator Section
     function fdInput() {
         const manual = fd.manualMaturity && el('fdMaturity').value;
         return {
@@ -404,9 +393,7 @@ window.Plan = (function () {
         }
     }
 
-    // =====================================================================
-    // LOAN CALCULATOR
-    // =====================================================================
+    // Loan Calculator Section
     function loanInput() {
         return {
             amount: el('loanAmount').value, rate: el('loanRate').value,
@@ -621,16 +608,13 @@ window.Plan = (function () {
         }
     }
 
-    // =====================================================================
-    // SAVING (with an on-device waiting list)
-    // =====================================================================
+    // Saving Section: kept on the device when offline
     function isMissingTable(error) {
         const text = `${(error && error.code) || ''} ${(error && error.message) || ''} ${(error && error.details) || ''}`;
         return /42P01|42703|PGRST20[45]|does not exist|could not find the (table|column)|schema cache/i.test(text);
     }
 
-    // The on-device copy. A list that failed to load (or came from this copy) is left alone, so a bad load can
-    // never wipe what was saved earlier.
+    // Save the on-device copy, but never overwrite it with a list that failed to load.
     function persist() {
         if (!currentUser) return;
         const cache = read(`et_plan_${uid()}`, null) || {};
@@ -777,9 +761,7 @@ window.Plan = (function () {
         });
     }
 
-    // =====================================================================
-    // DEPOSIT LIST
-    // =====================================================================
+    // Deposit List Section
     const FD_BADGE = { upcoming: 'Starts soon', active: 'Active', matured: 'Matured', closed: 'Closed' };
     const PAYOUT_TEXT = { maturity: 'paid at maturity', monthly: 'paid monthly', quarterly: 'paid quarterly', yearly: 'paid yearly' };
     const button = (action, label, icon, cls = 'btn-outline') => `<button type="button" class="btn ${cls} btn-small" data-action="${action}"><i class="fas ${icon}" aria-hidden="true"></i> ${escapeHtml(label)}</button>`;
@@ -907,9 +889,7 @@ window.Plan = (function () {
         if (action === 'delete') return removeRow('fixed_deposits', id);
     }
 
-    // =====================================================================
-    // LOAN LIST (and the link to recurring expenses)
-    // =====================================================================
+    // Loan List Section: and the link to recurring expenses
     const LOAN_BADGE = { upcoming: 'Starts soon', active: 'Active', finished: 'Paid off', closed: 'Closed' };
     const linkedLoanIds = () => new Set(recurring.filter((r) => r.loan_id).map((r) => r.loan_id));
     const linkedEntry = (loanId) => recurring.find((r) => r.loan_id === loanId) || null;
@@ -1174,9 +1154,7 @@ window.Plan = (function () {
         if (action === 'delete') return deleteLoan(id);
     }
 
-    // =====================================================================
-    // NOTICES
-    // =====================================================================
+    // Notices Section
     function renderNotices() {
         const blocked = telegram.known && telegram.linked && telegram.blocked
             ? '<div><i class="fas fa-bell-slash" aria-hidden="true"></i> Telegram reminders have stopped because the bot was blocked or its chat was deleted. Open the bot and press Start, or reconnect it in Account. Until then your reminders show here in the app.</div>'
@@ -1195,9 +1173,7 @@ window.Plan = (function () {
         });
     }
 
-    // =====================================================================
-    // REMINDERS: dashboard strip and the single pop-up
-    // =====================================================================
+    // Reminders Section: dashboard strip and the one pop-up
     function reminders() {
         if (!F || !currentUser) return [];
         return F.dueReminders(deposits, loans.map(trackedLoan), today(), { lateDays: 30, autoPaidLoanIds: Array.from(autoPaidLoanIds()) });
@@ -1319,9 +1295,7 @@ window.Plan = (function () {
         if (row) openItem(row.dataset.kind, row.dataset.id);
     }
 
-    // =====================================================================
-    // REMINDER SETTINGS (Account)
-    // =====================================================================
+    // Reminder Settings Section: Account
     function hourLabel(h) {
         const suffix = h < 12 ? 'am' : 'pm';
         const hour = h % 12 === 0 ? 12 : h % 12;
@@ -1405,9 +1379,7 @@ window.Plan = (function () {
         } catch (_) { /* unknown: the in-app pop-up covers it */ }
     }
 
-    // =====================================================================
-    // LOADING
-    // =====================================================================
+    // Loading Section
     async function load() {
         if (!currentUser || loading) return;
         loading = true;
@@ -1455,8 +1427,7 @@ window.Plan = (function () {
         if (segment === 'loans') { renderLoan(); renderLoanList(); }
     }
 
-    // Logging out removes the saved copy of your deposits and loans from this device (unsent saves are kept so they can
-    // still sync after the next login, like unsent expenses). Deleting the account removes everything.
+    // Logout clears the saved copy from this device; deleting the account clears everything.
     function forgetDevice(userId, { everything = false } = {}) {
         if (!userId) return;
         try {
@@ -1484,9 +1455,7 @@ window.Plan = (function () {
         renderDueSoon();
     }
 
-    // =====================================================================
-    // WIRING (called once by app.js)
-    // =====================================================================
+    // Wiring Section: called once by app.js
     function bindForm(state, fields, form, renderFn, own = []) {
         Object.keys(fields).forEach((key) => {
             const input = el(fields[key]);

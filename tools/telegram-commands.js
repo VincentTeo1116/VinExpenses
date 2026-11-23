@@ -1,6 +1,4 @@
-// The "/" command menu of the bot, in each language Telegram can show it in.
-// Telegram picks the list that matches the person's app language and falls back to `default` (English).
-// Rules from Telegram: command names are lower-case letters, digits and "_" (1-32); descriptions are 3-256 characters.
+// The bot's "/" command menu in each language. Telegram falls back to the default (English).
 
 const COMMANDS = {
     default: [

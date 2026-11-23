@@ -1,6 +1,5 @@
 'use strict';
-// Feature tests for the Telegram bot: backdated entries, income, budget alerts, duplicate warnings, /recent editing,
-// language, the weekly summary, receipt photos - and for each of them what happens when an optional part is missing.
+// Feature tests for the bot, including what happens when an optional part is missing.
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -19,7 +18,7 @@ const linked = async (extraEnv = {}) => {
 };
 const JPEG = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, ...new Array(60).fill(7)]);
 
-// ------------------------------------------------------------------ dates in messages
+// Dates in messages Section
 test('backdating: "yesterday" and "3/11" save on that day, shown on the card; the future and old dates are refused', async () => {
     const { db, tg } = await linked();
     await deliver(tg, message(CHAT_A, 'yesterday petrol 50'));
@@ -41,7 +40,7 @@ test('backdating: "yesterday" and "3/11" save on that day, shown on the card; th
     assert.equal(JSON.parse(sent.body).created_at, undefined, '"today" means now: the bot sends no time, the database stamps it');
 });
 
-// ------------------------------------------------------------------ income
+// Income Section
 test('income: "+3000 salary" saves income, the Undo button removes it, other users are untouched', async () => {
     const { db, tg } = await linked();
     await deliver(tg, message(CHAT_A, '+3000 salary'));
@@ -74,7 +73,7 @@ test('income: sources, dates and look-alike words behave sensibly', async () => 
     assert.match(tg.last().html, /couldn't find an amount/);
 });
 
-// ------------------------------------------------------------------ budgets
+// Budgets Section
 test('budgets: progress bar on every expense, a heads-up when 80% is crossed, an alert at 100%, never repeated', async () => {
     const { db, tg } = await linked();
     add(db, 'budgets', { user_id: A, category: 'food', amount: '500' });
@@ -118,7 +117,7 @@ test('budgets: if the budgets table fails the expense is still saved, just witho
     assert.ok(!/▰/.test(tg.last().html));
 });
 
-// ------------------------------------------------------------------ duplicates
+// Duplicates Section
 test('duplicates: the same amount and place on the same day is flagged but still saved; different ones are not flagged', async () => {
     const { db, tg } = await linked();
     await deliver(tg, message(CHAT_A, 'grab 8.90'));
@@ -145,7 +144,7 @@ test('duplicates: another person\'s identical expense is never mentioned, and a 
     assert.ok(!/duplicate/.test(tg.last().html));
 });
 
-// ------------------------------------------------------------------ /recent and editing
+// /recent and editing Section
 test('recent: list, open one, change its amount, back, and delete with a confirmation', async () => {
     const { db, tg } = await linked();
     await deliver(tg, message(CHAT_A, 'lunch 12.50'));
@@ -224,7 +223,7 @@ test('recent: with nothing recorded it says so; with the pending table broken or
     assert.match(tg.last().html, /Saved/);
 });
 
-// ------------------------------------------------------------------ reports
+// Reports Section
 test('/month shows income, spending, savings, last-month trend, categories and budgets; /top ranks places', async () => {
     const { db, tg } = await linked();
     const addX = (amount, at, category = 'food', merchant = 'Cafe') => add(db, 'expenses', { user_id: A, amount: String(amount), category, payment: 'bank', merchant, created_at: at });
@@ -252,7 +251,7 @@ test('/month shows income, spending, savings, last-month trend, categories and b
     assert.match(top, /2\s+Mall\s+RM\s50\.00/);
 });
 
-// ------------------------------------------------------------------ language
+// Language Section
 test('language: /language offers three choices, the choice is remembered, and replies switch language', async () => {
     const { db, tg } = await linked();
     await deliver(tg, message(CHAT_A, '/language'));
@@ -301,7 +300,7 @@ test('language: if the database has no language column yet, everything still wor
     assert.match(ctx.tg.lastEdit().html, /isn't available yet/);
 });
 
-// ------------------------------------------------------------------ weekly summary switch
+// Weekly summary switch Section
 test('/digest: shows the state, switches on and off, and explains if the database is not updated', async () => {
     const { db, tg, hooks } = await linked();
     await deliver(tg, message(CHAT_A, '/digest'));
@@ -320,7 +319,7 @@ test('/digest: shows the state, switches on and off, and explains if the databas
     assert.match(tg.last().html, /isn't available yet/);
 });
 
-// ------------------------------------------------------------------ receipts
+// Receipts Section
 const RECEIPT = fs.readFileSync(path.join(__dirname, 'fixtures/grab-food-2-truncated.txt'), 'utf8');
 const ocrReturns = (hooks, body, status = 200) => { hooks.ocr = async () => new Response(JSON.stringify(body), { status }); };
 
@@ -455,7 +454,7 @@ test('receipt: a pending receipt of one person can not be saved from another per
     assert.deepEqual(db.expenses.map((e) => e.user_id), [A]);
 });
 
-// ------------------------------------------------------------------ weekly summary sender
+// Weekly summary sender Section
 const digestModule = () => import('../supabase/functions/telegram-digest/handler.ts');
 const MONDAY = new Date('2026-11-09T02:00:00Z'); // Monday 10:00 in Kuala Lumpur
 const cron = (over = {}) => new Request('https://abcdefghij.supabase.co/functions/v1/telegram-digest', {

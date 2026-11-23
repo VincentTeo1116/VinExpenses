@@ -1,13 +1,4 @@
-// Runs from the database scheduler (pg_cron) every hour. On the first day of the month (Kuala Lumpur time) it emails
-// last month's summary to every user who turned reports on AND confirmed the address.
-//
-// Safety properties:
-//   - only the scheduler can start it: a secret header, compared in constant time;
-//   - only CONFIRMED addresses are ever emailed (verified_email must equal the current recipient_email);
-//   - each user is "claimed" in the database before sending, so two overlapping runs can never send twice;
-//   - at most BATCH emails per run and EMAIL_DAILY_CAP per day, so the Gmail account is never pushed past its limit;
-//   - every email carries a one-click unsubscribe;
-//   - if Gmail rejects the login, the run stops at once instead of retrying (repeated bad logins can lock the account).
+// Runs hourly from the scheduler. On the 1st it emails last month's summary to users who opted in and confirmed.
 
 import { dailyLimit, env, safeEqual, takeQuota } from "../_shared/guard.ts";
 import { fetchAll, q, rest } from "../_shared/db.ts";
@@ -144,6 +135,7 @@ export async function handle(request: Request, now = new Date(), connector: Conn
         incomeCount: incomes.length,
         categories: [...byCategory.entries()].sort((a, b) => b[1] - a[1]).map(([key, amount]) => ({ name: labels.get(key) ?? key, amount })),
         unsubscribeUrl: `${setup.siteUrl}/email-action.html#a=unsub&t=${unsubToken}`,
+        appUrl: setup.siteUrl,
       });
       const result = await sendEmail(setup.mail, {
         to: address,

@@ -1,12 +1,5 @@
 #!/usr/bin/env node
-// Narrows the Content-Security-Policy in a built index.html from "any Supabase project" to YOUR project only.
-//
-//   SUPABASE_URL=https://abcd.supabase.co node tools/pin-csp.js dist/index.html
-//
-// The committed index.html says `connect-src ... https://*.supabase.co` so that local development works with any
-// project. In production an exact address is better: if an attacker ever got script running on the page, a wildcard
-// would let it send data to THEIR OWN Supabase project. This step runs in the deploy and fails it if the result is
-// not strictly exact, so a mistake can never publish the loose version.
+// Narrows the page's security policy from any Supabase project to yours. Used by the deploy.
 
 const fs = require('fs');
 

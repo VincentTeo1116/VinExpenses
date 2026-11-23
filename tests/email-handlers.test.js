@@ -1,9 +1,5 @@
 'use strict';
-// End-to-end tests of the email edge functions. Each runs the real handler code against an in-memory stand-in for
-// Supabase (auth, tables, counters) and a scripted fake Gmail. No network is used.
-//
-// Limit worth knowing: the stand-in understands the filters these functions use, but it is not PostgREST itself,
-// so the very first real run on your project is still the final proof (the admin "Send test email" button covers it).
+// End-to-end tests of the email functions against an in-memory Supabase and a fake Gmail.
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { fakeSmtp, parseMessage, fakeSupabase } = require('./helpers/fakes.js');
@@ -52,7 +48,7 @@ const call = (fn, { method = 'POST', token, origin = SITE, body = '{}', headers 
 const prefRow = (userId, over = {}) => ({ user_id: userId, recipient_email: 'a@example.com', enabled: true, verified_email: null, verified_at: null, sent_for_month: null, failed_for_month: null, ...over });
 const tokenFromText = (text) => /[#?&]t=([A-Za-z0-9_.-]+)/.exec(text)[1];
 
-// ================================================================== email-verify
+// Email-verify Section
 test('email-verify: refuses wrong method, anonymous callers and foreign websites', async () => {
     const { db } = setup();
     const { handle } = await handler('email-verify');
@@ -160,7 +156,7 @@ test('email-verify: reports "not set up" when mail settings are missing', async 
     assert.equal(smtp.state.opened, 0);
 });
 
-// ================================================================== email-action
+// Email-action Section
 async function freshToken(purpose, userId, email, ttl = 3600) {
     const { signToken } = await shared('email-tokens');
     return signToken(BASE_ENV.EMAIL_TOKEN_SECRET, purpose, userId, email, ttl);
@@ -256,7 +252,7 @@ test('email-action: oversized bodies, other methods and foreign websites are ref
     assert.equal((await post(handle, 'confirm', 'abcdefghijkl')).status, 503);
 });
 
-// ================================================================== monthly-report-email
+// Monthly-report-email Section
 const NOW = new Date('2026-11-01T01:00:00Z'); // 09:00 on 1 November in Kuala Lumpur
 const cron = (over = {}) => ({ origin: null, headers: { 'x-cron-secret': BASE_ENV.MONTHLY_REPORT_CRON_SECRET, ...over }, body: '{}' });
 
@@ -435,7 +431,7 @@ test('monthly: unreachable database answers with a plain error and sends nothing
     assert.equal(smtp.state.opened, 0);
 });
 
-// ================================================================== admin-email-test
+// Admin-email-test Section
 test('admin: refuses anonymous callers, other websites and bad requests', async () => {
     const { db } = setup();
     const { handle } = await handler('admin-email-test');
@@ -560,7 +556,7 @@ test('admin: a database without the new tables gives a clear error, not a crash'
     assert.equal(res.status, 503);
 });
 
-// ================================================================== nearby-place
+// Nearby-place Section
 async function loadNearby() {
     let served;
     globalThis.Deno.serve = (fn) => { served = fn; };

@@ -1,12 +1,4 @@
-/* miniapp/views.js
- *
- * Builds the HTML of every screen from plain data. The look follows the VinExpenses website (same cards, colours, icons).
- * These are pure functions (data in, HTML text out), which keeps the rules easy to check:
- *   - everything that came from a person or the server goes through escapeHtml before it is placed in HTML;
- *   - no inline style="" attributes (the page's security policy forbids them): widths and colours are written as data-w /
- *     data-color attributes and applied by app.js with the DOM style API after the HTML is in place;
- *   - every control has a text label or aria-label, and every interactive element is a real <button> or <input>.
- */
+/* Builds each screen's HTML from plain data. Anything from a person or the server is escaped first. */
 (function (root, factory) {
     if (typeof module === 'object' && module.exports) module.exports = factory(require('./format.js'), require('./i18n.js'));
     else root.MiniViews = factory(root.MiniFormat, root.MiniI18n);
@@ -42,7 +34,7 @@
         }
         var countText = function (n) { return t(n === 1 ? 'expense_count_one' : 'expense_count_many', { n: n }); };
 
-        // ------------------------------------------------------------ chrome
+        // Chrome Section
 
         function monthBar() {
             var data = state.month;
@@ -93,7 +85,7 @@
                 '<p>' + h(t(entry[2])) + '</p><div class="btn-row">' + buttons + '</div></section>';
         }
 
-        // ------------------------------------------------------------ overview
+        // Overview Section
 
         function insightText(i) {
             if (i.kind === 'cat') return { icon: category(i.key).icon, text: t(i.up ? 'ins_cat_up' : 'ins_cat_down', { cat: category(i.key).label, pct: i.pct + '%' }) };
@@ -158,7 +150,7 @@
                 (insights ? '<ul class="insights">' + insights + '</ul>' : '');
         }
 
-        // ------------------------------------------------------------ days
+        // Days Section
 
         function heatCalendar(data) {
             var lead = data.firstWeekday;
@@ -206,7 +198,7 @@
                 '<p class="heat-detail card-hint" id="heat-detail" aria-live="polite">' + h(t('heat_legend')) + '</p></section>';
         }
 
-        // ------------------------------------------------------------ budgets
+        // Budgets Section
 
         function budgets() {
             var data = state.month;
@@ -229,7 +221,7 @@
             }).join('');
         }
 
-        // ------------------------------------------------------------ trend
+        // Trend Section
 
         function trendView() {
             var data = state.month;
@@ -249,7 +241,7 @@
                 '<ul class="trend-list">' + rows + '</ul></section>';
         }
 
-        // ------------------------------------------------------------ history
+        // History Section
 
         function history() {
             var hs = state.history;
@@ -286,7 +278,7 @@
                 (hs.items.length < hs.total ? '<button type="button" class="btn btn-outline wide" data-action="load-more"' + (hs.loading ? ' disabled' : '') + '>' + h(t('load_more')) + '</button>' : '');
         }
 
-        // ------------------------------------------------------------ add / edit
+        // Add / edit Section
 
         function sheet() {
             var s = state.sheet;

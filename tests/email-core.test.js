@@ -1,6 +1,5 @@
 'use strict';
-// Tests for the email building blocks: signed tokens, address checks, the mail settings, the message builder and the
-// SMTP conversation (against a scripted fake Gmail, so nothing touches the network).
+// Tests the email building blocks against a scripted fake Gmail. No network is used.
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const net = require('node:net');
@@ -10,7 +9,7 @@ const SECRET = 'a'.repeat(32) + 'SECRET-for-tests-0123456789';
 const USER = '11111111-2222-4333-8444-555555555555';
 const mod = (name) => import(`../supabase/functions/_shared/${name}.ts`);
 
-// ------------------------------------------------------------------ signed tokens
+// Signed tokens Section
 test('token: round trip carries purpose, user, address and expiry', async () => {
     const { signToken, verifyToken } = await mod('email-tokens');
     const now = Date.UTC(2026, 0, 1);
@@ -47,7 +46,7 @@ test('token: short secrets and bad user ids are refused at signing time', async 
     await assert.rejects(signToken(SECRET, 'verify', 'not-a-uuid', 'a@example.com', 60));
 });
 
-// ------------------------------------------------------------------ addresses and settings
+// Addresses and settings Section
 test('normalizeEmail accepts normal addresses and rejects anything suspicious', async () => {
     const { normalizeEmail } = await mod('mailer');
     assert.equal(normalizeEmail('  Vin.Teo+tag@Gmail.com '), 'vin.teo+tag@gmail.com');
@@ -101,7 +100,7 @@ test('prepareMail rejects header injection and unsupported headers', async () =>
         { 'List-Unsubscribe': '<https://a.example/u?t=1>', 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' });
 });
 
-// ------------------------------------------------------------------ message builder
+// Message builder Section
 test('buildMime: correct headers, base64 parts that decode back, non-ASCII safe', async () => {
     const { buildMime, encodeHeaderText } = await mod('smtp');
     const raw = buildMime({
@@ -144,7 +143,7 @@ test('dotStuff doubles a dot at the start of any line, and nothing else', async 
     assert.equal(dotStuff('.a\r\nb\r\n.\r\n..c\r\nd.e\r\n'), '..a\r\nb\r\n..\r\n...c\r\nd.e\r\n');
 });
 
-// ------------------------------------------------------------------ the SMTP conversation
+// The SMTP conversation Section
 const account = { host: 'smtp.gmail.com', port: 465, user: 'sender@gmail.com', pass: 'abcdefghijklmnop' };
 const message = { fromAddress: 'sender@gmail.com', fromName: 'VinExpenses', to: 'person@example.com', subject: 'Hello', text: 'Body', html: '<b>Body</b>' };
 
@@ -312,7 +311,7 @@ test('denoConnector: real TLS-socket adapter reads and writes through Deno.conne
     }
 });
 
-// ------------------------------------------------------------------ templates
+// Templates Section
 test('templates: escape every dynamic value and only link to https', async () => {
     const { reportEmail, confirmEmail, adminTestEmail, escapeHtml } = await mod('email-templates');
     assert.equal(escapeHtml(`<img src=x onerror="a">&'`), '&lt;img src=x onerror=&quot;a&quot;&gt;&amp;&#39;');

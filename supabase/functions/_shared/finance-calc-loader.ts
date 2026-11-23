@@ -1,7 +1,4 @@
-// Loads the app's own deposit / loan maths (finance-calc.js, copied here by tools/sync-shared.js), so the reminder
-// function works out due dates and amounts exactly the way the website does.
-// It is a browser/Node "UMD" file, so depending on the runtime it appears as the module's default export (Node) or
-// as the global FinanceCalc (Deno). If it cannot be loaded, the caller reports "not ready" and sends nothing.
+// Loads the app's own deposit and loan maths, so reminders use the same dates and amounts as the website.
 
 export interface DueReminder {
   kind: "fd" | "loan";

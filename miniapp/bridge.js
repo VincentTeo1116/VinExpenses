@@ -1,15 +1,4 @@
-/* miniapp/bridge.js
- *
- * The thin layer between this page and the Telegram app that is showing it.
- *
- * Telegram gives a Mini App three things: (1) who the user is, as a SIGNED string called initData (the server checks the
- * signature, this page never trusts it), (2) the app's colours, so the page can match the user's theme, and (3) a few
- * commands such as "expand to full height" and "vibrate lightly". All of it arrives in the page address after the "#".
- *
- * This file implements that small protocol itself instead of loading Telegram's script from telegram.org: the site's
- * security policy allows only its own files, and a script from another website could otherwise change what runs here.
- * If anything about the bridge fails, the page still works: it only loses polish (full height, matching colours, haptics).
- */
+/* The link to the Telegram app: who the user is (signed), the theme colours and a few commands. */
 (function (root, factory) {
     if (typeof module === 'object' && module.exports) module.exports = factory();
     else root.MiniBridge = factory();

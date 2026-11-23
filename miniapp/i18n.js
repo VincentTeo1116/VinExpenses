@@ -1,9 +1,4 @@
-/* miniapp/i18n.js
- *
- * Every word the Mini App shows, in English, Bahasa Melayu and Chinese. A missing translation falls back to English,
- * so a new string can never show as blank. Values inserted with {name} are plain text: the screens escape them
- * (MiniFormat.escapeHtml) when they build HTML.
- */
+/* Every word the Mini App shows, in English, Malay and Chinese. Missing ones fall back to English. */
 (function (root, factory) {
     if (typeof module === 'object' && module.exports) module.exports = factory();
     else root.MiniI18n = factory();

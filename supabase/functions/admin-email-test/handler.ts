@@ -1,17 +1,4 @@
-// The administrator's one tool: "is the email service working right now?"
-//
-//   {action: "status"}     -> are you an administrator, and which settings are in place (yes/no only, never the values)
-//   {action: "send_test"}  -> really sends a test message through Gmail to the administrator's OWN address and reports
-//                             exactly where it stopped if it fails (connect, login, sender, recipient, delivery)
-//
-// Who is the administrator?
-//   - Anyone listed in the app_admins table (see supabase-schema.sql).
-//   - Bootstrap: while that table is EMPTY, the one person who is signed in with a CONFIRMED email equal to the
-//     ADMIN_EMAIL secret is registered as the first administrator, automatically, on their first call. The database
-//     refuses to register anyone else afterwards, so ADMIN_EMAIL cannot be used to add a second administrator.
-//   - Everybody else gets the same plain "not allowed" answer, whatever the reason.
-//
-// The test message can only go to the administrator's own login address, so this cannot be used to email strangers.
+// The administrator's tool: checks the email settings and sends a test message to the administrator only.
 
 import { env, json, preflight, projectAccess, requireUser, takeQuota } from "../_shared/guard.ts";
 import { q, rest } from "../_shared/db.ts";

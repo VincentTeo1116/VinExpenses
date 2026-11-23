@@ -1,5 +1,4 @@
-// Finds a date inside a message such as "yesterday petrol 50", "3/11 coffee 6", "3 nov lunch 12" or "昨天 午餐 12"
-// and removes it from the text. All dates are Kuala Lumpur calendar days (UTC+8).
+// Finds a date in a message such as "yesterday petrol 50" and removes it. Kuala Lumpur days.
 
 const KL_MS = 8 * 60 * 60 * 1000;
 const MAX_DAYS_BACK = 400;

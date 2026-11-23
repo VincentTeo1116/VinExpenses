@@ -1,12 +1,4 @@
-/* miniapp/app.js
- *
- * The Mini App controller: wires the bridge (Telegram), the data service and the screens together.
- * Rules it follows:
- *   - every request carries Telegram's signed launch data; there is no login screen and no stored password;
- *   - nothing is shown from an old request after a newer one was made (a counter guards every async result);
- *   - any failure ends in a screen that explains it, never a blank page;
- *   - charts are optional: if Chart.js is missing, the numbers and lists are still there.
- */
+/* The Mini App controller: connects Telegram, the data service and the screens. No login screen, no stored password. */
 (function () {
     'use strict';
 
@@ -41,7 +33,7 @@
     function t(key, vars) { return I18n.t(state.lang, key, vars); }
     function refreshViews() { views = Views.create(state); }
 
-    // ---------------------------------------------------------------- helpers
+    // Helpers Section
 
     function applyDom(scope) {
         // widths and colours were written as data-* attributes (inline styles are not allowed): apply them with the style API
@@ -66,7 +58,7 @@
         return { text: cs.getPropertyValue('--text').trim() || '#0f172a', hint: cs.getPropertyValue('--muted').trim() || '#5b6785', grid: cs.getPropertyValue('--border').trim() || '#e4e7f0', accent: cs.getPropertyValue('--brand').trim() || '#4f46e5', bg: cs.getPropertyValue('--surface').trim() || '#ffffff' };
     }
 
-    // ---------------------------------------------------------------- rendering
+    // Rendering Section
 
     function render() {
         destroyCharts();
@@ -134,7 +126,7 @@
         render();
     }
 
-    // ---------------------------------------------------------------- data
+    // Data Section
 
     function loadMonth() {
         var token = ++monthToken;
@@ -183,7 +175,7 @@
         return Promise.all(jobs);
     }
 
-    // ---------------------------------------------------------------- actions
+    // Actions Section
 
     function setTab(id) {
         if (state.tab === id) return;
@@ -301,7 +293,7 @@
         window.scrollTo(0, 0);
     }
 
-    // ---------------------------------------------------------------- events
+    // Events Section
 
     document.addEventListener('click', function (event) {
         var target = event.target.closest ? event.target.closest('[data-action]') : null;
@@ -354,7 +346,7 @@
         if (/^#[0-9a-f]{6}$/i.test(bg)) bridge.setColors(bg);
     }
 
-    // ---------------------------------------------------------------- start
+    // Start Section
 
     function start() {
         state.status = 'loading'; state.month = null;

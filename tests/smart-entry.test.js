@@ -12,7 +12,6 @@ const CATEGORIES = [
 ].map(([key, label]) => ({ key, label, active: true }));
 const suggest = (merchant, extra) => SE.suggestCategory({ merchant, categories: CATEGORIES, ...extra });
 
-// ---------------------------------------------------------------------------
 test('merchant names: branch numbers, legal words and branch suffixes do not make a new merchant', () => {
     const n = SE.normalizeMerchant;
     assert.equal(n('99 SPEEDMART KL 1234'), '99 speedmart');
@@ -24,9 +23,7 @@ test('merchant names: branch numbers, legal words and branch suffixes do not mak
     assert.equal(n(null), '');
 });
 
-// ---------------------------------------------------------------------------
-// Learning from the user's own history
-// ---------------------------------------------------------------------------
+// Learning from the user's own history Section
 test('history: a merchant you filed before is suggested again, with the reason', () => {
     const expenses = [
         { merchant: 'Kopitiam ABC', category: 'food' }, { merchant: 'Kopitiam ABC Mid Valley', category: 'food' },
@@ -62,9 +59,7 @@ test('history: never suggests a category you have deleted or hidden', () => {
     assert.notEqual(SE.suggestCategory({ merchant: 'Starbucks', categories: hidden })?.key, 'beverages');
 });
 
-// ---------------------------------------------------------------------------
-// Built-in Malaysian merchants
-// ---------------------------------------------------------------------------
+// Built-in Malaysian merchants Section
 test('known merchants: the ones that got no category before', () => {
     const cases = [
         ['99 SPEEDMART', 'shopping'], ['MYDIN MART', 'shopping'], ["LOTUS'S", 'shopping'], ['GIANT HYPERMARKET', 'shopping'], ['AEON BIG', 'shopping'], ['KK SUPER MART', 'shopping'], ['7-ELEVEN', 'shopping'],
@@ -116,9 +111,7 @@ test('never throws on odd input', () => {
     }
 });
 
-// ---------------------------------------------------------------------------
-// Duplicates
-// ---------------------------------------------------------------------------
+// Duplicates Section
 const at = (y, m, d, h = 12) => new Date(y, m - 1, d, h).toISOString();
 
 test('duplicates: same amount, same day, same merchant is flagged', () => {
@@ -155,9 +148,7 @@ test('duplicates: floating point amounts compare by cents', () => {
     assert.ok(SE.findDuplicate(existing, { amount: 0.3, date: '2026-10-20', merchant: 'X Shop', category: 'food' }));
 });
 
-// ---------------------------------------------------------------------------
-// Found by running the real PDFs through a real browser
-// ---------------------------------------------------------------------------
+// Found by running real PDFs through a real browser Section
 test('boilerplate such as "Thank you for shopping" must not file a restaurant under Shopping', () => {
     const pos = fs.readFileSync(path.join(__dirname, 'fixtures', 'pos-restaurant-ocr.txt'), 'utf8');
     const s = SE.suggestCategory({ merchant: 'Tucker & Co.', text: pos, categories: CATEGORIES });
@@ -178,7 +169,6 @@ test('built-in category names are never matched against receipt text, but your o
     assert.equal(SE.suggestCategory({ merchant: 'Random', text: 'welcome to our health and food shopping travel utilities', categories: marked }), null);
 });
 
-// ---------------------------------------------------------------------------
 test('month summary: totals, top merchants (branches pooled) and category shares', () => {
     const s = SE.summarizeMonth([
         { type: 'expense', amount: 10, merchant: '99 Speedmart KL 1', category: 'shopping' },

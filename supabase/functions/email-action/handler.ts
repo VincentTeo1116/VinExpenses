@@ -1,11 +1,4 @@
-// Handles the two links inside our emails: "confirm this address" and "unsubscribe".
-// No sign-in is needed (the person is clicking from their inbox), so the SIGNED TOKEN is the only credential:
-// it cannot be forged, expires, says exactly what it allows, and is tied to one account and one address.
-//
-//   POST {action, token}  JSON, from the website's email-action page (the person presses a button)
-//   POST ?a=unsub&t=...   form body "List-Unsubscribe=One-Click" (the Unsubscribe button of Gmail, Apple Mail, Outlook)
-//   GET  ?a=...&t=...     only redirects to the website page. A GET never changes anything, because mail scanners
-//                         open every link in a message, and that must not confirm or unsubscribe anyone.
+// Handles the confirm and unsubscribe links. No login is needed; the signed token is the only key.
 
 import { env, json, preflight } from "../_shared/guard.ts";
 import { q, rest } from "../_shared/db.ts";

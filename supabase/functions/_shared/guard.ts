@@ -1,14 +1,4 @@
-// Shared protection for every function the website calls: who is calling, how often, and from which website.
-//
-// Why this exists: "verify_jwt = true" only checks that the request carries a valid token, and the public
-// anon key in config.js is one. So without this, anyone who copies the anon key from the website could
-// call these functions and use up your quota (or, for AI and email, your money and your sender reputation).
-//
-// Secrets (Supabase -> Edge Functions -> Secrets):
-//   ALLOWED_ORIGINS   REQUIRED. Comma-separated website origins allowed to call the functions,
-//                     e.g. https://yourname.github.io   (unset = every browser call is refused: fail closed)
-//   SCAN_DAILY_LIMIT  receipt photo scans per user per day   (default 30)
-//   AI_DAILY_LIMIT    AI helper calls per user per day       (default 10)
+// Shared protection for every function the website calls: who is calling, from which site, and how often.
 
 // deno-lint-ignore no-explicit-any
 const runtime = (): any => (globalThis as any).Deno;
@@ -149,12 +139,7 @@ export async function consumeQuota(
   }
 }
 
-/**
- * Generic daily counter for any named scope ("nearby:<user>", "email:global", ...). Fails CLOSED:
- * if the counter cannot be reached or the SQL is missing, the action is refused, because these
- * counters protect things that cost money or can annoy other people.
- * Returns true when the action may go ahead.
- */
+/* A daily counter for any named scope. If it can't be reached, the action is refused. */
 export async function takeQuota(scope: string, limit: number, fetchImpl: typeof fetch = fetch): Promise<boolean> {
   const access = projectAccess();
   if (!access) return false;
@@ -174,10 +159,7 @@ export async function takeQuota(scope: string, limit: number, fetchImpl: typeof 
   }
 }
 
-/**
- * Counts one receipt scan against the person's daily scan allowance (the SAME allowance as scanning in the app).
- * Fails closed: if the counter cannot be reached, no scan is allowed. Returns true when the scan may go ahead.
- */
+/* Counts one receipt scan against the daily allowance. If it can't be reached, no scan is allowed. */
 export async function takeReceiptQuota(userId: string, limit: number, fetchImpl: typeof fetch = fetch): Promise<boolean> {
   const access = projectAccess();
   if (!access) return false;

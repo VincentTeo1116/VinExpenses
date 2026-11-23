@@ -2,9 +2,7 @@
 <html lang="en-MY">
 <head>
     <meta charset="UTF-8" />
-    <!-- SECURITY: this policy must stay FIRST in <head>: it only protects what is parsed after it.
-         Only this site's own files may run or load. The deploy step narrows `https://*.supabase.co`
-         to your exact project address. See SECURITY.md before loosening anything here. -->
+    <!-- SECURITY: keep this policy first in <head>. Only this site's own files may run (see SECURITY.md). -->
     <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https://*.supabase.co https://nominatim.openstreetmap.org; worker-src 'self' blob:; manifest-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'" />
     <meta name="referrer" content="strict-origin-when-cross-origin" />
     <script src="frame-guard.js"></script>
@@ -20,8 +18,7 @@
     <link rel="manifest" href="manifest.json" />
     <link rel="apple-touch-icon" href="icons/icon-192.png" />
 
-    <!-- Supabase, Chart.js, icons and fonts are served from this site (see vendor/ and tools/vendor.js):
-         pinned versions with hashes, so no third-party server can change the code that runs here. -->
+    <!-- Libraries, icons and fonts are served from this site (vendor/), pinned and hash-checked. -->
     <script src="vendor/supabase-js/supabase.js"></script>
     <script src="vendor/chartjs/chart.umd.js"></script>
 
@@ -34,7 +31,7 @@
 
     <div class="app-shell" id="app">
 
-        <!-- ===== SIDEBAR (desktop) ===== -->
+        <!-- Sidebar Section: desktop -->
         <aside class="sidebar" aria-label="Main navigation">
             <div class="brand">
                 <span class="brand-mark"><img src="icons/icon-192.png" alt="" /></span>
@@ -68,12 +65,12 @@
             </button>
         </aside>
 
-        <!-- ===== MAIN ===== -->
+        <!-- Main Section -->
         <main class="main" id="main">
             <!-- Offline / pending-sync notice -->
             <div id="netBanner" class="net-banner hidden" role="status" aria-live="polite"></div>
 
-            <!-- ===== AUTH SCREEN ===== -->
+            <!-- Auth Screen Section -->
             <div id="authScreen" class="screen active">
                 <div class="auth-layout">
                     <aside class="auth-hero" aria-hidden="true">
@@ -185,7 +182,7 @@
                 </div>
             </div>
 
-            <!-- ===== SETUP SCREEN ===== -->
+            <!-- Setup Screen Section -->
             <div id="setupScreen" class="screen">
                 <div class="auth-layout solo">
                     <div class="auth-box">
@@ -228,7 +225,7 @@
                 </div>
             </div>
 
-            <!-- ===== NEW PASSWORD SCREEN (opened from the reset-password email link) ===== -->
+            <!-- New Password Screen Section: opened from the reset-password email link -->
             <div id="resetPasswordScreen" class="screen">
                 <div class="auth-layout solo">
                     <div class="auth-box">
@@ -264,7 +261,7 @@
                 </div>
             </div>
 
-            <!-- ===== DASHBOARD SCREEN ===== -->
+            <!-- Dashboard Screen Section -->
             <div id="dashboardScreen" class="screen" aria-busy="false">
                 <header class="page-head">
                     <div>
@@ -413,7 +410,7 @@
                 </div>
             </div>
 
-            <!-- ===== PLAN SCREEN (recurring, deposits, loans) ===== -->
+            <!-- Plan Screen Section: recurring, deposits, loans -->
             <div id="recurringScreen" class="screen">
                 <header class="page-head">
                     <div>
@@ -432,7 +429,7 @@
                     <button type="button" id="planStickyBtn" class="btn btn-small">Details <i class="fas fa-arrow-down" aria-hidden="true"></i></button>
                 </div>
 
-                <!-- ----- Plan: Recurring ----- -->
+                <!-- Plan Section: Recurring -->
                 <div id="planPaneRecurring" class="plan-pane" role="tabpanel" aria-labelledby="planTabRecurring">
                     <p class="plan-intro">Schedule regular bills or income. Entries post the next time you open the app on or after the due date.</p>
                 <div id="recurringSummary" class="history-summary" role="status" aria-live="polite"></div>
@@ -499,7 +496,7 @@
                 </div>
                 </div>
 
-                <!-- ----- Plan: Deposits ----- -->
+                <!-- Plan Section: Deposits -->
                 <div id="planPaneDeposits" class="plan-pane hidden" role="tabpanel" aria-labelledby="planTabDeposits">
                     <div id="fdNotice" class="plan-notice hidden" role="status"></div>
                     <div class="plan-grid">
@@ -658,7 +655,7 @@
                     </section>
                 </div>
 
-                <!-- ----- Plan: Loans ----- -->
+                <!-- Plan Section: Loans -->
                 <div id="planPaneLoans" class="plan-pane hidden" role="tabpanel" aria-labelledby="planTabLoans">
                     <div id="loanNotice" class="plan-notice hidden" role="status"></div>
                     <div class="plan-grid">
@@ -803,7 +800,7 @@
                 </div>
             </div>
 
-            <!-- ===== HISTORY SCREEN ===== -->
+            <!-- History Screen Section -->
             <div id="historyScreen" class="screen">
                 <header class="page-head">
                     <div>
@@ -853,7 +850,7 @@
             </div>
         </main>
 
-        <!-- ===== TAB BAR (mobile) ===== -->
+        <!-- Tab Bar Section: mobile -->
         <nav class="tabbar" aria-label="Primary">
             <button class="nav-item active" data-screen="dashboard">
                 <i class="fas fa-house"></i><span class="nav-label">Home</span>
@@ -873,7 +870,7 @@
         </nav>
     </div>
 
-    <!-- ===== ADD TRANSACTION SHEET ===== -->
+    <!-- Add Transaction Sheet Section -->
     <div id="addSheet" class="modal-overlay-full sheet-overlay">
         <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="addSheetTitle">
             <div class="sheet-grabber" aria-hidden="true"></div>
@@ -991,7 +988,7 @@
         </div>
     </div>
 
-    <!-- ===== BUDGETS SHEET ===== -->
+    <!-- Budgets Sheet Section -->
     <div id="budgetSheet" class="modal-overlay-full sheet-overlay">
         <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="budgetSheetTitle">
             <div class="sheet-grabber" aria-hidden="true"></div>
@@ -1008,7 +1005,7 @@
         </div>
     </div>
 
-    <!-- ===== FORGOT PASSWORD SHEET ===== -->
+    <!-- Forgot Password Sheet Section -->
     <div id="resetSheet" class="modal-overlay-full sheet-overlay">
         <div class="sheet narrow" role="dialog" aria-modal="true" aria-labelledby="resetSheetTitle">
             <div class="sheet-grabber" aria-hidden="true"></div>
@@ -1030,7 +1027,7 @@
         </div>
     </div>
 
-    <!-- ===== ACCOUNT SHEET ===== -->
+    <!-- Account Sheet Section -->
     <div id="accountSheet" class="modal-overlay-full sheet-overlay">
         <div class="sheet narrow" role="dialog" aria-modal="true" aria-labelledby="accountName">
             <div class="sheet-grabber" aria-hidden="true"></div>
@@ -1133,7 +1130,7 @@
         </div>
     </div>
 
-    <!-- ===== CATEGORY & PAYMENT SETTINGS ===== -->
+    <!-- Category & Payment Settings Section -->
     <div id="taxonomySheet" class="modal-overlay-full sheet-overlay">
         <div class="sheet narrow" role="dialog" aria-modal="true" aria-labelledby="taxonomyTitle">
             <div class="sheet-grabber" aria-hidden="true"></div>
@@ -1155,7 +1152,7 @@
         </div>
     </div>
 
-    <!-- ===== REMINDERS (one list, never one pop-up per item) ===== -->
+    <!-- Reminders Section: one list, never one pop-up per item -->
     <div id="remindersSheet" class="modal-overlay-full sheet-overlay">
         <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="remindersTitle">
             <div class="sheet-grabber" aria-hidden="true"></div>
@@ -1171,7 +1168,7 @@
         </div>
     </div>
 
-    <!-- ===== MESSAGE / CONFIRM MODAL ===== -->
+    <!-- Message / Confirm Modal Section -->
     <div id="appModal" class="modal-overlay-full">
         <div class="modal-container" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
             <div class="modal-icon" id="modalIcon"><i class="fas fa-circle-check"></i></div>
@@ -1188,7 +1185,7 @@
         </div>
     </div>
 
-    <!-- ===== EDIT TRANSACTION MODAL ===== -->
+    <!-- Edit Transaction Modal Section -->
     <div id="editModal" class="modal-overlay-full sheet-overlay">
         <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="editTitle">
             <div class="sheet-grabber" aria-hidden="true"></div>
@@ -1249,7 +1246,7 @@
         </div>
     </div>
 
-    <!-- ===== MONTHLY REPORT VIEW (in-app, so there is always a way back) ===== -->
+    <!-- Monthly Report View Section: in-app, so there is always a way back -->
     <div id="reportView" class="report-view" role="dialog" aria-modal="true" aria-labelledby="reportViewTitle">
         <div class="report-toolbar">
             <button id="reportBackBtn" type="button" class="btn btn-ghost btn-small"><i class="fas fa-chevron-left"></i> Back</button>

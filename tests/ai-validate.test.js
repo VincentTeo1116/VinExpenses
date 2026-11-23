@@ -1,5 +1,4 @@
-// Run with:  node --test tests/*.test.js     (needs Node 22.6+ with type stripping; Node 24 has it on by default)
-// Tests the helpers the optional AI function uses to distrust the AI's answer.
+// Tests how the optional AI helper distrusts the AI's answer. Run with: npm test
 const test = require('node:test');
 const assert = require('node:assert/strict');
 

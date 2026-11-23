@@ -1,6 +1,5 @@
 'use strict';
-// Behaviour of the Phase 2 reports inside the bot: the picture reports, the navigation buttons that update a report in
-// place, the fallbacks when pictures or edits fail, the Monday summary, and the photo upload code of the real client.
+// Tests the bot's picture reports, in-place navigation and their fallbacks.
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const H = require('./helpers/tg-harness.js');
@@ -31,7 +30,7 @@ const linked = async (extraEnv = {}) => {
 };
 const plain = async (html) => (await shared('telegram')).stripTags(html).replace(/ /g, ' ');
 
-// ------------------------------------------------------------------ commands produce pictures
+// Commands produce pictures Section
 test('/month and /week send a picture with a caption and the navigation buttons; /today and /top stay text', async () => {
     const { tg } = await linked();
     await deliver(tg, message(CHAT_A, '/month'));
@@ -57,7 +56,7 @@ test('/month and /week send a picture with a caption and the navigation buttons;
     assert.equal(tg.last().photo, true, 'the bottom-menu button gives the same picture');
 });
 
-// ------------------------------------------------------------------ in-place navigation
+// In-place navigation Section
 test('navigation: picture to picture is edited in place - same message, no new message, nothing deleted', async () => {
     const { tg } = await linked();
     await deliver(tg, message(CHAT_A, '/month'));
@@ -152,7 +151,7 @@ test('navigation: the daily report-view limit is enforced for commands and butto
     assert.match(tg.toasts().at(-1), /Too many report views/);
 });
 
-// ------------------------------------------------------------------ fallbacks
+// Fallbacks Section
 test('fallback: when the picture cannot be sent the same report arrives as text, in full, with navigation', async () => {
     const { tg } = await linked();
     tg.photoFails = true;
@@ -219,7 +218,7 @@ test('fallback: typing and deletion failing change nothing', async () => {
     assert.equal(tg.last().photo, true);
 });
 
-// ------------------------------------------------------------------ privacy and consistency
+// Privacy and consistency Section
 test('privacy: each person only ever sees their own numbers, in every view and on every button press', async () => {
     const { db, tg } = await linked();
     seedChoices(db, B);
@@ -260,7 +259,7 @@ test('every report, in every language, stays within Telegram limits and has vali
     }
 });
 
-// ------------------------------------------------------------------ the Monday summary with a picture
+// The Monday summary with a picture Section
 const digestModule = () => import('../supabase/functions/telegram-digest/handler.ts');
 const MONDAY = new Date('2026-11-09T02:00:00Z');
 const cron = () => new Request('https://abcdefghij.supabase.co/functions/v1/telegram-digest', { method: 'POST', headers: { 'x-cron-secret': H.ENV.MONTHLY_REPORT_CRON_SECRET }, body: '{}' });
@@ -343,7 +342,7 @@ test('weekly summary: the caption never exceeds Telegram\'s limit, even with man
     assert.ok((await plain(tg.sent.at(-1).html)).length <= 1024);
 });
 
-// ------------------------------------------------------------------ the real Telegram client, pictures
+// The real Telegram client, pictures Section
 function stub(plan = []) {
     const calls = [];
     const logged = [];
@@ -434,7 +433,7 @@ test('client: editPhoto replaces the picture and caption in place; "not modified
     } finally { t.restore(); }
 });
 
-// ------------------------------------------------------------------ the month's tabs
+// The month's tabs Section
 test('tabs: switching Overview / Days / Budgets / Trend edits the same picture message in place and keeps the month', async () => {
     const { db, tg } = await linked();
     db.budgets.push({ user_id: A, category: 'all', amount: '2000' });

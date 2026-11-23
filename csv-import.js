@@ -1,6 +1,4 @@
-// === CSV IMPORT ===
-// Pure functions (no DOM, no network) that turn a CSV file's text into expense/income records.
-// Understands this app's own export and typical bank-statement layouts.
+// CSV Import Section: turns a CSV export or bank statement into expenses and income
 (function (root, factory) {
     if (typeof module === 'object' && module.exports) module.exports = factory();
     else root.CsvImport = factory();
@@ -9,7 +7,7 @@
 
     const MAX_ROWS = 2000;
 
-    // --- RFC 4180 style parser: quoted cells, doubled quotes, newlines inside quotes ---
+    // RFC 4180 style parser Section: quoted cells, doubled quotes, newlines inside quotes
     function detectDelimiter(text) {
         const firstLine = text.split(/\r?\n/, 1)[0] || '';
         const counts = [',', ';', '\t'].map(d => [d, firstLine.split(d).length - 1]);
@@ -45,7 +43,7 @@
         return rows;
     }
 
-    // --- column detection ---
+    // Column detection Section
     const COLUMN_NAMES = {
         date: ['date', 'transaction date', 'trans date', 'posting date', 'tarikh', 'value date'],
         type: ['type', 'transaction type'],
@@ -73,7 +71,7 @@
         return map;
     }
 
-    // --- values ---
+    // Values Section
     const MONTHS = { jan: 1, feb: 2, mar: 3, apr: 4, may: 5, mei: 5, jun: 6, jul: 7, aug: 8, ogos: 8, sep: 9, sept: 9, oct: 10, okt: 10, nov: 11, dec: 12, dis: 12 };
 
     function validYmd(y, m, d) {
@@ -122,8 +120,7 @@
     // Spreadsheet apps need a leading ' on text starting with = + - @; the export adds it, so remove it here
     const unprotect = (v) => String(v || '').replace(/^'(?=[=+\-@])/, '').trim();
 
-    // --- main entry ---
-    // options.positiveIs: 'auto' | 'expense' | 'income' decides what an unsigned/positive single Amount column means
+    // Main entry. positiveIs says what a plain positive amount means: auto, expense or income.
     function importRecords(text, options = {}) {
         const rows = parseCsv(text);
         const result = { records: [], skipped: [], convention: '', total: 0, tooMany: false };

@@ -1,19 +1,4 @@
-// The Mini App's data service. The Mini App is a web page (served from your GitHub Pages site) that opens inside Telegram.
-// It has no password: Telegram hands the page a signed string (initData) proving who is using it, and this function
-// checks that signature (see _shared/tg-webapp.ts) BEFORE it reads or writes anything.
-//
-// Rules this function follows:
-//   1. No valid signature = no data. Nothing below the authentication step runs without one.
-//   2. The signature must be recent (default 6 hours), so a copy that leaks stops working.
-//   3. The Telegram user must be LINKED to an app account (the same one-time-code linking as the bot).
-//   4. Every query is scoped to that account's user id (the server key ignores row-level security, so this is enforced
-//      here, and a test fails if a query is not scoped).
-//   5. Reads are limited to 3,000 calls a day and writes to 300 a day per person; the counters fail closed.
-//   6. Everything a person types is validated and length-limited before it is stored.
-//   7. Browsers may only call it from your own website (ALLOWED_ORIGINS), like every other function.
-//
-// Request: POST, header "x-telegram-init-data", JSON body {action, ...}. Actions:
-//   bootstrap | month | transactions | expense_add | expense_update | expense_delete
+// The Mini App's data service. It checks Telegram's signature before touching any data.
 
 import { dailyLimit, env, json, preflight, projectAccess, takeQuota } from "../_shared/guard.ts";
 import { fetchAll, q, rest } from "../_shared/db.ts";
@@ -76,7 +61,7 @@ async function authenticate(request: Request, now: Date): Promise<Session | Resp
   return { userId: link.user_id, chatId: result.user.id, lang: asLang(language.startsWith("zh") ? "zh" : language.startsWith("ms") ? "ms" : language), name: result.user.first_name };
 }
 
-// ---------------------------------------------------------------- validation
+// Validation Section
 
 interface Checked {
   amount?: number;
@@ -127,7 +112,7 @@ function checkExpense(input: Record<string, unknown>, categories: Choice[], paym
 /** Noon in Kuala Lumpur on a "YYYY-MM-DD" date, as an ISO time. */
 const noonKl = (date: string) => new Date(`${date}T12:00:00+08:00`).toISOString();
 
-// ---------------------------------------------------------------- the handler
+// The handler Section
 
 export async function handle(request: Request, now = new Date()): Promise<Response> {
   const early = preflight(request);

@@ -1,7 +1,5 @@
 'use strict';
-// Tests for the Phase 1 experience upgrade: one live card, instant reactions, the bottom menu, one-tap category chips,
-// repeat / favourite buttons, settings, toasts, friendlier dates, the "Open VinExpenses" button - and what happens
-// when each of those is unavailable.
+// Tests the bot's chat experience: live card, reactions, menu, chips and toasts.
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -41,7 +39,7 @@ function assertTelegramHtml(text, where = '') {
     assert.ok(text.length < 4096, `${where}: too long`);
 }
 
-// ------------------------------------------------------------------ the real Telegram client
+// The real Telegram client Section
 function stubTelegram(plan = []) {
     const calls = [];
     const logged = [];
@@ -133,7 +131,7 @@ test('client: stripTags makes a readable plain-text version', async () => {
     assert.equal(stripTags('<b>A</b> &amp; <i>B</i> &lt;c&gt; &quot;d&quot; &#39;e&#39;<blockquote expandable>q</blockquote>'), `A & B <c> "d" 'e'q`);
 });
 
-// ------------------------------------------------------------------ friendlier dates
+// Friendlier dates Section
 test('dayLabel: Today, Yesterday, then the date, in every language and by Kuala Lumpur days', async () => {
     const { dayLabel } = await shared('tg-i18n');
     const now = new Date('2026-11-05T04:00:00Z'); // Thursday 12:00 KL
@@ -146,7 +144,7 @@ test('dayLabel: Today, Yesterday, then the date, in every language and by Kuala 
     assert.match(dayLabel(new Date('2026-10-20T04:00:00Z'), now, 'zh'), /20/);
 });
 
-// ------------------------------------------------------------------ category chips
+// Category chips Section
 test('chips: current category ticked first, then the ones used most; at most 4; only active ones; indexes match the menu', async () => {
     const { categoryChips } = await bot();
     const cats = [
@@ -238,7 +236,7 @@ test('chips: category names with "&" show correctly in buttons and toasts (which
     assertTelegramHtml(tg.lastEdit().html, 'edited card');
 });
 
-// ------------------------------------------------------------------ reactions, typing, toasts
+// Reactions, typing, toasts Section
 test('reaction: the person\'s own message gets an instant 👌 once the expense is really saved', async () => {
     const { db, tg } = await linked();
     await deliver(tg, message(CHAT_A, 'lunch 5'));
@@ -293,7 +291,7 @@ test('toasts: undo, delete, income undo and receipt save each confirm with a pop
     assert.equal(tg.answered.length, pressed + 2, 'even junk and strangers get the button acknowledged (no endless spinner)');
 });
 
-// ------------------------------------------------------------------ the bottom menu
+// The bottom menu Section
 test('menu: the five buttons arrive as text and run the matching action - in any language', async () => {
     const { tg } = await linked();
     await deliver(tg, message(CHAT_A, '📊 Today'));
@@ -339,7 +337,7 @@ test('menu: shown on welcome, /menu and /help for connected people - not for str
     assert.deepEqual(tg.lastSent().keyboard[2], ['⚙️ 设置']);
 });
 
-// ------------------------------------------------------------------ Add prompt, repeat and favourites
+// Add prompt, repeat and favourites Section
 test('add: with no history it is just a friendly prompt; with history it offers Repeat last and your usual ones', async () => {
     const { db, tg } = await linked();
     await deliver(tg, message(CHAT_A, '➕ Add'));
@@ -393,7 +391,7 @@ test('add: if the history can not be read the prompt still appears, just without
     assert.equal(tg.last().buttons, undefined);
 });
 
-// ------------------------------------------------------------------ settings
+// Settings Section
 test('settings: language, weekly summary and disconnect from one screen', async () => {
     const { db, tg } = await linked();
     await deliver(tg, message(CHAT_A, '⚙️ Settings'));
@@ -463,7 +461,7 @@ test('open button: "Open VinExpenses" appears on reports and settings only when 
     }
 });
 
-// ------------------------------------------------------------------ one live message for receipts
+// One live message for receipts Section
 test('live card: when "Reading…" has an id the result replaces it; if Telegram gave no id the result is simply sent', async () => {
     const live = await linked({ OCR_SPACE_API_KEY: 'k' });
     live.hooks.ocr = async () => new Response(JSON.stringify({ ParsedResults: [{ ParsedText: 'KEDAI ALI\nthank you' }] }), { status: 200 });
@@ -490,7 +488,7 @@ test('live card: when "Reading…" has an id the result replaces it; if Telegram
     assert.equal(blind.db.expenses.length, 1);
 });
 
-// ------------------------------------------------------------------ every message Telegram will see is valid
+// Every message Telegram will see is valid Section
 test('every message the bot produces is valid Telegram HTML, in all three languages', async () => {
     const { db, tg } = await linked({ SITE_URL: 'https://me.github.io/VinExpenses', OCR_SPACE_API_KEY: 'k' });
     db.budgets.push({ user_id: A, category: 'food', amount: '30' }, { user_id: A, category: 'all', amount: '60' });
@@ -514,7 +512,7 @@ test('every message the bot produces is valid Telegram HTML, in all three langua
     }
 });
 
-// ------------------------------------------------------------------ the "/" command menu
+// The "/" command menu Section
 test('command menu: three languages, same commands, valid for Telegram', () => {
     const { COMMANDS } = require('../tools/telegram-commands.js');
     assert.deepEqual(Object.keys(COMMANDS).sort(), ['default', 'ms', 'zh']);

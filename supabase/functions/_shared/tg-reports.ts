@@ -1,5 +1,4 @@
-// Reports for the Telegram bot: loading the numbers (always scoped to ONE user) and turning them into pretty messages.
-// The loading functions touch the database; the render functions are pure, so they are easy to test.
+// Bot reports: loads one user's numbers and turns them into messages.
 
 import { fetchAll, q } from "./db.ts";
 import {
@@ -41,7 +40,7 @@ export interface BudgetUsage {
   ratio: number;
 }
 
-// ---------------------------------------------------------------- loading (one user only)
+// Loading Section: one user only
 
 export const loadExpenses = (userId: string, start: string, end: string) =>
   fetchAll<ExpenseLine>(`expenses?select=amount,category,merchant&user_id=eq.${q(userId)}&created_at=gte.${q(start)}&created_at=lt.${q(end)}&order=created_at.asc,id.asc`);
@@ -61,7 +60,7 @@ export async function loadBudgets(userId: string): Promise<BudgetLine[]> {
   }
 }
 
-// ---------------------------------------------------------------- pure maths
+// Pure maths Section
 
 export function aggregate(rows: ExpenseLine[]): Aggregate {
   let totalCents = 0;
@@ -103,7 +102,7 @@ export function budgetUsage(budgets: BudgetLine[], agg: Aggregate): BudgetUsage[
     .sort((a, b) => b.ratio - a.ratio);
 }
 
-// ---------------------------------------------------------------- rendering
+// Rendering Section
 
 export type Labels = (categoryKey: string) => string;
 

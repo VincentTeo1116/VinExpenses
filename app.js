@@ -1,5 +1,4 @@
-// === SUPABASE CONFIG ===
-// Values come from .env via build-config.js, which generates config.js (window.APP_CONFIG).
+// Supabase Config Section: values come from config.js, built from .env
 const APP_CONFIG = window.APP_CONFIG || {};
 const SUPABASE_URL = APP_CONFIG.SUPABASE_URL;
 const SUPABASE_ANON_KEY = APP_CONFIG.SUPABASE_ANON_KEY;
@@ -21,7 +20,7 @@ function backendUnavailable() {
         : { title: 'Can\'t reach the server', message: 'The sign-in library failed to load. Check your internet connection and reload.' };
 }
 
-// === CONFIG ===
+// Config Section
 const DEFAULT_CATEGORIES = [
     { key: 'beverages', label: 'Beverages', icon: 'fa-mug-hot', color: '#4f46e5' },
     { key: 'travel', label: 'Travel', icon: 'fa-plane', color: '#06b6d4' },
@@ -54,7 +53,7 @@ const safeIcon = value => /^fa-[a-z0-9-]+$/.test(value || '') ? value : 'fa-tag'
 const safeColor = value => /^#[0-9a-f]{3,8}$/i.test(value || '') ? value : 'var(--primary)';
 const prefersReducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-// === STATE ===
+// State Section
 let currentUser = null;
 let expenses = [];
 let incomes = [];
@@ -83,7 +82,7 @@ let selectedDate = new Date();
 selectedDate.setDate(1);
 selectedDate.setHours(0, 0, 0, 0);
 
-// === DOM REFS ===
+// DOM Refs Section
 const $ = id => document.getElementById(id);
 
 const THEMES = ['blue', 'pink', 'orange', 'green'];
@@ -202,7 +201,7 @@ const editIncomeFields = $('editIncomeFields');
 const editSaveBtn = $('editSaveBtn');
 const editCancelBtn = $('editCancelBtn');
 
-// === HELPERS ===
+// Helpers Section
 const pad = n => String(n).padStart(2, '0');
 
 function escapeHtml(value) {
@@ -238,8 +237,7 @@ function formatDateDisplay(value, { includeYear = true } = {}) {
     return new Date(year, month - 1, day).toLocaleDateString('en-MY', options);
 }
 
-// Combine a yyyy-mm-dd input value with the time-of-day of `base`, so
-// same-day entries keep a sensible order.
+// Keep the time of day when a date is picked, so same-day entries stay in order.
 function dateInputToISO(value, base = new Date()) {
     if (!value) return new Date().toISOString();
     const [y, m, d] = value.split('-').map(Number);
@@ -265,7 +263,7 @@ function getCategoryTotal(cat) {
 
 function byDateDesc(a, b) { return new Date(b.created_at) - new Date(a.created_at); }
 
-// === MODAL ===
+// Modal Section
 const modalOverlay = $('appModal');
 const modalIconWrap = $('modalIcon');
 const modalTitleEl = $('modalTitle');
@@ -334,8 +332,7 @@ function showModal({ type = 'info', title = '', message = '', warningText = '', 
     modalConfirmBtn.focus();
 }
 
-// === TOAST ===
-// opts: { actionLabel, onAction, duration } — an action (e.g. "Undo") keeps the toast up longer
+// Toast Section: an action such as Undo keeps it on screen longer
 function showToast(type, message, opts = {}) {
     const host = $('toastHost');
     const icons = { success: 'fa-circle-check', error: 'fa-circle-xmark', info: 'fa-circle-info' };
@@ -386,7 +383,7 @@ document.addEventListener('keydown', (e) => {
     }
 });
 
-// === BUSY STATE ===
+// Busy State Section
 function setBusy(button, busy, busyLabel) {
     if (!button) return;
     if (busy) {
@@ -399,7 +396,7 @@ function setBusy(button, busy, busyLabel) {
     }
 }
 
-// === ANIMATED NUMBERS ===
+// Animated Numbers Section
 function animateAmount(el, target) {
     const from = parseFloat(el.dataset.value || 0);
     el.dataset.value = target;
@@ -426,8 +423,7 @@ function animateAmount(el, target) {
     }, duration + 50);
 }
 
-// === NAVIGATION ===
-// "Plan" holds Recurring, Deposits and Loans. `recurring` is kept so older links still open Plan -> Recurring.
+// Navigation Section: Plan holds Recurring, Deposits and Loans; old "recurring" links still work
 const SCREEN_BY_NAV = {
     dashboard: 'dashboardScreen',
     plan: 'recurringScreen',
@@ -466,9 +462,7 @@ function navigate(nav) {
     showScreen(SCREEN_BY_NAV[nav]);
 }
 
-// One delegated handler for everything marked data-screen: the sidebar, the tab bar, and in-page
-// controls such as History's "Add transaction" and the dashboard's "Recurring →" link. (It used to
-// be bound to .nav-item only, which left those in-page controls silently dead.)
+// One click handler for anything marked data-screen, wherever it sits on the page.
 document.addEventListener('click', (e) => {
     const btn = e.target.closest('[data-screen]');
     if (!btn) return;
@@ -478,7 +472,7 @@ document.addEventListener('click', (e) => {
     else if (SCREEN_BY_NAV[dest]) navigate(dest);
 });
 
-// === SHEETS (add transaction, account) ===
+// Sheets Section: add transaction, account
 let addMode = 'expense';
 
 function setAddMode(mode) {
@@ -645,7 +639,7 @@ $('verifyReportEmailBtn').addEventListener('click', async () => {
     showToast('success', 'Confirmation email sent');
 });
 
-// ---- Telegram connection ----
+// Telegram connection Section
 async function telegramCall(action) {
     const { data, error } = await supabaseClient.functions.invoke('telegram-link', { body: { action } });
     if (error) throw new Error(await functionErrorMessage(error, 'Telegram is not available right now.'));
@@ -709,7 +703,7 @@ $('telegramUnlinkBtn').addEventListener('click', async () => {
     }
 });
 
-// ---- Administrator-only email service test ----
+// Administrator-only email service test Section
 let adminCheckedFor = null;
 async function loadAdminStatus() {
     if (!supabaseClient || !currentUser || !navigator.onLine || adminCheckedFor === currentUser.id) return;
@@ -905,9 +899,7 @@ $('accountSheetClose').addEventListener('click', closeAccountSheet);
 addSheet.addEventListener('click', (e) => { if (e.target === addSheet) closeAddSheet(); });
 accountSheet.addEventListener('click', (e) => { if (e.target === accountSheet) closeAccountSheet(); });
 
-// === DASHBOARD ===
-// Ranked list of this month's spending (biggest first) — doubles as the donut's legend.
-// Categories with a budget also show progress towards their limit (amber at 80%, red when over).
+// Dashboard Section: this month's spending by category, biggest first, with budget progress
 function renderCategoryGrid() {
     const rows = CATEGORIES
         .map(c => ({ ...c, total: getCategoryTotal(c.key), budget: budgetFor(c.key) }))
@@ -1128,14 +1120,9 @@ function renderExpenseTemplates() {
     container._templates = templates;
 }
 
-// === RECEIPT READING ===
-// A receipt can be a photo, a PDF with a text layer (e-mailed receipts, e-invoices) or a scanned PDF.
-//   PDF with text  -> text is read on this device: instant, exact, nothing is uploaded
-//   photo / scan   -> OCR (receipt-ocr function), then the same parser
-// receipt-parser.js finds the merchant, total and date; smart-entry.js suggests the category.
+// Receipt Reading Section: text PDFs are read on the device; photos and scans go through OCR
 const RECEIPT_MAX_PDF_BYTES = 10 * 1024 * 1024;
-// pdf.js is hosted on this site (vendor/pdfjs, pinned and hash-checked by tools/vendor.js). Versions up to 4.1.392
-// can run an attacker's JavaScript just by opening a crafted PDF (CVE-2024-4367), so never downgrade it.
+// pdf.js is served from this site. Never downgrade it: old versions can run code from a crafted PDF.
 const PDFJS = {
     main: 'vendor/pdfjs/pdf.min.mjs',
     worker: 'vendor/pdfjs/pdf.worker.min.mjs'
@@ -1191,8 +1178,7 @@ async function canvasToReceiptJpeg(canvas) {
     throw new Error('This receipt is too large to scan. Try a smaller file.');
 }
 
-// A scanned PDF page is often a small receipt on a large white sheet. Cropping the empty margins makes
-// the receipt's text bigger and sharper for OCR. Only crops clearly empty (near-white) margins.
+// Trim empty white margins so the receipt text is bigger and clearer for OCR.
 function trimMargins(canvas) {
     const w = canvas.width, h = canvas.height;
     const k = Math.min(1, 500 / Math.max(w, h));
@@ -1280,8 +1266,7 @@ async function readPdfReceipt(file) {
     const pdfjsLib = await loadPdfJs();
     let pdf;
     try {
-        // Defence in depth for files from strangers: no eval-based font compilation (the CVE-2024-4367 route),
-        // no XFA form scripting, and a cap on decoded image size so a tiny file cannot exhaust the phone's memory.
+        // Safer PDF settings for files from strangers: no eval, no form scripts, capped image size.
         pdf = await pdfjsLib.getDocument({
             data: await file.arrayBuffer(),
             isEvalSupported: false,
@@ -1309,8 +1294,7 @@ async function readOpenPdf(pdf) {
         const items = content.items.map(item => ({
             str: item.str, x: item.transform[4], y: item.transform[5], width: item.width, height: item.height || Math.abs(item.transform[3]), hasEOL: !!item.hasEOL
         }));
-        // Two readings of the same page: the PDF's own order, and rows rebuilt from positions.
-        // Neither suits every document, so the parser keeps whichever it trusts more.
+        // Read the page two ways and let the parser keep the one it trusts more.
         contentOrder.push(ReceiptParser.pdfContentOrderToText(items));
         visualRows.push(ReceiptParser.pdfItemsToText(items));
     }
@@ -1380,7 +1364,7 @@ $('aiAssistToggle').addEventListener('change', (event) => {
     if (aiAssist.enabled) showToast('info', 'AI help is on. When a receipt is unclear, its text is sent to an AI service.');
 });
 
-// ---- tap-to-choose totals ----
+// Tap-to-choose totals Section
 const receiptCandidates = $('receiptCandidates');
 
 function renderReceiptCandidates(parsed) {
@@ -1410,7 +1394,7 @@ expAmount.addEventListener('input', () => {
     receiptCandidates.querySelectorAll('.cand-chip').forEach(c => c.classList.toggle('active', Math.round(parseFloat(c.dataset.amount) * 100) === current));
 });
 
-// ---- category suggestions ----
+// Category suggestions Section
 const categorySuggest = $('categorySuggest');
 
 function updateCategorySuggestion({ text = '', hint = null, scan = false } = {}) {
@@ -1455,8 +1439,7 @@ expMerchant.addEventListener('input', () => {
     merchantTypingTimer = setTimeout(() => updateCategorySuggestion(), 250);
 });
 
-// ---- "Something wrong?": save what the reader saw, so a misread receipt can become a test ----
-// Nothing is sent anywhere. The file stays on the device until the user chooses to share it.
+// Save what the reader saw so a misread receipt can become a test. Nothing is uploaded.
 let lastScan = null;
 const scanFeedbackBtn = $('scanFeedbackBtn');
 
@@ -1489,7 +1472,7 @@ function resetReceiptHelpers() {
     receiptScanStatus.classList.add('hidden');
 }
 
-// ---- put a parsed receipt into the form ----
+// Put a parsed receipt into the form Section
 async function applyParsedReceipt(texts, source) {
     const parsed = ReceiptParser.parseBest(texts);
     const text = parsed.text; // the reading that was trusted most
@@ -1584,8 +1567,7 @@ receiptFileInput.addEventListener('change', () => {
 });
 
 let nearbyLookupInFlight = false;
-// Used when the server route is blocked: the public map service often refuses cloud servers but
-// accepts a normal browser. Still one request per tap, sent straight to OpenStreetMap.
+// Ask OpenStreetMap straight from the browser, because it often refuses cloud servers.
 async function nearbyPlaceFromBrowser(latitude, longitude) {
     const url = 'https://nominatim.openstreetmap.org/reverse?' + new URLSearchParams({
         format: 'jsonv2', lat: String(latitude), lon: String(longitude), zoom: '18', addressdetails: '1', namedetails: '1'
@@ -1624,8 +1606,7 @@ nearbyPlaceBtn.addEventListener('click', () => {
             const wait = 1100 - (Date.now() - nearbyLastRequestAt);
             if (wait > 0) await new Promise(resolve => setTimeout(resolve, wait));
             nearbyLastRequestAt = Date.now();
-            // The public map service refuses most cloud servers, so ask it straight from the browser first
-            // (one request per tap) and use the server route only if that fails.
+            // Try the browser lookup first and fall back to the server route.
             let directError = null;
             try {
                 const direct = await nearbyPlaceFromBrowser(latitude, longitude);
@@ -1818,7 +1799,7 @@ categoryGrid.addEventListener('click', (e) => {
 });
 viewAllBtn.addEventListener('click', () => openHistoryFiltered({ month: formatMonthValue(selectedDate) }));
 
-// === MONTH SELECTOR ===
+// Month Selector Section
 function setSelectedMonth(year, month) {
     selectedDate = new Date(year, month, 1);
     selectedDate.setHours(0, 0, 0, 0);
@@ -1849,7 +1830,7 @@ monthPicker.addEventListener('change', (e) => {
     if (!isNaN(year) && !isNaN(month)) setSelectedMonth(year, month - 1);
 });
 
-// === CHARTS ===
+// Charts Section
 let pieChartInstance = null;
 let barChartInstance = null;
 let barMonthDates = [];
@@ -1989,9 +1970,7 @@ function renderCharts() {
     }
 }
 
-// === SUPABASE DATA ===
-// Records get a client-generated id, so a save that has to be retried (offline queue) is safe:
-// if the first attempt actually reached the server, the retry is a harmless duplicate-key error.
+// Supabase Data Section: ids are made on the device, so retrying a save is safe
 const uuid = () => (window.crypto && crypto.randomUUID)
     ? crypto.randomUUID()
     : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
@@ -2009,7 +1988,7 @@ function requireOnline(what) {
     if (!navigator.onLine) throw new Error(`You're offline — ${what} needs a connection.`);
 }
 
-// --- Local copy of your data, so the app still opens (read-only-ish) without a connection ---
+// Local copy of your data Section: so the app still opens (read-only-ish) without a connection
 const cacheKey = () => `et_cache_${currentUser.id}`;
 const queueKey = () => `et_queue_${currentUser.id}`;
 let cacheTimer = null;
@@ -2040,7 +2019,7 @@ function loadLocal() {
     }
 }
 
-// --- Offline queue: new entries made without a connection wait here and sync later ---
+// Offline queue Section: new entries made without a connection wait here and sync later
 let syncQueue = []; // [{ table: 'expenses' | 'incomes', row }]
 let flushing = false;
 
@@ -2360,8 +2339,7 @@ async function fetchAllData() {
     }
 }
 
-// Create an expense/income. Works offline: the entry shows up at once, marked "not synced",
-// and is sent when the connection returns. Resolves to { queued }.
+// Add an expense or income. Offline, it shows at once and syncs later.
 async function createRecord(type, fields) {
     const table = type === 'income' ? 'incomes' : 'expenses';
     const list = type === 'income' ? incomes : expenses;
@@ -2444,7 +2422,7 @@ async function deleteRecord(type, id) {
     else { expenses = expenses.filter(r => r.id !== id); forgetRecentSave(id); }
 }
 
-// === CHIP SELECTORS ===
+// Chip Selectors Section
 function renderChips(container, items, selectedKey) {
     container.innerHTML = items.map(i => `
         <button type="button" class="chip ${i.key === selectedKey ? 'active' : ''}" data-key="${escapeHtml(i.key)}"
@@ -2487,7 +2465,7 @@ syncIncomeChips();
 expDate.value = toInputDate();
 incomeDate.value = toInputDate();
 
-// === PASSWORD VISIBILITY & STRENGTH ===
+// Password Visibility & Strength Section
 document.querySelectorAll('.toggle-visibility').forEach(btn => {
     btn.addEventListener('click', () => {
         const target = $(btn.dataset.target);
@@ -2513,7 +2491,7 @@ passInput2.addEventListener('input', () => {
     passStrength.dataset.score = score;
 });
 
-// === AUTH TABS ===
+// Auth Tabs Section
 let isLoginMode = true;
 
 function switchAuthTab(tab) {
@@ -2553,7 +2531,7 @@ registerTab.addEventListener('click', () => switchAuthTab('register'));
     el.addEventListener('keydown', (e) => { if (e.key === 'Enter') setupCompleteBtn.click(); });
 });
 
-// === AUTH ACTION ===
+// Auth Action Section
 async function handleAuthAction(email, password, isLogin) {
     if (!supabaseClient) {
         return showModal({ type: 'error', ...backendUnavailable() });
@@ -2668,7 +2646,7 @@ authActionBtn.addEventListener('click', () => {
     handleAuthAction(email, password, isLogin);
 });
 
-// === RESEND ===
+// Resend Section
 resendBtn.addEventListener('click', async () => {
     const email = lastRegisteredEmail || emailInput.value.trim();
     if (!email) {
@@ -2691,7 +2669,7 @@ resendBtn.addEventListener('click', async () => {
     }
 });
 
-// === GOOGLE LOGIN ===
+// Google Login Section
 googleBtn.addEventListener('click', async () => {
     if (!supabaseClient) {
         return showModal({ type: 'error', ...backendUnavailable() });
@@ -2712,7 +2690,7 @@ googleBtn.addEventListener('click', async () => {
     }
 });
 
-// === SETUP COMPLETE (for new Google users) ===
+// Setup Complete Section: for new Google users
 setupCompleteBtn.addEventListener('click', async () => {
     const username = setupUsername.value.trim();
     const password = setupPassword.value.trim();
@@ -2748,7 +2726,7 @@ setupCompleteBtn.addEventListener('click', async () => {
     }
 });
 
-// === LOGOUT ===
+// Logout Section
 logoutBtn.addEventListener('click', () => {
     showModal({
         type: 'question',
@@ -2797,7 +2775,7 @@ function resetSession() {
     showScreen('authScreen');
 }
 
-// === SESSION ===
+// Session Section
 function enterApp() {
     setActiveNav('dashboard');
     showScreen('dashboardScreen');
@@ -2811,8 +2789,7 @@ async function onLoginSuccess(user) {
     currentUser = user;
     loadUserTheme(user.id);
 
-    // Users who signed up with email always have a username. Anyone without one
-    // (a brand-new Google account) finishes their profile first.
+    // A new Google account has no username yet, so finish the profile first.
     const meta = user.user_metadata || {};
     if (!meta.username) {
         setupUsername.value = '';
@@ -2861,11 +2838,10 @@ if (supabaseClient) {
     });
 }
 
-// === EXPENSE ===
+// Expense Section
 let duplicateConfirmed = false;
 
-// The list reloads a moment after a save, and a reload that started earlier can briefly drop the new
-// entry. Remember what was just saved so a quick second save of the same purchase is still caught.
+// Remember what was just saved, so a quick second save is still caught as a duplicate.
 const recentSaves = [];
 function rememberRecentSave(row) {
     recentSaves.push({ at: Date.now(), row });
@@ -2947,7 +2923,7 @@ saveExpenseBtn.addEventListener('click', async () => {
 });
 expAmount.addEventListener('keydown', (e) => { if (e.key === 'Enter') saveExpenseBtn.click(); });
 
-// === INCOME ===
+// Income Section
 saveIncomeBtn.addEventListener('click', async () => {
     if (!currentUser) return showModal({ type: 'warning', title: 'Not signed in', message: 'Please log in first.' });
 
@@ -2982,7 +2958,7 @@ saveIncomeBtn.addEventListener('click', async () => {
 });
 incomeAmount.addEventListener('keydown', (e) => { if (e.key === 'Enter') saveIncomeBtn.click(); });
 
-// === HISTORY ===
+// History Section
 function fillSelect(select, items, allLabel) {
     select.innerHTML = (allLabel ? `<option value="">${allLabel}</option>` : '') +
         items.map(i => `<option value="${escapeHtml(i.key)}">${escapeHtml(i.label)}${i.active === false ? ' (inactive)' : ''}</option>`).join('');
@@ -3160,7 +3136,7 @@ $('exportAllCsvBtn').addEventListener('click', () => {
     exportTransactionsCsv(all, `vinexpenses-all-${toInputDate()}.csv`);
 });
 
-// === CSV IMPORT ===
+// CSV Import Section
 const importCsvStatus = $('importCsvStatus');
 const CSV_MAX_BYTES = 2 * 1024 * 1024;
 
@@ -3294,10 +3270,7 @@ $('importCsvInput').addEventListener('change', async (event) => {
     });
 });
 
-// === MONTHLY REPORT (in-app view) ===
-// Shown inside the app, not in a new window. An installed iPhone app has no tab bar and no browser
-// back button, so a separate window would be a dead end. Back, Esc and the browser/edge-swipe back
-// gesture all return to History.
+// Monthly Report Section: shown inside the app so there is always a way back
 const reportView = $('reportView');
 let reportDocTitle = '';
 let reportDailyChart = null;
@@ -3651,7 +3624,7 @@ async function duplicateRecord(type, id) {
     }
 }
 
-// === SWIPE ACTIONS (touch): swipe left to delete, swipe right to duplicate ===
+// Swipe Actions (touch) Section: swipe left to delete, swipe right to duplicate
 const swipe = { item: null, pid: null, startX: 0, startY: 0, dx: 0, active: false };
 let suppressClickUntil = 0;
 
@@ -3765,7 +3738,7 @@ function endSwipe(e) {
 historyList.addEventListener('pointerup', endSwipe);
 historyList.addEventListener('pointercancel', endSwipe);
 
-// === EDIT MODAL ===
+// Edit Modal Section
 function openEditModal(type, id) {
     const rec = (type === 'income' ? incomes : expenses).find(r => r.id === id);
     if (!rec) return;
@@ -3853,9 +3826,7 @@ editSaveBtn.addEventListener('click', async () => {
     }
 });
 
-// === RECURRING EXPENSES ===
-// Bills/subscriptions that repeat. When one falls due, an ordinary expense is added
-// automatically (and any dates missed while the app was closed are back-filled).
+// Recurring Section: bills and income that post by themselves when due
 const FREQUENCIES = [
     { key: 'monthly', label: 'Monthly', icon: 'fa-calendar-days', color: '#4f46e5' },
     { key: 'weekly', label: 'Weekly', icon: 'fa-calendar-week', color: '#4f46e5' },
@@ -3981,8 +3952,7 @@ async function processRecurring({ silent = false } = {}) {
             const finished = ended();
             if (!dues.length && !finished) continue;
 
-            // Claim these dates first. If another device already did, nothing matches and we skip,
-            // which prevents the same bill being added twice.
+            // Claim the dates first, so two devices never post the same bill twice.
             const claim = await supabaseClient.from('recurring_expenses')
                 .update(finished ? { next_due: next, active: false } : { next_due: next }).eq('id', r.id).eq('next_due', r.next_due).select();
             if (claim.error || !claim.data || !claim.data.length) continue;
@@ -4092,7 +4062,7 @@ async function updateRecurringIncomeRecord(id, fields) {
     recurringIncomes.sort((a, b) => a.next_due.localeCompare(b.next_due));
 }
 
-// ---- Form ----
+// Form Section
 function renderRecurringChips() {
     renderChips($('recCategoryChips'), activeTaxonomy(CATEGORIES), recCategoryValue);
     renderChips($('recPaymentChips'), activeTaxonomy(PAYMENTS), recPaymentValue);
@@ -4217,7 +4187,7 @@ saveRecurringBtn.addEventListener('click', async () => {
 cancelRecurringBtn.addEventListener('click', cancelRecurringEdit);
 [recName, recAmount].forEach(el => el.addEventListener('keydown', (e) => { if (e.key === 'Enter') saveRecurringBtn.click(); }));
 
-// ---- List ----
+// List Section
 function renderRecurring() {
     const activeExpenses = recurring.filter(item => item.active);
     const activeIncomes = recurringIncomes.filter(item => item.active);
@@ -4333,7 +4303,7 @@ recurringList.addEventListener('click', async (e) => {
     }
 });
 
-// ---- Dashboard "Upcoming" card ----
+// Dashboard "Upcoming" card Section
 function renderUpcoming() {
     const next = [
         ...recurring.filter(item => item.active).map(item => ({ ...item, kind: 'expense', title: item.name })),
@@ -4369,8 +4339,7 @@ document.addEventListener('visibilitychange', () => {
 
 cancelRecurringEdit(); // sets the form defaults and renders the chips
 
-// === BUDGETS ===
-// Monthly limits per category plus an overall limit (stored under the category key 'all').
+// Budgets Section: a monthly limit per category, plus an overall one saved as 'all'
 const budgetSheet = $('budgetSheet');
 const budgetFields = $('budgetFields');
 const saveBudgetsBtn = $('saveBudgetsBtn');
@@ -4508,7 +4477,7 @@ function checkBudgetAlerts(category, amount, createdAt) {
     });
 }
 
-// === FORGOT PASSWORD ===
+// Forgot Password Section
 const resetSheet = $('resetSheet');
 const resetEmail = $('resetEmail');
 const resetSendBtn = $('resetSendBtn');
@@ -4599,7 +4568,7 @@ $('newPasswordCancel').addEventListener('click', async () => {
 });
 [$('newPassword'), $('newPasswordConfirm')].forEach(el => el.addEventListener('keydown', (e) => { if (e.key === 'Enter') $('newPasswordBtn').click(); }));
 
-// === INIT ===
+// Init Section
 Plan.init(); // the Deposits and Loans sections of the Plan tab (plan.js)
 
 (async function init() {
@@ -4627,10 +4596,7 @@ Plan.init(); // the Deposits and Loans sections of the Plan tab (plan.js)
     }
 })();
 
-// === PWA ===
-// An installed iPhone app is suspended and resumed rather than reloaded, so it can sit on an old
-// version for days. Look for a new version every time the app comes back to the foreground, and
-// offer a one-tap reload once a new service worker has taken over.
+// PWA Section: check for a new version whenever the app comes back to the front
 if ('serviceWorker' in navigator) {
     const hadController = !!navigator.serviceWorker.controller; // false on the very first visit: nothing to refresh
     let updatePrompted = false;

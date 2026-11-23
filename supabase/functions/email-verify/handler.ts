@@ -1,8 +1,4 @@
-// "Send me a confirmation email": proves a person controls the address they want reports sent to.
-// Without this, anyone could type a stranger's address and make this app email that stranger.
-//
-// Signed-in users only. Limits: 3 confirmation emails per user per day, 2 per destination address per day
-// (so one person cannot flood somebody else's inbox), and the app-wide daily cap that protects the Gmail account.
+// Sends the confirmation email that proves a person owns the address. Signed-in users only, with daily limits.
 
 import { json, preflight, requireUser, safeEqual, sha256Hex, takeQuota } from "../_shared/guard.ts";
 import { q, rest } from "../_shared/db.ts";

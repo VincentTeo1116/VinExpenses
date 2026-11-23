@@ -1,13 +1,9 @@
 /* Clickjacking guard (see frame-guard.js): stay blank until the page knows it is the top-level window. */
 html:not([data-top]) body { display: none !important; }
 
-/* ================================================================
-   SMART EXPENSE TRACKER — style.css
-   One token system (light + dark), mobile-first.
-   Layout: bottom tab bar + sheets on phones, sidebar on desktop.
-   ================================================================ */
+/* VinExpenses styles: one set of tokens for light and dark, mobile first. */
 
-/* === 1. DESIGN TOKENS === */
+/* 1. Design Tokens Section */
 :root {
     /* brand */
     --brand: #4f46e5;            /* button / solid fills (white text passes AA) */
@@ -83,7 +79,7 @@ html:not([data-top]) body { display: none !important; }
     :root[data-theme="green"] { --brand: #047857; --brand-600: #065f46; --primary: #6ee7b7; --primary-soft: rgba(110, 231, 183, .17); --brand-gradient-end: #059669; }
 }
 
-/* === 2. BASE === */
+/* 2. Base Section */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html { -webkit-text-size-adjust: 100%; }
 body {
@@ -123,7 +119,7 @@ h1, h2, h3 { line-height: 1.2; letter-spacing: -0.01em; }
     margin-left: auto;
 }
 
-/* === 3. APP SHELL === */
+/* 3. App Shell Section */
 .app-shell { min-height: 100vh; min-height: 100dvh; }
 .main { padding: var(--s-5) var(--s-4) calc(var(--tabbar-h) + var(--safe-bottom) + var(--s-6)); }
 .screen { display: none; }
@@ -136,10 +132,10 @@ body.is-auth .tabbar { display: none; }
 body.is-auth .main { padding: 0; }
 body.is-auth .main > .screen { max-width: none; }
 
-/* --- Sidebar (desktop) --- */
+/* Sidebar Section: desktop */
 .sidebar { display: none; }
 
-/* --- Bottom tab bar (mobile & tablet) --- */
+/* Bottom tab bar Section: mobile & tablet */
 .tabbar {
     position: fixed; left: 0; right: 0; bottom: 0; z-index: 50;
     height: calc(var(--tabbar-h) + var(--safe-bottom));
@@ -211,7 +207,7 @@ body.is-auth .main > .screen { max-width: none; }
     .side-user-sub { font-size: 12px; font-weight: 500; }
 }
 
-/* === 4. COMPONENTS === */
+/* 4. Components Section */
 /* Buttons */
 .btn {
     display: inline-flex; align-items: center; justify-content: center; gap: 8px;
@@ -377,7 +373,7 @@ option { background: var(--surface); color: var(--text); }
 .strength[data-score="3"] span:nth-child(-n+3) { background: #84cc16; }
 .strength[data-score="4"] span { background: var(--success); }
 
-/* === 5. AUTH === */
+/* 5. Auth Section */
 .auth-layout { min-height: 100vh; min-height: 100dvh; display: grid; grid-template-columns: minmax(0, 1fr); }
 .auth-hero { display: none; }
 .auth-box { width: 100%; max-width: 440px; margin: auto; padding: var(--s-8) var(--s-5); }
@@ -422,7 +418,7 @@ option { background: var(--surface); color: var(--text); }
     .auth-points i { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; background: rgba(255, 255, 255, 0.16); font-size: 14px; }
 }
 
-/* === 6. PAGE HEADER & MONTH SELECTOR === */
+/* 6. Page Header & Month Selector Section */
 .page-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: var(--s-4); margin-bottom: var(--s-5); }
 .page-title { font-size: 26px; font-weight: 800; letter-spacing: -0.03em; }
 .page-sub { color: var(--muted); font-size: 14px; margin-top: 2px; max-width: 60ch; }
@@ -443,7 +439,7 @@ option { background: var(--surface); color: var(--text); }
 .month-picker-hidden { position: absolute; opacity: 0; width: 0; height: 0; pointer-events: none; }
 @media (max-width: 699px) { .month-selector { width: 100%; justify-content: space-between; } }
 
-/* === 7. DASHBOARD === */
+/* 7. Dashboard Section */
 .dash-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-4); }
 
 .hero-card {
@@ -552,7 +548,7 @@ option { background: var(--surface); color: var(--text); }
     .recent { grid-column: span 7; }
 }
 
-/* === 8. TRANSACTION ROWS === */
+/* 8. Transaction Rows Section */
 .history-list { display: flex; flex-direction: column; }
 .history-list.compact { max-height: none; }
 .history-item {
@@ -655,7 +651,7 @@ option { background: var(--surface); color: var(--text); }
 .recurring-warn { width: 100%; padding: 12px 14px; border-radius: var(--r-md); background: var(--warning-soft); color: var(--warning); font-size: 13.5px; line-height: 1.5; }
 .recurring-warn i { margin-right: 6px; }
 
-/* === 9. SHEETS & MODALS === */
+/* 9. Sheets & Modals Section */
 .modal-overlay-full {
     display: none; position: fixed; inset: 0; z-index: 1000; padding: var(--s-4);
     align-items: center; justify-content: center;
@@ -765,7 +761,7 @@ option { background: var(--surface); color: var(--text); }
     .amount-field input { font-size: 36px; }
 }
 
-/* === 10. TOASTS === */
+/* 10. Toasts Section */
 .toast-host {
     position: fixed; left: 50%; bottom: calc(var(--tabbar-h) + var(--safe-bottom) + 14px); transform: translateX(-50%);
     z-index: 2000; display: flex; flex-direction: column; gap: 8px; align-items: center;
@@ -788,7 +784,7 @@ option { background: var(--surface); color: var(--text); }
     .toast.info i { color: #2563eb; }
 }
 
-/* === 11. TOUCH & MOTION === */
+/* 11. Touch & Motion Section */
 @media (max-width: 699px) {
     .history-item .h-actions { display: none; }           /* tap a row to edit; Delete lives in the editor */
     .recurring-item .h-actions { display: flex; }
@@ -799,7 +795,7 @@ option { background: var(--surface); color: var(--text); }
 }
 
 
-/* === 12. BUDGETS, SAFE-TO-SPEND, OFFLINE, SWIPE, RESET === */
+/* 12. Budgets, Safe-to-spend, Offline, Swipe, Reset Section */
 .forgot-row { display: flex; justify-content: flex-end; margin-top: 4px; }
 .sheet-sub { color: var(--muted); font-size: 14px; margin: -6px 0 var(--s-4); }
 
@@ -923,15 +919,7 @@ body.is-auth .net-banner { display: none; }
     .toast-action:hover { background: rgba(15, 23, 42, 0.2); }
 }
 
-/* === Liquid Glass surfaces ===
-   Glass only reads as glass when (a) something colourful sits behind it, and (b) it has the
-   cues Apple's version has: a bright rim light, a hairline outline and a soft shadow.
-   Keep content surfaces nearly opaque for contrast; reserve translucency for floating chrome.
-
-   Colours here are plain rgba() on purpose. `background: var(--x)` followed by a second
-   declaration using color-mix() does NOT fall back on browsers without color-mix() (a var()
-   declaration is never rejected at parse time), so the old fallback silently produced a
-   transparent bar with no border. */
+/* Liquid Glass Section: a bright rim, a hairline and a soft shadow; only floating chrome is see-through */
 :root {
     --build: "__BUILD__";                         /* stamped by the deploy workflow; shown in Account */
 
@@ -971,8 +959,7 @@ body.is-auth .net-banner { display: none; }
     }
 }
 
-/* A fixed wash of colour behind everything, like a wallpaper, so the blur always has something
-   to bend. (background-attachment: fixed is ignored on iOS, so this is a fixed pseudo-element.) */
+/* A fixed wash of colour behind everything, so the blur has something to show. */
 body::before {
     content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
     background:
@@ -1036,16 +1023,11 @@ body::before {
 
 .build-info { margin-top: var(--s-3); text-align: center; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
 
-/* === Hidden scrollbars ===
-   The bar is hidden on the page, in every popup (sheets, dialogs) and in their inner lists.
-   Scrolling itself is untouched: mouse wheel, trackpad, touch and keyboard all still work.
-   Also stops the page from shifting sideways when a popup locks the page scroll. */
+/* Hidden scrollbars Section: scrolling still works; only the bar is hidden */
 html, body, * { scrollbar-width: none; -ms-overflow-style: none; }
 html::-webkit-scrollbar, body::-webkit-scrollbar, *::-webkit-scrollbar { display: none; width: 0; height: 0; }
 
-/* === Monthly report view ===
-   A full-screen view inside the app (not a new window), so an installed phone app always has a Back button.
-   The page itself is always white, like paper, whatever the app theme. */
+/* Monthly report view Section: full screen inside the app, always white like paper */
 .report-view {
     display: none; position: fixed; inset: 0; z-index: 1200; flex-direction: column;
     background: var(--bg);
@@ -1090,7 +1072,7 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, *::-webkit-scrollbar { display
     .report-table tr { break-inside: avoid; }
 }
 
-/* === Receipt reading: candidate totals, category suggestion, AI toggle, tips === */
+/* Receipt reading Section: candidate totals, category suggestion, AI toggle, tips */
 .receipt-candidates { flex-basis: 100%; display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
 .cand-label { color: var(--muted); font-size: 11.5px; font-weight: 700; width: 100%; }
 .cand-chip {
@@ -1119,7 +1101,7 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, *::-webkit-scrollbar { display
 .scan-tips ul { margin: 6px 0 0 18px; display: grid; gap: 3px; }
 .scan-tips b { color: var(--text); }
 
-/* === REPORT INSIGHTS & DATA TOOLS === */
+/* Report Insights & Data Tools Section */
 .report-doc h2 { font-size: 15px; font-weight: 700; margin: 22px 0 8px; }
 .report-compare { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; margin: 0 0 6px; }
 .report-compare div { padding: 12px 16px; background: #f3f4fb; border-radius: 12px; }
@@ -1174,9 +1156,7 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, *::-webkit-scrollbar { display
 [hidden] { display: none !important; }
 
 
-/* ================================================================
-   PLAN: deposits, loans, reminders
-   ================================================================ */
+/* Plan Section: deposits, loans, reminders */
 .plan-tabs { max-width: 560px; }
 .plan-tabs .seg-btn { white-space: nowrap; }
 @media (max-width: 420px) { .plan-tabs .seg-btn { gap: 6px; padding-inline: 6px; font-size: 13.5px; } }
@@ -1329,7 +1309,7 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, *::-webkit-scrollbar { display
 .reminders-foot { margin-top: var(--s-3); text-align: center; }
 
 
-/* --- Plan, design pass: answer first, calmer cards, colour with a job, readable small text --- */
+/* Plan, design pass Section: answer first, calmer cards, colour with a job, readable small text */
 /* quick picks under tenure / term */
 .preset-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .preset { min-height: 34px; padding: 5px 12px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface); color: var(--muted); font-size: 13px; font-weight: 600; transition: background 0.15s, color 0.15s, border-color 0.15s; }

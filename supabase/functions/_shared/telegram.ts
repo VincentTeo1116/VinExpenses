@@ -1,5 +1,4 @@
-// Telegram helpers: a small API client, the expense-message parser, and message formatting.
-// The bot token is part of every Telegram API address, so these functions never log, return or throw an address.
+// Telegram helpers: API client, message parser and formatting. The bot token is never logged.
 
 import { escapeHtml, ringgit } from "./email-templates.ts";
 
@@ -45,11 +44,7 @@ export function stripTags(html: string): string {
     .replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, "&");
 }
 
-/**
- * The real client. Failures are logged by status only and never stop the webhook from answering Telegram.
- * If Telegram rejects a message because of its formatting, the same message is sent again as plain text, so a
- * formatting problem can make a message less pretty but never make it disappear.
- */
+/* The real client. If Telegram rejects the formatting, the message is sent again as plain text. */
 export function telegramClient(token: string, fetchImpl: typeof fetch = fetch): TelegramClient {
   type Outcome = { ok: boolean; status: number; result?: { message_id?: number }; notModified?: boolean };
   const post = async (method: string, payload: Record<string, unknown>): Promise<{ outcome: Outcome; description: string }> => {
@@ -80,7 +75,7 @@ export function telegramClient(token: string, fetchImpl: typeof fetch = fetch): 
     return outcome;
   };
 
-  // ---- pictures (multipart upload). The same plain-text safety net as for messages applies to captions.
+  // Pictures Section: multipart upload, with the same plain-text fallback as messages
   const photoBlob = (png: Uint8Array) => new Blob([png.buffer.slice(png.byteOffset, png.byteOffset + png.byteLength) as ArrayBuffer], { type: "image/png" });
   const postForm = async (method: string, build: (caption: (html: string) => string, parseMode: boolean) => FormData, caption: string): Promise<Outcome> => {
     const attempt = async (plain: boolean) => {
@@ -201,7 +196,7 @@ export function telegramClient(token: string, fetchImpl: typeof fetch = fetch): 
   };
 }
 
-// ---------------------------------------------------------------- parsing "lunch 12.50 grab card"
+// Parsing "lunch 12.50 grab card" Section
 
 export const MAX_AMOUNT = 1_000_000;
 
@@ -219,12 +214,7 @@ export function cleanText(value: string, max: number): string {
   return value.replace(/[\u0000-\u001f\u007f-\u009f​-‏\u2028-‮⁠﻿]+/g, " ").replace(/\s+/g, " ").trim().slice(0, max);
 }
 
-/**
- * Finds the amount and the description in a free-form message. The amount is, in order of preference:
- * a number written with RM/MYR, then a number with decimals, then the last plain number.
- * "7-eleven 5.50" -> 5.50 (the 7 is part of a name), "rm12 petrol" -> 12.
- * `paymentWords` are the user's payment-method names; one match is removed from the description and reported.
- */
+/* Finds the amount and description in a message: a number with RM first, then decimals, then the last number. */
 export function parseExpense(text: string, paymentWords: string[] = []): ParsedExpense | null {
   const spaced = cleanText(text, 500).replace(/([\u3400-\u9fff])(?=[\d])/g, "$1 ").replace(/(\d)(?=[\u3400-\u9fff])/g, "$1 ");
   const tokens = spaced.split(" ").filter(Boolean);
@@ -251,7 +241,7 @@ export function parseExpense(text: string, paymentWords: string[] = []): ParsedE
   return { amount, description: kept.join(" ").slice(0, 80), paymentWord };
 }
 
-// ---------------------------------------------------------------- time windows (Kuala Lumpur, UTC+8)
+// Time windows Section: Kuala Lumpur, UTC+8
 
 const KL_OFFSET_MS = 8 * 60 * 60 * 1000;
 
@@ -268,7 +258,7 @@ export function klWindow(kind: "day" | "month", now: Date): { start: string; end
   return { start: new Date(startLocal - KL_OFFSET_MS).toISOString(), end: new Date(endLocal - KL_OFFSET_MS).toISOString(), label };
 }
 
-// ---------------------------------------------------------------- link codes
+// Link codes Section
 
 const CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no 0/O/1/I: easy to read out or retype
 export const CODE_PATTERN = /^[A-Z2-9]{10}$/;

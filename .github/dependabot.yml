@@ -1,5 +1,4 @@
-# Keeps the pinned GitHub Actions current. Each update arrives as a pull request that you review and merge;
-# nothing is changed automatically. (Third-party browser libraries are managed by tools/vendor.js instead.)
+# Opens a pull request when a pinned GitHub Action has an update. Nothing changes until you merge it.
 version: 2
 updates:
   - package-ecosystem: "github-actions"

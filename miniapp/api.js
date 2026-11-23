@@ -1,17 +1,4 @@
-/* miniapp/api.js
- *
- * Talks to the Mini App's data service (the Supabase function "miniapp-api"). Every request carries Telegram's signed launch
- * data in a header; the server checks the signature and decides who the person is. The page never sends a user id.
- *
- * Failures become an ApiError with a short `code` the screens know how to explain:
- *   unauthorized  the launch data is missing or not genuine      -> "open this from the bot"
- *   expired       the launch is too old                          -> "reopen from the bot"
- *   not_linked    Telegram is not connected to an account yet    -> "connect your account first"
- *   limit         too many requests today
- *   network       no connection / timeout
- *   invalid       a value was refused (`field` says which)
- *   unavailable   anything else
- */
+/* Talks to the miniapp-api function. Every request carries Telegram's signed launch data; the page never sends a user id. */
 (function (root, factory) {
     if (typeof module === 'object' && module.exports) module.exports = factory();
     else root.MiniApi = factory();
@@ -29,10 +16,7 @@
     }
     ApiError.prototype = Object.create(Error.prototype);
 
-    /**
-     * options: { baseUrl, anonKey?, getInitData(): string, fetchImpl?, timeoutMs? }
-     * baseUrl is the project address, e.g. https://abcd.supabase.co
-     */
+    /* options: baseUrl (your project address), getInitData, and optional anonKey, fetchImpl, timeoutMs. */
     function create(options) {
         var fetchImpl = options.fetchImpl || (typeof fetch === 'function' ? fetch.bind(typeof self !== 'undefined' ? self : undefined) : null);
         var timeoutMs = options.timeoutMs || 20000;

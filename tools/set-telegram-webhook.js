@@ -1,15 +1,5 @@
 #!/usr/bin/env node
-// Tells Telegram where to send the bot's messages, and registers the command menu.
-// Run it once after deploying the telegram-bot function (and again if you change the secret).
-//
-//   PowerShell:
-//     $env:TELEGRAM_BOT_TOKEN = "123456:ABC..."          # from @BotFather
-//     $env:TELEGRAM_WEBHOOK_SECRET = "<same value you stored as the Supabase secret>"
-//     $env:SUPABASE_URL = "https://YOURREF.supabase.co"
-//     node tools/set-telegram-webhook.js
-//
-// The token is only read from the environment (never from arguments, so it does not end up in shell history),
-// and it is never printed.
+// Tells Telegram where to send messages and sets the command menu. Secrets come from the environment only (see README).
 
 const { COMMANDS } = require('./telegram-commands.js');
 

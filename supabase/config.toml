@@ -19,9 +19,7 @@ verify_jwt = true
 [functions.email-verify]
 verify_jwt = true
 
-# The links inside our emails (confirm / unsubscribe) are opened by people who are not signed in to the app and by
-# mail providers' one-click Unsubscribe buttons. They cannot carry a login, so the gateway check is off for this one
-# function only. It is protected instead by signed, expiring, single-purpose tokens (see _shared/email-tokens.ts).
+# Email links are opened without a login, so this function checks a signed token instead.
 [functions.email-action]
 verify_jwt = false
 
@@ -29,8 +27,7 @@ verify_jwt = false
 [functions.admin-email-test]
 verify_jwt = true
 
-# Telegram calls this address itself and cannot send a login, so the gateway check is off for this one function.
-# It is protected instead by Telegram's secret header (TELEGRAM_WEBHOOK_SECRET), compared in constant time.
+# Telegram can't send a login, so this function checks Telegram's secret header instead.
 [functions.telegram-bot]
 verify_jwt = false
 
@@ -46,8 +43,6 @@ verify_jwt = false
 [functions.plan-reminders]
 verify_jwt = false
 
-# The Mini App's data service. It has no login of its own: every request must carry Telegram's signed initData, which
-# the function verifies (HMAC with your bot token) before touching any data. The gateway's JWT check is off because the
-# Mini App has no Supabase session.
+# The Mini App has no login, so this function checks Telegram's signed launch data instead.
 [functions.miniapp-api]
 verify_jwt = false

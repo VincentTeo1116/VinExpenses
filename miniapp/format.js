@@ -1,9 +1,4 @@
-/* miniapp/format.js
- *
- * Small helpers shared by every screen of the Mini App: escaping, money, dates and colours.
- * No dependencies. Works in the browser (window.MiniFormat) and in Node (require), so it can be tested exactly.
- * All dates are Kuala Lumpur (UTC+8), the same calendar the bot and the reports use.
- */
+/* Shared helpers for the Mini App: escaping, money, dates and colours, in Kuala Lumpur time. */
 (function (root, factory) {
     if (typeof module === 'object' && module.exports) module.exports = factory();
     else root.MiniFormat = factory();
@@ -76,7 +71,7 @@
         return { arrow: change > 0 ? '▲' : '▼', text: Math.round(Math.abs(change) * 100) + '%', up: change > 0, flat: false };
     }
 
-    // ---- dates (Kuala Lumpur calendar)
+    // Dates Section: Kuala Lumpur calendar
 
     /** "YYYY-MM-DD" on the Kuala Lumpur calendar for an ISO instant. */
     function dayKey(iso) {
@@ -135,10 +130,7 @@
         return dayKey(new Date(new Date(startIso).getTime() + index * DAY_MS + 12 * 3600000).toISOString());
     }
 
-    /**
-     * Colour step 0-4 for a day's spending, relative to this month's own days (the busiest days are always the strongest
-     * step, however few days have spending). 0 = nothing spent.
-     */
+    /* Colour step 0 to 4 for a day's spending, compared with the month's own busiest days. */
     function heatLevel(value, positivesSorted) {
         if (!(value > 0)) return 0;
         if (positivesSorted.length === 1) return 2;

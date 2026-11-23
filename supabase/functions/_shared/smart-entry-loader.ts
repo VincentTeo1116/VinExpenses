@@ -1,7 +1,4 @@
-// Loads the app's own category-guessing code (smart-entry.js, copied here by tools/sync-shared.js).
-// It is a browser/Node "UMD" file, so depending on the runtime it appears as the module's default export (Node) or
-// as the global SmartEntry (Deno). If it cannot be loaded at all, callers fall back to the category "other":
-// the bot keeps working, it just guesses less cleverly.
+// Loads the app's own category guesser. If it can't load, the category falls back to "other".
 
 export interface CategoryChoice {
   key: string;

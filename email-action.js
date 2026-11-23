@@ -1,7 +1,4 @@
-// The page behind the links in our emails. The secret token lives in the part of the address after "#", which
-// browsers never send to any server and never include in the Referer header. It is removed from the address bar as
-// soon as it has been read. Nothing happens until the person presses the button, so mail scanners that open every
-// link cannot confirm or unsubscribe anyone by accident.
+// The page behind our email links. The token stays in the # part of the address and nothing happens until the button is pressed.
 (function () {
     'use strict';
     var title = document.getElementById('title');

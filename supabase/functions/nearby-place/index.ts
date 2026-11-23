@@ -44,8 +44,7 @@ Deno.serve(async (request: Request) => {
   const jsonResponse = (body: Record<string, unknown>, status = 200) => json(request, body, status);
   if (request.method !== "POST") return jsonResponse({ error: "Use POST for nearby place lookup." }, 405);
 
-  // Signed-in users only, with a daily allowance: this function relays requests to free public map services,
-  // and must not become an anonymous relay that gets this project's address banned.
+  // Signed-in users only, with a daily allowance, so this never becomes an open relay.
   const auth = await requireUser(request);
   if (auth instanceof Response) return auth;
   if (!(await takeQuota(`nearby:${auth.userId}`, dailyLimit("NEARBY_DAILY_LIMIT", 200)))) {
@@ -75,8 +74,7 @@ Deno.serve(async (request: Request) => {
       headers: { Accept: "application/json", "User-Agent": "VinExpenses/1.0 (personal expense tracker; nearby merchant suggestion)", "Accept-Language": "en" },
     });
     if (!response.ok) {
-      // Public Nominatim often blocks shared cloud addresses (403). Fall back to the Overpass API,
-      // which lists named shops and amenities around the point.
+      // Nominatim often blocks cloud servers, so fall back to Overpass.
       console.error("nearby-place upstream status", response.status);
       const fallback = await overpassNearest(lat, lon);
       if (fallback) return jsonResponse({ name: fallback.slice(0, 80) });

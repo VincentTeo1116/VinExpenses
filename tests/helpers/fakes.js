@@ -103,7 +103,7 @@ function parseMessage(raw) {
     return { headers, parts };
 }
 
-// ------------------------------------------------------------------ fake Supabase
+// Fake Supabase Section
 
 function splitTop(text) {
     const out = [];

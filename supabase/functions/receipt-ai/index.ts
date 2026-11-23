@@ -1,15 +1,4 @@
-// Optional AI helper for receipts the normal reader is unsure about.
-//
-// It is OFF until you add a key, and the app only calls it when the user switches "Let AI help" on.
-// Only the receipt TEXT is sent (never the photo), and nothing is stored here.
-//
-// Setup (Supabase -> Edge Functions -> Secrets):
-//   GEMINI_API_KEY    key from https://aistudio.google.com/apikey   (required to enable this function)
-//   GEMINI_MODEL      default "gemini-2.5-flash-lite" (cheap and fast; change if Google renames it)
-//   AI_DAILY_LIMIT    calls per user per day, default 10
-//
-// Privacy note: on Google's free tier, prompts may be used to improve Google's products. Enable billing on the
-// Google project if receipts should not be used that way.
+// Optional AI help for unclear receipts. Off until a key is added; only the text is sent, never the photo.
 import { consumeQuota, dailyLimit, json, preflight, requireUser } from "../_shared/guard.ts";
 import {
   buildPrompt,

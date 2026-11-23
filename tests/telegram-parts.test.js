@@ -1,11 +1,10 @@
 'use strict';
-// Tests for the bot's building blocks: the three languages, the formatting helpers, date reading, the report
-// maths and layout, and the receipt OCR helper. No database and no Telegram involved.
+// Tests the bot's building blocks: languages, formatting, dates and report maths.
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const shared = (name) => import(`../supabase/functions/_shared/${name}.ts`);
 
-// ------------------------------------------------------------------ languages
+// Languages Section
 const placeholders = (text) => [...text.matchAll(/\{\{?(\w+)\}?\}/g)].map((m) => m[0]).sort();
 const tags = (text) => [...text.matchAll(/<\/?(\w+)>/g)].map((m) => m[0]);
 
@@ -55,7 +54,7 @@ test('i18n: {values} are escaped, {{values}} are not, missing values vanish, unk
     for (const bad of [undefined, null, 'fr', 5, {}, 'MS']) assert.equal(asLang(bad), 'en');
 });
 
-// ------------------------------------------------------------------ formatting
+// Formatting Section
 test('format: bars never overflow, tiny amounts stay visible, and nonsense input is safe', async () => {
     const { bar, pct, trend, truncate, emojiFor } = await shared('tg-format');
     assert.equal(bar(0), '▱▱▱▱▱▱▱▱▱▱');
@@ -95,7 +94,7 @@ test('format: category rows escape names and stay on one line', async () => {
     assert.match(row, /50%/);
 });
 
-// ------------------------------------------------------------------ dates inside messages
+// Dates inside messages Section
 const KL_NOW = new Date('2026-11-05T04:00:00Z'); // Thursday 5 Nov 2026, 12:00 in Kuala Lumpur
 test('dates: words, slashes, ISO and month names are understood and removed from the text', async () => {
     const { extractDate } = await shared('tg-dates');
@@ -155,7 +154,7 @@ test('dates: the future and more than a year ago are refused, the boundaries are
     assert.equal(lateNight.at.toISOString(), '2026-11-05T04:00:00.000Z', '"yesterday" follows the KL calendar, not UTC');
 });
 
-// ------------------------------------------------------------------ report maths and layout
+// Report maths and layout Section
 const rows = (list) => list.map(([category, amount, merchant]) => ({ category, amount, merchant }));
 
 test('reports: totals use exact cents, categories and places are ranked, the biggest expense is found', async () => {
@@ -219,7 +218,7 @@ test('reports: empty periods say so nicely, and savings are only shown with inco
     assert.match(overspent, /▱▱▱▱▱▱▱▱▱▱ <b>0%/, 'a negative savings rate shows as an empty bar, not a broken one');
 });
 
-// ------------------------------------------------------------------ OCR helper
+// OCR helper Section
 test('ocr: the real file type decides, size is limited, and failures are classified', async () => {
     const { runOcr, mimeFromBytes, MAX_IMAGE_BYTES } = await shared('ocr');
     const jpeg = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, ...new Array(40).fill(1)]);

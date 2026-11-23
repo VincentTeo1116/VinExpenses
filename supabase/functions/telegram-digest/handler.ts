@@ -1,10 +1,4 @@
-// The opt-in weekly summary. The database scheduler calls this every hour; it only does anything on Monday from
-// 09:00 Kuala Lumpur time, and sends each person who switched it on (/digest on) one message per week.
-//
-// Safety properties (same as the monthly email): only the scheduler can start it (secret header, constant-time
-// comparison); each person is "claimed" for the week before sending so overlapping runs never double-send; at most
-// BATCH people per run; a person who blocked the bot is switched off instead of retried forever; a temporary failure
-// is released and retried the next hour; a week with nothing to report sends nothing.
+// The opt-in weekly summary. Runs hourly but only sends on Monday morning, once a week per person.
 
 import { dailyLimit, env, safeEqual } from "../_shared/guard.ts";
 import { q, rest } from "../_shared/db.ts";
@@ -97,8 +91,7 @@ export async function handle(request: Request, now = new Date(), clientOverride?
     try {
       const lang = asLang(person.lang);
       const iso = (d: Date) => d.toISOString();
-      // The same week view as the /week command (offset 1 = the week that just ended): bars + caption, with the
-      // complete text report as the fallback if the picture cannot be drawn or sent.
+      // Same week view as /week, with the full text as a fallback if the picture fails.
       const categories = await rest(`user_categories?select=category_key,label&user_id=eq.${q(userId)}`).then(async (r) => (r.ok ? await r.json() : [])).catch(() => []);
       const names = new Map((categories as { category_key: string; label: string }[]).map((c) => [c.category_key, c.label] as const));
       const view = await buildView({ userId, lang, now, view: "w", offset: 1, labels: (key) => names.get(key) ?? key, digest: true });

@@ -1,15 +1,4 @@
-// A small, strict SMTP client for sending ONE message over an encrypted connection (implicit TLS, port 465).
-//
-// Why 465 and not 587: Supabase Edge Functions block outgoing ports 25 and 587. Port 465 is open, and it is also the
-// safer mode because the connection is encrypted from the very first byte (no plain-text "upgrade" step that could be
-// stripped by an attacker). Certificates are verified by the runtime; there is no option to turn that off.
-//
-// Safety rules enforced here:
-//   - every address, header value and credential is checked for CR / LF / NUL BEFORE anything is written, so nobody can
-//     smuggle in extra recipients, headers or SMTP commands ("header / command injection");
-//   - the message body is base64-encoded, so body text can never be mistaken for SMTP syntax;
-//   - the password is only ever written inside the AUTH command and never appears in errors or logs;
-//   - the server's replies are size-limited and every step has a timeout.
+// A small, strict SMTP client for one encrypted message on port 465 (Supabase blocks 25 and 587).
 
 export interface Conn {
   read(): Promise<Uint8Array | null>;
@@ -62,7 +51,7 @@ const MAX_REPLY_BYTES = 16 * 1024;
 const MAX_MESSAGE_BYTES = 400_000;
 export const ALLOWED_EXTRA_HEADERS = new Set(["list-unsubscribe", "list-unsubscribe-post", "auto-submitted"]);
 
-// ---------------------------------------------------------------- encoding helpers
+// Encoding helpers Section
 
 export function hasLineBreak(value: string): boolean {
   return /[\r\n\u0000\u2028\u2029]/.test(value);
@@ -143,7 +132,7 @@ export function dotStuff(mime: string): string {
   return mime.replace(/(^|\r\n)\./g, "$1..");
 }
 
-// ---------------------------------------------------------------- the conversation
+// The conversation Section
 
 class Session {
   private buffer = "";
@@ -239,7 +228,7 @@ export async function sendSmtp(account: SmtpAccount, message: SmtpMessage, conne
   }
 }
 
-// ---------------------------------------------------------------- the real connection (Deno)
+// The real connection Section: Deno
 
 export const denoConnector: Connector = async (host, port) => {
   // deno-lint-ignore no-explicit-any

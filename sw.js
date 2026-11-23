@@ -1,7 +1,4 @@
-// Service worker: keeps the app installable and the UI loadable offline.
-// Strategy: network-first (so a deploy is picked up immediately), falling
-// back to the cache when offline. Supabase API calls are never intercepted.
-// Bump CACHE_NAME whenever you want to force old caches to be dropped.
+// Service worker: tries the network first so updates arrive at once, and uses the cache when offline.
 const CACHE_NAME = 'expense-tracker-__BUILD__'; // stamped per deploy, so every release replaces the old cache
 const SHELL_FILES = [
     './',
@@ -10,8 +7,7 @@ const SHELL_FILES = [
     'fonts.css',
     'frame-guard.js',
     'app.js',
-    // Self-hosted libraries (vendor/): cached so the app still opens offline. pdf.js is large, so it is cached
-    // the first time someone opens a PDF instead.
+    // Libraries from vendor/ are cached for offline use. pdf.js is cached on first use because it is large.
     'vendor/supabase-js/supabase.js',
     'vendor/chartjs/chart.umd.js',
     'vendor/fontawesome/css/all.min.css',
@@ -52,12 +48,10 @@ self.addEventListener('fetch', (event) => {
     if (req.method !== 'GET') return;
     if (!req.url.startsWith('http')) return;
 
-    // This worker only ever handles THIS site's own files. Everything else (Supabase, the map service, anything an
-    // attacker might try to route through here) goes straight to the network, untouched and never stored.
+    // Only this site's own files are handled. Everything else goes straight to the network.
     if (new URL(req.url).origin !== self.location.origin) return;
 
-    // Files are revalidated with the server on every load. Without this, GitHub Pages'
-    // `max-age=600` header lets a phone keep serving a 10-minute-old stylesheet.
+    // Always recheck files with the server, or GitHub Pages serves a copy up to 10 minutes old.
     event.respondWith(
         fetch(req, { cache: 'no-cache' })
             .then((res) => {

@@ -1,15 +1,6 @@
 name: Deploy Supabase functions
 
-# Redeploys the Edge Functions (email, Telegram bot, receipt scanning...) whenever their code changes on main.
-# The database tables are NOT changed by this: run supabase-schema.sql yourself in the SQL Editor when it changes.
-#
-# One-time setup (Repo -> Settings -> Secrets and variables -> Actions -> New repository secret):
-#   SUPABASE_ACCESS_TOKEN   Supabase dashboard -> Account (top right) -> Access Tokens -> Generate new token
-#   SUPABASE_PROJECT_REF    the part before .supabase.co in your project address (20 lowercase letters)
-# The token can manage your whole Supabase account: keep it only here, never in code, and revoke it if it leaks.
-#
-# Safety: runs only on pushes to main (never on pull requests, so a stranger's pull request can not reach the
-# token), runs the tests first, and uses a pinned version of the Supabase command line.
+# Redeploys the Edge Functions when their code changes on main. Needs the SUPABASE_ACCESS_TOKEN and SUPABASE_PROJECT_REF secrets (see README).
 
 on:
   push:
@@ -60,6 +51,5 @@ jobs:
             echo "::error::SUPABASE_PROJECT_REF must be the 20-letter project reference, not a URL."
             exit 1
           fi
-          # Exact version pinned: a newly published package can not change what runs here until you update this line.
-          # --yes: CI can not answer the "Deploy N functions?" question. Without it nothing is deployed.
+          # Pinned CLI version, and --yes because CI can't answer the confirm prompt.
           npx --yes supabase@3.0.0 functions deploy --yes --remote="$SUPABASE_PROJECT_REF"

@@ -1,7 +1,4 @@
-// Every sentence the bot says, in English, Bahasa Melayu and Chinese.
-//   {name}    is replaced by the value, HTML-escaped (use this for anything a person typed)
-//   {{name}}  is replaced as-is (use only for text we built ourselves, already escaped)
-// A missing translation falls back to English, so a new message can never show a blank or a raw key.
+// Everything the bot says, in English, Malay and Chinese. {name} is escaped; {{name}} is used as is.
 
 import { escapeHtml, formatDay, type Lang } from "./tg-format.ts";
 
@@ -305,7 +302,7 @@ const zh: Dict = {
 };
 
 
-// ---- Phase 1 UX additions --------------------------------------------------------------------------------------
+// Phase 1 UX additions Section
 Object.assign(en, {
   st_income: "Income saved", st_saved: "Saved", st_updated: "Updated", st_amount: "Amount updated", st_receipt: "Saved from receipt", st_repeat: "Saved again",
   today_word: "Today", yesterday_word: "Yesterday",
@@ -400,7 +397,7 @@ Object.assign(zh, {
   toast_saved: "已保存 ✓", toast_unavailable: "暂不可用",
 });
 
-// ---- Phase 2: charts, navigation, insights ------------------------------------------------------------------------
+// Phase 2 Section: charts, navigation, insights
 Object.assign(en, {
   nav_today: "📅 Today", nav_week: "📊 Week", nav_month: "🗓 Month", nav_top: "🏆 Top",
   nav_prev: "◀ Earlier", nav_next: "Later ▶", nav_details: "📋 Details",
@@ -465,7 +462,7 @@ Object.assign(zh, {
   view_failed: "😕 无法更新该视图，请重试。",
 });
 
-// ---- Phase 2b: month tabs (Overview / Days / Budgets / Trend) --------------------------------------------------------
+// Phase 2b Section: month tabs (Overview / Days / Budgets / Trend)
 Object.assign(en, {
   tab_overview: "🍩 Overview", tab_days: "📅 Days", tab_budgets: "🎯 Budgets", tab_trend: "📈 Trend",
   month_cash: "💰 <b>{income}</b> in  ·  📈 <b>{net}</b> net  ·  🏦 <b>{rate}</b> saved",

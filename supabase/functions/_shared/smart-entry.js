@@ -1,21 +1,11 @@
-/* smart-entry.js
- *
- * Helpers that make adding an expense faster and safer. No dependencies, no network:
- * it runs in the browser (window.SmartEntry) and in Node (require), like receipt-parser.js.
- *
- *  - suggestCategory():  where does this expense belong? Learns from YOUR history first, then a built-in
- *                        list of Malaysian merchants, then keywords, then your own custom category names.
- *                        Always returns a reason, so the app can say why it suggested something.
- *  - findDuplicate():    "you already saved this one" (same amount, same day, same merchant).
- */
+/* Helpers that make adding an expense faster: category suggestions, merchant memory and duplicate checks. */
 (function (root, factory) {
     if (typeof module === 'object' && module.exports) module.exports = factory();
     else root.SmartEntry = factory();
 })(typeof self !== 'undefined' ? self : this, function () {
     'use strict';
 
-    // ---------- merchant names ----------
-    // "99 SPEEDMART KL 1234" and "99 Speedmart" should count as the same place.
+    // Merchant names: "99 SPEEDMART KL 1234" and "99 Speedmart" are the same place.
     const NOISE_WORDS = /\b(?:sdn|bhd|berhad|enterprise|trading|resources|plt|ltd|co|inc|corp|the|branch|outlet|kl|pj|jb)\b/g;
 
     function normalizeMerchant(name) {
@@ -30,8 +20,7 @@
 
     const isPrefix = (shorter, longer) => longer === shorter || longer.startsWith(shorter + ' ');
 
-    // ---------- learning from the user's own history ----------
-    // expenses: [{ merchant, category, created_at }]  ->  Map(normalizedMerchant -> { counts, total, label })
+    // Learn from the user's own history: which category each merchant usually gets.
     function buildMerchantMemory(expenses) {
         const memory = new Map();
         (expenses || []).forEach(e => {
@@ -50,8 +39,7 @@
         if (!memory || !merchant) return null;
         const key = normalizeMerchant(merchant);
         if (!key) return null;
-        // "Kopitiam ABC Mid Valley" and "Kopitiam ABC" are the same place: pool every name where one is the
-        // start of the other, so the habit is counted across all of them
+        // Pool names where one starts with the other, so branches count as one place.
         const related = [];
         for (const [k, entry] of memory) {
             if (k === key || (k.length >= 4 && key.length >= 4 && (isPrefix(k, key) || isPrefix(key, k)))) related.push([k, entry]);
@@ -68,8 +56,7 @@
         return { entry: pooled, key };
     }
 
-    // ---------- built-in knowledge: Malaysian merchants ----------
-    // [category, confidence, pattern]. "high" = a specific brand; "medium" = a generic word.
+    // Built-in Malaysian merchants: [category, confidence, pattern].
     const KNOWN = [
         // fuel and car
         ['car', 'high', /\b(?:petronas|petron|shell|caltex|bhp|setel|esso|touch\s*n\s*go\s*rfid)\b/],
@@ -124,11 +111,7 @@
 
     const isUsable = (categories, key) => !!(categories || []).some(c => c.key === key && c.active !== false);
 
-    /**
-     * suggestCategory({ merchant, text, memory, categories, hint })
-     *   categories: the user's current categories [{ key, label, active }]
-     *   returns { key, label, confidence: 'high'|'medium'|'low', source, reason } or null
-     */
+    /* Suggests a category with a reason, or null when unsure. */
     function suggestCategory({ merchant = '', text = '', memory = null, categories = [], hint = null } = {}) {
         const result = (key, confidence, source, reason) => isUsable(categories, key)
             ? { key, label: categoryLabel(categories, key), confidence, source, reason }
@@ -175,17 +158,14 @@
             if (m) { const r = result(key, 'low', 'known', `"${m[0].trim()}" suggests ${categoryLabel(categories, key)}`); if (r) return r; }
         }
 
-        // 3b. The receipt reads like a restaurant bill even though the merchant is unknown
-        //     (needs two different clues, so one stray word such as "table" is not enough)
+        // 3b. Looks like a restaurant bill (needs two clues, so one stray word is not enough).
         const clues = RESTAURANT_CLUES.filter(re => re.test(body)).length;
         if (clues >= 2) {
             const r = result('food', 'medium', 'known', 'The receipt looks like a restaurant bill (service charge, table, menu items)');
             if (r) return r;
         }
 
-        // 4. The user's OWN categories, by name ("Pets", "Kids", "Gifts"...). Built-in names are left out on
-        //    purpose: "Thank you for shopping with us" must not file everything under Shopping. Only the
-        //    merchant name and the top of the receipt are searched, never the closing boilerplate.
+        // 4. The user's own category names. Built-in names are skipped so receipt small print can't mislead.
         const haystack = `${name} ${body.slice(0, 200)}`;
         for (const c of categories) {
             if (c.active === false || c.key === 'other' || c.is_builtin === true || BUILTIN_KEYS.includes(c.key)) continue;
@@ -199,17 +179,14 @@
         return null;
     }
 
-    // ---------- duplicates ----------
+    // Duplicates Section
     const localDate = value => {
         const d = new Date(value);
         return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     };
     const dayNumber = iso => { const [y, m, d] = iso.split('-').map(Number); return Math.round(Date.UTC(y, m - 1, d) / 86400000); };
 
-    /**
-     * findDuplicate(expenses, { amount, date: 'YYYY-MM-DD', merchant, category }, { excludeId })
-     * Same amount, within a day, and the same merchant (or the same category when no merchant is given).
-     */
+    /* A duplicate is the same amount within a day at the same merchant (or category if no merchant). */
     function findDuplicate(expenses, candidate, options) {
         const exclude = options && options.excludeId;
         const cents = Math.round(Number(candidate.amount) * 100);
@@ -225,7 +202,7 @@
         }) || null;
     }
 
-    // === MONTH INSIGHTS (used by the monthly report) ===
+    // Month Insights Section: used by the monthly report
     const cents = (v) => Math.round((Number(v) || 0) * 100);
 
     // transactions: [{ type: 'expense' | 'income', amount, merchant, category }]

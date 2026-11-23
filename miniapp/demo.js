@@ -1,9 +1,4 @@
-/* miniapp/demo.js
- *
- * A stand-in for the data service, with made-up sample expenses. It is used for the preview (miniapp/index.html?demo=1) so the
- * design can be seen in an ordinary browser, and in tests. It has the same methods as api.js and keeps its data in memory only:
- * nothing is read from or written to any account.
- */
+/* Made-up sample data for the preview (?demo=1) and the tests. Nothing real is read or saved. */
 (function (root, factory) {
     if (typeof module === 'object' && module.exports) module.exports = factory(require('./format.js'), require('./api.js'));
     else root.MiniDemo = factory(root.MiniFormat, root.MiniApi);

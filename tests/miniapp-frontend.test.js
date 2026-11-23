@@ -14,7 +14,7 @@ const Demo = require('../miniapp/demo.js');
 
 const NOW = '2026-11-06T04:00:00Z'; // 12:00 Friday 6 Nov 2026 in Kuala Lumpur
 
-// ------------------------------------------------------------------ format
+// Format Section
 test('format: escaping, colours, money and percentages are safe and predictable', () => {
     assert.equal(F.escapeHtml(`<img src=x onerror="a('b')">\`&`), '&lt;img src=x onerror=&quot;a(&#39;b&#39;)&quot;&gt;&#96;&amp;');
     assert.equal(F.escapeHtml(null), '');
@@ -55,7 +55,7 @@ test('format: trends, Kuala Lumpur dates, month labels and heat levels', () => {
     assert.equal(F.truncate('😀😀😀', 3), '😀😀😀', 'whole characters, never half an emoji');
 });
 
-// ------------------------------------------------------------------ i18n
+// I18n Section
 test('i18n: every language has every text, placeholders match, and a missing key never shows blank', () => {
     const english = Object.keys(I18n.DICTS.en);
     for (const lang of I18n.LANGS) {
@@ -87,7 +87,7 @@ test('i18n: every text the screens and the app use exists', () => {
     assert.deepEqual(missing, []);
 });
 
-// ------------------------------------------------------------------ bridge
+// Bridge Section
 const fakeWindow = (hash, extra = {}) => {
     const store = {};
     const win = {
@@ -162,7 +162,7 @@ test('bridge: a page framed by some other website is refused, Telegram web clien
     assert.equal(Bridge.frameAllowed(frame(['https://web.telegram.org'])), true);
 });
 
-// ------------------------------------------------------------------ api
+// API Section
 const reply = (status, body) => async () => ({ ok: status >= 200 && status < 300, status, json: async () => body });
 
 test('api: sends the signed launch data in a header, never a user id, and maps failures to codes', async () => {
@@ -190,7 +190,7 @@ test('api: sends the signed launch data in a header, never a user id, and maps f
     assert.equal(invalid.field, 'amount');
 });
 
-// ------------------------------------------------------------------ views
+// Views Section
 function stateFor(overrides = {}) {
     const demo = Demo.create({ now: NOW });
     return Promise.all([demo.bootstrap(), demo.month(0), demo.transactions({ offset: 0 })]).then(([boot, month, tx]) => ({
@@ -256,7 +256,7 @@ test('views: budgets show the right state, empty months explain themselves, the 
     assert.match(Views.create(state).monthBar(), /month-prev" aria-label="[^"]*" disabled/);
 });
 
-// ------------------------------------------------------------------ demo
+// Demo Section
 test('demo: the sample service behaves like the real one for add, edit, delete and filters', async () => {
     const demo = Demo.create({ now: NOW });
     const boot = await demo.bootstrap();

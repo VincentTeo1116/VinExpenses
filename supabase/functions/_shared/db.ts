@@ -1,5 +1,4 @@
-// Minimal helpers for talking to the project's database with the service key. Edge functions only.
-// The service key bypasses row-level security, so each function filters by user id itself.
+// Small database helpers using the service key, so each function must filter by user id itself.
 
 import { projectAccess } from "./guard.ts";
 

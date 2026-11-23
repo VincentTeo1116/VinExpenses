@@ -1,19 +1,4 @@
-// The Telegram bot. Telegram calls this address (the "webhook") for every message sent to the bot.
-//
-// Who can do what:
-//   - Anyone can open the bot, but it only answers /start, /help and /language until a chat is LINKED to an app account.
-//   - Linking needs a one-time code that only a signed-in user can create (function telegram-link): 10 characters,
-//     valid 10 minutes, usable once, stored only as a hash, with a limit on wrong guesses per chat.
-//   - After linking, every action is restricted to that one account. The database is reached with the server key
-//     (which ignores row-level security), so EVERY query below filters by the linked user id.
-//   - Only private chats are served. Groups and channels are ignored.
-//
-// Telegram only accepts a reply of 200: anything else makes it re-send the message again and again. So once the
-// secret header is proven, this function always answers 200 and reports problems to the user in the chat instead.
-//
-// Fallbacks: every extra (budgets, duplicate check, language, receipts, weekly summary, reactions, category chips,
-// favourites, the bottom menu) is optional. If its table, column or service is missing or fails, the core job
-// (saving what the person typed) still works.
+// The Telegram bot. It only answers /start, /help and /language until a chat is linked to an account.
 
 import { env, projectAccess, safeEqual, sha256Hex, takeQuota, takeReceiptQuota, dailyLimit } from "../_shared/guard.ts";
 import { q, rest } from "../_shared/db.ts";
@@ -112,7 +97,7 @@ async function sendApp(tg: TelegramClient, link: Link): Promise<void> {
   await tg.send(link.chat_id, tr(link.lang, "app_intro"), { buttons: [[{ text: tr(link.lang, "btn_dashboard"), web_app: { url: miniAppUrl(site) } }]] });
 }
 
-// ---------------------------------------------------------------- data access (every query is scoped to one user)
+// Data access Section: every query is scoped to one user
 
 async function getLink(chatId: number): Promise<Link | null> {
   const response = await rest(`telegram_links?select=chat_id,user_id,last_expense_id&chat_id=eq.${chatId}`);
@@ -148,7 +133,7 @@ async function getExpense(userId: string, id: string): Promise<ExpenseRow | null
   return response.ok ? ((await response.json())[0] ?? null) : null;
 }
 
-// ---- waiting-for-an-answer state (receipt confirmation, "send the new amount")
+// Waiting-for-an-answer state Section: receipt confirmation, "send the new amount"
 async function setPending(chatId: number, kind: PendingKind, payload: Record<string, unknown>): Promise<void> {
   await rest("telegram_pending?on_conflict=chat_id", {
     method: "POST",
@@ -170,16 +155,9 @@ async function recentExpenses(userId: string, limit: number): Promise<HistoryRow
   }, [] as HistoryRow[]);
 }
 
-// ---------------------------------------------------------------- automatic category
+// Automatic category Section
 
-/**
- * Automatic category, in this order:
- *   1. the built-in knowledge base (known Malaysian merchants, everyday words like "lunch", "petrol", your own
- *      category names, and a hint from the receipt itself),
- *   2. this person's own history (they filed the same place under a category before),
- *   3. otherwise "Other".
- * Whatever it picks, the card says why, and the category chips change it (which also teaches step 2).
- */
+/* Picks a category: known merchants and words first, then this person's own history. */
 export async function chooseCategory(
   description: string,
   categories: Choice[],
@@ -204,12 +182,9 @@ export async function chooseCategory(
   return none;
 }
 
-// ---------------------------------------------------------------- cards
+// Cards Section
 
-/**
- * One-tap category chips for a saved expense: the category it has now (ticked), then the ones this person uses most.
- * Returns null when there are not at least two categories to choose from (the classic buttons are used instead).
- */
+/* One-tap category chips for a saved expense. Null when there are fewer than two to choose from. */
 export function categoryChips(id: string, categories: Choice[], current: string, history: { category: string }[]): InlineButton[][] | null {
   const list = categories.filter((c) => c.active).slice(0, 20); // the same list, in the same order, the "k" button reads back
   if (list.length < 2) return null;
@@ -271,7 +246,7 @@ function expenseCard(
 
 const whatOf = (row: { merchant?: string | null }) => (row.merchant ? ` · ${row.merchant}` : "");
 
-// ---------------------------------------------------------------- extras that may fail without hurting the main job
+// Extras that may fail without hurting the main job Section
 
 /** Budget progress lines for the month the expense belongs to, plus a heads-up when this expense crossed 80% or 100%. */
 async function budgetNotes(link: Link, categories: Choice[], category: string, amount: number, when: Date): Promise<{ progress: string[]; alerts: string[] }> {
@@ -323,7 +298,7 @@ async function duplicateOf(link: Link, row: ExpenseRow, when: Date): Promise<Exp
   }, null);
 }
 
-// ---------------------------------------------------------------- saving
+// Saving Section
 
 interface NewExpense {
   amount: number;
@@ -439,7 +414,7 @@ async function addIncome(tg: TelegramClient, link: Link, text: string, now: Date
   });
 }
 
-// ---------------------------------------------------------------- the "Add" prompt: repeat the last one, or a favourite
+// The "Add" prompt Section: repeat the last one, or a favourite
 
 interface Favourites {
   last: ExpenseRow | null;
@@ -486,7 +461,7 @@ async function sendAddPrompt(tg: TelegramClient, link: Link, messageId?: number)
   else await tg.send(link.chat_id, text, buttons.length ? { buttons } : undefined);
 }
 
-// ---------------------------------------------------------------- receipts
+// Receipts Section
 
 function receiptCard(lang: Lang, p: Record<string, unknown>, categories: Choice[], payments: Choice[], now: Date): Card {
   const when = typeof p.date === "string" && p.date ? new Date(`${p.date}T12:00:00+08:00`) : null;
@@ -573,7 +548,7 @@ async function onPhoto(
   await show(card.text, { buttons: card.buttons });
 }
 
-// ---------------------------------------------------------------- settings
+// Settings Section
 
 async function sendSettings(tg: TelegramClient, link: Link, messageId?: number): Promise<void> {
   const lang = link.lang;
@@ -588,7 +563,7 @@ async function sendSettings(tg: TelegramClient, link: Link, messageId?: number):
   else await tg.send(link.chat_id, text, { buttons });
 }
 
-// ---------------------------------------------------------------- commands
+// Commands Section
 
 async function linkAccount(tg: TelegramClient, chatId: number, rawCode: string, guessLang: Lang): Promise<void> {
   const code = rawCode.trim().toUpperCase();
@@ -615,15 +590,9 @@ async function linkAccount(tg: TelegramClient, chatId: number, rawCode: string, 
   await tg.send(chatId, tr(guessLang, "onboard"), { keyboard: menuKeyboard(guessLang) });
 }
 
-// ---------------------------------------------------------------- reports: Today / Week / Month / Top
+// Reports Section: Today / Week / Month / Top
 
-/**
- * Shows a report. Week and Month are a picture with a caption; Today and Top are text. Every report carries the same
- * navigation buttons. When a button is pressed (`existing`), the SAME message is updated in place if the new view is
- * the same kind (picture to picture, text to text); otherwise the new view is sent and the old message removed.
- * Fallbacks: a picture that cannot be drawn or sent becomes the text report; an edit that fails becomes a new message.
- * Returns a short pop-up text when something worth telling the person happened.
- */
+/* Shows a report and updates the same message in place when a button is pressed. */
 async function showView(
   tg: TelegramClient, link: Link, view: ViewKind, offset: number, now: Date, existing?: { messageId: number; isPhoto: boolean },
 ): Promise<string | undefined> {
@@ -778,7 +747,7 @@ async function onText(tg: TelegramClient, chatId: number, rawText: string, now: 
     default: return void await tg.send(chatId, tr(lang, "unknown_cmd", { help: tr(lang, "help") }));
   }
 
-  // ---- plain text. First: is the person answering a question the bot asked?
+  // Plain Text Section: first, is the person answering a question the bot asked?
   const pending = await getPending(chatId);
   if (pending && (pending.kind === "edit_amount" || pending.kind === "receipt_amount")) {
     const asAmount = parseExpense(text, []);
@@ -811,7 +780,7 @@ async function onText(tg: TelegramClient, chatId: number, rawText: string, now: 
   return addExpense(tg, link, text, now, messageId);
 }
 
-// ---------------------------------------------------------------- buttons
+// Buttons Section
 
 interface CallbackQuery {
   id?: string;
@@ -842,7 +811,7 @@ async function runCallback(tg: TelegramClient, cb: CallbackQuery, now: Date): Pr
   const data = String(cb.data ?? "");
   const edit = (text: string, options?: { buttons?: InlineButton[][] }) => tg.edit(chat, msg, text, options);
 
-  // ---- language picker
+  // Language picker Section
   const pick = /^l:(en|ms|zh)$/.exec(data);
   if (pick) {
     const newLang = pick[1] as Lang;
@@ -855,7 +824,7 @@ async function runCallback(tg: TelegramClient, cb: CallbackQuery, now: Date): Pr
   }
   if (data === "b:0") { await sendRecent(tg, link, msg); return; }
 
-  // ---- settings
+  // Settings Section
   const setting = /^s:(lang|dg|ul|uy|back)$/.exec(data);
   if (setting) {
     switch (setting[1]) {
@@ -882,7 +851,7 @@ async function runCallback(tg: TelegramClient, cb: CallbackQuery, now: Date): Pr
     }
   }
 
-  // ---- report navigation: n:<view>:<offset> switches or pages in place, n:f<view>:<offset> shows the full text
+  // Report navigation Section: n:<view>:<offset> switches or pages in place, n:f<view>:<offset> shows the full text
   const nav = /^n:([dwmpybt]):(\d{1,3})$/.exec(data);
   if (nav) {
     const kind = nav[1] as ViewKind;
@@ -897,7 +866,7 @@ async function runCallback(tg: TelegramClient, cb: CallbackQuery, now: Date): Pr
     return await showDetails(tg, link, kind, Number(more[2]), now);
   }
 
-  // ---- receipt confirmation
+  // Receipt confirmation Section
   const receipt = /^r:([sex])$/.exec(data);
   if (receipt) {
     const pending = await getPending(chat);
@@ -940,7 +909,7 @@ async function runCallback(tg: TelegramClient, cb: CallbackQuery, now: Date): Pr
 
   const { categories, payments } = await loadChoices(link.user_id);
 
-  // ---- repeat a usual expense: save a fresh copy, keep the Add prompt where it is
+  // Repeat a usual expense Section: save a fresh copy, keep the Add prompt where it is
   if (action === "f") {
     const template = await getExpense(link.user_id, id);
     if (!template) { await edit(tr(lang, "gone")); return; }
@@ -1001,7 +970,7 @@ async function runCallback(tg: TelegramClient, cb: CallbackQuery, now: Date): Pr
   }
 }
 
-// ---------------------------------------------------------------- the door
+// The door Section
 
 async function markSeen(updateId: number): Promise<boolean> {
   const response = await rest("telegram_seen?on_conflict=update_id", {

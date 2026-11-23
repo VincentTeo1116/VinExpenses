@@ -1,12 +1,4 @@
-// Proves that a request really comes from a person using the Mini App inside Telegram.
-//
-// When Telegram opens a Mini App it hands the page a string called initData ("query_id=...&user=...&auth_date=...&hash=...").
-// The hash is an HMAC signature made with a key derived from YOUR bot token, which only Telegram and your server know.
-// So if the signature checks out, the user id inside it is genuine; nobody can invent or change it without the token.
-// The page sends this string with every request; this file checks it. It is the only door into the Mini App's data.
-//
-//   secret = HMAC-SHA256(key = "WebAppData", message = bot token)
-//   hash   = HMAC-SHA256(key = secret, message = the other fields as "key=value" lines, sorted, joined by "\n")
+// Proves a request really comes from the Mini App inside Telegram, by checking Telegram's signature.
 
 import { safeEqual } from "./guard.ts";
 
@@ -28,10 +20,7 @@ async function hmac(key: Uint8Array, message: Uint8Array): Promise<Uint8Array> {
 }
 const hex = (bytes: Uint8Array) => [...bytes].map((b) => b.toString(16).padStart(2, "0")).join("");
 
-/**
- * Checks initData against the bot token. `maxAgeSeconds` is how old the launch may be (a stolen copy stops working after
- * that). Returns the verified Telegram user, or the reason it was refused (never any detail an attacker could use).
- */
+/* Checks the launch data against the bot token and its age. Returns the user, or why it was refused. */
 export async function verifyInitData(
   initData: unknown,
   botToken: string,
@@ -66,8 +55,7 @@ export async function verifyInitData(
       .join("\n");
     return hex(await hmac(secret, encoder.encode(text)));
   };
-  // Telegram signs every field except "hash"; newer clients also add a "signature" field meant for third-party
-  // verification, so accept the string both with and without it. Either way the HMAC needs the bot token.
+  // Newer Telegram clients add a "signature" field, so accept the string with and without it.
   const matches = safeEqual(await check(["hash"]), given) || (params.has("signature") && safeEqual(await check(["hash", "signature"]), given));
   if (!matches) return { ok: false, reason: "bad_signature" };
 

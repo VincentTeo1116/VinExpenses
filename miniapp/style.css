@@ -1,6 +1,4 @@
-/* miniapp/style.css
- * Same design language as the VinExpenses website (style.css): indigo brand, Inter, rounded bordered cards, soft shadows,
- * Font Awesome icons, a blurred bottom tab bar. Light or dark follows Telegram (or the device when opened elsewhere). */
+/* Mini App styles: same look as the website, light or dark following Telegram. */
 
 :root {
     --brand: #4f46e5;

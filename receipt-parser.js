@@ -1,29 +1,13 @@
-/* receipt-parser.js
- *
- * Turns receipt text (OCR output, or text pulled out of a PDF) into a draft expense:
- *   { merchant, amount, amountConfidence, amountCandidates, currency, date, template, hints, warnings }
- *
- * Plain JavaScript with no dependencies: it runs in the browser (window.ReceiptParser) and in Node
- * (require), so the tests in /tests exercise exactly the code the app ships.
- *
- * Design rules
- *  - Never guess silently. Every amount in the text is scored from the words around it, and the app
- *    only pre-fills when the answer is clear. Otherwise it offers the best few as tap-to-choose chips.
- *  - A label can sit on the SAME line as its amount ("TOTAL  RM 12.50") or on the line ABOVE it
- *    ("TOTAL" / "RM 12.50"), as in e-mailed receipts, so both are supported.
- *  - Totals are cross-checked with arithmetic (subtotal + tax + fees - discounts = total) and by
- *    agreement (the same amount appearing under several "total"-like labels).
- */
+/* Turns receipt text (from OCR or a PDF) into a draft expense: merchant, amount, date and how sure it is. */
 (function (root, factory) {
     if (typeof module === 'object' && module.exports) module.exports = factory();
     else root.ReceiptParser = factory();
 })(typeof self !== 'undefined' ? self : this, function () {
     'use strict';
 
-    // ---------- text helpers ----------
+    // Text helpers Section
     function normalizeText(text) {
-        // NFKC first: PDF readers hand back look-alike code points (Kangxi radicals such as ⽉ for 月, ligatures,
-        // full-width forms) that would otherwise never match a keyword or a date
+        // Normalise look-alike characters first, or keywords and dates won't match.
         return String(text == null ? '' : text).normalize('NFKC')
             .replace(/[！-～]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0)) // full-width -> ASCII (: , 0-9 ...)
             .replace(/　/g, ' ')
@@ -38,7 +22,7 @@
 
     const hasLetters = s => /[A-Za-z一-鿿]{2,}/.test(s);
 
-    // ---------- amounts ----------
+    // Amounts Section
     const CURRENCY_ALIASES = { RM: 'MYR', 'R.M': 'MYR', 'R.M.': 'MYR', MYR: 'MYR', RMB: 'CNY', CNY: 'CNY', USD: 'USD', 'US$': 'USD', SGD: 'SGD', 'S$': 'SGD', THB: 'THB', IDR: 'IDR', EUR: 'EUR', GBP: 'GBP', JPY: 'JPY', AUD: 'AUD', HKD: 'HKD', $: 'USD' };
 
     // prefix, optional leading minus, optional currency, optional minus, number
@@ -56,8 +40,7 @@
         return CURRENCY_ALIASES[code.toUpperCase().replace(/\s/g, '')] || code.toUpperCase();
     }
 
-    // Amounts on one line. A bare number counts only if it has two decimals (so quantities, years,
-    // phone numbers and times are ignored); a number with a currency symbol may be a whole number.
+    // Finds amounts on one line. A bare number needs two decimals, so quantities and years are ignored.
     function findAmountsInLine(line) {
         const out = [];
         AMOUNT_RE.lastIndex = 0;
@@ -80,8 +63,7 @@
         return out;
     }
 
-    // ---------- label scoring ----------
-    // Best matching "this is the total" rule wins (they don't stack); every "this is NOT the total" rule adds up.
+    // Label scoring: the best "this is the total" rule wins, and every "not the total" rule counts against.
     const POSITIVE_RULES = [
         [/grand\s*total|jumlah\s*besar|jumlah\s*keseluruhan|总金额|合计|总计|总额|總計/, 13],
         [/total\s*\(?\s*(?:incl|inclusive|payable|due|paid|amount|bayar)|amount\s*(?:due|payable|paid|charged)|net\s*(?:total|payable|amount|payment)|balance\s*due|total\s*bayar|jumlah\s*bayaran|anda\s*bayar|you\s*(?:pay|paid)|paid\s*by\s*customer|payment\s*amount|total\s*charge|应付|实付|实收/, 12],
@@ -116,8 +98,7 @@
         return positive + Math.min(0, negative);
     }
 
-    // The label of an amount: text before it on the same line, else the nearest line above that has
-    // words but no amount of its own.
+    // An amount's label is the text before it, or the nearest line above with words and no amount.
     function labelFor(lines, lineAmounts, i, amount) {
         const same = lines[i].slice(0, amount.index).replace(/[:|=.\-\s]+$/, '').trim();
         if (hasLetters(same)) return same;
@@ -227,7 +208,7 @@
         return { amount: best.value, confidence, currency: best.currency || 'MYR', candidates };
     }
 
-    // ---------- dates ----------
+    // Dates Section
     const MONTHS = {
         jan: 1, january: 1, januari: 1, feb: 2, february: 2, februari: 2, mar: 3, march: 3, mac: 3, apr: 4, april: 4,
         may: 5, mei: 5, jun: 6, june: 6, jul: 7, july: 7, julai: 7, aug: 8, august: 8, ogos: 8, sep: 9, sept: 9, september: 9,
@@ -284,7 +265,7 @@
         return best ? best.iso : '';
     }
 
-    // ---------- merchant ----------
+    // Merchant Section
     const LEGAL_SUFFIX = /\b(?:sdn\.?\s*bhd\.?|berhad|bhd\.?|co\.?,?\s*ltd\.?|ltd\.?|llp|plt|enterprise|trading|& co\.?|and co\.?|restaurant|restoran|cafe|café|bakery|patisserie|mart|supermarket|pharmacy|clinic|kopitiam|bistro|kitchen)\b/i;
     const NOT_A_NAME = /receipt|invoice|tax\s*invoice|commercial|cashier|customer|\btel\b|phone|\bdate\b|\btime\b|table\s*#?|\bgst\b|\bsst\b|reg\.?\s*no|registered|thank\s*you|computer[- ]generated|no\s*signature|^from\b|^to\b|^outlook|^your\b|^hope\b|^issued|^booking|^description|^address|^shipping|^payment|^waybill|^international|^page\b|^www\.|@|\bhttps?:|\.(?:com|my|net|org)\b/i;
     const ADDRESS_LIKE = /\b(?:jalan|jln|lorong|lebuh|persiaran|taman|bandar|seksyen|section|floor|level|lot\s*\d|no\.?\s*\d|kuala\s*lumpur|selangor|petaling|malaysia|postal|\d{5})\b/i;
@@ -346,7 +327,7 @@
         return candidates.length && candidates[0].score >= 3 ? cleanName(candidates[0].line) : '';
     }
 
-    // ---------- public API ----------
+    // Public API Section
     function parseReceiptText(text, options) {
         options = options || {};
         const lines = toLines(text);
@@ -377,20 +358,13 @@
         return line.replace(/(\D)(\d) (\d{1,2}[.,]\d{2})\s*$/, '$1$2$3');
     }
 
-    // A PDF can be read two ways, and neither is right for every document:
-    //   content order  - the order the PDF author wrote the text in (keeps columns apart, e.g. an e-mail
-    //                    with booking details beside the item list)
-    //   visual rows    - fragments with the same height become one line (puts "TOTAL ....... RM 12.50" together
-    //                    when the file stores labels and amounts separately)
-    // The app reads both and keeps the one the parser is more confident about (parseBest).
-    // items: [{ str, x, y, width, height, hasEOL }] in the order pdf.js returns them
+    // A PDF can be read in its own order or as visual rows; neither suits every document, so both are tried.
     function pdfContentOrderToText(items) {
         let text = '';
         let prev = null;
         (items || []).forEach(item => {
             if (!item || typeof item.str !== 'string') return;
-            // pdf.js marks the end of a line with a separate EMPTY item (str "" and hasEOL true), so empty items
-            // must still be able to break the line
+            // pdf.js ends a line with an empty item, so empty items must still break the line.
             if (!item.str) {
                 if (item.hasEOL && text && !/\n$/.test(text)) text += '\n';
                 return;
@@ -422,8 +396,7 @@
         return { ...best.parsed, text: best.text, readingIndex: best.index };
     }
 
-    // pdf.js gives text fragments with x/y positions. Rebuild visual lines so a label and its amount
-    // that sit side by side end up on one line. items: [{ str, x, y, width, height }]
+    // Rebuild visual lines from positions, so a label and its amount end up together.
     function pdfItemsToText(items) {
         const usable = (items || []).filter(it => it && typeof it.str === 'string' && it.str.trim());
         usable.sort((a, b) => (b.y - a.y) || (a.x - b.x));

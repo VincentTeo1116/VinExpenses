@@ -1,12 +1,4 @@
-// Collects and validates everything the email functions need, in one place.
-//
-// Secrets (Supabase -> Edge Functions -> Secrets):
-//   SMTP_USER, SMTP_PASS      the Gmail address and its App Password          (see mailer.ts)
-//   EMAIL_TOKEN_SECRET        32+ random characters; signs confirm / unsubscribe links
-//   SITE_URL                  where the website lives, e.g. https://yourname.github.io/VinExpenses
-//   MONTHLY_REPORT_CRON_SECRET   the same value stored in the database Vault (lets only the scheduler start a run)
-//   ADMIN_EMAIL               (optional) login email of the person allowed to become the first administrator
-//   EMAIL_DAILY_CAP           (optional) most emails per day in total (default 400; Gmail allows about 500)
+// Gathers and checks the email settings in one place (the secrets are listed in the README).
 
 import { dailyLimit, env, projectAccess } from "./guard.ts";
 import { loadMailConfig, type MailConfig } from "./mailer.ts";

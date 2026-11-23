@@ -1,6 +1,5 @@
 'use strict';
-// Security regression tests. These read the project's own files and fail if a protection is removed or weakened,
-// so a future edit (or a careless "quick fix") can not silently re-open a hole.
+// Security tests: they fail if a protection is removed or weakened.
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -19,7 +18,7 @@ const walk = (dir, out = []) => {
 const cspOf = (html) => /http-equiv="Content-Security-Policy"[^>]*content="([^"]*)"/i.exec(html)[1];
 const directive = (csp, name) => (csp.split(';').map((d) => d.trim()).find((d) => d.startsWith(name + ' ')) || '').split(/\s+/).slice(1);
 
-// ------------------------------------------------------------------ pages and the Content-Security-Policy
+// Pages and the Content-Security-Policy Section
 for (const page of ['index.html', 'email-action.html', 'welcome.html', 'privacy.html', 'terms.html']) {
     test(`${page}: strict Content-Security-Policy, placed before anything that loads`, () => {
         const html = read(page);
@@ -65,7 +64,7 @@ test('app code never puts server or user text into the page as HTML (new email c
     assert.match(app, /function escapeHtml/);
 });
 
-// ------------------------------------------------------------------ vendored libraries and supply chain
+// Vendored libraries and supply chain Section
 test('vendor/: every file matches the lockfile hashes (nothing swapped, added or removed)', () => {
     const out = execFileSync(process.execPath, ['tools/vendor.js', 'verify'], { cwd: root, encoding: 'utf8' });
     assert.match(out, /files match the lockfile/);
@@ -129,7 +128,7 @@ test('service worker: handles only this site, caches only good same-origin respo
     for (const file of ['vendor/supabase-js/supabase.js', 'frame-guard.js', 'fonts.css']) assert.ok(sw.includes(`'${file}'`), file);
 });
 
-// ------------------------------------------------------------------ edge functions
+// Edge functions Section
 const functions = fs.readdirSync(path.join(root, 'supabase/functions'), { withFileTypes: true }).filter((d) => d.isDirectory() && d.name !== '_shared').map((d) => d.name);
 
 test('Telegram: the public webhook proves who is calling, and its tables are server-only', () => {
@@ -253,7 +252,7 @@ test('secrets are never written into the repository or logged', () => {
     assert.match(gitignore, /^\.env/m);
 });
 
-// ------------------------------------------------------------------ database
+// Database Section
 test('schema: the new tables are locked down and the email columns can only be written by the server', () => {
     const sql = read('supabase-schema.sql');
     for (const table of ['app_admins', 'usage_counters', 'receipt_scan_usage']) {
@@ -288,7 +287,7 @@ test('app: the browser never tries to write server-controlled report columns', (
     assert.ok(!/verified|sent_for_month|failed_for_month/.test(upsert), upsert);
 });
 
-// ------------------------------------------------------------------ vendored PDF reader
+// Vendored PDF reader Section
 test('pdf.js (vendored) reads a plain text PDF with eval disabled, and rejects a non-PDF', async () => {
     const objects = [
         '<< /Type /Catalog /Pages 2 0 R >>',
@@ -319,7 +318,7 @@ test('pdf.js (vendored) reads a plain text PDF with eval disabled, and rejects a
 
 function pathToUrl(p) { return require('node:url').pathToFileURL(p).href; }
 
-// ------------------------------------------------------------------ Plan tab (deposits, loans, reminders)
+// Plan tab Section: deposits, loans, reminders
 test('Plan: every script the page loads is shipped, cached for offline use, and loaded from this site only', () => {
     const html = read('index.html');
     const scripts = [...html.matchAll(/<script src="([^"?]+)/g)].map((m) => m[1]);
@@ -336,8 +335,7 @@ test('Plan: every script the page loads is shipped, cached for offline use, and 
 test('Plan: no dangerous browser APIs, and saved names only reach the page through escapeHtml or textContent', () => {
     const plan = read('plan.js');
     assert.ok(!/\beval\(|new Function\(|document\.write\(|outerHTML\s*=|insertAdjacentHTML/.test(plan));
-    // User-typed text (names, banks, lenders, server messages) may be used raw only where the browser treats it as
-    // plain text (textContent, toasts, dialogs). On any line that builds HTML it must sit inside escapeHtml(...).
+    // Saved text may be raw only where the browser treats it as plain text; in HTML it must be escaped.
     const withoutEscaped = (line) => {
         let out = line;
         for (let at = out.indexOf('escapeHtml('); at >= 0; at = out.indexOf('escapeHtml(')) {
@@ -389,7 +387,7 @@ test('Plan reminders: the function is scheduler-only and never trusts the browse
     assert.ok(!/console\.(log|error|warn)\([^)]*(name|amount|chatId)/.test(code), 'no personal data in the logs');
 });
 
-// ------------------------------------------------------------------ public pages (landing, privacy, terms)
+// Public pages Section: landing, privacy, terms
 test('public pages: no code of their own, no forms, no outside requests, and they are shipped with the site', () => {
     const deploy = read('.github/workflows/deploy.yml');
     for (const page of ['welcome.html', 'privacy.html', 'terms.html']) {

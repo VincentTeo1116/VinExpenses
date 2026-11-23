@@ -1,13 +1,4 @@
-// === FINANCE CALCULATIONS ===
-// Fixed-deposit and loan maths, schedules, statuses and reminder timing. Pure functions: no DOM, no network,
-// no dependencies. The website uses it for the Plan screen; the reminder function uses the same file (copied to
-// supabase/functions/_shared by tools/sync-shared.js), so the app and Telegram always agree on dates and amounts.
-//
-// Conventions:
-//   - dates are plain "YYYY-MM-DD" strings (calendar days, no time zones)
-//   - money is calculated in whole sen and returned in ringgit, rounded half-up
-//   - FD interest is simple interest: principal x rate x days / 365 (or 360)
-//   - loans have a fixed rate: "reducing" (interest on what is still owed) or "flat" (interest on the full amount)
+// Finance Calculations Section: deposit and loan maths, shared by the website and the reminder function; dates are YYYY-MM-DD, money is rounded to the sen
 (function (root, factory) {
     if (typeof module === 'object' && module.exports) module.exports = factory();
     else root.FinanceCalc = factory();
@@ -28,7 +19,7 @@
     const DEFAULT_FD_LEADS = [7, 1, 0];
     const DEFAULT_LOAN_LEADS = [3, 0];
 
-    // ---------- dates ----------
+    // Dates Section
     const pad = (n) => String(n).padStart(2, '0');
     const daysInMonth = (y, m) => new Date(Date.UTC(y, m, 0)).getUTCDate();
 
@@ -63,7 +54,7 @@
         return ymd(y, m, Math.min(anchorDay || p.d, daysInMonth(y, m)));
     }
 
-    // ---------- numbers ----------
+    // Numbers Section
     const toSen = (ringgit) => Math.round(Number(ringgit) * 100);
     const toRinggit = (sen) => Math.round(sen) / 100;
 
@@ -95,8 +86,7 @@
     const capitalize = (s) => s.charAt(0).toUpperCase() + s.slice(1);
     const formatPlain = (n) => Number(n).toLocaleString('en-MY', { maximumFractionDigits: 3 });
 
-    // ---------- reminder lead days ("7, 1, 0") ----------
-    // Accepts an array or typed text. Returns { days } sorted from the earliest reminder to the last, or { error }.
+    // Reads reminder days such as "7, 1, 0" and returns them sorted, or an error.
     function readLeadDays(raw, fallback) {
         let parts;
         if (Array.isArray(raw)) parts = raw.map((v) => String(v));
@@ -117,9 +107,7 @@
         return { days: days.sort((a, b) => b - a) };
     }
 
-    // =====================================================================
-    // FIXED DEPOSIT
-    // =====================================================================
+    // Fixed Deposit Section
     function fdAutoMaturity(startDate, tenureValue, tenureUnit) {
         if (!isDate(startDate) || !Number.isFinite(tenureValue)) return '';
         if (tenureUnit === 'days') return addDays(startDate, tenureValue);
@@ -238,8 +226,7 @@
 
     const FD_PAGE = { daily: 31, monthly: 12, yearly: 50 };
 
-    // One page of the earnings table. view: 'daily' | 'monthly' | 'yearly'.
-    // rows: [{ label, from, to, days, interest, cumulative, payout }]
+    // One page of the earnings table: daily, monthly or yearly.
     function fdSchedule(result, view, page) {
         if (!result || !result.ok) return { rows: [], page: 0, pageCount: 0, total: 0, view };
         const mode = FD_PAGE[view] ? view : 'monthly';
@@ -299,10 +286,7 @@
         return points;
     }
 
-    // =====================================================================
-    // LOAN (fixed rate)
-    // =====================================================================
-    // input: { amount, rate, termValue, termUnit, method, firstPaymentDate, fees? }
+    // Loan Section: fixed rate
     function validateLoan(input) {
         const errors = {};
         const v = {};
@@ -329,8 +313,7 @@
         return { errors, values: v, ok: Object.keys(errors).length === 0 };
     }
 
-    // The yearly rate (% a year, charged monthly on the balance) that gives these payments: lets a flat-rate loan be
-    // compared with a reducing-balance one.
+    // The yearly rate that gives these payments, so a flat loan can be compared with a reducing one.
     function effectiveAnnualRate(principalSen, payments) {
         const total = payments.reduce((s, p) => s + p, 0);
         if (total <= principalSen) return 0;
@@ -432,9 +415,7 @@
         };
     }
 
-    // =====================================================================
-    // SAVED ITEMS: database rows -> calculator input, status, progress
-    // =====================================================================
+    // Saved Items Section: database rows to calculator input, status and progress
     const fdInputFromRow = (row) => ({
         amount: row.principal, rate: row.rate, tenureValue: row.tenure_value, tenureUnit: row.tenure_unit,
         startDate: row.start_date, maturityDate: row.maturity_date, payout: row.payout,
@@ -452,8 +433,7 @@
         return row.maturity_date <= today ? 'matured' : 'active';
     }
 
-    // Where a saved loan stands today. `autoPaid` (linked to a recurring expense) means every due date up to today
-    // counts as paid; otherwise payments count up to the last one marked paid (row.paid_through).
+    // Where a saved loan stands today. autoPaid means every due date so far counts as paid.
     function loanProgress(row, today, options) {
         const result = calcLoan(loanInputFromRow(row));
         if (!result.ok) return { ok: false };
@@ -483,11 +463,7 @@
         return past.length ? past[past.length - 1].date : '';
     }
 
-    // =====================================================================
-    // REMINDERS
-    // =====================================================================
-    // A reminder "milestone" is one of the item's lead days (7, 1, 0...). On any day only the current milestone
-    // matters: the smallest lead that is still >= the days left. A missed earlier one is never sent late as well.
+    // Reminders Section: only the current milestone matters; a missed one is never sent late as well
     function milestoneFor(daysLeft, leads) {
         const fitting = leads.filter((lead) => lead >= daysLeft);
         return fitting.length ? Math.min.apply(null, fitting) : null;
@@ -543,8 +519,7 @@
         return out;
     }
 
-    // Everything worth reminding about today, most urgent first.
-    // options: { lateDays, autoPaidLoanIds: Set|Array of loan ids that are linked to a recurring expense }
+    // Everything worth a reminder today, most urgent first.
     function dueReminders(deposits, loans, today, options) {
         const auto = new Set((options && options.autoPaidLoanIds) || []);
         const list = [];

@@ -1,6 +1,4 @@
-// The "extras" behind the charts: daily totals, the calendar heat-strip, the 6-month mini trend, logging streaks,
-// plain-language insights and aligned tables. Everything here is a pure function of its inputs (no database, no
-// network, no clock), so it can be tested exactly. All days are Kuala Lumpur calendar days (UTC+8).
+// Daily totals, heat-strip, trend, streaks and insights. Pure functions, so they can be tested exactly.
 
 import type { Lang } from "./tg-format.ts";
 
@@ -43,13 +41,9 @@ export function streakDays(days: Set<number>, today: number): number {
   return count;
 }
 
-// ---------------------------------------------------------------- calendar heat-strip
+// Calendar heat-strip Section
 
-/**
- * Weekday labels for the start of each row. They sit in a monospace <code> label, so every label in a language has the
- * same width and every row's squares start at exactly the same place. (A header of weekday letters ABOVE the squares can
- * never line up reliably: letters and emoji have different widths on iPhone, Android and desktop.)
- */
+/* Weekday labels at the start of each row, in monospace so the squares line up. */
 const WEEKDAYS: Record<Lang, string[]> = {
   en: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
   ms: ["Isn", "Sel", "Rab", "Kha", "Jum", "Sab", "Ahd"],
@@ -63,12 +57,7 @@ export interface Heat {
   biggest: { index: number; amount: number } | null;
 }
 
-/**
- * One coloured square per day: ⬜ nothing, 🟩 light, 🟨 medium, 🟧 heavy, 🟥 the heaviest; ▫️ for days that have
- * not happened yet or are outside the month. Colours are relative to this month's own busiest days, and the busiest
- * day is also named in words, so the colours are never the only information.
- * `totals[i]` is the spending on day i+1 of the month. `todayIndex` is today's index, or null for a finished month.
- */
+/* One coloured square per day, from nothing to the heaviest. The busiest day is also named in words. */
 export function heatStrip(lang: Lang, monthStartDay: number, totals: number[], todayIndex: number | null): Heat {
   const known = todayIndex === null ? totals : totals.slice(0, todayIndex + 1);
   const positive = known.filter((v) => v > 0).sort((a, b) => a - b);
@@ -104,7 +93,7 @@ export function heatStrip(lang: Lang, monthStartDay: number, totals: number[], t
   return { lines, biggest };
 }
 
-// ---------------------------------------------------------------- mini trend
+// Mini trend Section
 
 const BLOCKS = ["▁", "▂", "▃", "▄", "▅", "▆", "▇", "█"];
 
@@ -114,7 +103,7 @@ export function sparkline(values: number[]): string {
   return values.map((v) => (max > 0 && v > 0 ? BLOCKS[Math.min(7, Math.max(0, Math.round((v / max) * 7)))] : BLOCKS[0])).join("");
 }
 
-// ---------------------------------------------------------------- insights
+// Insights Section
 
 export type Insight =
   | { kind: "cat"; key: string; up: boolean; pct: number }
@@ -149,10 +138,7 @@ export function weekendInsight(monthStartDay: number, totals: number[], passedDa
   return ratio >= 1.5 ? { kind: "weekend", ratio: Math.round(ratio * 10) / 10, weekendHeavy: a > b } : null;
 }
 
-/**
- * Where a budget is heading at the current pace this month. Warns when the projection passes 100%; otherwise says
- * "on track" for the budget that is closest to its limit. Needs at least 7 days of data.
- */
+/* Where a budget is heading at this month's pace. Needs at least 7 days of data. */
 export function paceInsight(budgets: { key: string; limit: number; used: number }[], day: number, daysInMonth: number): Insight | null {
   if (day < 7 || !budgets.length) return null; // too early in the month for a projection to mean anything
   const scored = budgets
@@ -166,7 +152,7 @@ export function paceInsight(budgets: { key: string; limit: number; used: number 
   return null;
 }
 
-// ---------------------------------------------------------------- aligned tables
+// Aligned tables Section
 
 /** Printed width: CJK and emoji take two columns, accents and joiners none. */
 export function displayWidth(text: string): number {

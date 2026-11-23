@@ -1,5 +1,4 @@
-// Small building blocks that make the bot's messages look good: progress bars, emoji per category, trend arrows,
-// dates in the person's language. Everything returns plain strings; callers escape user text with escapeHtml.
+// Building blocks for nice bot messages: bars, emoji, arrows and dates. Callers escape user text.
 
 import { escapeHtml, ringgit } from "./email-templates.ts";
 

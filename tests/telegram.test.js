@@ -1,7 +1,5 @@
 'use strict';
-// Tests for the Telegram bot: message parsing, account linking, adding / undoing / re-categorising expenses,
-// summaries, and (most importantly) that one person can never touch another person's data.
-// Telegram itself is replaced by a recorder; Supabase by the in-memory stand-in from helpers/fakes.js.
+// Tests the Telegram bot, above all that one person can never touch another's data.
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -86,7 +84,7 @@ const seedChoices = (db, userId) => {
     );
 };
 
-// ------------------------------------------------------------------ parsing
+// Parsing Section
 test('parseExpense: finds the amount and the description in everyday messages', async () => {
     const { parseExpense } = await shared('telegram');
     const cases = [
@@ -151,7 +149,7 @@ test('the app copies of the category-guessing and receipt-reading code are ident
     }
 });
 
-// ------------------------------------------------------------------ telegram-link (the website side)
+// Telegram-link Section: the website side
 const callLink = async (token, action, { origin = 'https://me.github.io' } = {}) => {
     const { handle } = await linkModule();
     return handle(new Request('https://x/functions/v1/telegram-link', {
@@ -208,7 +206,7 @@ test('telegram-link: status and unlink only ever touch the caller\'s own connect
     assert.equal((await (await callLink('tok-b', 'status')).json()).linked, true);
 });
 
-// ------------------------------------------------------------------ the webhook door
+// The webhook door Section
 test('webhook: wrong or missing secret is refused before anything is read', async () => {
     const { db, tg } = setup();
     for (const secret of [null, '', 'nope', SECRET + 'x', SECRET.slice(1)]) {
@@ -249,7 +247,7 @@ test('webhook: Telegram re-delivering the same update does not repeat the action
     assert.equal(db.expenses.length, 1);
 });
 
-// ------------------------------------------------------------------ linking from the chat
+// Linking from the chat Section
 test('link: a valid code connects the chat once; the same code never works twice', async () => {
     const { db, tg } = setup();
     const { handle } = await linkModule();
@@ -309,7 +307,7 @@ test('an unconnected chat can do nothing but ask for help', async () => {
     assert.equal(db.expenses.length, 0);
 });
 
-// ------------------------------------------------------------------ adding expenses
+// Adding expenses Section
 test('expense: typing "kedai ali 4.50" saves for the linked user, learns the category from history', async () => {
     const { db, tg } = setup();
     seedChoices(db, A);
@@ -411,7 +409,7 @@ test('expense: a database failure produces a polite message and still answers Te
     assert.match(tg.last().html, /went wrong/);
 });
 
-// ------------------------------------------------------------------ undo and category change
+// Undo and category change Section
 test('undo: /undo removes the last expense added from the chat, once', async () => {
     const { db, tg } = setup();
     await link(db, tg, 'tok-a', CHAT_A);
@@ -490,7 +488,7 @@ test('buttons: malformed data, unlinked chats and group chats are ignored', asyn
     assert.equal(tg.edited.length, 0);
 });
 
-// ------------------------------------------------------------------ summaries
+// Summaries Section
 test('/today and /month add up the right period, in Kuala Lumpur time, for the right person', async () => {
     const { db, tg } = setup();
     seedChoices(db, A);
@@ -531,7 +529,7 @@ test('/today with nothing recorded says so', async () => {
     assert.match(tg.last().html, /No expenses yet/);
 });
 
-// ------------------------------------------------------------------ unlink, photos
+// Unlink, photos Section
 test('/unlink disconnects the chat; later messages are not processed', async () => {
     const { db, tg } = setup();
     await link(db, tg, 'tok-a', CHAT_A);
@@ -551,7 +549,7 @@ test('photos and files get a clear "not supported yet" answer', async () => {
     assert.equal(db.expenses.length, 0);
 });
 
-// ------------------------------------------------------------------ the real Telegram client
+// The real Telegram client Section
 test('telegramClient: calls the right methods and never leaks the token into logs', async () => {
     const { telegramClient } = await shared('telegram');
     const calls = [];
@@ -578,7 +576,7 @@ test('telegramClient: calls the right methods and never leaks the token into log
     assert.ok(logged.every((line) => !line.includes('TOKEN')), logged.join('|'));
 });
 
-// ------------------------------------------------------------------ automatic category: knowledge base -> history -> Other
+// Automatic category Section: knowledge base -> history -> Other
 test('auto category: everyday words and known merchants are filed by the built-in knowledge base', async () => {
     const { db, tg } = setup();
     seedChoices(db, A);

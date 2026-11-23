@@ -1,9 +1,4 @@
-// Draws the bot's charts as PNG images, with no outside libraries (so nothing to pay for, nothing to download,
-// and your friends' spending numbers never leave your own server).
-//
-// The pictures contain NO text on purpose: names, amounts and percentages are in the message caption, which means
-// no fonts are needed (Malay and Chinese work exactly like English) and screen readers read the caption.
-// The slice colours match the coloured emoji squares used in the caption legend (🟦🟧🟩🟨🟪🟥🟫⬛⬜), in the same order.
+// Draws the bot's charts as PNG with no outside libraries and no text, so nothing leaves the server.
 
 export type RGB = [number, number, number];
 
@@ -24,7 +19,7 @@ export const SQUARES = ["🟦", "🟧", "🟩", "🟨", "🟪", "🟥", "🟫", 
 const BACKGROUND: RGB = [247, 248, 252];
 const clamp01 = (value: number) => (value < 0 ? 0 : value > 1 ? 1 : value);
 
-// ---------------------------------------------------------------- a tiny canvas
+// A tiny canvas Section
 
 class Canvas {
   readonly width: number;
@@ -51,7 +46,7 @@ class Canvas {
   }
 }
 
-// ---------------------------------------------------------------- PNG encoding
+// PNG encoding Section
 
 const CRC_TABLE = (() => {
   const table = new Uint32Array(256);
@@ -152,17 +147,14 @@ export async function encodePng(width: number, height: number, rgb: Uint8Array):
   return png;
 }
 
-// ---------------------------------------------------------------- donut
+// Donut Section
 
 export interface DonutOptions {
   width?: number;
   height?: number;
 }
 
-/**
- * A ring split into slices, clockwise from the top, biggest first. Slices are separated by a thin gap.
- * `values` that are zero, negative or not numbers are ignored. All-zero data draws an empty grey ring.
- */
+/* A ring of slices, biggest first. Zero or bad values are skipped. */
 export async function renderDonutPng(values: number[], options: DonutOptions = {}): Promise<Uint8Array> {
   const width = options.width ?? 720;
   const height = options.height ?? 440;
@@ -210,7 +202,7 @@ export async function renderDonutPng(values: number[], options: DonutOptions = {
   return encodePng(width, height, canvas.data);
 }
 
-// ---------------------------------------------------------------- bars
+// Bars Section
 
 export interface BarsOptions {
   width?: number;
@@ -299,7 +291,7 @@ export async function renderBarsPng(values: number[], options: BarsOptions = {})
   return encodePng(width, height, canvas.data);
 }
 
-// ---------------------------------------------------------------- budget progress bars
+// Budget progress bars Section
 
 const TRACK: RGB = [229, 232, 241];
 const OK: RGB = [59, 165, 93]; // under 80%
@@ -322,11 +314,7 @@ export interface ProgressOptions {
   width?: number;
 }
 
-/**
- * One horizontal bar per budget (top to bottom, in the order given): green under 80%, amber to 100%, red when over,
- * with a faint tick at 80% and a dark cap on the end of bars that went over. `ratios` are used / limit (1 = 100%).
- * At most 10 bars are drawn. Like the other charts it has no text: the caption names every bar.
- */
+/* One bar per budget: green under 80%, amber to 100%, red when over. Ten at most. */
 export async function renderProgressPng(ratios: number[], options: ProgressOptions = {}): Promise<Uint8Array> {
   const clean = ratios.slice(0, 10).map((v) => (Number.isFinite(v) && v > 0 ? v : 0));
   const rows = Math.max(1, clean.length);
