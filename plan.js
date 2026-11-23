@@ -1455,6 +1455,19 @@ window.Plan = (function () {
         if (segment === 'loans') { renderLoan(); renderLoanList(); }
     }
 
+    // Logging out removes the saved copy of your deposits and loans from this device (unsent saves are kept so they can
+    // still sync after the next login, like unsent expenses). Deleting the account removes everything.
+    function forgetDevice(userId, { everything = false } = {}) {
+        if (!userId) return;
+        try {
+            localStorage.removeItem(`et_plan_${userId}`);
+            if (everything) {
+                localStorage.removeItem(`et_plan_queue_${userId}`);
+                localStorage.removeItem(`et_remind_snooze_${userId}`);
+            }
+        } catch (_) { /* storage blocked: nothing was stored either */ }
+    }
+
     function reset() {
         clearTimeout(popupTimer);
         deposits = []; loans = []; pending = [];
@@ -1583,9 +1596,7 @@ window.Plan = (function () {
 
     return {
         init, load, reset, render, setSegment, renderSettings, renderDueSoon,
-        closeReminders, openReminders, openItem,
-        remindersOpen: () => !!el('remindersSheet') && el('remindersSheet').classList.contains('active'),
-        // For tests and debugging only
-        _state: () => ({ deposits, loans, pending, loadState, prefs, telegram, segment })
+        closeReminders, openReminders, openItem, forgetDevice,
+        remindersOpen: () => !!el('remindersSheet') && el('remindersSheet').classList.contains('active')
     };
 })();

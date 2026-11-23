@@ -318,3 +318,73 @@ test('pdf.js (vendored) reads a plain text PDF with eval disabled, and rejects a
 });
 
 function pathToUrl(p) { return require('node:url').pathToFileURL(p).href; }
+
+// ------------------------------------------------------------------ Plan tab (deposits, loans, reminders)
+test('Plan: every script the page loads is shipped, cached for offline use, and loaded from this site only', () => {
+    const html = read('index.html');
+    const scripts = [...html.matchAll(/<script src="([^"?]+)/g)].map((m) => m[1]);
+    assert.ok(scripts.includes('plan.js') && scripts.includes('finance-calc.js'));
+    assert.ok(scripts.indexOf('plan.js') < scripts.indexOf('app.js'), 'plan.js only defines things and must load before app.js starts it');
+    const deploy = read('.github/workflows/deploy.yml');
+    const sw = read('sw.js');
+    for (const file of scripts.filter((s) => !s.startsWith('vendor/') && s !== 'config.js')) {
+        assert.ok(new RegExp(`\\b${file.replace('.', '\\.')}\\b`).test(deploy), `${file} is not copied by the deploy workflow`);
+        assert.ok(sw.includes(`'${file}'`), `${file} is not in the service worker's offline list`);
+    }
+});
+
+test('Plan: no dangerous browser APIs, and saved names only reach the page through escapeHtml or textContent', () => {
+    const plan = read('plan.js');
+    assert.ok(!/\beval\(|new Function\(|document\.write\(|outerHTML\s*=|insertAdjacentHTML/.test(plan));
+    // User-typed text (names, banks, lenders, server messages) may be used raw only where the browser treats it as
+    // plain text (textContent, toasts, dialogs). On any line that builds HTML it must sit inside escapeHtml(...).
+    const withoutEscaped = (line) => {
+        let out = line;
+        for (let at = out.indexOf('escapeHtml('); at >= 0; at = out.indexOf('escapeHtml(')) {
+            let depth = 0, end = at + 'escapeHtml'.length;
+            do { if (out[end] === '(') depth++; if (out[end] === ')') depth--; end++; } while (depth > 0 && end < out.length);
+            out = out.slice(0, at) + out.slice(end);
+        }
+        return out;
+    };
+    const raw = /\$\{\s*(row|r|item|i|entry)\.(name|bank|lender|error|label|source|merchant)\s*\}/;
+    plan.split(/\r?\n/).forEach((line, index) => {
+        if (!/<[a-z][^>]*>|innerHTML/.test(line)) return;
+        assert.ok(!raw.test(withoutEscaped(line)), `plan.js line ${index + 1} puts saved text into HTML without escapeHtml`);
+    });
+    assert.ok(!/_state\s*:/.test(plan), 'no debugging hook that hands the data to other scripts');
+    const calc = read('finance-calc.js');
+    assert.ok(!/\bfetch\s*\(|XMLHttpRequest|localStorage|document\.|window\./.test(calc), 'the maths has no network, storage or page access');
+});
+
+test('Plan: logging out or deleting the account removes the saved deposits and loans from the device', () => {
+    const app = read('app.js');
+    assert.match(app, /Plan\.forgetDevice\(userId, \{ everything: true \}\)/, 'account deletion clears everything');
+    assert.match(app, /Plan\.forgetDevice\(currentUser && currentUser\.id\);\s*\n\s*await supabaseClient\.auth\.signOut\(\)/, 'logout clears the cache before signing out');
+    const plan = read('plan.js');
+    assert.match(plan, /removeItem\(`et_plan_\$\{userId\}`\)/);
+});
+
+test('Plan schema: per-account data only, a server-only reminder log, a row limit, and no SECURITY DEFINER shortcut', () => {
+    const sql = read('supabase-schema.sql');
+    for (const table of ['fixed_deposits', 'loans']) {
+        assert.match(sql, new RegExp(`alter table public\\.${table} enable row level security`));
+        assert.match(sql, new RegExp(`create trigger ${table}_row_limit before insert on public\\.${table}`));
+        assert.match(sql, new RegExp(`user_id uuid not null references auth\\.users \\(id\\) on delete cascade`), 'deleting the account deletes the rows');
+    }
+    const fn = sql.slice(sql.indexOf('function public.enforce_plan_row_limit'));
+    assert.ok(!/security definer/.test(fn.slice(0, fn.indexOf('$$;'))), 'the limit runs with the caller\'s own rights');
+    assert.match(sql, /revoke all on public\.reminder_log from anon, authenticated/);
+    assert.match(sql, /alter table public\.telegram_links add column if not exists reminders_blocked_at/);
+    assert.match(sql, /revoke all on public\.telegram_links from anon, authenticated/, 'the blocked flag can only be set by the server');
+});
+
+test('Plan reminders: the function is scheduler-only and never trusts the browser', () => {
+    const code = read('supabase/functions/plan-reminders/handler.ts');
+    assert.ok(!/requireUser|preflight|Access-Control/.test(code), 'not a browser-facing function');
+    assert.match(code, /safeEqual\(request\.headers\.get\("x-cron-secret"\)/);
+    assert.match(code, /escapeHtml\(r\.name\)/, 'names are escaped before they go into a Telegram message');
+    assert.match(code, /d\.user_id === userId/, 'each person is only ever sent their own deposits');
+    assert.match(code, /l\.user_id === userId/, 'each person is only ever sent their own loans');
+    assert.ok(!/console\.(log|error|warn)\([^)]*(name|amount|chatId)/.test(code), 'no personal data in the logs');
+});

@@ -106,6 +106,44 @@ Run all checks: `npm test` (also runs before every deploy) and `node tools/vendo
 - **Honest limit:** a signed launch pass can be replayed by whoever holds it until it expires (6 hours). It only reaches that one person's own data, and it is only
   ever delivered to that person inside Telegram.
 
+## 4b-3. Plan tab: deposits, loans and reminders
+
+* `fixed_deposits` and `loans`: Row Level Security, one policy each (`auth.uid() = user_id` for reading and
+  writing), value ranges checked by the database too, rows removed with the account.
+* **At most 200 deposits and 200 loans per account** (a database trigger). The hourly reminder run reads every open
+  item, so without a limit one account could slow it down for everybody.
+* `reminder_log` and `telegram_links.reminders_blocked_at` are server-only (no grants for `anon`/`authenticated`).
+  The log's unique key is what stops a reminder being sent twice.
+* `plan-reminders` can only be started by the scheduler (secret header, constant-time comparison, refuses an unset
+  secret). It filters by user id itself, escapes names before they go into a Telegram message, never logs names,
+  amounts or chat ids, and never changes a deposit or a loan. "Hide amounts in Telegram reminders" (Account) keeps
+  figures out of the chat.
+* In the browser, saved names reach the page only through `escapeHtml` or `textContent` (a test fails otherwise).
+  `finance-calc.js` has no network, storage or page access.
+* The on-device copy of your deposits and loans is removed when you log out; deleting the account also removes
+  unsent saves and the reminder snooze.
+* The calculators are estimates. They never move money and store no bank logins or account numbers.
+
+## 4b-4. Before wrapping this as an Android / iPhone app
+
+Not done in this repository; these are the points that change when the site runs inside an app shell:
+
+- [ ] **Ship the web files inside the app** (as now: no code loaded from other websites). Do not point the app at
+      a remote URL that could change what runs.
+- [ ] **Keep the Content-Security-Policy.** The app's own scheme (for example `capacitor://localhost` or
+      `https://localhost`) must be added to `ALLOWED_ORIGINS`, or every function will refuse the app.
+- [ ] **Sign-in links**: add the app's deep link to Supabase's Redirect URL allow-list, use PKCE, and open Google
+      sign-in in the system browser, not an embedded web view (Google blocks those).
+- [ ] **Session storage**: the login token is kept in web storage today. In an app, move it to the platform's
+      secure storage (Keychain / Keystore) and consider a biometric lock for opening the app.
+- [ ] **Store rules**: Sign in with Apple is required next to Google sign-in; in-app account deletion already
+      exists; write a privacy policy that names Supabase, OCR.space, OpenStreetMap, Telegram and (if enabled)
+      Google AI; declare camera and location use with clear reasons.
+- [ ] **Updates**: an app is not updated by a push to GitHub. Decide how users get security fixes (store release
+      or a signed live-update channel) before the first release.
+- [ ] **Backups**: exclude web storage from device/cloud backups, or the cached data leaves the phone.
+- [ ] Have someone other than the author test the built app (a penetration test) before it handles real users.
+
 ## 4c. Auto-deploy of the functions
 
 * The workflow runs only on pushes to `main` and manually, **never for pull requests**, so nobody can run code with
@@ -140,6 +178,8 @@ Run all checks: `npm test` (also runs before every deploy) and `node tools/vendo
   site behind Cloudflare (free) with an HSTS/headers rule is the next upgrade.
 * Gmail is a consumer service: ~500 mails/day, "From" is always the Gmail account, and Google may throttle bulk
   mail. For large audiences move to a domain-based sender (the mailer is one file, `_shared/smtp.ts`).
+* The row limit and the other database rules for the Plan tab are checked for syntax and by reading; they have
+  not been run against a live project by the test suite.
 * The tests run against in-memory stand-ins for Supabase and Gmail. They prove the logic; they cannot prove your
   project's settings, secrets or Google's behaviour. The administrator test button is that last check.
 * A stolen, unlocked phone or a phished password is outside what code can fix: use strong unique passwords/MFA.

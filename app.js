@@ -2168,6 +2168,7 @@ $('deleteAccountBtn').addEventListener('click', async () => {
             localStorage.removeItem(`et_sync_${userId}`);
             localStorage.removeItem(`et_theme_${userId}`);
         } catch (_) { /* the account deletion succeeded; browser storage may be blocked */ }
+        Plan.forgetDevice(userId, { everything: true });
         await supabaseClient.auth.signOut({ scope: 'local' });
         resetSession();
         showToast('success', 'Your account and data were deleted.');
@@ -2760,6 +2761,7 @@ logoutBtn.addEventListener('click', () => {
         danger: true,
         onConfirm: async () => {
             try { localStorage.removeItem(cacheKey()); } catch (_) { /* ignore */ } // don't leave your data on a shared device
+            Plan.forgetDevice(currentUser && currentUser.id);
             await supabaseClient.auth.signOut();
             resetSession();
         }

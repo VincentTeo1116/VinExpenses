@@ -734,3 +734,35 @@ begin
   end if;
 end
 $setup$;
+
+
+-- A limit of 200 deposits and 200 loans per account. The hourly reminder run reads every open item, so without a
+-- limit one account could make it slow (or fail) for everybody. Editing an existing row is never blocked.
+create or replace function public.enforce_plan_row_limit()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+declare
+  already integer;
+  existing boolean;
+begin
+  execute format('select exists (select 1 from public.%I where id = $1)', tg_table_name) into existing using new.id;
+  if existing then
+    return new; -- an upsert of a row that is already there: not a new row
+  end if;
+  execute format('select count(*) from public.%I where user_id = $1', tg_table_name) into already using new.user_id;
+  if already >= 200 then
+    raise exception 'You can keep at most 200 of these per account. Delete ones you no longer need, then try again.'
+      using errcode = 'check_violation';
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists fixed_deposits_row_limit on public.fixed_deposits;
+create trigger fixed_deposits_row_limit before insert on public.fixed_deposits
+  for each row execute function public.enforce_plan_row_limit();
+drop trigger if exists loans_row_limit on public.loans;
+create trigger loans_row_limit before insert on public.loans
+  for each row execute function public.enforce_plan_row_limit();
