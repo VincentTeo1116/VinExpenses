@@ -157,6 +157,7 @@ function fakeSupabase() {
         expenses: [], incomes: [], user_categories: [],
         app_admins: [],
         telegram_links: [], telegram_link_codes: [], telegram_seen: [], telegram_pending: [], user_payment_methods: [], budgets: [],
+        fixed_deposits: [], loans: [], reminder_log: [], user_preferences: [], recurring_expenses: [],
         counters: new Map(),
         requests: [],
         quotaCalls: [],
@@ -217,8 +218,11 @@ function fakeSupabase() {
             for (const item of Array.isArray(body) ? body : [body]) {
                 const row = { ...item };
                 if (table === 'expenses' || table === 'incomes') { row.id = row.id || crypto.randomUUID(); row.created_at = row.created_at || db.now(); }
+                if (table === 'reminder_log') { row.id = rows.length + 1; row.sent_at = row.sent_at ?? null; }
+                const sameReminder = (r) => ['item_kind', 'item_id', 'due_date', 'lead_days'].every((k) => String(r[k]) === String(row[k]));
                 const clash = (pk && rows.some((r) => String(r[pk]) === String(row[pk])))
-                    || (table === 'telegram_links' && rows.some((r) => r.user_id === row.user_id));
+                    || (table === 'telegram_links' && rows.some((r) => r.user_id === row.user_id))
+                    || (table === 'reminder_log' && rows.some(sameReminder)); // the table's unique key
                 if (clash && (headers.prefer || '').includes('merge-duplicates')) {
                     Object.assign(rows.find((r) => String(r[pk]) === String(row[pk])), row);
                     continue;

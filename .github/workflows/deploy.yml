@@ -55,7 +55,7 @@ jobs:
       - name: Stage site files
         run: |
           mkdir dist
-          cp index.html app.js receipt-parser.js smart-entry.js csv-import.js config.js style.css fonts.css frame-guard.js email-action.html email-action.js email-action.css sw.js manifest.json icon.png dist/
+          cp index.html app.js plan.js finance-calc.js receipt-parser.js smart-entry.js csv-import.js config.js style.css fonts.css frame-guard.js email-action.html email-action.js email-action.css sw.js manifest.json icon.png dist/
           cp -r icons dist/icons
           cp -r vendor dist/vendor
           cp -r miniapp dist/miniapp   # the Telegram Mini App (opened from the bot)

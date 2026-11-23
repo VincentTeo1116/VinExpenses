@@ -585,3 +585,152 @@ begin
   end if;
 end
 $setup$;
+
+
+-- ================================================================
+-- Plan: fixed deposits, loans and their reminders (website "Plan" tab + function plan-reminders)
+-- Each person can only see and change their own rows. Safe to run more than once.
+-- ================================================================
+create table if not exists public.fixed_deposits (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users (id) on delete cascade,
+  name text not null check (char_length(btrim(name)) between 1 and 60),
+  bank text check (bank is null or char_length(bank) <= 60),
+  principal numeric(14, 2) not null check (principal >= 1 and principal <= 100000000),
+  rate numeric(6, 3) not null check (rate > 0 and rate <= 30),
+  start_date date not null,
+  tenure_value integer not null check (tenure_value between 1 and 3650),
+  tenure_unit text not null check (tenure_unit in ('days', 'months', 'years')),
+  maturity_date date not null,
+  payout text not null default 'maturity' check (payout in ('maturity', 'monthly', 'quarterly', 'yearly')),
+  tax_rate numeric(5, 2) not null default 0 check (tax_rate >= 0 and tax_rate <= 100),
+  day_basis smallint not null default 365 check (day_basis in (360, 365)),
+  reminders_on boolean not null default true,
+  reminder_days smallint[] not null default '{7,1,0}',
+  status text not null default 'open' check (status in ('open', 'closed')),
+  interest_recorded boolean not null default false,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  constraint fixed_deposits_dates check (maturity_date > start_date and maturity_date <= start_date + 3660),
+  constraint fixed_deposits_reminder_days check (cardinality(reminder_days) <= 5 and 0 <= all (reminder_days) and 60 >= all (reminder_days))
+);
+create index if not exists fixed_deposits_user_idx on public.fixed_deposits (user_id);
+create index if not exists fixed_deposits_maturity_idx on public.fixed_deposits (maturity_date) where status = 'open';
+alter table public.fixed_deposits enable row level security;
+drop policy if exists "Users manage their own fixed deposits" on public.fixed_deposits;
+create policy "Users manage their own fixed deposits" on public.fixed_deposits
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+create table if not exists public.loans (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users (id) on delete cascade,
+  name text not null check (char_length(btrim(name)) between 1 and 60),
+  lender text check (lender is null or char_length(lender) <= 60),
+  principal numeric(14, 2) not null check (principal >= 1 and principal <= 100000000),
+  rate numeric(6, 3) not null check (rate >= 0 and rate <= 40),
+  method text not null check (method in ('reducing', 'flat')),
+  term_months integer not null check (term_months between 1 and 480),
+  first_payment_date date not null,
+  fees numeric(14, 2) not null default 0 check (fees >= 0),
+  instalment numeric(14, 2) not null check (instalment > 0),
+  reminders_on boolean not null default true,
+  reminder_days smallint[] not null default '{3,0}',
+  status text not null default 'open' check (status in ('open', 'closed')),
+  paid_through date,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  constraint loans_reminder_days check (cardinality(reminder_days) <= 5 and 0 <= all (reminder_days) and 60 >= all (reminder_days))
+);
+create index if not exists loans_user_idx on public.loans (user_id);
+alter table public.loans enable row level security;
+drop policy if exists "Users manage their own loans" on public.loans;
+create policy "Users manage their own loans" on public.loans
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+-- A loan can be added to recurring expenses: the entry stops by itself after the last instalment (end_date).
+-- One recurring entry per loan; deleting the loan keeps the entry but cuts the link.
+alter table public.recurring_expenses add column if not exists end_date date;
+alter table public.recurring_expenses add column if not exists loan_id uuid references public.loans (id) on delete set null;
+create unique index if not exists recurring_expenses_loan_idx on public.recurring_expenses (loan_id) where loan_id is not null;
+
+-- Reminder settings (Account -> Reminders). The snooze time is the "Don't show again for 24 hours" choice, kept
+-- with the account so it applies on every device.
+alter table public.user_preferences add column if not exists reminder_hour smallint not null default 9;
+alter table public.user_preferences add column if not exists reminder_hide_amounts boolean not null default false;
+alter table public.user_preferences add column if not exists reminder_popup text not null default 'auto';
+alter table public.user_preferences add column if not exists reminder_snooze_until timestamptz;
+alter table public.user_preferences drop constraint if exists user_preferences_reminder_hour_check;
+alter table public.user_preferences add constraint user_preferences_reminder_hour_check check (reminder_hour between 0 and 23);
+alter table public.user_preferences drop constraint if exists user_preferences_reminder_popup_check;
+alter table public.user_preferences add constraint user_preferences_reminder_popup_check check (reminder_popup in ('auto', 'always', 'never'));
+
+-- Set when Telegram says the person blocked the bot, so reminders stop being retried and the app can say so.
+alter table public.telegram_links add column if not exists reminders_blocked_at timestamptz;
+
+-- One row per reminder that was sent (or is being retried). The unique key is what stops a reminder being sent
+-- twice, even if two runs overlap. Server only: nobody can read or change it from the website.
+create table if not exists public.reminder_log (
+  id bigint generated always as identity primary key,
+  user_id uuid not null references auth.users (id) on delete cascade,
+  item_kind text not null check (item_kind in ('fd', 'loan')),
+  item_id uuid not null,
+  due_date date not null,
+  lead_days smallint not null,
+  attempts smallint not null default 1,
+  sent_at timestamptz,
+  created_at timestamptz not null default now(),
+  constraint reminder_log_once unique (item_kind, item_id, due_date, lead_days)
+);
+create index if not exists reminder_log_user_idx on public.reminder_log (user_id);
+alter table public.reminder_log enable row level security;
+revoke all on public.reminder_log from anon, authenticated;
+
+-- Reminder scheduler. Runs hourly; the function sends each reminder once, at or after the hour the person chose
+-- (09:00 Kuala Lumpur time unless changed). Installed once the three Vault secrets used by the monthly report exist.
+do $setup$
+declare
+  vault_secret_count integer := 0;
+begin
+  if to_regclass('vault.decrypted_secrets') is not null then
+    execute $query$
+      select count(*)::integer
+      from vault.decrypted_secrets
+      where name in ('project_url', 'publishable_key', 'monthly_report_cron_secret')
+    $query$ into vault_secret_count;
+  end if;
+
+  if vault_secret_count = 3 then
+    begin
+      execute 'create extension if not exists pg_cron with schema pg_catalog';
+      execute 'create extension if not exists pg_net with schema extensions';
+      execute $query$
+        select cron.unschedule(jobid)
+        from cron.job
+        where jobname = 'plan-reminders'
+      $query$;
+      execute $query$
+        select cron.schedule(
+          'plan-reminders',
+          '20 * * * *',
+          $job$
+            select net.http_post(
+              url := (select decrypted_secret from vault.decrypted_secrets where name = 'project_url') || '/functions/v1/plan-reminders',
+              headers := jsonb_build_object(
+                'Content-Type', 'application/json',
+                'apikey', (select decrypted_secret from vault.decrypted_secrets where name = 'publishable_key'),
+                'x-cron-secret', (select decrypted_secret from vault.decrypted_secrets where name = 'monthly_report_cron_secret')
+              ),
+              body := '{}'::jsonb
+            ) as request_id;
+          $job$
+        )
+      $query$;
+      raise notice 'Plan reminder scheduler configured.';
+    exception when others then
+      raise notice 'Schema setup completed, but plan reminders were not scheduled: %', sqlerrm;
+    end;
+  else
+    raise notice 'Plan reminders will be scheduled after the three Vault secrets exist and this file is run again.';
+  end if;
+end
+$setup$;

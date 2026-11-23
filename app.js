@@ -366,6 +366,7 @@ function showToast(type, message, opts = {}) {
 document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
         if (dismissModal) dismissModal();
+        else if (Plan.remindersOpen()) Plan.closeReminders();
         else if ($('reportView').classList.contains('active')) closeReportView();
         else if ($('taxonomySheet').classList.contains('active')) closeTaxonomyManager();
         else if (editModal.classList.contains('active')) closeEditModal();
@@ -426,8 +427,10 @@ function animateAmount(el, target) {
 }
 
 // === NAVIGATION ===
+// "Plan" holds Recurring, Deposits and Loans. `recurring` is kept so older links still open Plan -> Recurring.
 const SCREEN_BY_NAV = {
     dashboard: 'dashboardScreen',
+    plan: 'recurringScreen',
     recurring: 'recurringScreen',
     history: 'historyScreen'
 };
@@ -451,13 +454,14 @@ function showScreen(screenId) {
     const isAuthLike = screenId === 'authScreen' || screenId === 'setupScreen' || screenId === 'resetPasswordScreen';
     document.body.classList.toggle('is-auth', isAuthLike);
 
-    if (screenId === 'dashboardScreen') updateDashboard();
+    if (screenId === 'dashboardScreen') { updateDashboard(); Plan.renderDueSoon(); }
     if (screenId === 'historyScreen') renderHistory();
-    if (screenId === 'recurringScreen') renderRecurring();
+    if (screenId === 'recurringScreen') { renderRecurring(); Plan.render(); }
     window.scrollTo({ top: 0, behavior: prefersReducedMotion ? 'auto' : 'smooth' });
 }
 
 function navigate(nav) {
+    if (nav === 'recurring') { Plan.setSegment('recurring'); nav = 'plan'; }
     setActiveNav(nav);
     showScreen(SCREEN_BY_NAV[nav]);
 }
@@ -511,6 +515,7 @@ function openAccountSheet() {
     loadMonthlyReportPreference();
     loadDisplayPreferences();
     updateAccountSyncStatus();
+    Plan.renderSettings();
     $('deleteAccountConfirm').value = '';
     $('deleteAccountBtn').disabled = true;
     $('deleteAccountStatus').textContent = '';
@@ -526,7 +531,8 @@ function refreshDateDisplays() {
     if (!currentUser) return;
     updateDashboard();
     if ($('historyScreen').classList.contains('active')) renderHistory();
-    if ($('recurringScreen').classList.contains('active')) renderRecurring();
+    if ($('recurringScreen').classList.contains('active')) { renderRecurring(); Plan.render(); }
+    Plan.renderDueSoon();
 }
 
 async function loadDisplayPreferences() {
@@ -1883,6 +1889,7 @@ function onThemeChange() {
     if (pieChartInstance) { pieChartInstance.destroy(); pieChartInstance = null; }
     if (barChartInstance) { barChartInstance.destroy(); barChartInstance = null; }
     if (currentUser && $('dashboardScreen').classList.contains('active')) renderCharts();
+    if (currentUser && $('recurringScreen').classList.contains('active')) Plan.render();
     if (activeReportChartData && reportView.classList.contains('active')) {
         renderReportCharts(activeReportChartData.year, activeReportChartData.monthNumber, activeReportChartData.transactions, activeReportChartData.previousTransactions);
     }
@@ -2348,6 +2355,7 @@ async function fetchAllData() {
         renderQuickStart();
         updateAccountSyncStatus();
         if ($('historyScreen').classList.contains('active')) renderHistory();
+        Plan.load(); // deposits, loans and reminders: loads by itself and never blocks the rest
     }
 }
 
@@ -2775,6 +2783,7 @@ function resetSession() {
     dateFormat = 'dmy_short';
     resetTaxonomyDefaults();
     syncQueue = [];
+    Plan.reset();
     cancelRecurringEdit();
     closeTaxonomyManager();
     closeAddSheet();
@@ -3961,16 +3970,22 @@ async function processRecurring({ silent = false } = {}) {
             const anchor = parseYMD(r.start_date).d;
             const dues = [];
             let next = r.next_due;
-            while (next <= today && dues.length < 36) {
+            // An entry with an end date (a loan's instalments) never posts past it, and switches itself off after
+            const ended = () => !!r.end_date && next > r.end_date;
+            while (next <= today && !ended() && dues.length < 36) {
                 dues.push(next);
                 next = advanceDue(next, r.frequency, anchor);
             }
+            const finished = ended();
+            if (!dues.length && !finished) continue;
 
             // Claim these dates first. If another device already did, nothing matches and we skip,
             // which prevents the same bill being added twice.
             const claim = await supabaseClient.from('recurring_expenses')
-                .update({ next_due: next }).eq('id', r.id).eq('next_due', r.next_due).select();
+                .update(finished ? { next_due: next, active: false } : { next_due: next }).eq('id', r.id).eq('next_due', r.next_due).select();
             if (claim.error || !claim.data || !claim.data.length) continue;
+            if (finished) r.active = false;
+            if (!dues.length) { r.next_due = next; continue; }
 
             const rows = dues.map(d => ({
                 user_id: currentUser.id,
@@ -3984,7 +3999,8 @@ async function processRecurring({ silent = false } = {}) {
             const ins = await supabaseClient.from('expenses').insert(rows).select();
             if (ins.error) {
                 console.error('Recurring insert failed, rolling back:', ins.error);
-                await supabaseClient.from('recurring_expenses').update({ next_due: r.next_due }).eq('id', r.id);
+                await supabaseClient.from('recurring_expenses').update({ next_due: r.next_due, active: true }).eq('id', r.id);
+                r.active = true;
                 continue;
             }
             r.next_due = next;
@@ -4235,7 +4251,8 @@ function renderRecurring() {
         const category = isIncome ? null : catByKey[item.category];
         const itemTitle = item.title || 'Recurring item';
         const color = category ? `style="--cat-color:${safeColor(category.color)}"` : '';
-        const when = item.active ? `Next: ${formatDueLabel(item.next_due)} · ${dueLabel(item.next_due)}` : 'Paused';
+        const ends = item.end_date ? ` · Ends ${formatDueLabel(item.end_date)}` : '';
+        const when = item.active ? `Next: ${formatDueLabel(item.next_due)} · ${dueLabel(item.next_due)}${ends}` : (item.end_date && item.next_due > item.end_date ? 'Finished' : 'Paused');
         return `<div class="history-item recurring-item ${item.active ? '' : 'paused'}" data-id="${escapeHtml(item.id)}" data-kind="${item.kind}">
             <div class="h-icon ${item.kind}" ${color}><i class="fas ${isIncome ? 'fa-arrow-trend-up' : safeIcon(category?.icon || 'fa-repeat')}" aria-hidden="true"></i></div>
             <div class="h-left"><div class="h-title">${escapeHtml(itemTitle)}</div><div class="h-detail">${isIncome ? 'Income' : escapeHtml(category?.label || item.category)} · ${FREQ_LABEL[item.frequency] || item.frequency} · ${escapeHtml(when)}</div></div>
@@ -4581,6 +4598,8 @@ $('newPasswordCancel').addEventListener('click', async () => {
 [$('newPassword'), $('newPasswordConfirm')].forEach(el => el.addEventListener('keydown', (e) => { if (e.key === 'Enter') $('newPasswordBtn').click(); }));
 
 // === INIT ===
+Plan.init(); // the Deposits and Loans sections of the Plan tab (plan.js)
+
 (async function init() {
     selectedMonthDisplay.textContent = formatMonthDisplay(selectedDate);
     monthPicker.value = formatMonthValue(selectedDate);

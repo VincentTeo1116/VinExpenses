@@ -2,7 +2,7 @@
 // change their OWN connection.
 //
 //   {action: "create"}  -> a one-time code and a t.me link that opens the bot with the code filled in
-//   {action: "status"}  -> {linked: true/false}
+//   {action: "status"}  -> {linked: true/false, remindersBlocked: true/false}
 //   {action: "unlink"}  -> disconnects this account's Telegram chat
 
 import { dailyLimit, env, json, preflight, requireUser, sha256Hex, takeQuota } from "../_shared/guard.ts";
@@ -28,10 +28,12 @@ export async function handle(request: Request): Promise<Response> {
 
   try {
     if (action === "status") {
-      const response = await rest(`telegram_links?select=linked_at&user_id=eq.${q(auth.userId)}`);
+      // reminders_blocked_at is newer than the rest: if the database has not been updated yet, answer without it
+      let response = await rest(`telegram_links?select=linked_at,reminders_blocked_at&user_id=eq.${q(auth.userId)}`);
+      if (!response.ok) response = await rest(`telegram_links?select=linked_at&user_id=eq.${q(auth.userId)}`);
       if (!response.ok) throw new Error(`status ${response.status}`);
       const row = (await response.json())[0];
-      return json(request, { linked: Boolean(row), linkedAt: row?.linked_at ?? null });
+      return json(request, { linked: Boolean(row), linkedAt: row?.linked_at ?? null, remindersBlocked: Boolean(row?.reminders_blocked_at) });
     }
 
     if (action === "unlink") {

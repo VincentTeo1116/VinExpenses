@@ -19,6 +19,7 @@ on:
       - "supabase/config.toml"
       - "smart-entry.js"
       - "receipt-parser.js"
+      - "finance-calc.js"
       - ".github/workflows/deploy-functions.yml"
   workflow_dispatch:
 

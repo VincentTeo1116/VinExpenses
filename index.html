@@ -53,8 +53,8 @@
                 <button class="nav-item" data-screen="history">
                     <i class="fas fa-clock-rotate-left"></i><span class="nav-label">History</span>
                 </button>
-                <button class="nav-item" data-screen="recurring">
-                    <i class="fas fa-repeat"></i><span class="nav-label">Recurring</span>
+                <button class="nav-item" data-screen="plan">
+                    <i class="fas fa-clipboard-list"></i><span class="nav-label">Plan</span>
                 </button>
             </nav>
 
@@ -296,6 +296,14 @@
                     <div id="quickStartSteps" class="quick-start-steps"></div>
                 </section>
 
+                <section id="dueSoonCard" class="due-soon-card hidden" aria-labelledby="dueSoonTitle">
+                    <div class="due-soon-head">
+                        <h2 id="dueSoonTitle"><i class="fas fa-bell" aria-hidden="true"></i> Due soon</h2>
+                        <button id="dueSoonAllBtn" class="link-btn" type="button">View all <i class="fas fa-arrow-right" aria-hidden="true"></i></button>
+                    </div>
+                    <div id="dueSoonList" class="reminder-list compact"></div>
+                </section>
+
                 <div class="dash-grid">
                     <!-- Hero -->
                     <section class="hero-card" id="totalCard" aria-label="Spending summary">
@@ -404,14 +412,23 @@
                 </div>
             </div>
 
-            <!-- ===== RECURRING SCREEN ===== -->
+            <!-- ===== PLAN SCREEN (recurring, deposits, loans) ===== -->
             <div id="recurringScreen" class="screen">
                 <header class="page-head">
                     <div>
-                        <h1 class="page-title">Recurring</h1>
-                        <p class="page-sub">Schedule regular bills or income. Entries post the next time you open the app on or after the due date.</p>
+                        <h1 class="page-title">Plan</h1>
+                        <p class="page-sub">Regular bills, fixed deposits and loans in one place.</p>
                     </div>
                 </header>
+                <div class="segmented plan-tabs" role="tablist" aria-label="Plan sections">
+                    <button type="button" class="seg-btn active" id="planTabRecurring" role="tab" aria-selected="true" aria-controls="planPaneRecurring" data-plan-tab="recurring"><i class="fas fa-repeat" aria-hidden="true"></i> Recurring</button>
+                    <button type="button" class="seg-btn" id="planTabDeposits" role="tab" aria-selected="false" aria-controls="planPaneDeposits" data-plan-tab="deposits" tabindex="-1"><i class="fas fa-piggy-bank" aria-hidden="true"></i> Deposits</button>
+                    <button type="button" class="seg-btn" id="planTabLoans" role="tab" aria-selected="false" aria-controls="planPaneLoans" data-plan-tab="loans" tabindex="-1"><i class="fas fa-hand-holding-dollar" aria-hidden="true"></i> Loans</button>
+                </div>
+
+                <!-- ----- Plan: Recurring ----- -->
+                <div id="planPaneRecurring" class="plan-pane" role="tabpanel" aria-labelledby="planTabRecurring">
+                    <p class="plan-intro">Schedule regular bills or income. Entries post the next time you open the app on or after the due date.</p>
                 <div id="recurringSummary" class="history-summary" role="status" aria-live="polite"></div>
 
                 <div class="recurring-grid">
@@ -473,6 +490,282 @@
                     <div class="recurring-list-wrap">
                         <div id="recurringList" class="history-list card-list"></div>
                     </div>
+                </div>
+                </div>
+
+                <!-- ----- Plan: Deposits ----- -->
+                <div id="planPaneDeposits" class="plan-pane hidden" role="tabpanel" aria-labelledby="planTabDeposits">
+                    <div id="fdNotice" class="plan-notice hidden" role="status"></div>
+                    <div class="plan-grid">
+                        <form class="card form-card" id="fdForm" novalidate autocomplete="off">
+                            <h2 class="card-title" id="fdFormTitle">Fixed deposit calculator</h2>
+                            <div class="input-group">
+                                <label for="fdAmount">Amount (RM)</label>
+                                <div class="input-icon-wrap"><i class="fas fa-coins" aria-hidden="true"></i><input type="text" inputmode="decimal" id="fdAmount" placeholder="e.g. 10000" maxlength="16" aria-describedby="fdAmountError" /></div>
+                                <p class="field-error" id="fdAmountError" role="alert"></p>
+                            </div>
+                            <div class="input-group">
+                                <label for="fdRate">Rate (% a year)</label>
+                                <div class="input-icon-wrap"><i class="fas fa-percent" aria-hidden="true"></i><input type="text" inputmode="decimal" id="fdRate" placeholder="e.g. 3.5" maxlength="7" aria-describedby="fdRateError" /></div>
+                                <p class="field-error" id="fdRateError" role="alert"></p>
+                            </div>
+                            <div class="input-group">
+                                <label for="fdTenure">Tenure</label>
+                                <div class="plan-inline">
+                                    <div class="input-icon-wrap"><i class="fas fa-hourglass-half" aria-hidden="true"></i><input type="text" inputmode="numeric" id="fdTenure" value="12" maxlength="4" aria-describedby="fdTenureError" /></div>
+                                    <select id="fdTenureUnit" class="filter-select" aria-label="Tenure unit">
+                                        <option value="days">Days</option>
+                                        <option value="months" selected>Months</option>
+                                        <option value="years">Years</option>
+                                    </select>
+                                </div>
+                                <p class="field-error" id="fdTenureError" role="alert"></p>
+                            </div>
+                            <div class="field-row">
+                                <div class="input-group">
+                                    <label for="fdStart">Start date</label>
+                                    <div class="input-icon-wrap"><i class="far fa-calendar" aria-hidden="true"></i><input type="date" id="fdStart" aria-describedby="fdStartError" /></div>
+                                    <p class="field-error" id="fdStartError" role="alert"></p>
+                                </div>
+                                <div class="input-group">
+                                    <label for="fdMaturity">Maturity date</label>
+                                    <div class="input-icon-wrap"><i class="far fa-calendar-check" aria-hidden="true"></i><input type="date" id="fdMaturity" aria-describedby="fdMaturityError fdMaturityHint" /></div>
+                                    <p class="field-error" id="fdMaturityError" role="alert"></p>
+                                </div>
+                            </div>
+                            <p class="field-hint plan-hint" id="fdMaturityHint"><i class="fas fa-circle-info" aria-hidden="true"></i><span><span id="fdMaturityHintText">Worked out from the tenure. Change it only if your bank gives a different date.</span> <button type="button" id="fdMaturityReset" class="link-btn hidden">Use the calculated date</button></span></p>
+                            <div class="input-group">
+                                <span class="label" id="fdPayoutLabel">Interest is paid</span>
+                                <div class="choice-group" id="fdPayout" role="group" aria-labelledby="fdPayoutLabel">
+                                    <button type="button" class="choice active" data-value="maturity" aria-pressed="true">At maturity</button>
+                                    <button type="button" class="choice" data-value="monthly" aria-pressed="false">Monthly</button>
+                                    <button type="button" class="choice" data-value="quarterly" aria-pressed="false">Quarterly</button>
+                                    <button type="button" class="choice" data-value="yearly" aria-pressed="false">Yearly</button>
+                                </div>
+                            </div>
+                            <details class="plan-more">
+                                <summary>More options</summary>
+                                <div class="field-row">
+                                    <div class="input-group">
+                                        <label for="fdTax">Tax on interest (%)</label>
+                                        <div class="input-icon-wrap"><i class="fas fa-receipt" aria-hidden="true"></i><input type="text" inputmode="decimal" id="fdTax" placeholder="0" maxlength="6" aria-describedby="fdTaxError" /></div>
+                                        <p class="field-error" id="fdTaxError" role="alert"></p>
+                                    </div>
+                                    <div class="input-group">
+                                        <label for="fdBasis">Days in a year</label>
+                                        <select id="fdBasis" class="filter-select">
+                                            <option value="365" selected>365 (usual)</option>
+                                            <option value="360">360</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </details>
+
+                            <div class="plan-divider"><span>Save and get reminders (optional)</span></div>
+                            <div class="field-row">
+                                <div class="input-group">
+                                    <label for="fdName">Name</label>
+                                    <div class="input-icon-wrap"><i class="fas fa-tag" aria-hidden="true"></i><input type="text" id="fdName" placeholder="e.g. Maybank 12 months" maxlength="60" aria-describedby="fdNameError" /></div>
+                                    <p class="field-error" id="fdNameError" role="alert"></p>
+                                </div>
+                                <div class="input-group">
+                                    <label for="fdBank">Bank (optional)</label>
+                                    <div class="input-icon-wrap"><i class="fas fa-building-columns" aria-hidden="true"></i><input type="text" id="fdBank" placeholder="e.g. Maybank" maxlength="60" /></div>
+                                </div>
+                            </div>
+                            <div class="plan-reminder-row">
+                                <div>
+                                    <span class="label" id="fdRemindLabel">Remind me before it matures</span>
+                                    <span class="plan-sub">By Telegram if connected, otherwise in the app.</span>
+                                </div>
+                                <label class="switch-label" for="fdRemindOn"><span class="visually-hidden">Reminders for this deposit</span><input type="checkbox" id="fdRemindOn" checked /><span class="switch-track" aria-hidden="true"></span></label>
+                            </div>
+                            <div class="input-group" id="fdRemindDaysGroup">
+                                <label for="fdRemindDays">Days before (0 = on the day)</label>
+                                <div class="input-icon-wrap"><i class="fas fa-bell" aria-hidden="true"></i><input type="text" inputmode="numeric" id="fdRemindDays" value="7, 1, 0" maxlength="30" aria-describedby="fdRemindDaysError" /></div>
+                                <p class="field-error" id="fdRemindDaysError" role="alert"></p>
+                            </div>
+                            <button type="submit" id="fdSaveBtn" class="btn btn-primary btn-block"><i class="fas fa-floppy-disk" aria-hidden="true"></i> Save deposit</button>
+                            <button type="button" id="fdResetBtn" class="btn btn-ghost btn-block">Clear</button>
+                        </form>
+
+                        <section class="card plan-result" aria-labelledby="fdResultTitle" aria-live="polite">
+                            <h2 class="card-title" id="fdResultTitle">What you'll earn</h2>
+                            <div id="fdResultEmpty" class="plan-empty"><i class="fas fa-piggy-bank" aria-hidden="true"></i><p id="fdResultEmptyText">Enter an amount and a rate to see what you'll earn.</p></div>
+                            <div id="fdResult" class="hidden">
+                                <div class="plan-hero">
+                                    <span class="plan-hero-label" id="fdHeroLabel">You'll receive</span>
+                                    <strong class="plan-hero-value" id="fdHeroValue">RM 0.00</strong>
+                                    <span class="plan-hero-sub" id="fdHeroSub"></span>
+                                </div>
+                                <div class="plan-stats" id="fdStats"></div>
+                                <p id="fdOverrideNote" class="plan-note hidden"></p>
+                                <div id="fdProgressWrap" class="plan-progress hidden">
+                                    <div class="plan-progress-bar"><span id="fdProgressBar"></span></div>
+                                    <span id="fdProgressText"></span>
+                                </div>
+                                <div class="chart-wrap plan-chart" id="fdChartWrap"><canvas id="fdChart" aria-label="Interest earned over time" role="img"></canvas></div>
+                                <div class="plan-schedule-head">
+                                    <h3>Earnings breakdown</h3>
+                                    <div class="choice-group small" id="fdView" role="group" aria-label="Breakdown by">
+                                        <button type="button" class="choice" data-value="daily" aria-pressed="false">Daily</button>
+                                        <button type="button" class="choice active" data-value="monthly" aria-pressed="true">Monthly</button>
+                                        <button type="button" class="choice" data-value="yearly" aria-pressed="false">Yearly</button>
+                                    </div>
+                                </div>
+                                <div class="plan-table-wrap" tabindex="0" role="region" aria-label="Earnings breakdown table">
+                                    <table class="plan-table" id="fdTable">
+                                        <thead><tr><th scope="col">Period</th><th scope="col">Ends</th><th scope="col" class="num">Interest (RM)</th><th scope="col" class="num">Total so far (RM)</th><th scope="col" class="num" id="fdPaidHead">Paid out (RM)</th></tr></thead>
+                                        <tbody></tbody>
+                                    </table>
+                                </div>
+                                <div class="plan-pager" id="fdPager">
+                                    <button type="button" class="btn btn-outline btn-small" data-page="prev"><i class="fas fa-chevron-left" aria-hidden="true"></i> Previous</button>
+                                    <span id="fdPagerText" role="status"></span>
+                                    <button type="button" class="btn btn-outline btn-small" data-page="next">Next <i class="fas fa-chevron-right" aria-hidden="true"></i></button>
+                                </div>
+                                <p class="plan-disclaimer"><i class="fas fa-circle-info" aria-hidden="true"></i> Estimate only, not financial advice. Your bank's figure can differ slightly because of how it counts days and rounds.</p>
+                            </div>
+                        </section>
+                    </div>
+
+                    <section class="card plan-saved" aria-labelledby="fdListTitle">
+                        <div class="card-head">
+                            <h2 class="card-title" id="fdListTitle">Your deposits</h2>
+                            <span class="card-hint" id="fdListSummary"></span>
+                        </div>
+                        <div id="fdList" class="plan-list" aria-live="polite"></div>
+                    </section>
+                </div>
+
+                <!-- ----- Plan: Loans ----- -->
+                <div id="planPaneLoans" class="plan-pane hidden" role="tabpanel" aria-labelledby="planTabLoans">
+                    <div id="loanNotice" class="plan-notice hidden" role="status"></div>
+                    <div class="plan-grid">
+                        <form class="card form-card" id="loanForm" novalidate autocomplete="off">
+                            <h2 class="card-title" id="loanFormTitle">Loan calculator</h2>
+                            <div class="input-group">
+                                <label for="loanAmount">Amount borrowed (RM)</label>
+                                <div class="input-icon-wrap"><i class="fas fa-coins" aria-hidden="true"></i><input type="text" inputmode="decimal" id="loanAmount" placeholder="e.g. 50000" maxlength="16" aria-describedby="loanAmountError" /></div>
+                                <p class="field-error" id="loanAmountError" role="alert"></p>
+                            </div>
+                            <div class="input-group">
+                                <label for="loanRate">Rate (% a year)</label>
+                                <div class="input-icon-wrap"><i class="fas fa-percent" aria-hidden="true"></i><input type="text" inputmode="decimal" id="loanRate" placeholder="e.g. 3.5" maxlength="7" aria-describedby="loanRateError" /></div>
+                                <p class="field-error" id="loanRateError" role="alert"></p>
+                            </div>
+                            <div class="input-group">
+                                <label for="loanTerm">Term</label>
+                                <div class="plan-inline">
+                                    <div class="input-icon-wrap"><i class="fas fa-hourglass-half" aria-hidden="true"></i><input type="text" inputmode="numeric" id="loanTerm" value="5" maxlength="3" aria-describedby="loanTermError" /></div>
+                                    <select id="loanTermUnit" class="filter-select" aria-label="Term unit">
+                                        <option value="years" selected>Years</option>
+                                        <option value="months">Months</option>
+                                    </select>
+                                </div>
+                                <p class="field-error" id="loanTermError" role="alert"></p>
+                            </div>
+                            <div class="input-group">
+                                <span class="label" id="loanMethodLabel">How is the interest calculated?</span>
+                                <div class="method-group" id="loanMethod" role="group" aria-labelledby="loanMethodLabel" aria-describedby="loanMethodError">
+                                    <button type="button" class="method" data-value="reducing" aria-pressed="false">
+                                        <b>Reducing balance</b>
+                                        <span>Interest only on what you still owe. Usual for home loans.</span>
+                                    </button>
+                                    <button type="button" class="method" data-value="flat" aria-pressed="false">
+                                        <b>Flat rate</b>
+                                        <span>Interest on the full amount for the whole loan. Usual for car and many personal loans.</span>
+                                    </button>
+                                </div>
+                                <p class="field-error" id="loanMethodError" role="alert"></p>
+                                <p class="field-hint plan-hint"><i class="fas fa-circle-info" aria-hidden="true"></i><span>Not sure? Your loan offer letter says which one. This calculator is for a fixed rate only; rates that change over time are not supported yet.</span></p>
+                            </div>
+                            <div class="input-group">
+                                <label for="loanFirst">First payment date</label>
+                                <div class="input-icon-wrap"><i class="far fa-calendar" aria-hidden="true"></i><input type="date" id="loanFirst" aria-describedby="loanFirstError" /></div>
+                                <p class="field-error" id="loanFirstError" role="alert"></p>
+                                <p class="field-hint plan-hint"><i class="fas fa-circle-info" aria-hidden="true"></i><span>Later payments fall on the same day each month (or the last day of a shorter month).</span></p>
+                            </div>
+                            <details class="plan-more">
+                                <summary>More options</summary>
+                                <div class="input-group">
+                                    <label for="loanFees">One-off fees paid upfront (RM)</label>
+                                    <div class="input-icon-wrap"><i class="fas fa-file-invoice-dollar" aria-hidden="true"></i><input type="text" inputmode="decimal" id="loanFees" placeholder="0" maxlength="16" aria-describedby="loanFeesError" /></div>
+                                    <p class="field-error" id="loanFeesError" role="alert"></p>
+                                </div>
+                            </details>
+
+                            <div class="plan-divider"><span>Save and get reminders (optional)</span></div>
+                            <div class="field-row">
+                                <div class="input-group">
+                                    <label for="loanName">Name</label>
+                                    <div class="input-icon-wrap"><i class="fas fa-tag" aria-hidden="true"></i><input type="text" id="loanName" placeholder="e.g. Car loan" maxlength="60" aria-describedby="loanNameError" /></div>
+                                    <p class="field-error" id="loanNameError" role="alert"></p>
+                                </div>
+                                <div class="input-group">
+                                    <label for="loanLender">Lender (optional)</label>
+                                    <div class="input-icon-wrap"><i class="fas fa-building-columns" aria-hidden="true"></i><input type="text" id="loanLender" placeholder="e.g. Public Bank" maxlength="60" /></div>
+                                </div>
+                            </div>
+                            <div class="plan-reminder-row">
+                                <div>
+                                    <span class="label" id="loanRemindLabel">Remind me before each payment</span>
+                                    <span class="plan-sub">By Telegram if connected, otherwise in the app.</span>
+                                </div>
+                                <label class="switch-label" for="loanRemindOn"><span class="visually-hidden">Reminders for this loan</span><input type="checkbox" id="loanRemindOn" checked /><span class="switch-track" aria-hidden="true"></span></label>
+                            </div>
+                            <div class="input-group" id="loanRemindDaysGroup">
+                                <label for="loanRemindDays">Days before (0 = on the day)</label>
+                                <div class="input-icon-wrap"><i class="fas fa-bell" aria-hidden="true"></i><input type="text" inputmode="numeric" id="loanRemindDays" value="3, 0" maxlength="30" aria-describedby="loanRemindDaysError" /></div>
+                                <p class="field-error" id="loanRemindDaysError" role="alert"></p>
+                            </div>
+                            <button type="submit" id="loanSaveBtn" class="btn btn-primary btn-block"><i class="fas fa-floppy-disk" aria-hidden="true"></i> Save loan</button>
+                            <button type="button" id="loanResetBtn" class="btn btn-ghost btn-block">Clear</button>
+                        </form>
+
+                        <section class="card plan-result" aria-labelledby="loanResultTitle" aria-live="polite">
+                            <h2 class="card-title" id="loanResultTitle">What it costs</h2>
+                            <div id="loanResultEmpty" class="plan-empty"><i class="fas fa-hand-holding-dollar" aria-hidden="true"></i><p id="loanResultEmptyText">Enter an amount and a rate, then choose how the interest is calculated.</p></div>
+                            <div id="loanResult" class="hidden">
+                                <div class="plan-hero">
+                                    <span class="plan-hero-label">Monthly payment</span>
+                                    <strong class="plan-hero-value" id="loanHeroValue">RM 0.00</strong>
+                                    <span class="plan-hero-sub" id="loanHeroSub"></span>
+                                </div>
+                                <div class="plan-stats" id="loanStats"></div>
+                                <div class="plan-compare" id="loanCompare"></div>
+                                <div class="chart-wrap plan-chart" id="loanChartWrap"><canvas id="loanChart" aria-label="Loan balance over time" role="img"></canvas></div>
+                                <div class="plan-schedule-head">
+                                    <h3>Repayment schedule</h3>
+                                    <div class="choice-group small" id="loanView" role="group" aria-label="Schedule by">
+                                        <button type="button" class="choice active" data-value="monthly" aria-pressed="true">Monthly</button>
+                                        <button type="button" class="choice" data-value="yearly" aria-pressed="false">Yearly</button>
+                                    </div>
+                                </div>
+                                <div class="plan-table-wrap" tabindex="0" role="region" aria-label="Repayment schedule table">
+                                    <table class="plan-table" id="loanTable">
+                                        <thead><tr><th scope="col" id="loanPeriodHead">No.</th><th scope="col">Date</th><th scope="col" class="num">Payment (RM)</th><th scope="col" class="num">Principal</th><th scope="col" class="num">Interest</th><th scope="col" class="num">Balance</th></tr></thead>
+                                        <tbody></tbody>
+                                    </table>
+                                </div>
+                                <div class="plan-pager" id="loanPager">
+                                    <button type="button" class="btn btn-outline btn-small" data-page="prev"><i class="fas fa-chevron-left" aria-hidden="true"></i> Previous</button>
+                                    <span id="loanPagerText" role="status"></span>
+                                    <button type="button" class="btn btn-outline btn-small" data-page="next">Next <i class="fas fa-chevron-right" aria-hidden="true"></i></button>
+                                </div>
+                                <p class="plan-disclaimer"><i class="fas fa-circle-info" aria-hidden="true"></i> Estimate only, not financial advice. Fixed rate only. Your lender's figures can differ slightly because of rounding, fees and how it splits flat-rate interest.</p>
+                            </div>
+                        </section>
+                    </div>
+
+                    <section class="card plan-saved" aria-labelledby="loanListTitle">
+                        <div class="card-head">
+                            <h2 class="card-title" id="loanListTitle">Your loans</h2>
+                            <span class="card-hint" id="loanListSummary"></span>
+                        </div>
+                        <div id="loanTotals" class="plan-totals hidden"></div>
+                        <div id="loanList" class="plan-list" aria-live="polite"></div>
+                    </section>
                 </div>
             </div>
 
@@ -537,8 +830,8 @@
             <button class="nav-item tab-fab" data-screen="add" aria-label="Add transaction">
                 <i class="fas fa-plus"></i>
             </button>
-            <button class="nav-item" data-screen="recurring">
-                <i class="fas fa-repeat"></i><span class="nav-label">Recurring</span>
+            <button class="nav-item" data-screen="plan">
+                <i class="fas fa-clipboard-list"></i><span class="nav-label">Plan</span>
             </button>
             <button class="nav-item" data-screen="account">
                 <i class="fas fa-user"></i><span class="nav-label">Account</span>
@@ -765,6 +1058,26 @@
                 <p id="adminEmailStatus" class="field-hint" role="status"></p>
                 <ul id="adminEmailChecks" class="admin-checks"></ul>
             </section>
+            <section class="report-email-settings" id="reminderSettings" aria-labelledby="reminderSettingsTitle">
+                <div class="report-email-heading"><div><h3 id="reminderSettingsTitle">Reminders</h3><p>For fixed deposits that mature and loan payments that fall due (Plan tab). Sent by Telegram when it is connected, and always listed on your dashboard.</p></div></div>
+                <div class="field-row">
+                    <div class="input-group">
+                        <label for="reminderHour">Telegram send time</label>
+                        <select id="reminderHour" class="filter-select"></select>
+                    </div>
+                    <div class="input-group">
+                        <label for="reminderPopup">Pop-up in the app</label>
+                        <select id="reminderPopup" class="filter-select">
+                            <option value="auto">Only when Telegram is not connected</option>
+                            <option value="always">Always</option>
+                            <option value="never">Never</option>
+                        </select>
+                    </div>
+                </div>
+                <label class="plan-check" for="reminderHideAmounts"><input type="checkbox" id="reminderHideAmounts" /> <span>Hide amounts in Telegram reminders</span></label>
+                <button id="saveReminderSettingsBtn" type="button" class="btn btn-outline btn-block"><i class="fas fa-floppy-disk" aria-hidden="true"></i> Save reminder settings</button>
+                <p id="reminderSettingsStatus" class="field-hint" role="status"></p>
+            </section>
             <section class="report-email-settings" aria-labelledby="yourDataTitle">
                 <div class="report-email-heading"><div><h3 id="yourDataTitle">Your data</h3><p>Export everything as a spreadsheet, or import a CSV (this app's export or a bank statement). Duplicates are skipped.</p></div></div>
                 <div class="data-actions">
@@ -804,6 +1117,22 @@
             </div>
             <p id="taxonomyStatus" class="field-hint" role="status"></p>
             <div id="taxonomyList" class="taxonomy-list" aria-live="polite"></div>
+        </div>
+    </div>
+
+    <!-- ===== REMINDERS (one list, never one pop-up per item) ===== -->
+    <div id="remindersSheet" class="modal-overlay-full sheet-overlay">
+        <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="remindersTitle">
+            <div class="sheet-grabber" aria-hidden="true"></div>
+            <div class="sheet-head">
+                <h2 id="remindersTitle">Reminders</h2>
+                <button id="remindersClose" class="icon-btn" type="button" aria-label="Close"><i class="fas fa-xmark" aria-hidden="true"></i></button>
+            </div>
+            <p class="sheet-sub" id="remindersSub"></p>
+            <div id="remindersList" class="reminder-list"></div>
+            <label class="plan-check" for="remindersSnooze"><input type="checkbox" id="remindersSnooze" /> <span>Don't show again for 24 hours</span></label>
+            <button id="remindersDone" type="button" class="btn btn-primary btn-block btn-lg"><i class="fas fa-check" aria-hidden="true"></i> Got it</button>
+            <p class="plan-sub reminders-foot">These stay on your dashboard under "Due soon". Change reminder settings in Account.</p>
         </div>
     </div>
 
@@ -902,6 +1231,8 @@
     <script src="receipt-parser.js?v=__BUILD__"></script>
     <script src="smart-entry.js?v=__BUILD__"></script>
     <script src="csv-import.js?v=__BUILD__"></script>
+    <script src="finance-calc.js?v=__BUILD__"></script>
+    <script src="plan.js?v=__BUILD__"></script> <!-- Plan tab: deposits, loans, reminders. Only defines things; app.js starts it. -->
     <script src="app.js?v=__BUILD__"></script>
 </body>
 </html>

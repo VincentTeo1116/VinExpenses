@@ -23,6 +23,8 @@ const SHELL_FILES = [
     'receipt-parser.js',
     'smart-entry.js',
     'csv-import.js',
+    'finance-calc.js',
+    'plan.js',
     'manifest.json',
     'icon.png',
     'icons/icon-192.png',

@@ -18,6 +18,9 @@ dashboard. Plain HTML/CSS/JS — no build step.
 | `receipt-parser.js` | Finds the merchant, total and date in receipt text (OCR output or PDF text). No dependencies; unit-tested |
 | `smart-entry.js` | Category suggestions (learns from your history + Malaysian merchant list) and duplicate detection. No dependencies; unit-tested |
 | `csv-import.js` | Reads a CSV (this app's export or a bank statement) into expenses/income. No dependencies; unit-tested |
+| `finance-calc.js` | Fixed-deposit and loan maths, schedules, statuses and reminder timing. No dependencies; unit-tested. The reminder function uses an identical copy |
+| `plan.js` | The Plan tab's Deposits and Loans sections, the dashboard "Due soon" strip and the reminders pop-up |
+| `supabase/functions/plan-reminders/` | Scheduled Telegram reminders for deposits that mature and loan payments that fall due |
 | `tools/make-fixture.js` | Turns a saved scan-details file into a test fixture (`npm run fixture`) |
 | `tests/` | Automated tests (`npm test`) and anonymised receipt fixtures |
 | `supabase/functions/receipt-ocr/` | Private OCR.space proxy used by receipt scanning (signed-in users only, daily limit) |
@@ -28,6 +31,26 @@ dashboard. Plain HTML/CSS/JS — no build step.
 | `icon.png` | Browser tab favicon |
 
 ## Features
+
+- **Plan tab: fixed deposits and loans** - the old Recurring screen is now **Plan**, with three sections:
+  Recurring, Deposits and Loans.
+  - **Fixed deposit calculator**: amount, rate, tenure (days / months / years), start date and payout (at
+    maturity, monthly, quarterly, yearly). Shows what you receive, the interest, an optional tax, the yearly
+    return, a growth chart, and a daily / monthly / yearly breakdown. Simple interest: amount x rate x days / 365.
+  - **Loan calculator** (fixed rate): **reducing balance** or **flat rate**, with the monthly payment, total
+    interest, cost per day / month / year, the real yearly rate of a flat-rate loan, a full repayment schedule,
+    and "this loan" next to "all your loans together".
+  - **Save and track**: deposits show progress and what is earned so far; when one matures you can record the
+    interest as income in one tap, renew it or close it. Loans show payments made, what is left and the next
+    due date. A loan can be **added to recurring expenses**: its payments are then added to your spending
+    automatically and stop by themselves after the last one.
+  - **Reminders**: by Telegram when it is connected (7 days, 1 day and on the day for a deposit; 3 days and on
+    the day for a loan payment; you can change the days per item). In the app they are always listed under
+    **Due soon** on the dashboard, and shown in **one pop-up that lists everything**, with "Don't show again
+    for 24 hours" (kept with your account, so it applies on every device). Settings are in Account -> Reminders.
+  - **It keeps working when things go wrong**: the calculators need no connection; a save made offline is kept
+    on the device and sent later; if the database has not been updated yet the calculators still work and the
+    screen says what to run. Results are estimates, not financial advice.
 
 - **Smarter receipt reading** - scan a **photo or a PDF**. PDFs with a text layer
   (e-mailed receipts, e-invoices) are read **on your device**, exactly and
@@ -258,6 +281,21 @@ and only for people who ticked the box. Every answer is validated before use
 prompts may be used to improve Google's products; enable billing on the Google
 project if receipts should not be used that way. Any other vision/text model can
 be wired in by editing `supabase/functions/receipt-ai/index.ts`.
+
+### Plan tab and reminders: setup
+
+1. Run the updated `supabase-schema.sql` in the Supabase SQL Editor (safe to run again). It adds the
+   `fixed_deposits`, `loans` and `reminder_log` tables and a few columns. Until you do, the calculators work
+   but nothing can be saved, and the Plan tab says so.
+2. For Telegram reminders, deploy the function: `npx supabase functions deploy plan-reminders`
+   (the "Deploy Supabase functions" workflow does this for you on a push). It uses the secrets the bot already
+   has (`TELEGRAM_BOT_TOKEN`, `MONTHLY_REPORT_CRON_SECRET`, optional `SITE_URL`) and the same three Vault
+   secrets as the monthly report for its hourly schedule, which the SQL file installs. `REMINDER_BATCH`
+   (default 60) limits how many reminders one run sends.
+3. Without step 2, reminders still appear in the app.
+
+If you change `finance-calc.js`, run `node tools/sync-shared.js` so the function's copy matches (a test fails
+if it does not).
 
 ### Tests
 
