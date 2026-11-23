@@ -20,7 +20,7 @@ const cspOf = (html) => /http-equiv="Content-Security-Policy"[^>]*content="([^"]
 const directive = (csp, name) => (csp.split(';').map((d) => d.trim()).find((d) => d.startsWith(name + ' ')) || '').split(/\s+/).slice(1);
 
 // ------------------------------------------------------------------ pages and the Content-Security-Policy
-for (const page of ['index.html', 'email-action.html']) {
+for (const page of ['index.html', 'email-action.html', 'welcome.html', 'privacy.html', 'terms.html']) {
     test(`${page}: strict Content-Security-Policy, placed before anything that loads`, () => {
         const html = read(page);
         const csp = cspOf(html);
@@ -387,4 +387,45 @@ test('Plan reminders: the function is scheduler-only and never trusts the browse
     assert.match(code, /d\.user_id === userId/, 'each person is only ever sent their own deposits');
     assert.match(code, /l\.user_id === userId/, 'each person is only ever sent their own loans');
     assert.ok(!/console\.(log|error|warn)\([^)]*(name|amount|chatId)/.test(code), 'no personal data in the logs');
+});
+
+// ------------------------------------------------------------------ public pages (landing, privacy, terms)
+test('public pages: no code of their own, no forms, no outside requests, and they are shipped with the site', () => {
+    const deploy = read('.github/workflows/deploy.yml');
+    for (const page of ['welcome.html', 'privacy.html', 'terms.html']) {
+        const html = read(page);
+        const csp = cspOf(html);
+        assert.equal(directive(csp, 'connect-src').length, 0, `${page} must not be allowed to call any server`);
+        assert.deepEqual(directive(csp, 'form-action'), ["'none'"]);
+        assert.deepEqual([...html.matchAll(/<script src="([^"]+)"/g)].map((m) => m[1]), ['frame-guard.js'], `${page} runs only the frame guard`);
+        assert.ok(!/\sstyle=/.test(html), `${page}: inline styles would be blocked by its policy`);
+        assert.ok(!/<form|<input|<iframe/i.test(html));
+        assert.ok(deploy.includes(page), `${page} is not copied by the deploy workflow`);
+        for (const img of [...html.matchAll(/<img src="([^"]+)"/g)].map((m) => m[1])) {
+            assert.ok(fs.existsSync(path.join(root, img)), `${page}: missing image ${img}`);
+        }
+    }
+    assert.match(deploy, /pages\.css/);
+    assert.match(deploy, /cp -r landing dist\/landing/);
+    assert.match(read('pages.css'), /html:not\(\[data-top\]\) body \{ display: none !important; \}/, 'the frame guard needs this rule');
+});
+
+test('privacy policy: names every outside service the code actually uses, and the app links to it', () => {
+    const policy = read('privacy.html');
+    for (const provider of ['Supabase', 'GitHub Pages', 'OCR.space', 'OpenStreetMap', 'Telegram', 'Gmail', 'Gemini', 'Google']) {
+        assert.ok(policy.includes(provider), `the privacy policy does not mention ${provider}`);
+    }
+    // if a function starts calling a new outside service, this list (and the policy) must be updated
+    const hosts = new Set();
+    for (const file of walk('supabase/functions').filter((f) => f.endsWith('.ts'))) {
+        for (const m of read(file).matchAll(/https:\/\/([a-z0-9.-]+\.[a-z]{2,})/g)) hosts.add(m[1]);
+    }
+    const known = ['api.ocr.space', 'api.telegram.org', 't.me', 'nominatim.openstreetmap.org', 'overpass-api.de', 'generativelanguage.googleapis.com', 'smtp.gmail.com', 'www.openstreetmap.org',
+        'myaccount.google.com', 'aistudio.google.com']; // the last two are only links in setup comments
+    const unknown = [...hosts].filter((h) => !known.includes(h) && !/supabase\.co$|github\.io$|example\.|^x$|^me\./.test(h));
+    assert.deepEqual(unknown, [], 'an outside service is used by a function but not covered by the privacy policy');
+    const app = read('index.html');
+    assert.match(app, /href="privacy\.html"/);
+    assert.match(app, /href="terms\.html"/);
+    assert.match(read('terms.html'), /not financial advice|financial, investment, tax, legal or accounting advice/);
 });

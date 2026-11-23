@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en-MY">
+<head>
+    <meta charset="UTF-8" />
+    <!-- SECURITY: this policy must stay FIRST in <head>. This page runs no code of its own (only the frame guard),
+         loads nothing from other websites and talks to no server. See SECURITY.md. -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; font-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'" />
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
+    <script src="frame-guard.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="description" content="VinExpenses is a free expense tracker for Malaysia: scan receipts, set budgets, plan fixed deposits and loans, and get reminders. No ads, no tracking." />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#f5f6fa" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0b1020" media="(prefers-color-scheme: dark)" />
+    <link rel="icon" href="icon.png" type="image/png" />
+    <title>VinExpenses: track spending, budgets, deposits and loans</title>
+    <link rel="stylesheet" href="fonts.css" />
+    <link rel="stylesheet" href="pages.css?v=__BUILD__" />
+</head>
+<body>
+    <a class="skip" href="#main">Skip to content</a>
+    <header class="site-head">
+        <div class="wrap">
+            <a class="brand" href="welcome.html"><img src="icons/icon-192.png" alt="" width="34" height="34" /> VinExpenses</a>
+            <nav class="site-nav" aria-label="Site">
+                <a class="hide-small" href="#features">Features</a>
+                <a class="hide-small" href="#privacy">Your data</a>
+                <a class="btn btn-primary btn-small" href="./">Open the app</a>
+            </nav>
+        </div>
+    </header>
+
+    <main id="main">
+        <div class="hero">
+            <div class="wrap">
+                <div>
+                    <span class="eyebrow">Free · No ads · Made in Malaysia</span>
+                    <h1>Know where your money goes, in ringgit and sen.</h1>
+                    <p class="lead">VinExpenses tracks your spending and income, reads your receipts, keeps your budgets honest, and reminds you before a fixed deposit matures or a loan payment is due.</p>
+                    <div class="cta">
+                        <a class="btn btn-primary" href="./">Open the app</a>
+                        <a class="btn btn-outline" href="#features">See what it does</a>
+                    </div>
+                    <p class="cta-note">Works in your browser on phone and computer. Add it to your home screen to use it like an app.</p>
+                </div>
+                <div class="shot">
+                    <img src="landing/dashboard.webp" width="1280" height="800" alt="The VinExpenses dashboard: this month's spending, income and balance, spending by category, and items due soon." />
+                </div>
+            </div>
+        </div>
+
+        <section id="features">
+            <div class="wrap">
+                <h2>Everything in one calm place</h2>
+                <p class="section-sub">Built for everyday use: add an expense in a few seconds, and see the month at a glance.</p>
+                <div class="grid three">
+                    <div class="card"><div class="mark" aria-hidden="true">1</div><h3>Scan a receipt</h3><p>Take a photo or upload a PDF. The total, merchant and date are filled in for you to check. PDF receipts with text are read on your own device and never uploaded.</p></div>
+                    <div class="card"><div class="mark" aria-hidden="true">2</div><h3>Budgets that warn you early</h3><p>Set a monthly limit overall or per category. See what is safe to spend today, and get a warning before you go over.</p></div>
+                    <div class="card"><div class="mark" aria-hidden="true">3</div><h3>Recurring bills and income</h3><p>Rent, utilities, subscriptions and salary are added automatically when they fall due, so the month is never missing a bill.</p></div>
+                    <div class="card"><div class="mark" aria-hidden="true">4</div><h3>Fixed deposit calculator</h3><p>Enter the amount, rate and tenure to see what you will receive, with a daily, monthly or yearly breakdown. Save it to be reminded before it matures.</p></div>
+                    <div class="card"><div class="mark" aria-hidden="true">5</div><h3>Loan calculator</h3><p>Flat rate or reducing balance: see the monthly payment, the total interest, the real yearly rate and the full repayment schedule.</p></div>
+                    <div class="card"><div class="mark" aria-hidden="true">6</div><h3>Reports you can keep</h3><p>A monthly report compared with last month, printable or saved as PDF, and a spreadsheet export of everything whenever you want it.</p></div>
+                </div>
+            </div>
+        </section>
+
+        <section class="band">
+            <div class="wrap split">
+                <div class="shot phone">
+                    <img src="landing/plan-phone.webp" width="390" height="844" loading="lazy" alt="The loan calculator on a phone, showing the monthly payment while the form is being filled in." />
+                </div>
+                <div>
+                    <h2>Plan before you sign</h2>
+                    <p class="section-sub">Compare a bank's offer in seconds, then track it once you take it.</p>
+                    <ul class="ticks">
+                        <li>The answer updates as you type, with the three numbers that matter first.</li>
+                        <li>A flat-rate loan shows its real yearly rate, so two offers can be compared fairly.</li>
+                        <li>Add a loan to your recurring expenses and its payments stop by themselves after the last one.</li>
+                        <li>Reminders by Telegram or in the app: 7 days and 1 day before a deposit matures, 3 days before a payment.</li>
+                    </ul>
+                    <p class="honest">The calculators give estimates for a fixed rate. They are not financial advice, and your bank's figures can differ slightly.</p>
+                </div>
+            </div>
+        </section>
+
+        <section>
+            <div class="wrap split flip">
+                <div>
+                    <h2>Works where you are</h2>
+                    <ul class="ticks">
+                        <li><strong>Offline:</strong> open the app and add expenses without a connection; they sync when you are back online.</li>
+                        <li><strong>Telegram:</strong> connect the bot and add an expense by chatting, for example "lunch 12.50".</li>
+                        <li><strong>Phone and computer:</strong> one account, the same data on every device, in light or dark mode.</li>
+                        <li><strong>English interface, Malaysian receipts:</strong> the receipt reader understands English, Malay and Chinese totals.</li>
+                    </ul>
+                </div>
+                <div class="shot">
+                    <img src="landing/plan-desktop.webp" width="1280" height="800" loading="lazy" alt="The Plan tab on a computer: a fixed deposit calculation with the amount received, the interest and a monthly breakdown." />
+                </div>
+            </div>
+        </section>
+
+        <section class="band" id="privacy">
+            <div class="wrap">
+                <h2>Your data stays yours</h2>
+                <p class="section-sub">Money is personal. These are facts about how the app is built, not promises for later.</p>
+                <div class="grid">
+                    <div class="card"><h3>No ads, no tracking</h3><p>There are no advertising or analytics scripts. The app loads its code from this site only.</p></div>
+                    <div class="card"><h3>Only you can see your records</h3><p>Every record is tied to your account and protected by database rules, so one account cannot read another's data.</p></div>
+                    <div class="card"><h3>Take it with you</h3><p>Export everything as a spreadsheet at any time, from Account in the app.</p></div>
+                    <div class="card"><h3>Delete it for good</h3><p>Delete your account from inside the app and your records are removed from the server.</p></div>
+                </div>
+                <p class="cta-note">The details, including the services that help run the app, are in the <a href="privacy.html">Privacy Policy</a>.</p>
+            </div>
+        </section>
+
+        <section class="final">
+            <div class="wrap">
+                <h2>Start with this month</h2>
+                <p class="section-sub">It is free. Create an account with your email or Google, and add your first expense in under a minute.</p>
+                <div class="cta"><a class="btn btn-primary" href="./">Open the app</a></div>
+                <p class="cta-note">By creating an account you agree to the <a href="terms.html">Terms of Use</a> and the <a href="privacy.html">Privacy Policy</a>.</p>
+            </div>
+        </section>
+    </main>
+
+    <footer class="site-foot">
+        <div class="wrap">
+            <span>© 2026 Vincent Teo · VinExpenses</span>
+            <nav aria-label="Legal"><a href="privacy.html">Privacy Policy</a><a href="terms.html">Terms of Use</a><a href="mailto:teovincentkq1611@gmail.com">Contact</a></nav>
+        </div>
+    </footer>
+</body>
+</html>

@@ -18,6 +18,7 @@ dashboard. Plain HTML/CSS/JS — no build step.
 | `receipt-parser.js` | Finds the merchant, total and date in receipt text (OCR output or PDF text). No dependencies; unit-tested |
 | `smart-entry.js` | Category suggestions (learns from your history + Malaysian merchant list) and duplicate detection. No dependencies; unit-tested |
 | `csv-import.js` | Reads a CSV (this app's export or a bank statement) into expenses/income. No dependencies; unit-tested |
+| `welcome.html`, `privacy.html`, `terms.html`, `pages.css`, `landing/` | Public pages: the landing page, Privacy Policy and Terms of Use (no scripts of their own; linked from the sign-in screen and Account). Screenshots in `landing/` use made-up demo data |
 | `finance-calc.js` | Fixed-deposit and loan maths, schedules, statuses and reminder timing. No dependencies; unit-tested. The reminder function uses an identical copy |
 | `plan.js` | The Plan tab's Deposits and Loans sections, the dashboard "Due soon" strip and the reminders pop-up |
 | `supabase/functions/plan-reminders/` | Scheduled Telegram reminders for deposits that mature and loan payments that fall due |

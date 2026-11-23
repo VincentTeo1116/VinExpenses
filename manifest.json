@@ -1,6 +1,6 @@
 {
-  "name": "Smart Expense Tracker",
-  "short_name": "Expenses",
+  "name": "VinExpenses",
+  "short_name": "VinExpenses",
   "description": "Track your spending and income by category.",
   "start_url": "./index.html",
   "scope": "./",

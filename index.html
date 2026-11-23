@@ -14,7 +14,7 @@
     <meta name="theme-color" content="#f5f6fa" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#0b1020" media="(prefers-color-scheme: dark)" />
     <link rel="icon" href="icon.png" type="image/png">
-    <title>Smart Expense Tracker</title>
+    <title>VinExpenses</title>
 
     <!-- PWA -->
     <link rel="manifest" href="manifest.json" />
@@ -38,7 +38,7 @@
         <aside class="sidebar" aria-label="Main navigation">
             <div class="brand">
                 <span class="brand-mark"><img src="icons/icon-192.png" alt="" /></span>
-                <span class="brand-text">ExpenseTracker</span>
+                <span class="brand-text">VinExpenses</span>
             </div>
 
             <button class="btn btn-primary sidebar-add nav-item" data-screen="add">
@@ -179,6 +179,7 @@
                             <button id="googleBtn" class="btn btn-outline btn-block">
                                 <i class="fab fa-google"></i> Continue with Google
                             </button>
+                            <p class="legal-links">By creating an account or signing in you agree to the <a href="terms.html">Terms of Use</a> and the <a href="privacy.html">Privacy Policy</a>. <a href="welcome.html">What is VinExpenses?</a></p>
                         </div>
                     </div>
                 </div>
@@ -1124,6 +1125,7 @@
             <button id="manageTaxonomyBtn"class="btn btn-outline btn-block account-manage-options"><i class="fas fa-sliders"></i> Manage categories &amp; payment methods</button>
             <button id="showQuickStartBtn" type="button" class="btn btn-outline btn-block account-manage-options"><i class="fas fa-list-check" aria-hidden="true"></i> Show setup guide again</button>
             <section class="report-email-settings delete-account-section" aria-labelledby="deleteAccountTitle"><div class="report-email-heading"><div><h3 id="deleteAccountTitle">Delete account</h3><p>Deletes your cloud records and this device’s saved and unsynced data. Export a copy first if you need one. This cannot be undone.</p></div></div><details><summary>Show account deletion controls</summary><label class="delete-confirm-label" for="deleteAccountConfirm">Type DELETE to confirm</label><input id="deleteAccountConfirm" class="delete-account-input" type="text" autocomplete="off" /><button id="deleteAccountBtn" type="button" class="btn btn-danger-soft btn-block" disabled>Delete my account and data</button><p id="deleteAccountStatus" class="field-hint" role="status"></p></details></section>
+            <p class="legal-links"><a href="welcome.html">About</a> · <a href="privacy.html">Privacy Policy</a> · <a href="terms.html">Terms of Use</a></p>
             <p class="build-info" id="buildInfo"></p>
             <button id="logoutBtn" class="btn btn-danger-soft btn-block">
                 <i class="fas fa-arrow-right-from-bracket"></i> Log out
