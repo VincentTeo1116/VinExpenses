@@ -540,8 +540,8 @@ option { background: var(--surface); color: var(--text); }
 }
 @media (min-width: 1024px) {
     .dash-grid { grid-template-columns: repeat(12, minmax(0, 1fr)); gap: var(--s-5); }
-    .hero-card { grid-column: span 5; }
-    .insights { grid-column: span 7; grid-template-columns: minmax(0, 1fr); align-content: stretch; }
+    .hero-stack { grid-column: span 7; }
+    .insights { grid-column: span 5; grid-template-columns: minmax(0, 1fr); align-content: stretch; }
     .breakdown { grid-column: span 7; }
     .trend { grid-column: span 5; }
     .upcoming { grid-column: span 5; }
@@ -658,7 +658,8 @@ option { background: var(--surface); color: var(--text); }
     background: rgba(8, 12, 28, 0.55); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px);
 }
 .modal-overlay-full.active { display: flex; }
-#appModal { z-index: 1100; }
+.sheet-overlay.stack-top { z-index: 1150; }
+#appModal { z-index: 1300; }
 
 .sheet, .modal-container {
     width: 100%; background: var(--surface); color: var(--text);
@@ -752,6 +753,7 @@ option { background: var(--surface); color: var(--text); }
 /* Phones: sheets rise from the bottom */
 @media (max-width: 639px) {
     .sheet-overlay { align-items: flex-end; padding: 0; }
+    #appModal { align-items: flex-end; padding: 0 12px calc(12px + var(--safe-bottom)); }
     .sheet-overlay .sheet {
         max-width: none; border-radius: var(--r-xl) var(--r-xl) 0 0;
         padding-bottom: calc(var(--s-6) + var(--safe-bottom));
@@ -1470,3 +1472,82 @@ body:has(.modal-overlay-full.active) .plan-sticky { display: none; }
 .quick-add { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; margin: 0 0 16px; }
 .quick-add .template-chip { min-height: 36px; }
 #upcomingList .reminder-row { padding: 10px 4px; }
+
+/* Dashboard v5 Section: one big spending card, three small tiles under it */
+.hero-stack { display: flex; flex-direction: column; gap: var(--s-3); min-width: 0; }
+.hero-stack .hero-card { flex: 1 1 auto; }
+.hero-card .amount { font-size: clamp(38px, 11vw, 52px); margin-bottom: var(--s-3); }
+.hero-card .hero-bar-caption { margin-top: 8px; }
+.stat-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s-3); }
+.stat-tile {
+    display: flex; align-items: center; gap: 12px; min-width: 0; padding: 14px; text-align: left;
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); box-shadow: var(--shadow-sm); color: var(--text);
+}
+.stat-tile.stat-budget { grid-column: 1 / -1; cursor: pointer; transition: transform .12s, border-color .15s; }
+.stat-tile.stat-budget:hover { border-color: var(--primary); }
+.stat-tile.stat-budget:active { transform: scale(0.99); }
+.stat-icon { width: 40px; height: 40px; flex: 0 0 auto; display: grid; place-items: center; border-radius: 12px; font-size: 15px; }
+.stat-icon.income { color: var(--success); background: var(--success-soft); }
+.stat-icon.balance { color: var(--primary); background: var(--primary-soft); }
+.stat-icon.budget { color: var(--warning); background: var(--warning-soft); }
+.stat-text { min-width: 0; }
+.stat-label { font-size: 12.5px; color: var(--muted); font-weight: 500; }
+.stat-value { font-size: 17px; font-weight: 800; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.stat-sub { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#balancePill.negative .stat-value { color: var(--danger); }
+.stat-budget.over { border-color: var(--danger); }
+.stat-budget.over .stat-value { color: var(--danger); }
+.stat-budget.over .stat-icon { color: var(--danger); background: var(--danger-soft); }
+.stat-budget.warn .stat-value { color: var(--warning); }
+@media (min-width: 700px) {
+    .stat-row { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .stat-tile.stat-budget { grid-column: auto; }
+}
+@media (max-width: 359px) { .stat-tile { padding: 12px; gap: 9px; } .stat-icon { width: 34px; height: 34px; } .stat-value { font-size: 15px; } }
+
+/* Mobile Section: the whole app works from 320px up */
+.ad-action-who { overflow-wrap: anywhere; margin-bottom: var(--s-3); }
+.ad-action-list { display: grid; gap: 6px; }
+.ad-action {
+    display: flex; align-items: center; gap: 12px; width: 100%; min-height: 52px; padding: 10px 14px; text-align: left;
+    border-radius: var(--r-md); background: var(--surface-2); color: var(--text); font-size: 15px; font-weight: 600;
+}
+.ad-action:hover, .ad-action:focus-visible { background: var(--primary-soft); }
+.ad-action > i:first-child { width: 20px; text-align: center; color: var(--primary); }
+.ad-action span { flex: 1; min-width: 0; }
+.ad-action .ad-chev { color: var(--muted); font-size: 12px; }
+.ad-action.danger { color: var(--danger); }
+.ad-action.danger > i:first-child { color: var(--danger); }
+.ad-manage { min-height: 44px; }
+
+html, body { max-width: 100%; overflow-x: hidden; }
+img, svg, canvas, video { max-width: 100%; }
+input, select, textarea { font-size: 16px; } /* stops iOS zooming in when a field is focused */
+.btn, .icon-btn { min-height: 44px; }
+.modal-overlay-full { overscroll-behavior: contain; }
+.modal-overlay-full .sheet, .modal-container { max-height: calc(100dvh - 24px); }
+@media (max-width: 639px) {
+    .sheet { padding: var(--s-4) var(--s-4) var(--s-5); }
+    .sheet-overlay .sheet { max-height: 92dvh; }
+    .plan-item-facts { gap: 4px 12px; }
+    .plan-menu-list { position: fixed; left: 12px; right: 12px; bottom: calc(12px + var(--safe-bottom)); z-index: 1150; min-width: 0; padding: 8px; border-radius: 18px; box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.25); }
+    .plan-menu[open]::before { content: ''; position: fixed; inset: 0; z-index: 1140; background: rgba(8, 12, 28, 0.45); }
+    .plan-menu-list .btn { min-height: 48px; }
+}
+
+/* Small phones: the two small tiles drop their icons so the amounts are never cut off */
+@media (max-width: 479px) {
+    .stat-tile:not(.stat-budget) { flex-direction: column; align-items: flex-start; gap: 2px; }
+    .stat-tile:not(.stat-budget) .stat-icon { display: none; }
+    .stat-tile:not(.stat-budget) .stat-text { width: 100%; }
+    .stat-tile:not(.stat-budget) .stat-value { font-size: 18px; }
+}
+.icon-btn { min-width: 44px; }
+@media (max-width: 359px) { .stat-tile:not(.stat-budget) .stat-value { font-size: 15px; } }
+/* On wider screens the three tiles are narrow too, so they use the same stacked layout */
+.stat-tile:not(.stat-budget) { flex-direction: column; align-items: flex-start; gap: 2px; }
+.stat-tile:not(.stat-budget) .stat-icon { display: none; }
+.stat-tile:not(.stat-budget) .stat-text { width: 100%; }
+.stat-tile:not(.stat-budget) .stat-value { font-size: 18px; }
+@media (max-width: 359px) { .stat-tile:not(.stat-budget) .stat-value { font-size: 15px; } }
+.hero-card .amount { white-space: nowrap; font-size: clamp(30px, 9.5vw, 52px); }

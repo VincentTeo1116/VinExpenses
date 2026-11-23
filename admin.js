@@ -75,9 +75,12 @@ window.Admin = (function () {
         return items;
     }
 
+    // The accounts on the current page, so the action sheet can list the right actions for one of them
+    const shown = new Map();
+
     function userCard(u) {
         const [label, cls] = BADGE[u.status] || BADGE.active;
-        const items = actionsFor(u);
+        shown.set(u.id, u);
         const lock = u.block ? (u.block.manual ? 'Blocked by an admin' : `Paused until ${new Date(u.block.until).toLocaleTimeString('en-MY', { hour: 'numeric', minute: '2-digit' })}`) : '';
         return `<article class="plan-item ad-user" data-id="${esc(u.id)}">
             <div class="plan-item-top">
@@ -95,9 +98,7 @@ window.Admin = (function () {
                 ${lock ? `<span class="due-soon">${esc(lock)}</span>` : ''}
             </div>
             <div class="plan-item-actions">
-                <details class="plan-menu ad-menu"><summary class="btn btn-outline btn-small"><i class="fas fa-ellipsis" aria-hidden="true"></i> Manage</summary>
-                    <div class="plan-menu-list">${items.map(([action, text, icon]) => `<button type="button" class="btn btn-small ${action === 'disable' || action === 'block' ? 'danger' : ''}" data-ad-action="${action}"><i class="fas ${icon}" aria-hidden="true"></i> ${esc(text)}</button>`).join('')}</div>
-                </details>
+                <button type="button" class="btn btn-outline btn-small ad-manage" data-ad-manage="${esc(u.id)}" aria-haspopup="dialog"><i class="fas fa-ellipsis" aria-hidden="true"></i> Manage</button>
             </div>
         </article>`;
     }
@@ -116,6 +117,7 @@ window.Admin = (function () {
         state.page = reply.page;
         const c = reply.counts;
         el('adminSummary').innerHTML = `<span><b>${c.all}</b> accounts</span><span><b>${c.blocked}</b> blocked</span><span><b>${c.disabled}</b> disabled</span>`;
+        shown.clear();
         box.innerHTML = reply.users.length ? reply.users.map(userCard).join('')
             : `<div class="history-empty"><i class="fas fa-users" aria-hidden="true"></i><div>${state.search || state.status ? 'No accounts match.' : 'No accounts yet.'}</div></div>`;
         const pager = el('adminPager');
@@ -148,7 +150,7 @@ window.Admin = (function () {
     };
 
     function run(action, u, extra) {
-        const label = el('adminUsers').querySelector(`[data-id="${CSS.escape(u.id)}"] .ad-menu summary`);
+        const label = el('adminUsers').querySelector(`[data-id="${CSS.escape(u.id)}"] .ad-manage`);
         if (state.busy) return;
         state.busy = true;
         if (label) { label.dataset.html = label.innerHTML; label.innerHTML = '<i class="fas fa-spinner fa-spin" aria-hidden="true"></i> Working…'; }
@@ -178,6 +180,17 @@ window.Admin = (function () {
         el('adminMonthSend').onclick = () => { host.classList.remove('active'); document.body.style.overflow = ''; run('resend_report', u, { month: select.value }); };
         select.focus();
     }
+    // The list of things an admin can do to one account: a bottom sheet on phones, a small dialog on a desktop
+    function openActions(u) {
+        const host = el('adminActionSheet');
+        host._user = u;
+        host.querySelector('.ad-action-who').textContent = u.email;
+        el('adminActionList').innerHTML = actionsFor(u).map(([action, text, icon]) => `<button type="button" class="ad-action ${action === 'disable' || action === 'block' || action === 'reset_authenticator' ? 'danger' : ''}" data-ad-action="${action}"><i class="fas ${icon}" aria-hidden="true"></i><span>${esc(text)}</span><i class="fas fa-chevron-right ad-chev" aria-hidden="true"></i></button>`).join('');
+        host.classList.add('active');
+        document.body.style.overflow = 'hidden';
+        el('adminActionList').querySelector('button')?.focus();
+    }
+    function closeActions() { el('adminActionSheet').classList.remove('active'); el('adminActionSheet')._user = null; document.body.style.overflow = ''; }
     function closeMonthPick() { el('adminMonthPick').classList.remove('active'); document.body.style.overflow = ''; }
 
     // ---- feedback ----
@@ -239,12 +252,18 @@ window.Admin = (function () {
         el('adminPager').addEventListener('click', (e) => { const b = e.target.closest('[data-page]'); if (!b || b.disabled) return; state.page += b.dataset.page === 'next' ? 1 : -1; loadUsers(); });
         el('adminUsers').addEventListener('click', (e) => {
             if (e.target.closest('[data-ad-retry]')) return loadUsers();
+            const m = e.target.closest('[data-ad-manage]');
+            if (m && shown.has(m.dataset.adManage)) openActions(shown.get(m.dataset.adManage));
+        });
+        el('adminActionList').addEventListener('click', (e) => {
             const b = e.target.closest('[data-ad-action]');
             if (!b) return;
-            const card = b.closest('.ad-user');
-            const menu = b.closest('details'); if (menu) menu.open = false;
-            onUserAction(b.dataset.adAction, userById(card.dataset.id));
+            const u = el('adminActionSheet')._user;
+            closeActions();
+            if (u) onUserAction(b.dataset.adAction, userById(u.id));
         });
+        el('adminActionClose').addEventListener('click', closeActions);
+        el('adminActionSheet').addEventListener('click', (e) => { if (e.target === el('adminActionSheet')) closeActions(); });
         el('adminFeedbackView').addEventListener('click', (e) => {
             const b = e.target.closest('[data-value]'); if (!b) return;
             state.view = b.dataset.value;

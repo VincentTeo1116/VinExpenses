@@ -1854,17 +1854,9 @@ function renderHeroAndInsights(spent, income) {
     const monthName = selectedDate.toLocaleString('en-MY', { month: 'long' });
     $('dashSubtitle').textContent = `Here's ${formatMonthDisplay(selectedDate)} at a glance`;
 
-    // The headline is what is LEFT (of the budget, or else of the income). Without either, it is what was spent.
-    const overallBudget = budgetFor('all');
-    const leftBase = overallBudget > 0 ? overallBudget : (income > 0 ? income : 0);
-    const leftMode = leftBase > 0;
-    heroLabel.textContent = leftMode ? `Left in ${monthName}${overallBudget > 0 ? ' · of your budget' : ' · of your income'}` : `Spent in ${monthName}`;
-    totalCard.classList.toggle('negative', leftMode && leftBase - spent < 0);
-    $('spentPill').classList.toggle('hidden', !leftMode);
-    $('balancePill').classList.toggle('hidden', leftMode);
-    $('spentValue').textContent = formatMoney(spent);
-    const kept = income > 0 ? Math.round(((income - spent) / income) * 100) : null;
-    $('savingsLine').textContent = kept === null ? '' : kept >= 0 ? `You kept ${kept}% of what came in.` : `You spent ${Math.abs(kept)}% more than came in.`;
+    // The headline is what was SPENT this month; income, balance and the budget are small tiles under it
+    heroLabel.textContent = `Spent in ${monthName}`;
+    renderBudgetTile(spent);
 
     // Compare with the SAME days of the previous month, so a part month is not set against a whole one
     const prev = new Date(selectedDate.getFullYear(), selectedDate.getMonth() - 1, 1);
@@ -1962,8 +1954,7 @@ function updateDashboard() {
     const spent = getTotalSpent();
     const income = getTotalIncome();
     const balance = income - spent;
-    const leftBase = budgetFor('all') > 0 ? budgetFor('all') : (income > 0 ? income : 0);
-    animateAmount(totalSpent, leftBase > 0 ? leftBase - spent : spent);
+    animateAmount(totalSpent, spent);
     animateAmount(totalIncomeDisplay, income);
     animateAmount(totalBalance, balance);
     balancePill.classList.toggle('negative', balance < 0);
@@ -4351,7 +4342,7 @@ function spendIn(ref, cat) {
 function renderSafeToSpend(spent, overall, isCurrent, isFuture) {
     const el = $('safeToSpend');
     if (!overall) {
-        el.innerHTML = '<button type="button" class="hero-cta" data-action="budget"><i class="fas fa-bullseye"></i> Set a monthly budget to see what\'s safe to spend each day</button>';
+        el.innerHTML = '';
         return;
     }
     if (!isCurrent || isFuture) { el.innerHTML = ''; return; }
@@ -4371,6 +4362,27 @@ function renderSafeToSpend(spent, overall, isCurrent, isFuture) {
 }
 
 $('safeToSpend').addEventListener('click', (e) => { if (e.target.closest('[data-action="budget"]')) openBudgetSheet(); });
+$('budgetTile').addEventListener('click', openBudgetSheet);
+
+// "Budget left": what remains of the overall monthly budget, or how far over it is
+function renderBudgetTile(spent) {
+    const overall = budgetFor('all');
+    const tile = $('budgetTile');
+    tile.classList.remove('over', 'warn');
+    if (!(overall > 0)) {
+        $('budgetTileLabel').textContent = 'Budget';
+        $('budgetTileValue').textContent = 'Not set';
+        $('budgetTileSub').textContent = 'Tap to set one';
+        return;
+    }
+    const left = overall - spent;
+    const used = (spent / overall) * 100;
+    tile.classList.toggle('over', left < 0);
+    tile.classList.toggle('warn', left >= 0 && used >= 80);
+    $('budgetTileLabel').textContent = left < 0 ? 'Over budget' : 'Budget left';
+    $('budgetTileValue').textContent = formatMoney(Math.abs(left));
+    $('budgetTileSub').textContent = `${Math.min(999, Math.round(used))}% of ${formatMoney(overall)}`;
+}
 $('budgetBtn').addEventListener('click', openBudgetSheet);
 
 function renderBudgetFields() {
