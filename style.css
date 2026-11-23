@@ -1327,3 +1327,75 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, *::-webkit-scrollbar { display
 .reminder-more { padding: 8px 4px 0; font-size: 12.5px; color: var(--muted); }
 #remindersList { max-height: min(48vh, 420px); overflow-y: auto; margin-bottom: var(--s-2); }
 .reminders-foot { margin-top: var(--s-3); text-align: center; }
+
+
+/* --- Plan, design pass: answer first, calmer cards, colour with a job, readable small text --- */
+/* quick picks under tenure / term */
+.preset-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.preset { min-height: 34px; padding: 5px 12px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface); color: var(--muted); font-size: 13px; font-weight: 600; transition: background 0.15s, color 0.15s, border-color 0.15s; }
+.preset:hover { color: var(--text); border-color: var(--muted); }
+.preset.active { background: var(--text); border-color: var(--text); color: var(--surface); }
+
+/* selected options are neutral: purple is kept for the one main action on screen */
+.choice:hover { border-color: var(--muted); }
+.choice.active { background: var(--surface-2); color: var(--text); border-color: var(--text); }
+.method:hover { border-color: var(--muted); }
+.method.active { border-color: var(--text); background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--text); }
+.method.active b { color: var(--text); }
+.method.active b::after { content: '  \2713'; font-weight: 800; }
+
+/* the three numbers that answer the question */
+.plan-stats.key { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+@media (max-width: 520px) { .plan-stats.key { grid-template-columns: minmax(0, 1fr); } .plan-stats.key .plan-stat { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; gap: 2px 12px; } .plan-stats.key .plan-stat b { margin: 0; text-align: right; } .plan-stats.key .plan-stat small { grid-column: 1 / -1; margin: 0; } }
+.plan-stat b.good { color: var(--success); }
+.plan-stat b.cost { color: var(--warning); }
+.plan-details { margin: var(--s-3) 0 0; }
+.plan-details .plan-stats { margin: 0 0 14px; }
+.plan-save { animation: fadeUp 0.22s var(--ease); }
+#fdSaveToggle, #loanSaveToggle { margin-top: 0; }
+
+/* loan: borrowed against interest */
+.plan-split { margin-top: var(--s-4); }
+.plan-split-bar { display: flex; height: 14px; border-radius: 999px; overflow: hidden; background: var(--surface-2); }
+.plan-split-bar span { display: block; height: 100%; transition: width 0.4s var(--ease); }
+.plan-split-bar .borrowed, .dot.borrowed { background: var(--primary); }
+.plan-split-bar .interest, .dot.interest { background: #f59e0b; }
+.plan-split-legend { display: flex; flex-wrap: wrap; gap: 4px 18px; margin-top: 8px; font-size: 13px; color: var(--muted); }
+.plan-split-legend b { color: var(--text); font-variant-numeric: tabular-nums; }
+.dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; }
+
+/* money that is being earned is green */
+#fdProgressBar, #fdList .plan-progress-bar span { background: var(--success); }
+.plan-badge.finished::before { content: '\2713'; }
+
+/* cards: one action, then "more" */
+.plan-item-actions { align-items: center; }
+.plan-menu { position: relative; margin-left: auto; }
+.plan-menu > summary { list-style: none; cursor: pointer; min-width: 40px; justify-content: center; }
+.plan-menu > summary::-webkit-details-marker { display: none; }
+.plan-menu-list { position: absolute; right: 0; bottom: calc(100% + 6px); z-index: 20; min-width: 210px; padding: 6px; display: flex; flex-direction: column; gap: 2px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md); box-shadow: var(--shadow-md); }
+.plan-menu-list .btn { justify-content: flex-start; width: 100%; border: none; background: transparent; box-shadow: none; color: var(--text); min-height: 40px; }
+.plan-menu-list .btn:hover { background: var(--surface-2); filter: none; }
+.plan-menu-list .btn.btn-primary { color: var(--primary); }
+.plan-menu-list .btn.danger { color: var(--danger); margin-top: 4px; border-top: 1px solid var(--border); border-radius: 0 0 var(--r-sm) var(--r-sm); padding-top: 8px; }
+.plan-menu-list .btn.danger:hover { background: var(--danger-soft); }
+.plan-item-actions > .btn.danger { color: var(--danger); }
+
+/* phones: the answer follows you while you fill in the form */
+.plan-sticky { position: fixed; left: 12px; right: 12px; bottom: calc(86px + var(--safe-bottom)); z-index: 45; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px 10px 16px; border-radius: 18px; background: var(--brand); color: #fff; box-shadow: var(--shadow-md); animation: fadeUp 0.22s var(--ease); }
+.plan-sticky-text { display: flex; flex-direction: column; min-width: 0; }
+.plan-sticky-text span { font-size: 12px; opacity: 0.85; }
+.plan-sticky-text strong { font-size: 19px; font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.plan-sticky .btn { background: rgba(255, 255, 255, 0.18); color: #fff; flex-shrink: 0; }
+.plan-sticky .btn:hover { background: rgba(255, 255, 255, 0.28); }
+@media (min-width: 1024px) { .plan-sticky { display: none !important; } }   /* desktop shows the result beside the form */
+@media (max-width: 1023px) { #planPaneDeposits, #planPaneLoans { padding-bottom: 72px; } }
+body:has(.modal-overlay-full.active) .plan-sticky { display: none; }
+
+/* small text that can be read on a phone */
+.plan-sub, .plan-item-sub, .plan-item-facts, .plan-disclaimer, .reminder-text span, .plan-compare-box p, #recurringScreen .field-hint, .field-error { font-size: 13px; }
+.plan-stat span, .plan-stat small, .plan-item-amount span, .plan-badge { font-size: 12.5px; }
+.plan-divider { font-size: 13px; }
+
+#loanTable th, #loanTable td { padding: 9px 7px; }
+#loanTable { font-size: 12.5px; }

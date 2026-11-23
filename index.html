@@ -426,6 +426,11 @@
                     <button type="button" class="seg-btn" id="planTabLoans" role="tab" aria-selected="false" aria-controls="planPaneLoans" data-plan-tab="loans" tabindex="-1"><i class="fas fa-hand-holding-dollar" aria-hidden="true"></i> Loans</button>
                 </div>
 
+                <div id="planSticky" class="plan-sticky hidden" role="status">
+                    <span class="plan-sticky-text"><span id="planStickyLabel"></span><strong id="planStickyValue"></strong></span>
+                    <button type="button" id="planStickyBtn" class="btn btn-small">Details <i class="fas fa-arrow-down" aria-hidden="true"></i></button>
+                </div>
+
                 <!-- ----- Plan: Recurring ----- -->
                 <div id="planPaneRecurring" class="plan-pane" role="tabpanel" aria-labelledby="planTabRecurring">
                     <p class="plan-intro">Schedule regular bills or income. Entries post the next time you open the app on or after the due date.</p>
@@ -520,6 +525,13 @@
                                     </select>
                                 </div>
                                 <p class="field-error" id="fdTenureError" role="alert"></p>
+                                <div class="preset-row" id="fdTenurePresets" role="group" aria-label="Common tenures">
+                                    <button type="button" class="preset" data-preset="1" data-unit="months">1 month</button>
+                                    <button type="button" class="preset" data-preset="3" data-unit="months">3 months</button>
+                                    <button type="button" class="preset" data-preset="6" data-unit="months">6 months</button>
+                                    <button type="button" class="preset" data-preset="12" data-unit="months">12 months</button>
+                                    <button type="button" class="preset" data-preset="24" data-unit="months">24 months</button>
+                                </div>
                             </div>
                             <div class="field-row">
                                 <div class="input-group">
@@ -561,7 +573,9 @@
                                 </div>
                             </details>
 
-                            <div class="plan-divider"><span>Save and get reminders (optional)</span></div>
+                            <button type="button" id="fdSaveToggle" class="btn btn-outline btn-block" aria-expanded="false" aria-controls="fdSaveFields"><i class="fas fa-bookmark" aria-hidden="true"></i> Save and track this deposit</button>
+                            <div id="fdSaveFields" class="plan-save hidden">
+                            <div class="plan-divider"><span>Save and get reminders</span></div>
                             <div class="field-row">
                                 <div class="input-group">
                                     <label for="fdName">Name</label>
@@ -586,6 +600,7 @@
                                 <p class="field-error" id="fdRemindDaysError" role="alert"></p>
                             </div>
                             <button type="submit" id="fdSaveBtn" class="btn btn-primary btn-block"><i class="fas fa-floppy-disk" aria-hidden="true"></i> Save deposit</button>
+                            </div>
                             <button type="button" id="fdResetBtn" class="btn btn-ghost btn-block">Clear</button>
                         </form>
 
@@ -598,7 +613,11 @@
                                     <strong class="plan-hero-value" id="fdHeroValue">RM 0.00</strong>
                                     <span class="plan-hero-sub" id="fdHeroSub"></span>
                                 </div>
-                                <div class="plan-stats" id="fdStats"></div>
+                                <div class="plan-stats key" id="fdStats"></div>
+                                <details class="plan-more plan-details">
+                                    <summary>More details</summary>
+                                    <div class="plan-stats" id="fdStatsMore"></div>
+                                </details>
                                 <p id="fdOverrideNote" class="plan-note hidden"></p>
                                 <div id="fdProgressWrap" class="plan-progress hidden">
                                     <div class="plan-progress-bar"><span id="fdProgressBar"></span></div>
@@ -664,6 +683,13 @@
                                     </select>
                                 </div>
                                 <p class="field-error" id="loanTermError" role="alert"></p>
+                                <div class="preset-row" id="loanTermPresets" role="group" aria-label="Common terms">
+                                    <button type="button" class="preset" data-preset="3" data-unit="years">3 years</button>
+                                    <button type="button" class="preset" data-preset="5" data-unit="years">5 years</button>
+                                    <button type="button" class="preset" data-preset="7" data-unit="years">7 years</button>
+                                    <button type="button" class="preset" data-preset="9" data-unit="years">9 years</button>
+                                    <button type="button" class="preset" data-preset="30" data-unit="years">30 years</button>
+                                </div>
                             </div>
                             <div class="input-group">
                                 <span class="label" id="loanMethodLabel">How is the interest calculated?</span>
@@ -695,7 +721,9 @@
                                 </div>
                             </details>
 
-                            <div class="plan-divider"><span>Save and get reminders (optional)</span></div>
+                            <button type="button" id="loanSaveToggle" class="btn btn-outline btn-block" aria-expanded="false" aria-controls="loanSaveFields"><i class="fas fa-bookmark" aria-hidden="true"></i> Save and track this loan</button>
+                            <div id="loanSaveFields" class="plan-save hidden">
+                            <div class="plan-divider"><span>Save and get reminders</span></div>
                             <div class="field-row">
                                 <div class="input-group">
                                     <label for="loanName">Name</label>
@@ -720,6 +748,7 @@
                                 <p class="field-error" id="loanRemindDaysError" role="alert"></p>
                             </div>
                             <button type="submit" id="loanSaveBtn" class="btn btn-primary btn-block"><i class="fas fa-floppy-disk" aria-hidden="true"></i> Save loan</button>
+                            </div>
                             <button type="button" id="loanResetBtn" class="btn btn-ghost btn-block">Clear</button>
                         </form>
 
@@ -732,9 +761,13 @@
                                     <strong class="plan-hero-value" id="loanHeroValue">RM 0.00</strong>
                                     <span class="plan-hero-sub" id="loanHeroSub"></span>
                                 </div>
-                                <div class="plan-stats" id="loanStats"></div>
+                                <div class="plan-stats key" id="loanStats"></div>
+                                <div class="plan-split" id="loanSplit"></div>
+                                <details class="plan-more plan-details">
+                                    <summary>More details</summary>
+                                    <div class="plan-stats" id="loanStatsMore"></div>
+                                </details>
                                 <div class="plan-compare" id="loanCompare"></div>
-                                <div class="chart-wrap plan-chart" id="loanChartWrap"><canvas id="loanChart" aria-label="Loan balance over time" role="img"></canvas></div>
                                 <div class="plan-schedule-head">
                                     <h3>Repayment schedule</h3>
                                     <div class="choice-group small" id="loanView" role="group" aria-label="Schedule by">

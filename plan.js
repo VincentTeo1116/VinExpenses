@@ -65,8 +65,44 @@ window.Plan = (function () {
         });
     }
 
-    function stat(label, value, hint) {
-        return `<div class="plan-stat"><span>${escapeHtml(label)}</span><b>${escapeHtml(value)}</b>${hint ? `<small>${escapeHtml(hint)}</small>` : ''}</div>`;
+    function stat(label, value, hint, tone) {
+        return `<div class="plan-stat"><span>${escapeHtml(label)}</span><b${tone ? ` class="${tone}"` : ''}>${escapeHtml(value)}</b>${hint ? `<small>${escapeHtml(hint)}</small>` : ''}</div>`;
+    }
+
+    // The name / reminder fields stay folded away until the person chooses to save, so a quick sum stays quick
+    function setSaveOpen(prefix, open, { focus = false } = {}) {
+        el(`${prefix}SaveFields`).classList.toggle('hidden', !open);
+        const toggle = el(`${prefix}SaveToggle`);
+        toggle.classList.toggle('hidden', open);
+        toggle.setAttribute('aria-expanded', String(open));
+        if (open && focus) el(`${prefix}Name`).focus();
+    }
+    const saveOpen = (prefix) => !el(`${prefix}SaveFields`).classList.contains('hidden');
+
+    function markPresets(hostId, value, unit) {
+        el(hostId).querySelectorAll('.preset').forEach((b) => {
+            const on = b.dataset.preset === String(value).trim() && b.dataset.unit === unit;
+            b.classList.toggle('active', on);
+            b.setAttribute('aria-pressed', String(on));
+        });
+    }
+
+    // Phones: a slim bar with the answer, shown while the result card itself is scrolled out of view
+    const heroSeen = { fd: false, loan: false };
+    function updateSticky() {
+        const bar = el('planSticky');
+        if (!bar) return;
+        const which = segment === 'deposits' && fd.result ? 'fd' : segment === 'loans' && ln.result ? 'loan' : '';
+        const show = !!which && !heroSeen[which];
+        bar.classList.toggle('hidden', !show);
+        if (!show) return;
+        if (which === 'fd') {
+            el('planStickyLabel').textContent = fd.result.payouts.length > 1 ? 'Total you\'ll receive' : 'You\'ll receive';
+            el('planStickyValue').textContent = formatMoney(fd.result.maturityAmount);
+        } else {
+            el('planStickyLabel').textContent = 'Monthly payment';
+            el('planStickyValue').textContent = formatMoney(ln.result.instalment);
+        }
     }
 
     function renderPager(pagerId, textId, schedule, noun) {
@@ -129,6 +165,7 @@ window.Plan = (function () {
         });
         if (remember) { try { localStorage.setItem('et_plan_tab', segment); } catch (_) { /* optional */ } }
         render();
+        updateSticky();
     }
 
     // =====================================================================
@@ -169,8 +206,10 @@ window.Plan = (function () {
             : 'Worked out from the tenure. Change it only if your bank gives a different date.';
 
         el('fdRemindDaysGroup').classList.toggle('hidden', !el('fdRemindOn').checked);
+        markPresets('fdTenurePresets', input.tenureValue, input.tenureUnit);
 
         if (!result.ok) {
+            updateSticky();
             el('fdResult').classList.add('hidden');
             el('fdResultEmpty').classList.remove('hidden');
             const shown = Object.keys(result.errors).some((key) => fd.submitted || fd.touched.has(key));
@@ -182,21 +221,27 @@ window.Plan = (function () {
 
         const periodic = result.payouts.length > 1;
         el('fdHeroLabel').textContent = periodic ? 'Total you\'ll receive' : 'You\'ll receive at maturity';
-        el('fdHeroValue').textContent = formatMoney(result.maturityAmount);
+        animateAmount(el('fdHeroValue'), result.maturityAmount);
         el('fdHeroSub').textContent = periodic
             ? `${formatMoney(result.netInterest)} interest in ${result.payouts.length} payouts, and ${formatMoney(result.principal)} back on ${formatDateDisplay(result.maturityDate)}`
             : `on ${formatDateDisplay(result.maturityDate)} · ${formatMoney(result.netInterest)} interest`;
 
-        const stats = [stat('Interest earned', formatMoney(result.grossInterest), `${pct(result.rate)} a year`)];
+        // Three numbers answer the question; everything else is one tap away
+        el('fdStats').innerHTML = [
+            stat(result.tax > 0 ? 'Interest after tax' : 'Interest earned', `+ ${formatMoney(result.netInterest)}`, `${pct(result.rate)} a year`, 'good'),
+            stat('Matures on', formatDateDisplay(result.maturityDate), plural(result.days, 'day')),
+            stat('Yearly return', pct(Math.round(result.effectiveYield * 1000) / 1000), result.tax > 0 ? 'after tax' : 'simple interest')
+        ].join('');
+        const more = [];
         if (result.tax > 0) {
-            stats.push(stat('Tax', `− ${formatMoney(result.tax)}`, `${pct(result.taxRate)} of the interest`));
-            stats.push(stat('Interest after tax', formatMoney(result.netInterest)));
+            more.push(stat('Interest before tax', formatMoney(result.grossInterest)));
+            more.push(stat('Tax', `− ${formatMoney(result.tax)}`, `${pct(result.taxRate)} of the interest`));
         }
-        stats.push(stat('Tenure', plural(result.days, 'day'), `${formatDateDisplay(result.startDate)} to ${formatDateDisplay(result.maturityDate)}`));
-        stats.push(stat('Yearly return', pct(Math.round(result.effectiveYield * 1000) / 1000), result.tax > 0 ? 'after tax' : 'simple interest'));
-        if (periodic) stats.push(stat(`${result.payout[0].toUpperCase()}${result.payout.slice(1)} payout`, `≈ ${formatMoney(result.netInterest / result.payouts.length)}`, 'varies with the days in each period'));
-        stats.push(stat('Per day', formatMoney(result.netInterest / result.days), 'on average'));
-        el('fdStats').innerHTML = stats.join('');
+        more.push(stat('Starts', formatDateDisplay(result.startDate)));
+        if (periodic) more.push(stat(`${result.payout[0].toUpperCase()}${result.payout.slice(1)} payout`, `≈ ${formatMoney(result.netInterest / result.payouts.length)}`, 'varies with the days in each period'));
+        more.push(stat('Per day', formatMoney(result.netInterest / result.days), 'on average'));
+        more.push(stat('You put in', formatMoney(result.principal)));
+        el('fdStatsMore').innerHTML = more.join('');
 
         const note = el('fdOverrideNote');
         note.classList.toggle('hidden', !result.maturityOverridden);
@@ -209,9 +254,16 @@ window.Plan = (function () {
             el('fdProgressText').textContent = `Earned so far: ${formatMoney(result.earnedSoFar)} · ${plural(result.daysLeft, 'day')} to go`;
         }
 
-        const points = F.fdChartSeries(result, 40);
-        drawChart(fd, 'fdChartWrap', 'fdChart', points.map((p) => formatDateDisplay(p.date, { includeYear: result.days > 365 })), points.map((p) => p.value), 'Interest earned');
+        // A short deposit is a straight line that says nothing new, so the chart is kept for longer ones
+        if (result.days > 92) {
+            const points = F.fdChartSeries(result, 40);
+            drawChart(fd, 'fdChartWrap', 'fdChart', points.map((p) => formatDateDisplay(p.date, { includeYear: result.days > 365 })), points.map((p) => p.value), 'Interest earned');
+        } else {
+            clearTimeout(fd.chartTimer);
+            el('fdChartWrap').classList.add('hidden');
+        }
         renderFdTable();
+        updateSticky();
     }
 
     function renderFdTable() {
@@ -255,6 +307,7 @@ window.Plan = (function () {
         el('fdFormTitle').textContent = 'Fixed deposit calculator';
         el('fdSaveBtn').innerHTML = '<i class="fas fa-floppy-disk" aria-hidden="true"></i> Save deposit';
         el('fdResetBtn').textContent = 'Clear';
+        setSaveOpen('fd', false);
         renderFd();
         renderDepositList();
     }
@@ -282,6 +335,7 @@ window.Plan = (function () {
         el('fdFormTitle').textContent = renew ? `Renew "${row.name}"` : 'Edit deposit';
         el('fdSaveBtn').innerHTML = `<i class="fas fa-floppy-disk" aria-hidden="true"></i> ${renew ? 'Save renewed deposit' : 'Update deposit'}`;
         el('fdResetBtn').textContent = 'Cancel';
+        setSaveOpen('fd', true);
         renderFd();
         renderDepositList();
         el('fdForm').scrollIntoView({ behavior: prefersReducedMotion ? 'auto' : 'smooth', block: 'start' });
@@ -304,6 +358,7 @@ window.Plan = (function () {
     async function submitFd(event) {
         event.preventDefault();
         if (!currentUser) return showModal({ type: 'warning', title: 'Not signed in', message: 'Please log in first.' });
+        if (!saveOpen('fd')) setSaveOpen('fd', true);
         fd.submitted = true;
         const result = F.calcFd(fdInput(), { today: today() });
         const errors = Object.assign({}, result.errors, fdSaveErrors(true));
@@ -399,8 +454,10 @@ window.Plan = (function () {
         el('loanMethod').classList.toggle('invalid', methodVisible && !!errors.method);
         setChoice(el('loanMethod'), ln.method);
         el('loanRemindDaysGroup').classList.toggle('hidden', !el('loanRemindOn').checked);
+        markPresets('loanTermPresets', input.termValue, input.termUnit);
 
         if (!result.ok) {
+            updateSticky();
             el('loanResult').classList.add('hidden');
             el('loanResultEmpty').classList.remove('hidden');
             const shown = Object.keys(result.errors).some((key) => ln.submitted || ln.touched.has(key));
@@ -410,19 +467,32 @@ window.Plan = (function () {
         el('loanResultEmpty').classList.add('hidden');
         el('loanResult').classList.remove('hidden');
 
-        el('loanHeroValue').textContent = formatMoney(result.instalment);
+        animateAmount(el('loanHeroValue'), result.instalment);
         el('loanHeroSub').textContent = `${plural(result.months, 'payment')} · ${formatDateDisplay(result.firstPaymentDate)} to ${formatDateDisplay(result.lastPaymentDate)}`
             + (result.lastInstalment !== result.instalment ? ` · last payment ${formatMoney(result.lastInstalment)}` : '');
 
-        const stats = [
-            stat('Total interest', formatMoney(result.totalInterest), `${pct(result.rate)} a year, ${result.method === 'flat' ? 'flat' : 'reducing balance'}`),
-            stat('Total to repay', formatMoney(result.totalPayments), `${formatMoney(result.principal)} borrowed + interest`)
-        ];
-        if (result.fees > 0) stats.push(stat('With fees', formatMoney(result.totalCost), `includes ${formatMoney(result.fees)} upfront`));
-        if (result.method === 'flat' && result.rate > 0) stats.push(stat('Real yearly rate', `≈ ${pct(Math.round(result.effectiveRate * 100) / 100)}`, 'what this flat rate equals on a reducing balance'));
-        stats.push(stat('Per day', formatMoney(result.costPerDay), 'monthly payment × 12 ÷ 365'));
-        stats.push(stat('Per year', formatMoney(result.costPerYear), '12 payments'));
-        el('loanStats').innerHTML = stats.join('');
+        const flat = result.method === 'flat' && result.rate > 0;
+        el('loanStats').innerHTML = [
+            stat('Total interest', formatMoney(result.totalInterest), `${pct(result.rate)} a year, ${result.method === 'flat' ? 'flat' : 'reducing balance'}`, 'cost'),
+            stat('Total to repay', formatMoney(result.totalPayments), 'borrowed + interest'),
+            flat ? stat('Real yearly rate', `≈ ${pct(Math.round(result.effectiveRate * 100) / 100)}`, 'the same loan on a reducing balance')
+                : stat('Last payment', formatDateDisplay(result.lastPaymentDate), plural(result.months, 'payment'))
+        ].join('');
+        const more = [];
+        if (flat) more.push(stat('Last payment', formatDateDisplay(result.lastPaymentDate), plural(result.months, 'payment')));
+        if (result.fees > 0) more.push(stat('With fees', formatMoney(result.totalCost), `includes ${formatMoney(result.fees)} upfront`));
+        more.push(stat('Per day', formatMoney(result.costPerDay), 'monthly payment × 12 ÷ 365'));
+        more.push(stat('Per year', formatMoney(result.costPerYear), '12 payments'));
+        if (result.lastInstalment !== result.instalment) more.push(stat('Final payment', formatMoney(result.lastInstalment), 'adjusted for rounding'));
+        el('loanStatsMore').innerHTML = more.join('');
+
+        // Where the money goes: what was borrowed against what the loan costs
+        const interestShare = result.totalPayments > 0 ? Math.round((result.totalInterest / result.totalPayments) * 1000) / 10 : 0;
+        const borrowedShare = Math.round((100 - interestShare) * 10) / 10;
+        el('loanSplit').innerHTML = `<div class="plan-split-bar" role="img" aria-label="Of everything you repay, ${borrowedShare}% is the amount borrowed and ${interestShare}% is interest">
+                <span class="borrowed" style="width:${borrowedShare}%"></span><span class="interest" style="width:${interestShare}%"></span></div>
+            <div class="plan-split-legend"><span><i class="dot borrowed" aria-hidden="true"></i>Borrowed <b>${escapeHtml(formatMoney(result.principal))}</b> · ${borrowedShare}%</span>
+                <span><i class="dot interest" aria-hidden="true"></i>Interest <b>${escapeHtml(formatMoney(result.totalInterest))}</b> · ${interestShare}%</span></div>`;
 
         const box = (title, monthly, outstanding, note) => `<div class="plan-compare-box"><h3>${escapeHtml(title)}</h3>${note ? `<p>${escapeHtml(note)}</p>` : `<dl>
             <dt>Per day</dt><dd>${escapeHtml(formatMoney(monthly * 12 / 365))}</dd>
@@ -440,12 +510,8 @@ window.Plan = (function () {
         }
         el('loanCompare').innerHTML = box(ln.editingId ? 'This loan' : 'This new loan', result.instalment, result.totalPayments) + combined;
 
-        const step = Math.max(1, Math.ceil(result.schedule.length / 40));
-        const points = result.schedule.filter((row, i) => i % step === 0 || i === result.schedule.length - 1);
-        drawChart(ln, 'loanChartWrap', 'loanChart',
-            [formatDateDisplay(result.firstPaymentDate, { includeYear: result.months > 12 })].concat(points.map((p) => formatDateDisplay(p.date, { includeYear: result.months > 12 }))),
-            [result.principal].concat(points.map((p) => p.balance)), 'Balance');
         renderLoanTable();
+        updateSticky();
     }
 
     function renderLoanTable() {
@@ -475,6 +541,7 @@ window.Plan = (function () {
         el('loanFormTitle').textContent = 'Loan calculator';
         el('loanSaveBtn').innerHTML = '<i class="fas fa-floppy-disk" aria-hidden="true"></i> Save loan';
         el('loanResetBtn').textContent = 'Clear';
+        setSaveOpen('loan', false);
         renderLoan();
         renderLoanList();
     }
@@ -498,6 +565,7 @@ window.Plan = (function () {
         el('loanFormTitle').textContent = 'Edit loan';
         el('loanSaveBtn').innerHTML = '<i class="fas fa-floppy-disk" aria-hidden="true"></i> Update loan';
         el('loanResetBtn').textContent = 'Cancel';
+        setSaveOpen('loan', true);
         renderLoan();
         renderLoanList();
         el('loanForm').scrollIntoView({ behavior: prefersReducedMotion ? 'auto' : 'smooth', block: 'start' });
@@ -507,6 +575,7 @@ window.Plan = (function () {
     async function submitLoan(event) {
         event.preventDefault();
         if (!currentUser) return showModal({ type: 'warning', title: 'Not signed in', message: 'Please log in first.' });
+        if (!saveOpen('loan')) setSaveOpen('loan', true);
         ln.submitted = true;
         const result = F.calcLoan(loanInput());
         const errors = Object.assign({}, result.errors, loanSaveErrors(true));
@@ -714,6 +783,14 @@ window.Plan = (function () {
     const FD_BADGE = { upcoming: 'Starts soon', active: 'Active', matured: 'Matured', closed: 'Closed' };
     const PAYOUT_TEXT = { maturity: 'paid at maturity', monthly: 'paid monthly', quarterly: 'paid quarterly', yearly: 'paid yearly' };
     const button = (action, label, icon, cls = 'btn-outline') => `<button type="button" class="btn ${cls} btn-small" data-action="${action}"><i class="fas ${icon}" aria-hidden="true"></i> ${escapeHtml(label)}</button>`;
+    const DELETE = (label = 'Delete') => button('delete', label, 'fa-trash-can', 'btn-ghost danger');
+
+    // The first action is the one that matters now; the others wait in a "more" menu so a card stays calm
+    function actionBar(items, name) {
+        if (items.length <= 1) return items.join('');
+        return `${items[0]}<details class="plan-menu"><summary class="btn btn-outline btn-small" aria-label="More actions for ${escapeHtml(name)}"><i class="fas fa-ellipsis" aria-hidden="true"></i></summary>
+            <div class="plan-menu-list">${items.slice(1).join('')}</div></details>`;
+    }
 
     function pendingCardBits(row) {
         const item = pending.find((p) => p.row.id === row.id);
@@ -721,7 +798,7 @@ window.Plan = (function () {
         return {
             badge: `<span class="plan-badge unsaved">${failed ? 'Not saved' : 'Not saved yet'}</span>`,
             note: `<div class="plan-item-facts"><span>${escapeHtml(failed ? `The server refused it: ${item.error}` : 'Kept on this device. It will be saved when you\'re back online.')}</span></div>`,
-            actions: button('retry', 'Try again', 'fa-rotate') + button('delete', 'Discard', 'fa-trash-can', 'btn-ghost')
+            actions: [button('retry', 'Try again', 'fa-rotate'), DELETE('Discard')]
         };
     }
 
@@ -751,12 +828,13 @@ window.Plan = (function () {
 
             let actions;
             if (bits) actions = bits.actions;
-            else if (status === 'closed') actions = button('reopen', 'Reopen', 'fa-rotate-left') + button('delete', 'Delete', 'fa-trash-can', 'btn-ghost');
+            else if (status === 'closed') actions = [button('reopen', 'Reopen', 'fa-rotate-left'), DELETE()];
             else {
-                actions = '';
-                if (status === 'matured' && !row.interest_recorded && calc.netInterest > 0) actions += button('record', 'Record interest as income', 'fa-arrow-trend-up', 'btn-primary');
-                if (status === 'matured') actions += button('renew', 'Renew', 'fa-rotate');
-                actions += button('edit', 'Edit', 'fa-pen') + button('close', status === 'matured' ? 'Close' : 'Close early', 'fa-box-archive') + button('delete', 'Delete', 'fa-trash-can', 'btn-ghost');
+                actions = [];
+                const unrecorded = status === 'matured' && !row.interest_recorded && calc.netInterest > 0;
+                if (unrecorded) actions.push(button('record', 'Record interest as income', 'fa-arrow-trend-up', 'btn-primary'));
+                if (status === 'matured') actions.push(button('renew', 'Renew', 'fa-rotate', unrecorded ? 'btn-outline' : 'btn-primary'));
+                actions.push(button('edit', 'Edit', 'fa-pen'), button('close', status === 'matured' ? 'Close' : 'Close early', 'fa-box-archive'), DELETE());
             }
             return `<article class="plan-item ${status === 'closed' ? 'is-closed' : ''} ${row.id === fd.editingId ? 'is-editing' : ''}" data-id="${escapeHtml(row.id)}" id="fdItem-${escapeHtml(row.id)}">
                 <div class="plan-item-top">
@@ -770,7 +848,7 @@ window.Plan = (function () {
                 ${status === 'active' ? `<div class="plan-progress-bar" aria-hidden="true"><span style="width:${Math.round(calc.progress * 100)}%"></span></div>` : ''}
                 <div class="plan-item-facts">${facts.join('')}</div>
                 ${bits ? bits.note : ''}
-                <div class="plan-item-actions">${actions}</div>
+                <div class="plan-item-actions">${actionBar(actions, row.name)}</div>
             </article>`;
         });
         el('fdListSummary').textContent = open.length ? `${plural(open.length, 'open deposit')} · ${formatMoney(principal)} placed · ${formatMoney(interest)} interest expected` : '';
@@ -876,15 +954,15 @@ window.Plan = (function () {
             facts.push(`<span>Ends <b>${escapeHtml(formatDateDisplay(result.lastPaymentDate))}</b></span>`);
             facts.push(`<span>${isAuto ? 'Payments are added to your expenses automatically' : isLinked ? 'Its recurring entry is paused: resume it in Recurring' : (row.reminders_on === false || !live ? 'Reminders off' : `Reminders: ${escapeHtml((row.reminder_days || F.DEFAULT_LOAN_LEADS).map((d) => (d === 0 ? 'on the day' : `${d}d`)).join(', '))}`)}</span>`);
 
-            let actions = '';
+            let actions = [];
             let linkPanel = '';
             if (bits) actions = bits.actions;
-            else if (status === 'closed') actions = button('reopen', 'Reopen', 'fa-rotate-left') + button('delete', 'Delete', 'fa-trash-can', 'btn-ghost');
+            else if (status === 'closed') actions = [button('reopen', 'Reopen', 'fa-rotate-left'), DELETE()];
             else {
                 const canMark = !isLinked && live && progress.firstUnpaid && F.daysBetween(now, progress.firstUnpaid) <= 7;
-                if (canMark) actions += button('paid', `Mark ${formatDateDisplay(progress.firstUnpaid, { includeYear: false })} paid`, 'fa-check', 'btn-primary');
-                if (live) actions += isLinked ? button('unlink', 'Remove from recurring', 'fa-link-slash') : button('link', 'Add to recurring', 'fa-repeat');
-                actions += button('edit', 'Edit', 'fa-pen') + button('close', 'Close', 'fa-box-archive') + button('delete', 'Delete', 'fa-trash-can', 'btn-ghost');
+                if (canMark) actions.push(button('paid', `Mark ${formatDateDisplay(progress.firstUnpaid, { includeYear: false })} paid`, 'fa-check', 'btn-primary'));
+                if (live) actions.push(isLinked ? button('unlink', 'Remove from recurring', 'fa-link-slash') : button('link', 'Add to recurring', 'fa-repeat'));
+                actions.push(button('edit', 'Edit', 'fa-pen'), button('close', 'Close', 'fa-box-archive'), DELETE());
                 if (ln.linkingId === row.id && !isLinked) linkPanel = linkPanelHtml(row);
             }
             return `<article class="plan-item ${status === 'closed' ? 'is-closed' : ''} ${row.id === ln.editingId ? 'is-editing' : ''}" data-id="${escapeHtml(row.id)}" id="loanItem-${escapeHtml(row.id)}">
@@ -900,7 +978,7 @@ window.Plan = (function () {
                 <div class="plan-item-facts">${facts.join('')}</div>
                 ${bits ? bits.note : ''}
                 ${linkPanel}
-                <div class="plan-item-actions">${actions}</div>
+                <div class="plan-item-actions">${actionBar(actions, row.name)}</div>
             </article>`;
         });
 
@@ -1402,8 +1480,12 @@ window.Plan = (function () {
             if (!own.includes(key)) input.addEventListener('input', () => { state.page = 0; renderFn(); });
             input.addEventListener('blur', () => { state.touched.add(key); renderFn(); });
         });
+        // Enter saves only once the save fields are open; before that it just finishes the field (the sum is already live)
         form.addEventListener('keydown', (event) => {
-            if (event.key === 'Enter' && event.target.tagName === 'INPUT' && event.target.type !== 'checkbox') { event.preventDefault(); form.requestSubmit(); }
+            if (event.key !== 'Enter' || event.target.tagName !== 'INPUT' || event.target.type === 'checkbox') return;
+            event.preventDefault();
+            if (form.querySelector('.plan-save').classList.contains('hidden')) event.target.blur();
+            else form.requestSubmit();
         });
     }
 
@@ -1437,6 +1519,12 @@ window.Plan = (function () {
         el('fdPayout').addEventListener('click', (event) => { const b = event.target.closest('[data-value]'); if (!b) return; fd.payout = b.dataset.value; fd.page = 0; setChoice(el('fdPayout'), fd.payout); renderFd(); });
         el('fdView').addEventListener('click', (event) => { const b = event.target.closest('[data-value]'); if (!b) return; fd.view = b.dataset.value; fd.page = 0; renderFdTable(); });
         el('fdPager').addEventListener('click', (event) => { const b = event.target.closest('[data-page]'); if (!b || b.disabled) return; fd.page += b.dataset.page === 'next' ? 1 : -1; renderFdTable(); });
+        el('fdSaveToggle').addEventListener('click', () => setSaveOpen('fd', true, { focus: true }));
+        el('fdTenurePresets').addEventListener('click', (event) => {
+            const b = event.target.closest('.preset'); if (!b) return;
+            el('fdTenure').value = b.dataset.preset; el('fdTenureUnit').value = b.dataset.unit;
+            fd.manualMaturity = false; fd.page = 0; renderFd();
+        });
         el('fdForm').addEventListener('submit', submitFd);
         el('fdResetBtn').addEventListener('click', () => resetFdForm());
         el('fdList').addEventListener('click', onDepositListClick);
@@ -1447,6 +1535,12 @@ window.Plan = (function () {
         el('loanMethod').addEventListener('click', (event) => { const b = event.target.closest('[data-value]'); if (!b) return; ln.method = b.dataset.value; ln.touched.add('method'); ln.page = 0; renderLoan(); });
         el('loanView').addEventListener('click', (event) => { const b = event.target.closest('[data-value]'); if (!b) return; ln.view = b.dataset.value; ln.page = 0; renderLoanTable(); });
         el('loanPager').addEventListener('click', (event) => { const b = event.target.closest('[data-page]'); if (!b || b.disabled) return; ln.page += b.dataset.page === 'next' ? 1 : -1; renderLoanTable(); });
+        el('loanSaveToggle').addEventListener('click', () => setSaveOpen('loan', true, { focus: true }));
+        el('loanTermPresets').addEventListener('click', (event) => {
+            const b = event.target.closest('.preset'); if (!b) return;
+            el('loanTerm').value = b.dataset.preset; el('loanTermUnit').value = b.dataset.unit;
+            ln.page = 0; renderLoan();
+        });
         el('loanForm').addEventListener('submit', submitLoan);
         el('loanResetBtn').addEventListener('click', () => resetLoanForm());
         el('loanList').addEventListener('click', onLoanListClick);
@@ -1462,6 +1556,23 @@ window.Plan = (function () {
         el('saveReminderSettingsBtn').addEventListener('click', saveSettings);
         window.addEventListener('online', () => { if (currentUser) { if (loadState.fixed_deposits === 'offline' || loadState.loans === 'offline') load(); else flushPending(); } });
         document.addEventListener('visibilitychange', () => { if (!document.hidden && currentUser) renderDueSoon(); });   // a new day may have started
+
+        // the answer bar (phones) hides whenever the real result card is on screen
+        el('planStickyBtn').addEventListener('click', () => {
+            el(segment === 'loans' ? 'loanResultTitle' : 'fdResultTitle').scrollIntoView({ behavior: prefersReducedMotion ? 'auto' : 'smooth', block: 'start' });
+        });
+        if ('IntersectionObserver' in window) {
+            const watch = new IntersectionObserver((entries) => {
+                entries.forEach((entry) => { heroSeen[entry.target.id === 'loanResult' ? 'loan' : 'fd'] = entry.isIntersecting; });
+                updateSticky();
+            }, { threshold: 0 });
+            watch.observe(el('fdResult'));
+            watch.observe(el('loanResult'));
+        } else { heroSeen.fd = true; heroSeen.loan = true; }   // no observer: never show the bar rather than show it wrongly
+        // a "more" menu closes when something else is tapped
+        document.addEventListener('click', (event) => {
+            document.querySelectorAll('.plan-menu[open]').forEach((menu) => { if (!menu.contains(event.target)) menu.open = false; });
+        });
 
         let remembered = 'recurring';
         try { remembered = localStorage.getItem('et_plan_tab') || 'recurring'; } catch (_) { /* default */ }
