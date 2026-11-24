@@ -1,7 +1,7 @@
 // RX-04: lists the closest named places so the merchant does not have to be typed. The location is used once and kept nowhere. It goes
 // straight from the device to two public map services (the free ones refuse server addresses); only if neither can be reached does it go
 // through the signed-in "nearby-place" function. The person picks a place (or searches the list); nothing is filled in by itself.
-import { useId, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { z } from 'zod';
 import { Icon } from '@/components/Icon';
 import { useAuth } from '@/app/AuthProvider';
@@ -20,6 +20,8 @@ const reply = z.object({
   name: z.string().min(1).max(80).optional(),
 });
 type Place = { name: string; kind: string; distance: number };
+/** What the lookup is doing right now (shown to the person while they wait). */
+type Working = 'locating' | 'searching' | 'wider' | 'backup';
 type Problem = 'unsupported' | 'denied' | 'unavailable' | 'service' | 'offline' | 'limit';
 
 const FIRST = 5;
@@ -28,8 +30,10 @@ const PHOTON_URL = 'https://photon.komoot.io/reverse';
 const DIRECT_MS = 8000;
 
 /**
- * Asks the two public map services from the person's own device, at the same time. The free services refuse the shared addresses that
- * server functions run from, but accept ordinary visitors. Throws only when BOTH could not be asked; an empty list means nothing is there.
+ * Asks the public map services from the person's own device (the free ones refuse the shared addresses that server functions run from,
+ * but accept ordinary visitors). Photon goes first: it is quick and rarely busy. Overpass, which is often at capacity, is asked only when
+ * Photon fails or finds nothing, so a busy Overpass does not slow the answer or fill the console. Throws only when NEITHER could be
+ * asked; an empty list means the map has nothing there.
  */
 async function nearbyDirect(where: Fix, radius: number): Promise<Place[]> {
   const { latitude: lat, longitude: lon } = where;
@@ -42,14 +46,27 @@ async function nearbyDirect(where: Fix, radius: number): Promise<Place[]> {
     return nearestPlaces(((await response.json()) as { elements?: unknown }).elements, lat, lon, 20);
   };
   const photon = async (): Promise<Place[]> => {
-    const url = `${PHOTON_URL}?${new URLSearchParams({ lat: String(lat), lon: String(lon), radius: String(radius / 1000), limit: '40', lang: 'en' })}`;
+    // the tag filters keep roads and buildings from using up the 40 places Photon returns
+    const params = new URLSearchParams({ lat: String(lat), lon: String(lon), radius: String(radius / 1000), limit: '40', lang: 'en' });
+    for (const key of ['amenity', 'shop', 'tourism', 'leisure']) params.append('osm_tag', key);
+    const url = `${PHOTON_URL}?${params}`;
     const response = await fetch(url, { signal: AbortSignal.timeout(DIRECT_MS), credentials: 'omit', referrerPolicy: 'no-referrer' });
     if (!response.ok) throw new Error('photon');
     return placesFromPhoton(await response.json(), lat, lon, 20);
   };
-  const results = await Promise.allSettled([overpass(), photon()]);
-  if (results.every((r) => r.status === 'rejected')) throw new Error('no map service answered');
-  return mergePlaces(results.map((r) => (r.status === 'fulfilled' ? r.value : [])), 10);
+  const lists: Place[][] = [];
+  let answered = false;
+  for (const ask of [photon, overpass]) {
+    try {
+      lists.push(await ask());
+      answered = true;
+      if (lists.flat().length) break;
+    } catch {
+      // that service could not be asked: the next one is tried
+    }
+  }
+  if (!answered) throw new Error('no map service answered');
+  return mergePlaces(lists, 10);
 }
 
 type Fix = { latitude: number; longitude: number };
@@ -81,7 +98,7 @@ async function position(): Promise<Fix> {
 /** The whole lookup: ask for the position, then for places. Used by the pin button in the field and by the list under it. */
 export function useNearby(onPick: (name: string) => void) {
   const { session } = useAuth();
-  const [step, setStep] = useState<'idle' | 'locating' | 'searching'>('idle');
+  const [step, setStep] = useState<'idle' | Working>('idle');
   const [places, setPlaces] = useState<Place[] | null>(null);
   const [problem, setProblem] = useState<Problem | null>(null);
   const [query, setQuery] = useState('');
@@ -96,14 +113,19 @@ export function useNearby(onPick: (name: string) => void) {
     setPicked('');
     setQuery('');
     setAll(false);
+    setPlaces(null);
     setStep('locating');
     try {
       const where = await position();
       setStep('searching');
       let found: Place[] | null = null;
       try {
-        found = await nearbyDirect(where, 150);
-        if (!found.length) found = await nearbyDirect(where, 300);
+        // one wider search (the nearest are listed first anyway), and a last, wider one only when the first found nothing
+        found = await nearbyDirect(where, 300);
+        if (!found.length) {
+          setStep('wider');
+          found = await nearbyDirect(where, 600);
+        }
       } catch {
         found = null; // the map services could not be asked from here: try through the app's server
       }
@@ -111,6 +133,7 @@ export function useNearby(onPick: (name: string) => void) {
         setPlaces(found);
         return;
       }
+      setStep('backup');
       const answer = await callFunction('nearby-place', { ...where, list: true }, { baseUrl: envResult.env.supabaseUrl, anonKey: envResult.env.supabaseAnonKey, accessToken: session?.access_token, timeoutMs: 20_000, schema: reply });
       setPlaces(answer.places ?? (answer.name ? [{ name: answer.name, kind: '', distance: 0 }] : []));
     } catch (error) {
@@ -135,7 +158,7 @@ export type Nearby = ReturnType<typeof useNearby>;
 /** The map-pin button that sits inside the "Where" field. Its name changes while it works, so a screen reader hears the progress. */
 export function NearbyLocate({ nearby }: { nearby: Nearby }) {
   const { t } = useI18n();
-  const label = nearby.step === 'locating' ? t('nearby.locating') : nearby.step === 'searching' ? t('nearby.searching') : t('nearby.button');
+  const label = nearby.step === 'idle' ? t('nearby.button') : nearby.step === 'locating' ? t('nearby.locating') : t('nearby.searching');
   return (
     <button type="button" className={`${styles.locate} ${nearby.busy ? styles.working : ''}`} aria-label={label} title={label} aria-busy={nearby.busy} onClick={nearby.find}>
       <Icon name="pin" size={20} />
@@ -143,10 +166,51 @@ export function NearbyLocate({ nearby }: { nearby: Nearby }) {
   );
 }
 
-/** What the lookup found (or why it could not), under the field. */
+/** A few friendly lines for each step, shown one after another so the wait has something to read (all of them need their translations). */
+const TIPS: Record<Working, MessageKey[]> = {
+  locating: ['nearby.tip.locating1', 'nearby.tip.locating2', 'nearby.tip.locating3'],
+  searching: ['nearby.tip.searching1', 'nearby.tip.searching2', 'nearby.tip.searching3', 'nearby.tip.searching4'],
+  wider: ['nearby.tip.wider1', 'nearby.tip.wider2'],
+  backup: ['nearby.tip.backup1', 'nearby.tip.backup2'],
+};
+const TIP_MS = 2600;
+const SLOW_AFTER_MS = 9000;
+
+/**
+ * What is happening, under the field, while the lookup works: the step in bold (announced once to screen readers), then lines that change
+ * every few seconds (hidden from them, so nothing is read out repeatedly), and an honest "still trying" when it takes long.
+ * It starts again for each step because the parent gives it a new key.
+ */
+function NearbyProgress({ step }: { step: Working }) {
+  const { t } = useI18n();
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    const timer = setInterval(() => setTick((n) => n + 1), TIP_MS);
+    return () => clearInterval(timer);
+  }, []);
+  const tips = TIPS[step];
+  const slow = tick * TIP_MS >= SLOW_AFTER_MS;
+  const line = slow ? t('nearby.slow') : t(tips[Math.min(tick, tips.length - 1)] as MessageKey);
+  return (
+    <div className={styles.progress} data-testid="nearby-progress">
+      <span className={styles.spinner} aria-hidden="true" />
+      <div className={styles.progressText}>
+        <p className={styles.progressMain} role="status">
+          {t(`nearby.step.${step}` as MessageKey)}
+        </p>
+        <p className={styles.progressTip} key={line} aria-hidden="true">
+          {line}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+/** What the lookup is doing, found, or why it could not, under the field. */
 export function NearbyResults({ nearby }: { nearby: Nearby }) {
   const { t } = useI18n();
   const { problem, places, query, setQuery, all, setAll, picked, setPicked, matches, shown, needle, onPick, searchId } = nearby;
+  if (nearby.step !== 'idle') return <NearbyProgress key={nearby.step} step={nearby.step} />;
   if (!problem && !places) return null;
   return (
     <div className={styles.box}>

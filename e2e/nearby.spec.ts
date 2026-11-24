@@ -91,6 +91,29 @@ test.describe('with location allowed', () => {
     expect(seen.calls ?? 0).toBe(0);
   });
 
+  test('while it works, a status card under the field names the step and changes its line, then the list replaces it', async ({ page }) => {
+    await signInAs(page);
+    const point = { type: 'Feature', properties: { name: 'Starbucks', osm_key: 'amenity', osm_value: 'cafe' }, geometry: { type: 'Point', coordinates: [101.6774, 3.1177] } };
+    await page.route(/^https:\/\/photon\.komoot\.io\//, async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 7000)); // slow enough to watch
+      await route.fulfill({ status: 200, headers: CORS, contentType: 'application/json', body: JSON.stringify({ features: [point] }) });
+    });
+    await openAdd(page);
+    await page.getByRole('button', { name: 'Find places near me' }).click();
+    const card = page.getByTestId('nearby-progress');
+    await expect(card).toBeVisible();
+    await expect(card).toContainText('Looking for places near you…');
+    // only the step is announced; the changing lines are hidden from screen readers
+    await expect(card.getByRole('status')).toHaveText('Looking for places near you…');
+    await expect(card).toContainText('Asking the map who is around you…');
+    // the line changes by itself while waiting
+    await expect(card).toContainText('Finding cafes, shops and restaurants…');
+    const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
+    expect(results.violations.map((v) => `${v.impact}: ${v.id}`)).toEqual([]);
+    await expect(page.getByTestId('nearby-place')).toHaveCount(1);
+    await expect(card).toHaveCount(0);
+  });
+
   test('a person who typed the category themselves keeps it', async ({ page }) => {
     const user = await signInAs(page);
     await setNearby(page, user.email, { places: PLACES });
