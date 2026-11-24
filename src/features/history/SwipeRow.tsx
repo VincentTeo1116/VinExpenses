@@ -40,6 +40,23 @@ export function SwipeRow({ className, kind, duplicateLabel, deleteLabel, onDupli
     item.toggleAttribute('data-armed', Math.abs(dx) >= TRIGGER);
   };
   const close = () => { setOpened(0); slide(0, true); };
+  useEffect(() => {
+    if (!opened) return;
+    const outside = (event: globalThis.PointerEvent) => {
+      if (!busy.current && event.target instanceof Node && !row.current?.contains(event.target)) {
+        setOpened(0);
+        const face = row.current?.querySelector<HTMLElement>('[data-slide]');
+        if (face) {
+          face.style.transition = prefersReducedMotion() ? 'none' : 'transform 220ms var(--ease)';
+          face.style.transform = 'translateX(0px)';
+        }
+        row.current?.removeAttribute('data-swipe');
+        row.current?.removeAttribute('data-armed');
+      }
+    };
+    document.addEventListener('pointerdown', outside, true);
+    return () => document.removeEventListener('pointerdown', outside, true);
+  }, [opened]);
   const duplicate = () => { close(); onDuplicate(); };
   const remove = () => {
     if (busy.current) return;
@@ -108,6 +125,7 @@ export function SwipeRow({ className, kind, duplicateLabel, deleteLabel, onDupli
       onPointerCancel={() => finish(false)}
       onClickCapture={(event) => {
         // letting go after a swipe must not also open the row
+        if (busy.current) { event.preventDefault(); event.stopPropagation(); return; }
         if ((event.target as HTMLElement).closest('[data-action]')) return;
         if (!swiped.current && !opened) return;
         if (!swiped.current && opened) close();

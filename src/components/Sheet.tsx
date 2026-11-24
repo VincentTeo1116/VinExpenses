@@ -1,13 +1,17 @@
 // An accessible dialog: a bottom sheet on phones, a centred card on larger screens.
 // Focus stays inside, Esc closes the top dialog only, the page behind is inert, and focus returns to where it came from.
-import { useEffect, useId, useRef, type ReactNode } from 'react';
+import { useEffect, useId, useImperativeHandle, useRef, useState, type Ref, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { Icon } from './Icon';
 import { popSheet, pushSheet, useSheetStack } from './sheetStack';
 import { useI18n } from '@/lib/i18n';
 import styles from './Sheet.module.css';
+import { prefersReducedMotion } from '@/lib/motion';
+
+export interface SheetHandle { close: (after?: () => void) => void; }
 
 interface SheetProps {
+  ref?: Ref<SheetHandle>;
   open: boolean;
   onClose: () => void;
   title: string;
@@ -20,11 +24,38 @@ interface SheetProps {
 
 const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
-export function Sheet({ open, onClose, title, children, size = 'narrow', dismissible = true }: SheetProps) {
+export function Sheet({ open, onClose, title, children, size = 'narrow', dismissible = true, ref }: SheetProps) {
   const id = useId();
   const { t } = useI18n();
   const stack = useSheetStack();
   const dialogRef = useRef<HTMLDivElement>(null);
+  const [closing, setClosing] = useState(false);
+  const closingRef = useRef(false);
+  const animations = useRef<Animation[]>([]);
+  useEffect(() => () => { animations.current.forEach((animation) => animation.cancel()); }, []);
+  const requestClose = (after?: () => void) => {
+    if (closingRef.current) return;
+    const dialog = dialogRef.current;
+    const finish = () => { onClose(); after?.(); closingRef.current = false; setClosing(false); };
+    if (!dialog || prefersReducedMotion() || !dialog.animate) { finish(); return; }
+    closingRef.current = true;
+    setClosing(true);
+    dialog.focus();
+    const phone = window.matchMedia('(max-width: 639px)').matches;
+    const duration = 220;
+    const motion = dialog.animate([
+      { opacity: 1, transform: 'none' },
+      { opacity: 0, transform: phone ? 'translateY(40px)' : 'translateY(8px) scale(0.98)' },
+    ], { duration, easing: 'ease-in', fill: 'forwards' });
+    const backdrop = dialog.parentElement?.animate([{ opacity: 1 }, { opacity: 0 }], { duration, fill: 'forwards' });
+    animations.current = backdrop ? [motion, backdrop] : [motion];
+    void motion.finished.then(() => {
+      finish();
+      animations.current.forEach((animation) => animation.cancel());
+      animations.current = [];
+    }).catch(() => undefined);
+  };
+  useImperativeHandle(ref, () => ({ close: requestClose }));
   const returnTo = useRef<Element | null>(null);
   const isTop = open && stack[stack.length - 1] === id;
 
@@ -55,7 +86,7 @@ export function Sheet({ open, onClose, title, children, size = 'narrow', dismiss
     if (!isTop) return;
     if (event.key === 'Escape') {
       event.stopPropagation();
-      if (dismissible) onClose();
+      if (dismissible) requestClose();
       return;
     }
     if (event.key !== 'Tab') return;
@@ -80,7 +111,7 @@ export function Sheet({ open, onClose, title, children, size = 'narrow', dismiss
 
   return createPortal(
     // eslint-disable-next-line jsx-a11y/no-static-element-interactions -- the overlay only handles a tap outside and Esc
-    <div className={styles.overlay} onKeyDown={onKeyDown} inert={!isTop} onMouseDown={(event) => { if (dismissible && isTop && event.target === event.currentTarget) onClose(); }}>
+    <div className={styles.overlay} onKeyDown={onKeyDown} inert={!isTop} onMouseDown={(event) => { if (dismissible && isTop && event.target === event.currentTarget) requestClose(); }}>
       <div ref={dialogRef} className={`${styles.sheet} ${size === 'wide' ? styles.wide : ''}`} role="dialog" aria-modal="true" aria-labelledby={`${id}-title`} tabIndex={-1}>
         <div className={styles.grabber} aria-hidden="true" />
         <div className={styles.head}>
@@ -88,12 +119,12 @@ export function Sheet({ open, onClose, title, children, size = 'narrow', dismiss
             {title}
           </h2>
           {dismissible ? (
-            <button type="button" className={styles.close} onClick={onClose} aria-label={t('common.close')}>
+            <button type="button" className={styles.close} disabled={closing} onClick={() => requestClose()} aria-label={t('common.close')}>
               <Icon name="x" />
             </button>
           ) : null}
         </div>
-        <div className={styles.body}>{children}</div>
+        <div className={styles.body} inert={closing}>{children}</div>
       </div>
     </div>,
     document.body,

@@ -72,7 +72,7 @@ export function HistoryPage() {
   const remove = async (entry: Row) => {
     try {
       await actions.deleteTransaction(entry.kind, entry.row.id);
-      toast.show('success', t('add.deleted'), { label: t('add.undo'), onClick: () => void actions.restoreTransaction(entry.kind, entry.row).then(() => toast.show('info', t('add.restored'))) });
+      toast.show('success', t('add.deleted'), { label: t('add.undo'), onClick: () => void actions.restoreTransaction(entry.kind, entry.row).then(() => toast.show('info', t('add.restored'))).catch(() => toast.show('error', t('add.failed'))) });
     } catch {
       toast.show('error', t('add.failed'));
     }

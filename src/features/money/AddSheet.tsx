@@ -7,7 +7,7 @@ import { Button } from '@/components/Button';
 import { ChipGroup } from '@/components/ChipGroup';
 import { Field } from '@/components/Field';
 import { Notice } from '@/components/Notice';
-import { Sheet } from '@/components/Sheet';
+import { Sheet, type SheetHandle } from '@/components/Sheet';
 import { useToast } from '@/components/Toast';
 import { useAuth } from '@/app/AuthProvider';
 import { envResult } from '@/lib/env';
@@ -53,6 +53,8 @@ function AddBody({ request, onClose }: { request: AddRequest; onClose: () => voi
   const editing = request.edit;
   const source = request.edit ?? request.copy;
   const [kind, setKind] = useState<Kind>(source?.kind ?? request.kind ?? 'expense');
+  const sheetRef = useRef<SheetHandle>(null);
+  const closeSheet = () => sheetRef.current?.close();
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState('');
   const [repeat, setRepeat] = useState<Expense | null>(null);
@@ -201,7 +203,7 @@ function AddBody({ request, onClose }: { request: AddRequest; onClose: () => voi
             toast.show('success', result === 'queued' ? t('add.savedOffline') : t('add.saved'));
           }
         }
-        onClose();
+        closeSheet();
       } catch {
         setProblem(t('add.failed'));
       } finally {
@@ -216,7 +218,7 @@ function AddBody({ request, onClose }: { request: AddRequest; onClose: () => voi
     try {
       const row = editing.row;
       await actions.deleteTransaction(editing.kind, row.id);
-      onClose();
+      closeSheet();
       toast.show('success', t('add.deleted'), { label: t('add.undo'), onClick: () => void actions.restoreTransaction(editing.kind, row).then(() => toast.show('info', t('add.restored'))) });
     } catch {
       setProblem(t('add.failed'));
@@ -230,7 +232,7 @@ function AddBody({ request, onClose }: { request: AddRequest; onClose: () => voi
   const currentAmount = amountText ? formatMoney(toCents(amountText) / 100) : '';
 
   return (
-    <Sheet open onClose={onClose} title={title}>
+    <Sheet ref={sheetRef} open onClose={onClose} title={title} dismissible={!busy && !scanning}>
       <form onSubmit={save} noValidate className={styles.form} data-kind={kind}>
         {editing ? null : (
           <div className={styles.kind} role="group" aria-label={t('add.kind')}>
@@ -353,7 +355,7 @@ function AddBody({ request, onClose }: { request: AddRequest; onClose: () => voi
           </Button>
           {editing ? (
             <>
-              <Button variant="outline" block disabled={busy} onClick={() => { onClose(); openAdd({ copy: editing }); }}>
+              <Button variant="outline" block disabled={busy} onClick={() => { sheetRef.current?.close(() => openAdd({ copy: editing })); }}>
                 {t('history.duplicate')}
               </Button>
               <Button variant="danger" block disabled={busy} onClick={() => void remove()}>

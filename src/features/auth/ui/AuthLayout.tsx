@@ -1,5 +1,6 @@
 // The frame of every sign-in screen: a brand panel (desktop) and the card with the current step.
-import type { ReactNode } from 'react';
+import { useLayoutEffect, useRef, type ReactNode } from 'react';
+import { prefersReducedMotion } from '@/lib/motion';
 import { Icon, type IconName } from '@/components/Icon';
 import { LanguageSelect } from '@/components/LanguageSelect';
 import { useI18n, type MessageKey } from '@/lib/i18n';
@@ -13,6 +14,21 @@ const POINTS: { icon: IconName; text: MessageKey }[] = [
 
 export function AuthLayout({ title, subtitle, children, footer }: { title: string; subtitle?: string; children: ReactNode; footer?: ReactNode }) {
   const { t } = useI18n();
+  const frame = useRef<HTMLDivElement>(null);
+  const content = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const box = frame.current;
+    const inner = content.current;
+    if (!box || !inner || typeof ResizeObserver === 'undefined') return;
+    const resize = () => {
+      box.style.transition = prefersReducedMotion() || inner.contains(document.activeElement) ? 'none' : 'height 220ms var(--ease)';
+      box.style.height = `${inner.getBoundingClientRect().height}px`;
+    };
+    resize();
+    const observer = new ResizeObserver(resize);
+    observer.observe(inner);
+    return () => observer.disconnect();
+  }, [title]);
   return (
     <div className={styles.page}>
       <aside className={styles.brand} aria-hidden="false">
@@ -40,8 +56,10 @@ export function AuthLayout({ title, subtitle, children, footer }: { title: strin
           </div>
           <h1 className={styles.title}>{title}</h1>
           {subtitle ? <p className={styles.subtitle}>{subtitle}</p> : null}
-          <div className={styles.body} key={title}>
+          <div ref={frame} className={styles.bodyFrame}>
+          <div ref={content} className={styles.body} key={title}>
             {children}
+          </div>
           </div>
           {footer ? <div className={styles.footer}>{footer}</div> : null}
         </div>

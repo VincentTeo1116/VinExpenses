@@ -319,14 +319,15 @@
 .reminders {
   list-style: none;
   display: grid;
-  gap: var(--s-2);
+  gap: var(--s-3);
 }
 .reminder {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: var(--s-3);
-  padding: var(--s-3);
+  padding: var(--s-4);
   border-radius: var(--r-md);
   background: var(--surface-2);
   border-left: 4px solid var(--primary);
@@ -339,6 +340,8 @@
 }
 .reminderText {
   display: grid;
+  gap: 6px;
+  flex: 1 1 180px;
   min-width: 0;
 }
 .reminderText strong {
@@ -347,7 +350,9 @@
 .reminderAmount {
   font-weight: 750;
   font-variant-numeric: tabular-nums;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+  max-width: 100%;
+  margin-left: auto;
 }
 
 /* the saved items' buttons: the one that moves things forward is green, the rest are quiet pills */
@@ -409,7 +414,3 @@
 }
 
 .popupBody { display: grid; gap: var(--s-5); padding-top: var(--s-2); }
-.reminders { gap: var(--s-3); }
-.reminder { padding: var(--s-4); }
-.reminderText { gap: 6px; }
-@media (max-width: 380px) { .reminder { flex-wrap: wrap; } }

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { act, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { I18nProvider } from '@/lib/i18n';
 import { Button } from './Button';
@@ -98,4 +98,27 @@ describe('ErrorBoundary (PF-04)', () => {
     await user.click(screen.getByRole('button', { name: 'Try again' }));
     expect(screen.getByText('fine')).toBeInTheDocument();
   });
+});
+
+function UndoToast() {
+  const toast = useToast();
+  return <button onClick={() => toast.show('success', 'Removed record', { label: 'Undo', onClick: () => undefined })}>Notify</button>;
+}
+it('keeps an actionable toast while its button is focused and resumes its remaining time on blur', () => {
+  vi.useFakeTimers();
+  render(<ToastProvider><UndoToast /></ToastProvider>);
+  fireEvent.click(screen.getByText('Notify'));
+  act(() => vi.advanceTimersByTime(2000));
+  const undo = screen.getByText('Undo');
+  fireEvent.focus(undo);
+  act(() => vi.advanceTimersByTime(20000));
+  expect(undo).toBeInTheDocument();
+  fireEvent.blur(undo);
+  act(() => vi.advanceTimersByTime(5999));
+  expect(undo).not.toBeDisabled();
+  act(() => vi.advanceTimersByTime(1));
+  expect(undo).toBeDisabled();
+  act(() => vi.advanceTimersByTime(220));
+  expect(screen.queryByText('Removed record')).toBeNull();
+  vi.useRealTimers();
 });

@@ -4,88 +4,57 @@
   bottom: calc(var(--tabbar-h) + var(--safe-bottom) + 14px);
   transform: translateX(-50%);
   z-index: var(--z-toast);
-  display: flex;
-  flex-direction: column;
-  gap: var(--s-2);
-  align-items: center;
+  display: grid;
+  justify-items: center;
   width: max-content;
   max-width: calc(100vw - 32px);
   pointer-events: none;
 }
-.stack {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s-2);
-  align-items: center;
-}
+.stack { display: grid; justify-items: center; max-width: 100%; }
+.slot { display: grid; grid-template-rows: 1fr; max-width: 100%; }
+.clip { min-height: 0; overflow: hidden; padding-inline: 4px; }
 .toast {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 10px;
-  padding: 12px 18px;
-  border-radius: 999px;
+  margin: 4px 0;
+  padding: 12px 16px;
+  border-radius: var(--r-lg);
   background: #0f172a;
   color: #fff;
   font-size: var(--fs-md);
   font-weight: 500;
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.3);
-  animation: toastIn 0.32s var(--ease) both;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  animation: toastIn 320ms var(--ease) both;
+  pointer-events: auto;
 }
-.success svg {
-  color: #34d399;
-}
-.error svg {
-  color: #f87171;
-}
-.info svg {
-  color: #9aa2ff;
-}
-@media (min-width: 1024px) {
-  .host {
-    bottom: 28px;
-  }
-}
-@keyframes in {
-  from {
-    opacity: 0;
-    transform: translateY(14px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
-@keyframes toastIn {
-  0% { opacity: 0; transform: translate3d(0, 12px, 0) scale(0.96); }
-  70% { opacity: 1; transform: translate3d(0, -2px, 0) scale(1.01); }
-  100% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
-}
-
+.toast > svg { flex: none; }
+.message { flex: 1 1 160px; min-width: 0; overflow-wrap: anywhere; }
+.success svg { color: #34d399; }
+.error svg { color: #f87171; }
+.info svg { color: #9aa2ff; }
 .action {
-  margin-left: var(--s-2);
+  margin-left: auto;
   padding: 6px 12px;
-  min-height: 36px;
+  min-height: var(--tap);
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.16);
-  color: #fff;
+  color: inherit;
   font-weight: 700;
-  pointer-events: auto;
 }
-.action:hover {
-  background: rgba(255, 255, 255, 0.28);
+.action:hover { background: rgba(255, 255, 255, 0.28); }
+.toast.leaving { animation: toastOut var(--motion-exit) var(--ease) both; pointer-events: none; }
+.collapsing { animation: collapse var(--motion-exit) var(--ease) both; }
+@keyframes toastIn { from { opacity: 0; transform: translateY(12px) scale(0.97); } to { opacity: 1; transform: none; } }
+@keyframes toastOut { to { opacity: 0; transform: translateY(12px); } }
+@keyframes collapse { from { grid-template-rows: 1fr; } to { grid-template-rows: 0fr; } }
+@media (min-width: 1024px) { .host { bottom: 28px; } }
+@media (prefers-color-scheme: dark) {
+  .toast { background: #e8ebf5; color: #0f172a; border-color: #fff; }
+  .success svg { color: #047857; }
+  .error svg { color: #b91c1c; }
+  .info svg { color: #4338ca; }
+  .action { background: rgba(15, 23, 42, 0.08); }
+  .action:hover { background: rgba(15, 23, 42, 0.16); }
 }
-.host,
-.stack {
-  pointer-events: none;
-}
-.toast {
-  pointer-events: auto;
-}
-
-@keyframes toastOut {
-  to { opacity: 0; transform: translateY(12px) scale(0.97); }
-}
-.toast.leaving { animation: toastOut 220ms var(--ease) both; pointer-events: none; }

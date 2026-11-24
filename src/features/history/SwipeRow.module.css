@@ -1,49 +1,34 @@
 .swipe {
   position: relative;
   overflow: hidden;
-  touch-action: pan-y; /* up and down still scrolls the list; sideways is the swipe */
+  touch-action: pan-y;
 }
-/* what shows behind the row while it is being pulled aside */
 .under {
   position: absolute;
   inset: 0;
-  display: none;
-  align-items: center;
-  gap: var(--s-2);
-  padding: 0 var(--s-4);
-  color: #fff;
-  font-size: var(--fs-sm);
-  font-weight: 750;
-  transition: filter 0.18s var(--ease), padding 0.18s var(--ease);
-}
-.duplicate {
-  justify-content: flex-start;
-  background: var(--brand);
-}
-.delete {
-  justify-content: flex-end;
-  background: var(--danger-solid);
-}
-.swipe[data-swipe='duplicate'] .duplicate,
-.swipe[data-swipe='delete'] .delete {
   display: flex;
+  align-items: center;
+  color: #fff;
+  font-weight: 750;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--motion-fast) ease, filter var(--dur) ease;
 }
-.swipe[data-swipe] > :not(.under) {
-  position: relative;
-  background: var(--surface);
-}
-/* far enough: letting go now does it */
-.swipe[data-armed] .under {
-  font-weight: 800;
-  filter: brightness(1.12);
-}
-.swipe[data-armed=''] .duplicate { padding-left: calc(var(--s-4) + 4px); }
-.swipe[data-armed=''] .delete { padding-right: calc(var(--s-4) + 4px); }
-
-.under { display: flex; opacity: 0; padding: 0; pointer-events: none; transition: opacity 120ms ease, filter 180ms ease; }
+.duplicate { justify-content: flex-start; background: var(--brand); }
+.delete { justify-content: flex-end; background: var(--danger-solid); }
 .swipe[data-swipe='duplicate'] .duplicate,
 .swipe[data-swipe='delete'] .delete { opacity: 1; }
 .under[aria-hidden='false'] { pointer-events: auto; }
-.under button { width: 96px; align-self: stretch; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 5px; padding: 8px; font-size: 12px; }
+.under button {
+  width: 96px;
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 5px;
+  padding: 8px;
+  font-size: 12px;
+}
 .swipe > [data-slide] { position: relative; z-index: 1; background: var(--surface); }
-.swipe[data-armed] .under { padding: 0; }
+.swipe[data-armed] .under { filter: brightness(1.12); }

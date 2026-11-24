@@ -53,6 +53,8 @@
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
   --dur: 180ms;
+  --motion-fast: 120ms;
+  --motion-exit: 220ms;
 
   /* liquid glass: a bright rim, a hairline and a soft shadow; only floating parts are see-through */
   --glass-top: rgba(255, 255, 255, 0.52);

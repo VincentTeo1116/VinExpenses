@@ -1,11 +1,11 @@
 // PL-04: what needs attention (deposits maturing, loan payments due or missed), the list on Plan and the one pop-up on Home.
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { useAuth } from '@/app/AuthProvider';
 import { Button } from '@/components/Button';
-import { Sheet } from '@/components/Sheet';
+import { Sheet, type SheetHandle } from '@/components/Sheet';
 import { useI18n } from '@/lib/i18n';
 import { formatDate, todayYmd } from '@/lib/dates';
 import { formatMoney } from '@/lib/money';
@@ -60,6 +60,7 @@ export function ReminderPopup() {
   const userId = session?.user?.id ?? '';
   const c = client as SupabaseClient;
   const { list } = useReminderList();
+  const sheet = useRef<SheetHandle>(null);
   const [closed, setClosed] = useState(false);
   const [openedAt] = useState(() => Date.now()); // when this screen was opened: "is it still snoozed" is judged against that
   const key = ['reminder-prefs', userId];
@@ -78,21 +79,19 @@ export function ReminderPopup() {
   const open = wanted && !closed;
 
   const snooze = async () => {
-    setClosed(true);
     const until = new Date(Date.now() + 24 * 3600 * 1000).toISOString();
-    queryClient.setQueryData<ReminderPrefs>(key, (old) => ({ reminder_popup: old?.reminder_popup ?? 'auto', reminder_snooze_until: until }));
+    sheet.current?.close(() => queryClient.setQueryData<ReminderPrefs>(key, (old) => ({ reminder_popup: old?.reminder_popup ?? 'auto', reminder_snooze_until: until })));
     await c.from('user_preferences').upsert({ user_id: userId, reminder_snooze_until: until }, { onConflict: 'user_id' });
   };
 
   return (
-    <Sheet open={open} onClose={() => setClosed(true)} title={t('rem.popupTitle')}>
+    <Sheet ref={sheet} open={open} onClose={() => setClosed(true)} title={t('rem.popupTitle')}>
       <div className={styles.popupBody}>
       <ReminderList list={list} />
       <div className={styles.actions}>
         <Button
           onClick={() => {
-            setClosed(true);
-            navigate('/app/plan', { state: { tab: list[0]?.kind === 'loan' ? 'loans' : 'deposits' } });
+            sheet.current?.close(() => navigate('/app/plan', { state: { tab: list[0]?.kind === 'loan' ? 'loans' : 'deposits' } }));
           }}
         >
           {t('rem.open')}
