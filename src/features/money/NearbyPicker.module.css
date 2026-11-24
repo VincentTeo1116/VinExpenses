@@ -74,3 +74,40 @@
   text-decoration: underline;
   cursor: pointer;
 }
+
+/* the map-pin button inside the "Where" field */
+.locate {
+  display: grid;
+  place-items: center;
+  width: var(--tap);
+  height: var(--tap);
+  border-radius: 50%;
+  color: var(--primary);
+  background: var(--primary-soft);
+  transition: background var(--dur), transform var(--motion-fast), color var(--dur);
+}
+.locate:hover {
+  background: color-mix(in srgb, var(--primary) 22%, transparent);
+}
+.locate:active {
+  transform: scale(0.92);
+}
+.locate:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--primary) 60%, transparent);
+  outline-offset: 2px;
+}
+.working {
+  animation: locating 1s ease-in-out infinite;
+}
+@keyframes locating {
+  50% {
+    opacity: 0.45;
+    transform: scale(0.9);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .working {
+    animation: none;
+    opacity: 0.55;
+  }
+}

@@ -1,12 +1,14 @@
-// RX-04: lists the closest named places so the merchant does not have to be typed. The location is used once, kept nowhere, and
-// sent only to the signed-in "nearby-place" service. The person picks a place (or searches the list); nothing is filled in by itself.
+// RX-04: lists the closest named places so the merchant does not have to be typed. The location is used once and kept nowhere. It goes
+// straight from the device to two public map services (the free ones refuse server addresses); only if neither can be reached does it go
+// through the signed-in "nearby-place" function. The person picks a place (or searches the list); nothing is filled in by itself.
 import { useId, useState } from 'react';
 import { z } from 'zod';
-import { Button } from '@/components/Button';
+import { Icon } from '@/components/Icon';
 import { useAuth } from '@/app/AuthProvider';
 import { ApiError, callFunction } from '@/lib/api';
 import { envResult } from '@/lib/env';
 import { useI18n, type MessageKey } from '@/lib/i18n';
+import { mergePlaces, nearestPlaces, placesFromPhoton } from '../../../supabase/functions/_shared/nearby.ts';
 import styles from './NearbyPicker.module.css';
 
 const reply = z.object({
@@ -21,6 +23,34 @@ type Place = { name: string; kind: string; distance: number };
 type Problem = 'unsupported' | 'denied' | 'unavailable' | 'service' | 'offline' | 'limit';
 
 const FIRST = 5;
+const OVERPASS_URL = 'https://overpass-api.de/api/interpreter';
+const PHOTON_URL = 'https://photon.komoot.io/reverse';
+const DIRECT_MS = 8000;
+
+/**
+ * Asks the two public map services from the person's own device, at the same time. The free services refuse the shared addresses that
+ * server functions run from, but accept ordinary visitors. Throws only when BOTH could not be asked; an empty list means nothing is there.
+ */
+async function nearbyDirect(where: Fix, radius: number): Promise<Place[]> {
+  const { latitude: lat, longitude: lon } = where;
+  const around = `(around:${radius},${lat},${lon})`;
+  // four simple key filters are much cheaper for Overpass than one regular expression over every key
+  const query = `[out:json][timeout:6];(${['amenity', 'shop', 'tourism', 'leisure'].map((key) => `nwr${around}[name][${key}];`).join('')});out center 60;`;
+  const overpass = async (): Promise<Place[]> => {
+    const response = await fetch(OVERPASS_URL, { method: 'POST', body: new URLSearchParams({ data: query }), signal: AbortSignal.timeout(DIRECT_MS), credentials: 'omit', referrerPolicy: 'no-referrer' });
+    if (!response.ok) throw new Error('overpass');
+    return nearestPlaces(((await response.json()) as { elements?: unknown }).elements, lat, lon, 20);
+  };
+  const photon = async (): Promise<Place[]> => {
+    const url = `${PHOTON_URL}?${new URLSearchParams({ lat: String(lat), lon: String(lon), radius: String(radius / 1000), limit: '40', lang: 'en' })}`;
+    const response = await fetch(url, { signal: AbortSignal.timeout(DIRECT_MS), credentials: 'omit', referrerPolicy: 'no-referrer' });
+    if (!response.ok) throw new Error('photon');
+    return placesFromPhoton(await response.json(), lat, lon, 20);
+  };
+  const results = await Promise.allSettled([overpass(), photon()]);
+  if (results.every((r) => r.status === 'rejected')) throw new Error('no map service answered');
+  return mergePlaces(results.map((r) => (r.status === 'fulfilled' ? r.value : [])), 10);
+}
 
 type Fix = { latitude: number; longitude: number };
 
@@ -48,8 +78,8 @@ async function position(): Promise<Fix> {
   }
 }
 
-export function NearbyPicker({ onPick }: { onPick: (name: string) => void }) {
-  const { t } = useI18n();
+/** The whole lookup: ask for the position, then for places. Used by the pin button in the field and by the list under it. */
+export function useNearby(onPick: (name: string) => void) {
   const { session } = useAuth();
   const [step, setStep] = useState<'idle' | 'locating' | 'searching'>('idle');
   const [places, setPlaces] = useState<Place[] | null>(null);
@@ -70,6 +100,17 @@ export function NearbyPicker({ onPick }: { onPick: (name: string) => void }) {
     try {
       const where = await position();
       setStep('searching');
+      let found: Place[] | null = null;
+      try {
+        found = await nearbyDirect(where, 150);
+        if (!found.length) found = await nearbyDirect(where, 300);
+      } catch {
+        found = null; // the map services could not be asked from here: try through the app's server
+      }
+      if (found) {
+        setPlaces(found);
+        return;
+      }
       const answer = await callFunction('nearby-place', { ...where, list: true }, { baseUrl: envResult.env.supabaseUrl, anonKey: envResult.env.supabaseAnonKey, accessToken: session?.access_token, timeoutMs: 20_000, schema: reply });
       setPlaces(answer.places ?? (answer.name ? [{ name: answer.name, kind: '', distance: 0 }] : []));
     } catch (error) {
@@ -86,12 +127,29 @@ export function NearbyPicker({ onPick }: { onPick: (name: string) => void }) {
   const matches = (places ?? []).filter((p) => !needle || p.name.toLowerCase().includes(needle) || p.kind.toLowerCase().includes(needle));
   const shown = needle || all ? matches : matches.slice(0, FIRST);
 
+  return { busy, step, find: () => void find(), problem, places, query, setQuery, all, setAll, picked, setPicked, matches, shown, needle, onPick, searchId };
+}
+
+export type Nearby = ReturnType<typeof useNearby>;
+
+/** The map-pin button that sits inside the "Where" field. Its name changes while it works, so a screen reader hears the progress. */
+export function NearbyLocate({ nearby }: { nearby: Nearby }) {
+  const { t } = useI18n();
+  const label = nearby.step === 'locating' ? t('nearby.locating') : nearby.step === 'searching' ? t('nearby.searching') : t('nearby.button');
+  return (
+    <button type="button" className={`${styles.locate} ${nearby.busy ? styles.working : ''}`} aria-label={label} title={label} aria-busy={nearby.busy} onClick={nearby.find}>
+      <Icon name="pin" size={20} />
+    </button>
+  );
+}
+
+/** What the lookup found (or why it could not), under the field. */
+export function NearbyResults({ nearby }: { nearby: Nearby }) {
+  const { t } = useI18n();
+  const { problem, places, query, setQuery, all, setAll, picked, setPicked, matches, shown, needle, onPick, searchId } = nearby;
+  if (!problem && !places) return null;
   return (
     <div className={styles.box}>
-      <Button variant="outline" block loading={busy} onClick={() => void find()}>
-        {step === 'locating' ? t('nearby.locating') : step === 'searching' ? t('nearby.searching') : t('nearby.button')}
-      </Button>
-      <p className={styles.hint}>{t('nearby.hint')}</p>
       {problem ? (
         <p className={`${styles.note} ${styles.bad}`} role="status" data-testid="nearby-note">
           {t(`nearby.e.${problem}` as MessageKey)}

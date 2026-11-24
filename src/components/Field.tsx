@@ -15,9 +15,11 @@ export interface FieldProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 
   icon?: IconName;
   /** The large money box at the top of a form ("RM 0.00"). 'income' tints it green. */
   big?: boolean | 'income';
+  /** A small button that sits inside the box at its end (for example the map pin). */
+  trailing?: ReactNode;
 }
 
-export function Field({ label, error, hint, children, className, ref, icon, big, ...input }: FieldProps) {
+export function Field({ label, error, hint, children, className, ref, icon, big, trailing, ...input }: FieldProps) {
   const id = useId();
   const errorId = `${id}-error`;
   const hintId = `${id}-hint`;
@@ -38,7 +40,8 @@ export function Field({ label, error, hint, children, className, ref, icon, big,
             <Icon name={icon} size={18} />
           </span>
         ) : null}
-        <input {...input} ref={ref} id={id} className={`${styles.input} ${icon ? styles.withIcon : ''} ${error ? styles.invalid : ''}`} aria-invalid={error ? true : undefined} aria-describedby={describedBy} />
+        <input {...input} ref={ref} id={id} className={`${styles.input} ${icon ? styles.withIcon : ''} ${trailing ? styles.withTrailing : ''} ${error ? styles.invalid : ''}`} aria-invalid={error ? true : undefined} aria-describedby={describedBy} />
+        {trailing ? <span className={styles.trailing}>{trailing}</span> : null}
       </div>
       {hint ? (
         <p id={hintId} className={styles.hint}>

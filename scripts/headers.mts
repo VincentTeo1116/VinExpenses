@@ -5,14 +5,18 @@
 export const TELEGRAM_ORIGINS = ['https://web.telegram.org', 'https://webk.telegram.org', 'https://webz.telegram.org', 'https://telegram.org'];
 
 /** `ancestors` lists the only sites allowed to put the page in a frame (the Mini App lives inside Telegram). */
-export function buildCsp(supabaseUrl: string, turnstile: boolean, meta = false, ancestors: string[] = []): string {
+/** The two public map services the browser asks for places near the person ("Find places near me"). Allowed for the website only, never for the Mini App. */
+export const MAP_ORIGINS = ['https://photon.komoot.io', 'https://overpass-api.de'];
+
+/** `maps` lets the page ask those map services directly (see MAP_ORIGINS). */
+export function buildCsp(supabaseUrl: string, turnstile: boolean, meta = false, ancestors: string[] = [], maps = false): string {
   let origin = '';
   try {
     origin = new URL(supabaseUrl).origin;
   } catch {
     origin = '';
   }
-  const connect = ["'self'", origin].filter(Boolean).join(' ');
+  const connect = ["'self'", origin, ...(maps ? MAP_ORIGINS : [])].filter(Boolean).join(' ');
   const scripts = ["'self'", turnstile ? 'https://challenges.cloudflare.com' : ''].filter(Boolean).join(' ');
   const frames = turnstile ? 'https://challenges.cloudflare.com' : "'none'";
   return [

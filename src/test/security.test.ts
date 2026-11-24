@@ -67,6 +67,12 @@ describe('Content-Security-Policy (SEC-01)', () => {
     expect(directive('connect-src')).toEqual(["'self'", 'https://abcd.supabase.co']);
   });
 
+  it('the website (not the Mini App) may also ask the two map services for places near the person, and nothing else', () => {
+    const withMaps = (value: string) => (new RegExp('connect-src ([^;]+)').exec(value)?.[1] ?? '').split(' ');
+    expect(withMaps(buildCsp('https://abcd.supabase.co', false, false, [], true))).toEqual(["'self'", 'https://abcd.supabase.co', 'https://photon.komoot.io', 'https://overpass-api.de']);
+    expect(buildCsp('https://abcd.supabase.co', false, false, ['https://web.telegram.org'])).not.toMatch(/photon|overpass/);
+  });
+
   it('cannot be framed, has no plugins, and no base or form targets', () => {
     expect(directive('frame-ancestors')).toEqual(["'none'"]);
     expect(directive('object-src')).toEqual(["'none'"]);

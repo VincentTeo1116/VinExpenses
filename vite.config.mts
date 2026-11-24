@@ -19,7 +19,7 @@ function cspPlugin(supabaseUrl: string, turnstile: boolean): Plugin {
       handler: (html) =>
         html.replace(
           '<!-- CSP -->',
-          `<meta http-equiv="Content-Security-Policy" content="${buildCsp(supabaseUrl, turnstile, true)}" />`,
+          `<meta http-equiv="Content-Security-Policy" content="${buildCsp(supabaseUrl, turnstile, true, [], true)}" />`,
         ),
     },
   };
@@ -74,7 +74,7 @@ export default defineConfig(({ mode }) => {
       cspPlugin(env.VITE_SUPABASE_URL ?? '', turnstile),
       seoPlugin(cleanSiteUrl(env.VITE_SITE_URL)),
       appPagesPlugin(),
-      headersPlugin(buildCsp(env.VITE_SUPABASE_URL ?? '', turnstile), buildCsp(env.VITE_SUPABASE_URL ?? '', false, false, TELEGRAM_ORIGINS)),
+      headersPlugin(buildCsp(env.VITE_SUPABASE_URL ?? '', turnstile, false, [], true), buildCsp(env.VITE_SUPABASE_URL ?? '', false, false, TELEGRAM_ORIGINS)),
       VitePWA({
         // The page registers the worker itself (no inline script), see src/app/pwa.ts
         injectRegister: false,

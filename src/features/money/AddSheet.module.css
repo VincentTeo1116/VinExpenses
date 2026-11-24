@@ -22,12 +22,48 @@
   color: var(--text);
   box-shadow: var(--shadow-sm);
 }
-.amount input {
-  font-size: 1.9rem;
+/* the top card: expense or income, then the big amount, on a soft tint of the colour it stands for */
+.hero {
+  display: grid;
+  gap: var(--s-3);
+  padding: var(--s-3) var(--s-3) var(--s-1);
+  border-radius: var(--r-xl);
+  background: linear-gradient(155deg, var(--primary-soft), transparent 75%), var(--surface-2);
+}
+.hero[data-kind='income'] {
+  background: linear-gradient(155deg, var(--success-soft), transparent 75%), var(--surface-2);
+}
+.hero .kind {
+  background: color-mix(in srgb, var(--surface) 55%, transparent);
+}
+.hero .kindOn {
   font-weight: 800;
-  letter-spacing: -0.02em;
-  min-height: 64px;
+}
+.amount {
   font-variant-numeric: tabular-nums;
+}
+.scan > button {
+  justify-self: stretch;
+}
+/* Save stays in view while a long form scrolls beneath it */
+.saveBar {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  margin-inline: calc(-1 * var(--s-4));
+  padding: var(--s-3) var(--s-4);
+  background: linear-gradient(to top, var(--glass-sheet) 72%, transparent);
+}
+.more {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--s-2);
+}
+@media (min-width: 640px) {
+  .saveBar {
+    margin-inline: calc(-1 * var(--s-6));
+    padding-inline: var(--s-6);
+  }
 }
 .dup {
   display: flex;
@@ -38,7 +74,6 @@
 .actions {
   display: grid;
   gap: var(--s-2);
-  margin-top: var(--s-2);
 }
 
 .scan {

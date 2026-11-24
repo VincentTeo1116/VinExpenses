@@ -14,7 +14,7 @@ import { envResult } from '@/lib/env';
 import { useI18n, type MessageKey } from '@/lib/i18n';
 import { buildMerchantMemory, suggestCategory } from '@/features/entry/smartEntry';
 import { scanReceipt, ScanError } from '@/features/receipts/scan';
-import { NearbyPicker } from './NearbyPicker';
+import { NearbyLocate, NearbyResults, useNearby } from './NearbyPicker';
 import type { Candidate } from '@/features/receipts/receiptParser';
 import { formatDate, isoToYmd, isYmd, todayYmd, ymdToNoonIso } from '@/lib/dates';
 import { formatMoney, toCents } from '@/lib/money';
@@ -102,7 +102,8 @@ function AddBody({ request, onClose }: { request: AddRequest; onClose: () => voi
     const found = suggestCategory({ merchant: name, memory, categories: lite });
     if (found && found.confidence !== 'low') setValue('category', found.key);
   };
-  const onMerchantChange = (event: ChangeEvent<HTMLInputElement>) => {
+  const nearby = useNearby(onNearby);
+  const onMerchantChange =(event: ChangeEvent<HTMLInputElement>) => {
     if (editing || categoryTouched) return;
     const found = suggestCategory({ merchant: event.target.value, memory, categories: lite });
     if (found && found.confidence !== 'low') setValue('category', found.key);
@@ -234,17 +235,18 @@ function AddBody({ request, onClose }: { request: AddRequest; onClose: () => voi
   return (
     <Sheet ref={sheetRef} open onClose={onClose} title={title} dismissible={!busy && !scanning}>
       <form onSubmit={save} noValidate className={styles.form} data-kind={kind}>
-        {editing ? null : (
-          <div className={styles.kind} role="group" aria-label={t('add.kind')}>
-            {(['expense', 'income'] as const).map((value) => (
-              <button key={value} type="button" className={`${styles.kindBtn} ${kind === value ? styles.kindOn : ''}`} aria-pressed={kind === value} onClick={() => setKind(value)}>
-                {t(value === 'expense' ? 'add.expense' : 'add.income')}
-              </button>
-            ))}
-          </div>
-        )}
-
-        <Field big={kind === 'income' ? 'income' : true} label={t('add.amount')} inputMode="decimal" autoComplete="off" placeholder="0.00" data-autofocus className={styles.amount} error={formState.errors.amount?.message} hint={currentAmount} {...register('amount')} />
+        <div className={styles.hero} data-kind={kind}>
+          {editing ? null : (
+            <div className={styles.kind} role="group" aria-label={t('add.kind')}>
+              {(['expense', 'income'] as const).map((value) => (
+                <button key={value} type="button" className={`${styles.kindBtn} ${kind === value ? styles.kindOn : ''}`} aria-pressed={kind === value} onClick={() => setKind(value)}>
+                  {t(value === 'expense' ? 'add.expense' : 'add.income')}
+                </button>
+              ))}
+            </div>
+          )}
+          <Field big={kind === 'income' ? 'income' : true} label={t('add.amount')} inputMode="decimal" autoComplete="off" placeholder="0.00" data-autofocus data-len={amountText.length > 11 ? "12" : amountText.length > 9 ? "10" : amountText.length > 7 ? "9" : undefined} className={styles.amount} error={formState.errors.amount?.message} hint={currentAmount} {...register('amount')} />
+        </div>
 
         {kind === 'expense' ? (
           <>
@@ -311,8 +313,8 @@ function AddBody({ request, onClose }: { request: AddRequest; onClose: () => voi
               )
             ) : null}
             <Controller name="payment" control={control} render={({ field }) => <ChipGroup legend={t('add.payment')} options={activePayments.map((p) => ({ value: p.key, label: p.label, glyph: p.glyph, icon: p.key, color: p.color }))} value={field.value} onChange={field.onChange} />} />
-            <Field label={t('add.merchant')} autoComplete="off" error={formState.errors.merchant?.message} {...register('merchant', { onChange: onMerchantChange })} />
-            {editing ? null : <NearbyPicker onPick={onNearby} />}
+            <Field label={t('add.merchant')} autoComplete="off" error={formState.errors.merchant?.message} hint={editing ? undefined : t('nearby.hint')} trailing={editing ? undefined : <NearbyLocate nearby={nearby} />} {...register('merchant', { onChange: onMerchantChange })} />
+            {editing ? null : <NearbyResults nearby={nearby} />}
             <Field label={t('add.note')} autoComplete="off" error={formState.errors.note?.message} {...register('note')} />
           </>
         ) : (
@@ -350,18 +352,20 @@ function AddBody({ request, onClose }: { request: AddRequest; onClose: () => voi
         {problem ? <Notice kind="bad">{problem}</Notice> : null}
 
         <div className={styles.actions}>
-          <Button id="add-form-submit" type="submit" block loading={busy}>
-            {busy ? t('add.saving') : t('add.save')}
-          </Button>
+          <div className={styles.saveBar}>
+            <Button id="add-form-submit" type="submit" block loading={busy}>
+              {busy ? t('add.saving') : t('add.save')}
+            </Button>
+          </div>
           {editing ? (
-            <>
+            <div className={styles.more}>
               <Button variant="outline" block disabled={busy} onClick={() => { sheetRef.current?.close(() => openAdd({ copy: editing })); }}>
                 {t('history.duplicate')}
               </Button>
               <Button variant="danger" block disabled={busy} onClick={() => void remove()}>
                 {t('add.delete')}
               </Button>
-            </>
+            </div>
           ) : null}
         </div>
       </form>

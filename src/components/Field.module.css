@@ -118,13 +118,15 @@
 .big .box:has(> .input) {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 10px;
-  padding: 16px;
+  min-width: 0;
+  padding: 16px 18px;
   border-radius: var(--r-lg);
-  border: 1.5px solid transparent;
-  background: var(--surface-2);
-  font-size: clamp(2.25rem, 10vw, 2.5rem);
+  border: 2px solid transparent;
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+  font-size: clamp(2.5rem, 11vw, 2.9rem);
   cursor: text;
   transition: border-color var(--dur), box-shadow var(--dur), background var(--dur);
 }
@@ -142,9 +144,12 @@
   box-shadow: 0 0 0 4px var(--success-soft);
 }
 .prefix {
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: var(--muted);
+  flex: none;
+  white-space: nowrap;
+  font-size: 1.6rem;
+  font-weight: 900;
+  letter-spacing: -0.01em;
+  color: var(--text);
 }
 .big[data-tone='income'] .prefix {
   color: var(--success-text);
@@ -153,7 +158,8 @@
 .big .input:hover,
 .big .input:focus-visible,
 .big .input.invalid {
-  width: 7.5ch;
+  flex: 1 1 0;
+  width: auto;
   min-width: 0;
   min-height: 0;
   padding: 0;
@@ -162,9 +168,15 @@
   outline: none;
   background: transparent;
   box-shadow: none;
-  font-weight: 800;
+  font-weight: 900;
   letter-spacing: -0.02em;
   line-height: 1.2;
+}
+/* the empty box is just as bold, only softer in colour, so "0.00" reads as a number waiting to be typed */
+.big .input::placeholder {
+  font-weight: 900;
+  color: color-mix(in srgb, var(--muted) 62%, transparent);
+  opacity: 1;
 }
 .big .hint,
 .big .error {
@@ -187,4 +199,27 @@
 }
 .input {
   transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+}
+
+/* long amounts get smaller type instead of spilling out of the box */
+.big .input[data-len='9'] {
+  font-size: 0.82em;
+}
+.big .input[data-len='10'] {
+  font-size: 0.66em;
+}
+.big .input[data-len='12'] {
+  font-size: 0.5em;
+}
+
+/* a button inside the end of the box (the map pin on "Where") */
+.withTrailing {
+  padding-right: 56px;
+}
+.trailing {
+  position: absolute;
+  right: 2px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: grid;
 }

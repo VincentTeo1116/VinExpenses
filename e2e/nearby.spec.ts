@@ -16,6 +16,15 @@ const PLACES = [
 
 const setNearby = (page: Page, email: string, body: { places?: unknown[]; mode?: 'ok' | 'down'; limit?: number }) => page.request.post(`${BACKEND}/__test/nearby`, { data: { email, ...body } });
 
+const MAP_HOSTS = /^https:\/\/(photon\.komoot\.io|overpass-api\.de)\//;
+const CORS = { 'access-control-allow-origin': '*' };
+
+// The browser asks the two public map services first. Tests never touch the real ones: by default they "refuse" (as they do for
+// server addresses: an answer that is not a list), so the list comes from the local stand-in for the server function.
+test.beforeEach(async ({ page }) => {
+  await page.route(MAP_HOSTS, (route) => route.fulfill({ status: 200, headers: CORS, body: 'refused' }));
+});
+
 async function openAdd(page: Page) {
   await page.goto('/app');
   await expect(page.getByRole('heading', { level: 1, name: /^Hello,/ })).toBeVisible();
@@ -53,6 +62,33 @@ test.describe('with location allowed', () => {
     const seen = (await (await page.request.get(`${BACKEND}/__test/nearby-last?email=${encodeURIComponent(user.email)}`)).json()) as { last: { latitude: number; longitude: number; list: boolean } };
     expect(seen.last).toEqual({ latitude: 3.1177, longitude: 101.6773, list: true });
     expect(problems).toEqual([]);
+  });
+
+  test('the map pin sits inside the Where field as a full-size target, with the hint under it', async ({ page }) => {
+    await signInAs(page);
+    await openAdd(page);
+    const where = page.getByLabel('Where (optional)');
+    const pin = page.getByRole('button', { name: 'Find places near me' });
+    const [field, button] = await Promise.all([where.boundingBox(), pin.boundingBox()]);
+    expect(field && button && button.x >= field.x && button.x + button.width <= field.x + field.width && button.y >= field.y && button.y + button.height <= field.y + field.height, 'the pin is inside the field').toBe(true);
+    expect(button?.width).toBeGreaterThanOrEqual(44);
+    await expect(page.getByText('Uses your location once')).toBeVisible();
+  });
+
+  test('the places come straight from the map services when they answer (one refusing is fine), without calling the server', async ({ page }) => {
+    const user = await signInAs(page);
+    await setNearby(page, user.email, { places: [{ name: 'From The Server', kind: '', distance: 5 }] });
+    const point = (name: string, key: string, value: string, dLon: number) => ({ type: 'Feature', properties: { name, osm_key: key, osm_value: value }, geometry: { type: 'Point', coordinates: [101.6773 + dLon, 3.1177] } });
+    await page.route(/^https:\/\/overpass-api\.de\//, (route) => route.fulfill({ status: 200, headers: CORS, body: 'refused' }));
+    await page.route(/^https:\/\/photon\.komoot\.io\//, (route) => route.fulfill({ status: 200, headers: CORS, contentType: 'application/json', body: JSON.stringify({ features: [point('KFC', 'amenity', 'fast_food', 0.0002), point('Starbucks', 'amenity', 'cafe', 0.0001), point('Centre Court', 'place', 'square', 0)] }) }));
+    await openAdd(page);
+    await page.getByRole('button', { name: 'Find places near me' }).click();
+    const list = page.getByTestId('nearby-place');
+    await expect(list).toHaveCount(2);
+    await expect(list.first()).toContainText('Starbucks');
+    await expect(list.nth(1)).toContainText('fast food');
+    const seen = (await (await page.request.get(`${BACKEND}/__test/nearby-last?email=${encodeURIComponent(user.email)}`)).json()) as { calls?: number };
+    expect(seen.calls ?? 0).toBe(0);
   });
 
   test('a person who typed the category themselves keeps it', async ({ page }) => {

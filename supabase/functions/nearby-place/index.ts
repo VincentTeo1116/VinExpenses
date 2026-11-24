@@ -32,13 +32,27 @@ async function photonPlaces(lat: number, lon: number, radius: number): Promise<P
   return placesFromPhoton(await response.json(), lat, lon, 20);
 }
 
-// Asks both services together and joins the answers. Throws only when BOTH failed; an empty list means the map really has nothing there.
+// The single place under the person (Nominatim), as a list of one: the last resort when the two list services are both unavailable.
+async function nominatimPlace(lat: number, lon: number): Promise<Place[]> {
+  const url = new URL(Deno.env.get("PLACE_REVERSE_URL") || DEFAULT_REVERSE_ENDPOINT);
+  url.search = new URLSearchParams({ format: "jsonv2", lat: String(lat), lon: String(lon), zoom: "18", addressdetails: "1", namedetails: "1" }).toString();
+  const response = await fetch(url, { headers: { Accept: "application/json", "User-Agent": USER_AGENT, "Accept-Language": "en" }, signal: AbortSignal.timeout(LOOKUP_MS) });
+  if (!response.ok) throw new Error(`nominatim status ${response.status}`);
+  const result = await response.json();
+  const a = result.address || {};
+  const name = String(result.name || a.amenity || a.shop || a.restaurant || a.cafe || a.leisure || "").replace(/[\u0000-\u001f<>]/g, " ").trim().slice(0, 80);
+  return name ? [{ name, kind: "", distance: 0 }] : [];
+}
+
+// Asks the services together and joins the answers. Throws only when ALL failed (the message says why, for the logs and the browser's
+// network tab); an empty list means the map really has nothing there.
 async function nearbyList(lat: number, lon: number, radius: number): Promise<Place[]> {
-  const [overpass, photon] = await Promise.allSettled([overpassPlaces(lat, lon, radius), photonPlaces(lat, lon, radius)]);
-  if (overpass.status === "rejected") console.error("nearby-place overpass failed", overpass.reason);
-  if (photon.status === "rejected") console.error("nearby-place photon failed", photon.reason);
-  if (overpass.status === "rejected" && photon.status === "rejected") throw new Error("no map service answered");
-  return mergePlaces([overpass.status === "fulfilled" ? overpass.value : [], photon.status === "fulfilled" ? photon.value : []], 10);
+  const results = await Promise.allSettled([overpassPlaces(lat, lon, radius), photonPlaces(lat, lon, radius), nominatimPlace(lat, lon)]);
+  const names = ["overpass", "photon", "nominatim"];
+  const failures = results.flatMap((r, i) => (r.status === "rejected" ? [`${names[i]}: ${r.reason instanceof Error ? r.reason.message : String(r.reason)}`] : []));
+  failures.forEach((f) => console.error("nearby-place failed:", f));
+  if (failures.length === results.length) throw new Error(failures.join("; "));
+  return mergePlaces(results.map((r) => (r.status === "fulfilled" ? r.value : [])), 10);
 }
 
 // Nearest named shop / restaurant / amenity within 80 m, or "" when none (or the service is down)
@@ -104,8 +118,9 @@ Deno.serve(async (request: Request) => {
         let places = await nearbyList(lat, lon, 150);
         if (!places.length) places = await nearbyList(lat, lon, 300);
         return jsonResponse({ places });
-      } catch (_error) {
-        return jsonResponse({ error: "The map services did not answer. Try again in a moment, or enter the merchant manually." }, 502);
+      } catch (error) {
+        // `detail` names which service failed and with what status (never anything about the person)
+        return jsonResponse({ error: "The map services did not answer. Try again in a moment, or enter the merchant manually.", detail: String((error as Error).message).slice(0, 300) }, 502);
       }
     }
 
