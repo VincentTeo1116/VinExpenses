@@ -28,7 +28,8 @@ function monthLabel(month: string, lang: Lang, style: 'long' | 'short' | 'name')
   return new Intl.DateTimeFormat(LOCALES[lang], options).format(new Date(y, m - 1, 1));
 }
 
-export function DashboardPage() {
+/** `quiet` is Home as the backdrop of the Account pop-up: no reminder pop-up or Telegram nudge may open on top of it. */
+export function DashboardPage({ quiet = false }: { quiet?: boolean } = {}) {
   const { t, lang } = useI18n();
   const { session } = useAuth();
   const navigate = useNavigate();
@@ -48,10 +49,33 @@ export function DashboardPage() {
   const forecast = useMemo(() => forecastMonth(top.spent, overallLimit, month, today), [top.spent, overallLimit, month, today]);
   const patterns = useMemo(() => spendingPatterns(data.expenses, today), [data.expenses, today]);
   const frequent = useMemo(() => frequentMerchants(data.expenses), [data.expenses]);
-  const recent = useMemo(() => [...data.expenses.map((row) => ({ kind: 'expense' as const, row })), ...data.incomes.map((row) => ({ kind: 'income' as const, row }))].sort((a, b) => b.row.created_at.localeCompare(a.row.created_at)).slice(0, 5), [data.expenses, data.incomes]);
+  const recent = useMemo(
+    () =>
+      [...data.expenses.map((row) => ({ kind: 'expense' as const, row })), ...data.incomes.map((row) => ({ kind: 'income' as const, row }))]
+        .sort((a, b) => b.row.created_at.localeCompare(a.row.created_at))
+        .slice(0, 5),
+    [data.expenses, data.incomes],
+  );
   const upcoming = useMemo(
     () =>
-      [...data.recurring.filter((r) => r.active).map((r) => ({ id: r.id, title: r.name, amount: -toCents(r.amount), due: r.next_due })), ...data.recurringIncomes.filter((r) => r.active).map((r) => ({ id: r.id, title: r.source, amount: toCents(r.amount), due: r.next_due }))]
+      [
+        ...data.recurring
+          .filter((r) => r.active)
+          .map((r) => ({
+            id: r.id,
+            title: r.name,
+            amount: -toCents(r.amount),
+            due: r.next_due,
+          })),
+        ...data.recurringIncomes
+          .filter((r) => r.active)
+          .map((r) => ({
+            id: r.id,
+            title: r.source,
+            amount: toCents(r.amount),
+            due: r.next_due,
+          })),
+      ]
         .sort((a, b) => a.due.localeCompare(b.due))
         .slice(0, 4),
     [data.recurring, data.recurringIncomes],
@@ -106,8 +130,8 @@ export function DashboardPage() {
           </button>
         </Notice>
       ) : null}
-      <ReminderPopup />
-      <TelegramPrompt />
+      {quiet ? null : <ReminderPopup />}
+      {quiet ? null : <TelegramPrompt />}
       {data.pendingCount > 0 ? <Notice kind="info">{t('money.pendingBanner', { n: data.pendingCount })}</Notice> : null}
 
       {reminders.list.length > 0 ? (
@@ -116,7 +140,17 @@ export function DashboardPage() {
             <h2 id="dash-rem" className={styles.h2}>
               {t('rem.title')}
             </h2>
-            <button type="button" className={styles.link} onClick={() => navigate('/app/plan', { state: { tab: reminders.list[0]?.kind === 'loan' ? 'loans' : 'deposits' } })}>
+            <button
+              type="button"
+              className={styles.link}
+              onClick={() =>
+                navigate('/app/plan', {
+                  state: {
+                    tab: reminders.list[0]?.kind === 'loan' ? 'loans' : 'deposits',
+                  },
+                })
+              }
+            >
               {t('nav.plan')}
             </button>
           </div>
@@ -134,65 +168,162 @@ export function DashboardPage() {
         </EmptyState>
       ) : (
         <>
-          <div className={styles.top}>
-            <section className={styles.hero} aria-label={t('dash.spentIn', { month: monthName })} data-testid="hero">
-              <div className={styles.heroTop}>
-                <span className={styles.heroLabel}>{t('dash.spentIn', { month: monthLabel(month, lang, 'name') })}</span>
-                {change ? (
-                  <span className={styles.delta} title={compare.throughDay ? t('dash.sameDays') : undefined} data-trend={change.up ? 'up' : change.down ? 'down' : 'same'}>
-                    {change.text}
+          <div className={styles.overview}>
+            <div className={styles.top}>
+              <section className={styles.hero} aria-label={t('dash.spentIn', { month: monthName })} data-testid="hero">
+                <div className={styles.heroTop}>
+                  <span className={styles.heroLabel}>
+                    {t('dash.spentIn', {
+                      month: monthLabel(month, lang, 'name'),
+                    })}
                   </span>
-                ) : null}
-              </div>
-              <p className={styles.heroAmount} data-testid="spent">
-                {money(top.spent)}
-              </p>
-              {top.overall ? (
-                <>
-                  <progress className={`${styles.heroBar} ${styles[top.overall.level]}`} max={100} value={Math.min(100, Math.round(top.overall.percent))} aria-label={t('dash.budgetPct', { percent: Math.round(top.overall.percent), amount: money(top.overall.limit) })} />
-                  <p className={styles.heroCaption}>{top.overall.left >= 0 ? t('bud.left', { amount: money(top.overall.left) }) : t('bud.over', { amount: money(-top.overall.left) })}</p>
-                </>
-              ) : top.income > 0 ? (
-                <p className={styles.heroCaption}>{t('dash.budgetPct', { percent: Math.round((top.spent / top.income) * 100), amount: money(top.income) })}</p>
-              ) : null}
-              {safe ? (
-                <div className={styles.safe} data-testid="safe">
-                  <div>
-                    <span>{t('dash.safe')}</span>
-                    <strong>{money(safe.perDay)}</strong>
-                  </div>
-                  <span>{t('dash.safeSub', { amount: money(safe.left), n: safe.daysLeft })}</span>
+                  {change ? (
+                    <span className={styles.delta} title={compare.throughDay ? t('dash.sameDays') : undefined} data-trend={change.up ? 'up' : change.down ? 'down' : 'same'}>
+                      {change.text}
+                    </span>
+                  ) : null}
                 </div>
-              ) : overallLimit > 0 && isCurrent && top.overall && top.overall.left <= 0 ? (
-                <div className={`${styles.safe} ${styles.safeBad}`}>
-                  <div>
-                    <span>{t('dash.budgetUsed')}</span>
-                    <strong>{t('bud.over', { amount: money(-top.overall.left) })}</strong>
-                  </div>
-                  <span>{t('dash.budgetUsedSub')}</span>
-                </div>
-              ) : null}
-              {forecast?.willExceed ? (
-                <p className={styles.forecast} role="status">
-                  {t('dash.forecast', { amount: money(forecast.projected) })}
+                <p className={styles.heroAmount} data-testid="spent">
+                  {money(top.spent)}
                 </p>
-              ) : null}
-            </section>
+                {top.overall ? (
+                  <>
+                    <progress
+                      className={`${styles.heroBar} ${styles[top.overall.level]}`}
+                      max={100}
+                      value={Math.min(100, Math.round(top.overall.percent))}
+                      aria-label={t('dash.budgetPct', {
+                        percent: Math.round(top.overall.percent),
+                        amount: money(top.overall.limit),
+                      })}
+                    />
+                    <p className={styles.heroCaption}>{top.overall.left >= 0 ? t('bud.left', { amount: money(top.overall.left) }) : t('bud.over', { amount: money(-top.overall.left) })}</p>
+                  </>
+                ) : top.income > 0 ? (
+                  <p className={styles.heroCaption}>
+                    {t('dash.budgetPct', {
+                      percent: Math.round((top.spent / top.income) * 100),
+                      amount: money(top.income),
+                    })}
+                  </p>
+                ) : null}
+                {safe ? (
+                  <div className={styles.safe} data-testid="safe">
+                    <div>
+                      <span>{t('dash.safe')}</span>
+                      <strong>{money(safe.perDay)}</strong>
+                    </div>
+                    <span>
+                      {t('dash.safeSub', {
+                        amount: money(safe.left),
+                        n: safe.daysLeft,
+                      })}
+                    </span>
+                  </div>
+                ) : overallLimit > 0 && isCurrent && top.overall && top.overall.left <= 0 ? (
+                  <div className={`${styles.safe} ${styles.safeBad}`}>
+                    <div>
+                      <span>{t('dash.budgetUsed')}</span>
+                      <strong>{t('bud.over', { amount: money(-top.overall.left) })}</strong>
+                    </div>
+                    <span>{t('dash.budgetUsedSub')}</span>
+                  </div>
+                ) : null}
+                {forecast?.willExceed ? (
+                  <p className={styles.forecast} role="status">
+                    {t('dash.forecast', { amount: money(forecast.projected) })}
+                  </p>
+                ) : null}
+              </section>
 
-            <div className={styles.tiles} role="group" aria-label={t('dash.tiles')}>
-              <div className={styles.tile} data-testid="tile-income">
-                <span className={styles.tileLabel}>{t('dash.income')}</span>
-                <strong className={styles.tileValue}>{money(top.income)}</strong>
+              <div className={styles.tiles} role="group" aria-label={t('dash.tiles')}>
+                <div className={styles.tile} data-testid="tile-income">
+                  <span className={styles.tileLabel}>{t('dash.income')}</span>
+                  <strong className={styles.tileValue}>{money(top.income)}</strong>
+                </div>
+                <div className={styles.tile} data-testid="tile-balance" data-negative={top.balance < 0}>
+                  <span className={styles.tileLabel}>{t('dash.balance')}</span>
+                  <strong className={`${styles.tileValue} ${top.balance < 0 ? styles.neg : ''}`}>{money(top.balance)}</strong>
+                </div>
+                <button
+                  type="button"
+                  className={`${styles.tile} ${styles.budgetTile} ${top.overall ? styles[top.overall.level] : ''}`}
+                  data-testid="tile-budget"
+                  onClick={() => navigate('/app/plan', { state: { tab: 'budgets' } })}
+                >
+                  <span className={styles.tileLabel}>{top.overall ? (top.overall.left < 0 ? t('dash.budgetOver') : t('dash.budgetLeft')) : t('dash.budgetLeft')}</span>
+                  <strong className={styles.tileValue}>{top.overall ? money(Math.abs(top.overall.left)) : t('dash.budgetNotSet')}</strong>
+                  <span className={styles.tileSub}>
+                    {top.overall
+                      ? t('dash.budgetPct', {
+                          percent: Math.min(999, Math.round(top.overall.percent)),
+                          amount: money(top.overall.limit),
+                        })
+                      : t('dash.budgetTap')}
+                  </span>
+                </button>
               </div>
-              <div className={styles.tile} data-testid="tile-balance" data-negative={top.balance < 0}>
-                <span className={styles.tileLabel}>{t('dash.balance')}</span>
-                <strong className={`${styles.tileValue} ${top.balance < 0 ? styles.neg : ''}`}>{money(top.balance)}</strong>
+            </div>
+            <div className={styles.insights}>
+              <div className={styles.insight}>
+                <span className={styles.insightIcon} aria-hidden="true">
+                  <Icon name="calendar" size={22} />
+                </span>
+                <span className={styles.insightLabel}>{detail.separated ? t('dash.dailyEveryday') : t('dash.daily')}</span>
+                <strong className={styles.insightValue} data-testid="daily">
+                  {money(detail.dailyAverage)}
+                </strong>
+                <span className={styles.insightSub}>
+                  {detail.separated
+                    ? t('dash.dailyLeaves', {
+                        amount: money(detail.fixedBills),
+                      })
+                    : isCurrent
+                      ? t('dash.dailySoFar', { n: detail.days })
+                      : t('dash.dailyDays', { n: detail.days })}
+                </span>
               </div>
-              <button type="button" className={`${styles.tile} ${styles.budgetTile} ${top.overall ? styles[top.overall.level] : ''}`} data-testid="tile-budget" onClick={() => navigate('/app/plan', { state: { tab: 'budgets' } })}>
-                <span className={styles.tileLabel}>{top.overall ? (top.overall.left < 0 ? t('dash.budgetOver') : t('dash.budgetLeft')) : t('dash.budgetLeft')}</span>
-                <strong className={styles.tileValue}>{top.overall ? money(Math.abs(top.overall.left)) : t('dash.budgetNotSet')}</strong>
-                <span className={styles.tileSub}>{top.overall ? t('dash.budgetPct', { percent: Math.min(999, Math.round(top.overall.percent)), amount: money(top.overall.limit) }) : t('dash.budgetTap')}</span>
-              </button>
+              <div className={styles.insight}>
+                <span className={styles.insightIcon} aria-hidden="true">
+                  <Icon name="trophy" size={22} />
+                </span>
+                <span className={styles.insightLabel}>{t('dash.top')}</span>
+                {detail.topCategory ? (
+                  <>
+                    <strong className={styles.insightValue}>{categoryOf(detail.topCategory.key).label}</strong>
+                    <span className={styles.insightSub}>
+                      {t(detail.separated ? 'dash.topSubEveryday' : 'dash.topSub', {
+                        amount: money(detail.topCategory.cents),
+                        percent: Math.round(detail.topCategory.percent),
+                      })}
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <strong className={styles.insightValue}>—</strong>
+                    <span className={styles.insightSub}>{t('dash.none')}</span>
+                  </>
+                )}
+              </div>
+              <div className={styles.insight}>
+                <span className={styles.insightIcon} aria-hidden="true">
+                  <Icon name="cash" size={22} />
+                </span>
+                <span className={styles.insightLabel}>{t('dash.largest')}</span>
+                {detail.largest ? (
+                  <>
+                    <strong className={styles.insightValue}>{formatMoney(detail.largest.amount)}</strong>
+                    <span className={styles.insightSub}>
+                      {detail.largest.merchant || categoryOf(detail.largest.category).label} · {formatDate(isoToYmd(detail.largest.created_at), data.dateFormat)}
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <strong className={styles.insightValue}>—</strong>
+                    <span className={styles.insightSub}>{t('dash.none')}</span>
+                  </>
+                )}
+              </div>
             </div>
           </div>
 
@@ -207,46 +338,6 @@ export function DashboardPage() {
             </div>
           ) : null}
 
-          <div className={styles.insights}>
-            <div className={styles.insight}>
-              <span className={styles.insightLabel}>{detail.separated ? t('dash.dailyEveryday') : t('dash.daily')}</span>
-              <strong className={styles.insightValue} data-testid="daily">
-                {money(detail.dailyAverage)}
-              </strong>
-              <span className={styles.insightSub}>{detail.separated ? t('dash.dailyLeaves', { amount: money(detail.fixedBills) }) : isCurrent ? t('dash.dailySoFar', { n: detail.days }) : t('dash.dailyDays', { n: detail.days })}</span>
-            </div>
-            <div className={styles.insight}>
-              <span className={styles.insightLabel}>{t('dash.top')}</span>
-              {detail.topCategory ? (
-                <>
-                  <strong className={styles.insightValue}>{categoryOf(detail.topCategory.key).label}</strong>
-                  <span className={styles.insightSub}>{t(detail.separated ? 'dash.topSubEveryday' : 'dash.topSub', { amount: money(detail.topCategory.cents), percent: Math.round(detail.topCategory.percent) })}</span>
-                </>
-              ) : (
-                <>
-                  <strong className={styles.insightValue}>—</strong>
-                  <span className={styles.insightSub}>{t('dash.none')}</span>
-                </>
-              )}
-            </div>
-            <div className={styles.insight}>
-              <span className={styles.insightLabel}>{t('dash.largest')}</span>
-              {detail.largest ? (
-                <>
-                  <strong className={styles.insightValue}>{formatMoney(detail.largest.amount)}</strong>
-                  <span className={styles.insightSub}>
-                    {detail.largest.merchant || categoryOf(detail.largest.category).label} · {formatDate(isoToYmd(detail.largest.created_at), data.dateFormat)}
-                  </span>
-                </>
-              ) : (
-                <>
-                  <strong className={styles.insightValue}>—</strong>
-                  <span className={styles.insightSub}>{t('dash.none')}</span>
-                </>
-              )}
-            </div>
-          </div>
-
           <div className={styles.grid2}>
             <section className={styles.card} aria-labelledby="dash-cat">
               <h2 id="dash-cat" className={styles.h2}>
@@ -257,7 +348,17 @@ export function DashboardPage() {
                 <p className={styles.empty}>{t('dash.noSpendMonth')}</p>
               ) : (
                 <div className={styles.catBody}>
-                  <Donut slices={slices.map((slice) => ({ key: slice.key, color: categoryOf(slice.key).color, percent: slice.percent, label: categoryOf(slice.key).label }))} centre={money(top.spent)} caption={t('dash.spentWord')} label={t('dash.donutLabel')} />
+                  <Donut
+                    slices={slices.map((slice) => ({
+                      key: slice.key,
+                      color: categoryOf(slice.key).color,
+                      percent: slice.percent,
+                      label: categoryOf(slice.key).label,
+                    }))}
+                    centre={money(top.spent)}
+                    caption={t('dash.spentWord')}
+                    label={t('dash.donutLabel')}
+                  />
                   <ul className={styles.catList}>
                     {slices.map((slice) => {
                       const item = categoryOf(slice.key);
@@ -287,7 +388,18 @@ export function DashboardPage() {
               </h2>
               <p className={styles.muted}>{t('dash.trendSub')}</p>
               <TrendBars
-                points={bars.map((point) => ({ key: point.month, label: monthLabel(point.month, lang, 'short'), spent: point.spent, income: point.income, active: point.month === month, aria: t('dash.trendBar', { month: monthLabel(point.month, lang, 'long'), spent: money(point.spent), income: money(point.income) }) }))}
+                points={bars.map((point) => ({
+                  key: point.month,
+                  label: monthLabel(point.month, lang, 'short'),
+                  spent: point.spent,
+                  income: point.income,
+                  active: point.month === month,
+                  aria: t('dash.trendBar', {
+                    month: monthLabel(point.month, lang, 'long'),
+                    spent: money(point.spent),
+                    income: money(point.income),
+                  }),
+                }))}
                 onPick={setMonth}
               />
               <ul className={styles.legend}>
@@ -349,7 +461,15 @@ export function DashboardPage() {
                   const title = isExpense ? (entry.row as Expense).merchant || categoryOf((entry.row as Expense).category).label : (entry.row as Income).source;
                   return (
                     <li key={`${entry.kind}-${entry.row.id}`}>
-                      <button type="button" className={styles.rowItem} onClick={() => openAdd({ edit: { kind: entry.kind, row: entry.row } })}>
+                      <button
+                        type="button"
+                        className={styles.rowItem}
+                        onClick={() =>
+                          openAdd({
+                            edit: { kind: entry.kind, row: entry.row },
+                          })
+                        }
+                      >
                         <span className={styles.rowText}>
                           <span className={styles.rowTitle}>{title}</span>
                           <span className={styles.rowSub}>{formatDate(isoToYmd(entry.row.created_at), data.dateFormat)}</span>
@@ -369,7 +489,9 @@ export function DashboardPage() {
             </h2>
             <p className={styles.muted}>{t('dash.patternsSub')}</p>
             <p>{t('dash.last7', { amount: money(patterns.last7) })}</p>
-            {patterns.change !== null && patterns.change !== 0 ? <p className={styles.muted}>{patterns.change > 0 ? t('dash.moreThan', { percent: patterns.change }) : t('dash.lessThan', { percent: Math.abs(patterns.change) })}</p> : null}
+            {patterns.change !== null && patterns.change !== 0 ? (
+              <p className={styles.muted}>{patterns.change > 0 ? t('dash.moreThan', { percent: patterns.change }) : t('dash.lessThan', { percent: Math.abs(patterns.change) })}</p>
+            ) : null}
             {patterns.repeats.length > 0 ? (
               <>
                 <ul className={styles.repeats}>

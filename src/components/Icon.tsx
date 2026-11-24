@@ -23,6 +23,10 @@ const paths = {
   bolt: 'M13 3 5 14h6l-1 7 8-11h-6z',
   repeat: 'M17 2l3 3-3 3M20 5H8a4 4 0 0 0-4 4M7 22l-3-3 3-3M4 19h12a4 4 0 0 0 4-4',
   chart: 'M4 20V10M10 20V4M16 20v-7M22 20H2',
+  calendar: 'M4 6h16v14H4zM4 10h16M8 3v4M16 3v4',
+  trophy: 'M8 4h8v5a4 4 0 0 1-8 0zM8 6H4v1a3 3 0 0 0 4 2.8M16 6h4v1a3 3 0 0 1-4 2.8M12 13v4M8 20h8M10 17h4',
+  cash: 'M3 7h18v10H3zM12 9.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5z',
+  dots: 'M5 12h.01M12 12h.01M19 12h.01',
 } as const;
 
 export type IconName = keyof typeof paths;

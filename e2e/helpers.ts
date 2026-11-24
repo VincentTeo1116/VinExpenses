@@ -1,4 +1,4 @@
-import type { Page } from '@playwright/test';
+import { expect, type Page } from '@playwright/test';
 
 export const WIDTHS = [320, 375, 768, 1024, 1440, 1920] as const;
 export const HEIGHTS: Record<number, number> = { 320: 640, 375: 740, 768: 1024, 1024: 768, 1440: 900, 1920: 1080 };
@@ -68,4 +68,18 @@ export function watchProblems(page: Page): string[] {
 
 export async function cspViolations(page: Page): Promise<string[]> {
   return page.evaluate(() => (window as unknown as { __csp?: string[] }).__csp ?? []);
+}
+
+/** Opens the Account pop-up (it sits on top of Home) and, when a section name is given, that section's own pop-up on top of it. */
+export async function openAccount(page: Page, section?: string): Promise<void> {
+  await page.goto('/app/account');
+  const account = page.getByRole('dialog', { name: 'Account', exact: true });
+  await expect(account).toBeVisible();
+  if (section) await openSection(page, section);
+}
+
+/** From the open Account pop-up: opens one of its sections (for example after a reload, which keeps only the Account pop-up). */
+export async function openSection(page: Page, section: string): Promise<void> {
+  await page.getByRole('dialog', { name: 'Account', exact: true }).getByRole('button', { name: section, exact: true }).click();
+  await expect(page.getByRole('dialog', { name: section, exact: true })).toBeVisible();
 }

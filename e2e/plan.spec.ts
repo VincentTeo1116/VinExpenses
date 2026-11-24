@@ -227,6 +227,7 @@ test.describe('account preferences (AC-06)', () => {
     await dialog.getByRole('button', { name: 'Add', exact: true }).click();
     await expect(dialog.getByText('You already have one with that name.')).toBeVisible();
     await page.keyboard.press('Escape');
+    await page.getByRole('dialog', { name: 'Account', exact: true }).getByRole('button', { name: 'Close' }).click(); // Account is a pop-up too
 
     // the add sheet offers the renamed and the new one, but not the hidden one
     await page.getByRole('button', { name: 'Add a transaction' }).first().click();

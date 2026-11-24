@@ -4,7 +4,7 @@ import path from 'node:path';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 import { BACKEND } from './api';
-import { dbRows, isoDaysAgo, seedRows, signInAs, watchProblems } from './helpers';
+import { dbRows, isoDaysAgo, openAccount, seedRows, signInAs, watchProblems } from './helpers';
 
 const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
 const fixture = (name: string) => fs.readFileSync(path.join(__dirname, '..', 'tests', 'fixtures', name), 'utf8');
@@ -206,7 +206,7 @@ test.describe('CSV (CS-01, HI-02)', () => {
 
   test('a bank statement shows a summary first, then adds expenses with guessed categories and income', async ({ page }) => {
     const user = await signInAs(page);
-    await page.goto('/app/account');
+    await openAccount(page, 'Your data');
     await importFile(page, BANK);
     const dialog = page.getByRole('dialog', { name: /Import 4 transaction/ });
     await expect(dialog).toBeVisible();
@@ -226,7 +226,7 @@ test.describe('CSV (CS-01, HI-02)', () => {
 
   test('importing the same file again adds nothing: everything is recognised as already there', async ({ page }) => {
     await signInAs(page);
-    await page.goto('/app/account');
+    await openAccount(page, 'Your data');
     await importFile(page, BANK);
     await page.getByRole('button', { name: 'Import 4' }).click();
     await expect(page.getByText('4 transaction(s) imported')).toBeVisible();
@@ -238,7 +238,7 @@ test.describe('CSV (CS-01, HI-02)', () => {
 
   test('a file that cannot be used is explained, and too-large files are refused', async ({ page }) => {
     await signInAs(page);
-    await page.goto('/app/account');
+    await openAccount(page, 'Your data');
     await importFile(page, 'Name,Colour\nAnn,Red');
     await expect(page.getByText(/could not find a Date column/i)).toBeVisible();
     await importFile(page, 'only a header');
@@ -254,7 +254,7 @@ test.describe('CSV (CS-01, HI-02)', () => {
       { amount: '30.00', category: 'car', payment: 'bank', merchant: 'Petronas', note: null, created_at: isoDaysAgo(1) },
     ]);
     await seedRows(page, user.email, 'incomes', [{ amount: '1000.00', source: 'Bonus', created_at: isoDaysAgo(3) }]);
-    await page.goto('/app/account');
+    await openAccount(page, 'Your data');
     const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Export everything (CSV)' }).click()]);
     expect(download.suggestedFilename()).toMatch(/^vinexpenses-all-\d{4}-\d{2}-\d{2}\.csv$/);
     const text = fs.readFileSync((await download.path()) as string, 'utf8');
@@ -264,7 +264,7 @@ test.describe('CSV (CS-01, HI-02)', () => {
 
     const other = await (await browser.newContext()).newPage();
     const second = await signInAs(other);
-    await other.goto('/app/account');
+    await openAccount(other, 'Your data');
     await other.getByTestId('csv-file').setInputFiles({ name: 'back.csv', mimeType: 'text/csv', buffer: Buffer.from(text) });
     await other.getByRole('button', { name: 'Import 3' }).click();
     await expect(other.getByText('3 transaction(s) imported')).toBeVisible();
@@ -301,9 +301,9 @@ for (const scheme of ['light', 'dark'] as const) {
     let results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
     expect(results.violations.map((v) => `${v.id}: ${v.nodes[0]?.html}`)).toEqual([]);
     await page.keyboard.press('Escape');
-    await page.goto('/app/account');
+    await openAccount(page, 'Your data');
     await page.getByTestId('csv-file').setInputFiles({ name: 'b.csv', mimeType: 'text/csv', buffer: Buffer.from(BANK) });
-    await expect(page.getByRole('dialog')).toBeVisible();
+    await expect(page.getByRole('dialog', { name: /Import/ })).toBeVisible();
     results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
     expect(results.violations.map((v) => `${v.id}: ${v.nodes[0]?.html}`)).toEqual([]);
   });

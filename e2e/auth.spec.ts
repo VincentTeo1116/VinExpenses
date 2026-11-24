@@ -15,9 +15,18 @@ async function signIn(page: Page, email: string, password: string, remember = tr
 }
 
 /** Opens the sign-out sheet, confirms, and waits until the sign-out has really finished. */
+/** Opens the Account pop-up from the menu and one of its sections on top of it. */
+async function openAccountSection(page: Page, section: string) {
+  await page.getByRole('link', { name: 'Account' }).first().click();
+  await page.getByRole('dialog', { name: 'Account', exact: true }).getByRole('button', { name: section, exact: true }).click();
+  await expect(page.getByRole('dialog', { name: section, exact: true })).toBeVisible();
+}
+
 async function signOutViaPage(page: Page) {
-  await page.getByRole('button', { name: 'Sign out' }).click();
-  await page.getByRole('dialog').getByRole('button', { name: 'Sign out' }).click();
+  // close any section that is open on top of the Account pop-up first
+  for (let i = 0; i < 3 && (await page.locator('[role="dialog"]').count()) > 1; i += 1) await page.getByRole('dialog').last().getByRole('button', { name: 'Close' }).click();
+  await page.getByRole('dialog', { name: 'Account', exact: true }).getByRole('button', { name: 'Sign out' }).click();
+  await page.getByRole('dialog', { name: 'Sign out', exact: true }).getByRole('button', { name: 'Sign out' }).click();
   await expect(page).toHaveURL(/\/auth$/);
   await expect(page.getByRole('heading', { name: 'Welcome back' })).toBeVisible();
 }
@@ -335,7 +344,7 @@ test.describe('authenticator (AU-11 … AU-13, AC-03)', () => {
     await seed(request, { email, name: 'Secure' });
     await signIn(page, email, GOOD);
     await appReady(page);
-    await page.getByRole('link', { name: 'Account' }).first().click();
+    await openAccountSection(page, 'Security');
     await expect(page.getByText('Two-step verification is off')).toBeVisible();
     await page.getByRole('button', { name: 'Turn on' }).click();
 
@@ -398,12 +407,12 @@ test.describe('authenticator (AU-11 … AU-13, AC-03)', () => {
     await page.getByLabel('6-digit code').fill('654321');
     await page.getByRole('button', { name: 'Verify' }).click();
     await appReady(page);
-    await page.getByRole('link', { name: 'Account' }).first().click();
+    await openAccountSection(page, 'Security');
     await expect(page.getByText('Two-step verification is on', { exact: true })).toBeVisible();
 
     await page.getByRole('button', { name: 'Make new recovery codes' }).click();
     await expect(page.getByText('Making new codes stops the old ones from working.')).toBeVisible();
-    await page.getByRole('dialog').getByRole('button', { name: 'Make new recovery codes' }).click();
+    await page.getByRole('dialog').last().getByRole('button', { name: 'Make new recovery codes' }).click();
     await expect(page.getByRole('dialog', { name: 'Save your recovery codes' }).locator('ul li')).toHaveCount(8);
     await page.getByLabel('I have saved my recovery codes').check();
     await page.getByRole('button', { name: 'Done' }).click();
@@ -422,13 +431,14 @@ test.describe('authenticator (AU-11 … AU-13, AC-03)', () => {
     const email = uniqueEmail('mfa-cancel');
     await seed(request, { email, name: 'Cancel Test' });
     await signIn(page, email, GOOD);
-    await page.getByRole('link', { name: 'Account' }).first().click();
+    await openAccountSection(page, 'Security');
     await page.getByRole('button', { name: 'Turn on' }).click();
     await expect(page.getByRole('dialog', { name: 'Set up two-step verification' })).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(page.getByText('Two-step verification is off')).toBeVisible();
-    await page.getByRole('link', { name: 'Home' }).first().click();
-    await page.getByRole('link', { name: 'Account' }).first().click();
+    await page.getByRole('dialog', { name: 'Security', exact: true }).getByRole('button', { name: 'Close' }).click();
+    await page.getByRole('dialog', { name: 'Account', exact: true }).getByRole('button', { name: 'Close' }).click();
+    await openAccountSection(page, 'Security');
     await expect(page.getByText('Two-step verification is off')).toBeVisible();
   });
 });
@@ -439,18 +449,20 @@ test.describe('account (AC-01, AC-02) and first-time setup (AU-10)', () => {
     await seed(request, { email, name: 'Account Owner' });
     await signIn(page, email, GOOD);
     await page.getByRole('link', { name: 'Account' }).first().click();
-    await expect(page.getByText('Account Owner')).toBeVisible();
-    await expect(page.getByText(email)).toBeVisible();
-    await expect(page.getByText('Email and password')).toBeVisible();
+    const account = page.getByRole('dialog', { name: 'Account', exact: true });
+    await expect(account.getByText('Account Owner')).toBeVisible(); // the sidebar's user card shows the name too
+    await expect(account.getByText(email)).toBeVisible();
+    await expect(account.getByText('Email and password')).toBeVisible();
+    await account.getByRole('button', { name: 'Change password', exact: true }).click();
 
     await page.getByLabel('Current password').fill('Wrong!Passw0rd1');
     await page.getByLabel('New password').fill(NEW_GOOD);
     await page.getByLabel('Confirm password').fill(NEW_GOOD);
-    await page.getByRole('button', { name: 'Change password' }).click();
+    await page.getByRole('dialog', { name: 'Change password', exact: true }).getByRole('button', { name: 'Change password' }).click();
     await expect(page.getByText('The current password is not right.')).toBeVisible();
 
     await page.getByLabel('Current password').fill(GOOD);
-    await page.getByRole('button', { name: 'Change password' }).click();
+    await page.getByRole('dialog', { name: 'Change password', exact: true }).getByRole('button', { name: 'Change password' }).click();
     await expect(page.getByText('Your password was changed.')).toBeVisible();
 
     await signOutViaPage(page);
@@ -516,7 +528,8 @@ test.describe('contact the admin (PU-01) and old links (AU-16)', () => {
     await signIn(page, email, GOOD);
     await appReady(page);
     await page.getByRole('link', { name: 'Account' }).first().click();
-    await expect(page.getByText('<img src=x onerror=alert(1)>')).toBeVisible();
+    await expect(page.getByRole('dialog', { name: 'Account', exact: true }).getByText('<img src=x onerror=alert(1)>')).toBeVisible();
+    await expect(page.locator('aside').getByText('<img src=x onerror=alert(1)>')).toBeVisible(); // also as plain text in the sidebar card
     expect(await page.locator('main img').count()).toBe(0);
   });
 

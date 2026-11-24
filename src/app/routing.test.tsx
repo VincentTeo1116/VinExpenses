@@ -69,9 +69,9 @@ describe('routing and the signed-in frame', () => {
   it('switching language in Account changes the labels at once, and is remembered', async () => {
     const user = userEvent.setup();
     renderAt('/app/account', fakeClient(SESSION));
-    await screen.findByRole('heading', { level: 1, name: 'Account' });
+    await screen.findByRole('dialog', { name: 'Account' }); // Account is a pop-up over Home
     await user.selectOptions(screen.getByLabelText('Language'), 'ms');
-    expect(await screen.findByRole('heading', { level: 1, name: 'Akaun' })).toBeInTheDocument();
+    expect(await screen.findByRole('dialog', { name: 'Akaun' })).toBeInTheDocument();
     expect(localStorage.getItem('ve_lang')).toBe('ms');
     expect(document.documentElement.lang).toBe('ms');
   });

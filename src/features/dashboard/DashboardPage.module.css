@@ -302,19 +302,48 @@
   color: var(--muted);
 }
 
+/* Wide screens: the big card and its tiles on the left, the three insight cards stacked on the right */
+.overview {
+  display: grid;
+  gap: var(--s-3);
+  min-width: 0;
+}
+@media (min-width: 1100px) {
+  .overview {
+    grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr);
+    align-items: stretch;
+  }
+  .overview .hero {
+    align-content: center;
+    min-height: 220px;
+  }
+}
 .insights {
   display: grid;
   gap: var(--s-3);
   grid-template-columns: minmax(0, 1fr);
+  align-content: stretch;
 }
-@media (min-width: 700px) {
+@media (min-width: 700px) and (max-width: 1099px) {
   .insights {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
+.insightIcon {
+  grid-row: 1 / span 3;
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border-radius: var(--r-md);
+  color: var(--primary);
+  background: var(--primary-soft);
+}
 .insight {
   display: grid;
-  gap: 2px;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-content: center;
+  gap: 2px var(--s-3);
   min-width: 0;
   padding: var(--s-4);
   border-radius: var(--r-lg);
@@ -527,4 +556,12 @@ button.rowItem:hover {
 
 .nudge .muted {
   color: var(--text);
+}
+
+/* On a phone the month switcher is a full-width pill, as before */
+@media (max-width: 699px) {
+  .head > .switch {
+    width: 100%;
+    justify-content: space-between;
+  }
 }

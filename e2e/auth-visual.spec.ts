@@ -126,19 +126,20 @@ test('the mfa setup sheet, setup page and account screen pass accessibility chec
     await submitIn(page).click();
     await expect(page.getByRole('heading', { level: 1, name: /^Hello,/ })).toBeVisible();
     await page.getByRole('link', { name: 'Account' }).first().click();
-    await expect(page.getByRole('heading', { level: 1, name: 'Account' })).toBeVisible();
+    await expect(page.getByRole('dialog', { name: 'Account', exact: true })).toBeVisible();
     const scan = async (label: string) => {
       const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa']).analyze();
       expect(results.violations.map((v) => `${v.impact}: ${v.id}: ${v.nodes.map((n) => n.target.join(' ')).join(' | ')}`), `${label} ${scheme}`).toEqual([]);
     };
     await scan('account');
     await page.screenshot({ path: `screenshots/account-${scheme}.png`, fullPage: true });
+    await page.getByRole('dialog', { name: 'Account', exact: true }).getByRole('button', { name: 'Security', exact: true }).click();
     await page.getByRole('button', { name: 'Turn on' }).click();
     await expect(page.getByRole('img', { name: 'QR code to scan with your authenticator app' })).toBeVisible();
     await scan('mfa setup');
     await page.screenshot({ path: `screenshots/mfa-setup-${scheme}.png` });
     await page.getByLabel('Then enter the 6 digits it shows').fill('654321');
-    await page.getByRole('dialog').getByRole('button', { name: 'Turn on' }).click();
+    await page.getByRole('dialog', { name: 'Set up two-step verification' }).getByRole('button', { name: 'Turn on' }).click();
     await expect(page.getByRole('dialog', { name: 'Save your recovery codes' })).toBeVisible();
     await scan('recovery codes');
     await page.screenshot({ path: `screenshots/recovery-codes-${scheme}.png` });

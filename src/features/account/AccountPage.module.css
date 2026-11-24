@@ -2,7 +2,33 @@
   display: grid;
   gap: var(--s-4);
   min-width: 0;
-  max-width: 720px;
+}
+/* Cards flow into as many columns as the screen has room for, so wide screens are used and nothing stretches too long */
+.grid {
+  columns: 420px 3;
+  column-gap: var(--s-4);
+}
+.grid > * {
+  break-inside: avoid;
+  margin-bottom: var(--s-4);
+}
+.who {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+}
+.avatar {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  color: var(--on-brand);
+  font-size: 1.4rem;
+  font-weight: 800;
+  background: linear-gradient(135deg, var(--brand), var(--brand-end));
+  box-shadow: 0 8px 20px color-mix(in srgb, var(--brand) 30%, transparent);
 }
 .h1 {
   font-size: var(--fs-2xl);
@@ -81,4 +107,151 @@
   .actions > * {
     width: 100%;
   }
+}
+
+/* ---- Account as a pop-up ---- */
+.popup {
+  display: grid;
+  gap: var(--s-4);
+  min-width: 0;
+}
+.profile {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+  padding: var(--s-4);
+  border-radius: var(--r-lg);
+  background: var(--surface-2);
+}
+.profile .avatar {
+  width: 56px;
+  height: 56px;
+}
+.profileText {
+  display: grid;
+  min-width: 0;
+}
+.name {
+  font-size: var(--fs-lg);
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+.email {
+  color: var(--muted);
+  font-size: var(--fs-sm);
+  overflow-wrap: anywhere;
+}
+.method {
+  color: var(--muted);
+  font-size: var(--fs-sm);
+}
+.follows {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-2);
+  color: var(--muted);
+  font-size: var(--fs-sm);
+}
+.follows svg {
+  flex: none;
+  margin-top: 2px;
+  color: var(--primary);
+}
+.themes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+  gap: var(--s-2);
+}
+.themeBtn {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-height: var(--tap);
+  padding: 8px 12px;
+  border-radius: var(--r-md);
+  border: 1.5px solid var(--border);
+  background: var(--surface);
+  font-weight: 650;
+}
+.themeBtn[aria-checked='true'] {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+}
+.dot {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  flex: none;
+}
+.dot_blue {
+  background: #4f46e5;
+}
+.dot_pink {
+  background: #c02670;
+}
+.dot_orange {
+  background: #c2410c;
+}
+.dot_green {
+  background: #047857;
+}
+.rows {
+  display: grid;
+  list-style: none;
+  border-radius: var(--r-lg);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  overflow: hidden;
+}
+.rows li + li {
+  border-top: 1px solid var(--border);
+}
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  width: 100%;
+  min-height: 52px;
+  padding: 8px var(--s-4);
+  text-align: left;
+  font-weight: 650;
+}
+.row:hover {
+  background: var(--surface-2);
+}
+.rowIcon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  color: var(--primary);
+  background: var(--primary-soft);
+}
+.rowText {
+  flex: 1;
+  min-width: 0;
+}
+.chevron {
+  display: grid;
+  color: var(--muted);
+  transform: scaleX(-1);
+}
+.rowDanger,
+.rowDanger .rowIcon {
+  color: var(--danger-text);
+}
+.rowDanger .rowIcon {
+  background: var(--danger-soft);
+}
+/* a section opened from the list: its own pop-up, so the card's frame and repeated title are dropped */
+.flat > section {
+  padding: 0;
+  border: 0;
+  box-shadow: none;
+  background: none;
+}
+.flat > section > h2:first-child {
+  display: none;
 }

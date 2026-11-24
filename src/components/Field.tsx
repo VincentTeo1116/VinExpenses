@@ -1,6 +1,6 @@
 // A labelled input with its error message tied to it for screen readers. The error shows under the field, never in a pop-up.
 import { useId, useState, type InputHTMLAttributes, type ReactNode, type Ref, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react';
-import { Icon } from './Icon';
+import { Icon, type IconName } from './Icon';
 import { useI18n } from '@/lib/i18n';
 import styles from './Field.module.css';
 
@@ -11,9 +11,11 @@ export interface FieldProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 
   /** Extra content under the input (for example the password rules). */
   children?: ReactNode;
   ref?: Ref<HTMLInputElement>;
+  /** A small picture at the start of the box (decorative). */
+  icon?: IconName;
 }
 
-export function Field({ label, error, hint, children, className, ref, ...input }: FieldProps) {
+export function Field({ label, error, hint, children, className, ref, icon, ...input }: FieldProps) {
   const id = useId();
   const errorId = `${id}-error`;
   const hintId = `${id}-hint`;
@@ -23,7 +25,14 @@ export function Field({ label, error, hint, children, className, ref, ...input }
       <label htmlFor={id} className={styles.label}>
         {label}
       </label>
-      <input {...input} ref={ref} id={id} className={`${styles.input} ${error ? styles.invalid : ''}`} aria-invalid={error ? true : undefined} aria-describedby={describedBy} />
+      <div className={styles.box}>
+        {icon ? (
+          <span className={styles.lead} aria-hidden="true">
+            <Icon name={icon} size={18} />
+          </span>
+        ) : null}
+        <input {...input} ref={ref} id={id} className={`${styles.input} ${icon ? styles.withIcon : ''} ${error ? styles.invalid : ''}`} aria-invalid={error ? true : undefined} aria-describedby={describedBy} />
+      </div>
       {hint ? (
         <p id={hintId} className={styles.hint}>
           {hint}

@@ -56,6 +56,7 @@ export function SignInForm({ email, setEmail, go, notice, onBlocked, onUnverifie
       <Field
         label={t('field.email')}
         type="email"
+        icon="mail"
         inputMode="email"
         autoComplete="username"
         autoCapitalize="none"
@@ -63,7 +64,7 @@ export function SignInForm({ email, setEmail, go, notice, onBlocked, onUnverifie
         error={formState.errors.email?.message}
         {...register('email', { onChange: (event) => setEmail(event.target.value) })}
       />
-      <PasswordField label={t('field.password')} error={formState.errors.password?.message} {...register('password')} />
+      <PasswordField label={t('field.password')} icon="lock" error={formState.errors.password?.message} {...register('password')} />
       <div className={styles.row}>
         <label className={styles.check}>
           <input type="checkbox" {...register('remember')} />

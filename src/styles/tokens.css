@@ -54,6 +54,10 @@
   --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
   --dur: 180ms;
 
+  --ambient-a: rgba(124, 119, 244, 0.2);
+  --ambient-b: rgba(236, 72, 153, 0.14);
+  --ambient-c: rgba(6, 182, 212, 0.16);
+
   --z-shell: 10;
   --z-tabbar: 40;
   --z-sheet: 1000;
@@ -83,5 +87,54 @@
     --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
     --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.35);
     --shadow-lg: 0 24px 60px rgba(0, 0, 0, 0.6);
+    --ambient-a: rgba(93, 83, 220, 0.24);
+    --ambient-b: rgba(190, 50, 130, 0.14);
+    --ambient-c: rgba(6, 150, 190, 0.16);
+  }
+}
+
+/* Colour themes (Account > Colour theme). Blue is the base above; light and dark still follow the device. */
+:root[data-theme='pink'] {
+  --brand: #c02670;
+  --brand-600: #9d174d;
+  --brand-end: #e34c91;
+  --primary: #c02670;
+  --primary-soft: rgba(192, 38, 112, 0.12);
+}
+:root[data-theme='orange'] {
+  --brand: #c2410c;
+  --brand-600: #9a3412;
+  --brand-end: #f97316;
+  --primary: #c2410c;
+  --primary-soft: rgba(194, 65, 12, 0.12);
+}
+:root[data-theme='green'] {
+  --brand: #047857;
+  --brand-600: #065f46;
+  --brand-end: #10b981;
+  --primary: #047857;
+  --primary-soft: rgba(4, 120, 87, 0.12);
+}
+@media (prefers-color-scheme: dark) {
+  :root[data-theme='pink'] {
+    --brand: #9d174d;
+    --brand-600: #831843;
+    --brand-end: #be185d;
+    --primary: #f9a8d4;
+    --primary-soft: rgba(249, 168, 212, 0.17);
+  }
+  :root[data-theme='orange'] {
+    --brand: #c2410c;
+    --brand-600: #9a3412;
+    --brand-end: #ea580c;
+    --primary: #fdba74;
+    --primary-soft: rgba(253, 186, 116, 0.17);
+  }
+  :root[data-theme='green'] {
+    --brand: #047857;
+    --brand-600: #065f46;
+    --brand-end: #059669;
+    --primary: #6ee7b7;
+    --primary-soft: rgba(110, 231, 183, 0.17);
   }
 }

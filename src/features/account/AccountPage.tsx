@@ -6,7 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import type { z } from 'zod';
 import { Button } from '@/components/Button';
 import { PasswordField } from '@/components/Field';
-import { Icon } from '@/components/Icon';
+import { Icon, type IconName } from '@/components/Icon';
 import { LanguageSelect } from '@/components/LanguageSelect';
 import { Notice } from '@/components/Notice';
 import { Sheet } from '@/components/Sheet';
@@ -14,7 +14,8 @@ import { useToast } from '@/components/Toast';
 import { ContactSheet } from '@/features/contact/LazyContactSheet';
 import { MfaSetupSheet } from '@/features/mfa/MfaSetupSheet';
 import { useAuth } from '@/app/AuthProvider';
-import { useI18n } from '@/lib/i18n';
+import { useI18n, type MessageKey } from '@/lib/i18n';
+import { applyTheme, readTheme, saveTheme, THEMES, type Theme } from './theme';
 import { gate } from '@/features/auth/gate';
 import { replyText } from '@/features/auth/replyText';
 import { changePasswordSchema, disableMfaSchema } from '@/features/auth/schemas';
@@ -25,93 +26,149 @@ import { DeleteAccountCard, ReminderSettingsCard, ReportCard, TelegramCard } fro
 import { PasswordRules } from '@/features/auth/ui/PasswordRules';
 import styles from './AccountPage.module.css';
 
+type Section = 'reminders' | 'telegram' | 'report' | 'data' | 'security' | 'password' | 'help' | 'delete';
+
 export function AccountPage() {
   const { t } = useI18n();
   const { session, signOut } = useAuth();
-  const [contactOpen, setContactOpen] = useState(false);
-  const [confirmOut, setConfirmOut] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
-  // the Home screen's "connect Telegram" button lands on the Telegram card
-  const wantTelegram = (location.state as { focus?: string } | null)?.focus === 'telegram';
-  useEffect(() => {
-    if (wantTelegram) document.getElementById('acc-tg')?.scrollIntoView({ block: 'center' });
-  }, [wantTelegram]);
+  const state = location.state as { focus?: string; from?: string } | null;
+  // which inner pop-up is open (the Home screen's "connect Telegram" button opens the Telegram one straight away)
+  const [section, setSection] = useState<Section | null>(state?.focus === 'telegram' ? 'telegram' : null);
+  const [confirmOut, setConfirmOut] = useState(false);
+  const [theme, setThemeState] = useState<Theme>(() => readTheme(session?.user?.id));
   const { isAdmin } = useAdminStatus();
   const user = session?.user;
   const meta = (user?.user_metadata ?? {}) as Record<string, unknown>;
   const name = typeof meta.username === 'string' ? meta.username : '';
   const provider = String((user?.app_metadata as Record<string, unknown> | undefined)?.provider ?? 'email');
 
+  // Account is a pop-up over the page you were on, so closing it goes back there
+  const close = () => navigate(state?.from && state.from.startsWith('/app') ? state.from : '/app', { replace: true });
+  const pick = (next: Theme) => {
+    setThemeState(next);
+    saveTheme(user?.id, next);
+    applyTheme(next);
+  };
+  const titles: Record<Section, string> = {
+    reminders: t('remset.title'),
+    telegram: t('tg.title'),
+    report: t('rep.title'),
+    data: t('data.title'),
+    security: t('account.security'),
+    password: t('account.password.title'),
+    help: t('account.help'),
+    delete: t('del.title'),
+  };
+  const row = (id: Section, icon: IconName, danger = false) => (
+    <li key={id}>
+      <button type="button" className={`${styles.row} ${danger ? styles.rowDanger : ''}`} onClick={() => setSection(id)} data-section={id}>
+        <span className={styles.rowIcon} aria-hidden="true">
+          <Icon name={icon} size={20} />
+        </span>
+        <span className={styles.rowText}>{titles[id]}</span>
+        <span className={styles.chevron} aria-hidden="true">
+          <Icon name="back" size={18} />
+        </span>
+      </button>
+    </li>
+  );
+
   return (
-    <div className={styles.page}>
-      <h1 className={styles.h1}>{t('screen.account.title')}</h1>
-
-      <section className={styles.card} aria-labelledby="acc-profile">
-        <h2 id="acc-profile" className={styles.h2}>
-          {t('account.profile')}
-        </h2>
-        <dl className={styles.facts}>
-          <div>
-            <dt>{t('account.name')}</dt>
-            <dd>{name || '—'}</dd>
+    <Sheet open onClose={close} title={t('screen.account.title')}>
+      <div className={styles.popup}>
+        <section className={styles.profile} aria-labelledby="acc-profile">
+          <span className={styles.avatar} aria-hidden="true">
+            {((name || user?.email || '?').trim()[0] ?? '?').toUpperCase()}
+          </span>
+          <div className={styles.profileText}>
+            <h3 id="acc-profile" className={styles.name}>
+              {name || '—'}
+            </h3>
+            <p className={styles.email}>{user?.email ?? '—'}</p>
+            <p className={styles.method}>{provider === 'google' ? t('account.method.google') : t('account.method.email')}</p>
           </div>
-          <div>
-            <dt>{t('account.email')}</dt>
-            <dd>{user?.email ?? '—'}</dd>
-          </div>
-          <div>
-            <dt>{t('account.method')}</dt>
-            <dd>{provider === 'google' ? t('account.method.google') : t('account.method.email')}</dd>
-          </div>
-        </dl>
-      </section>
-
-      <section className={styles.card}>
-        <LanguageSelect />
-      </section>
-
-      <PreferencesCard />
-      {isAdmin ? (
-        <section className={styles.card} aria-labelledby="acc-admin">
-          <h2 id="acc-admin" className={styles.h2}>
-            {t('admin.card')}
-          </h2>
-          <p className={styles.muted}>{t('admin.cardBody')}</p>
-          <Button variant="outline" onClick={() => navigate('/app/admin')}>
-            {t('admin.open')}
-          </Button>
         </section>
-      ) : null}
 
-      <ReminderSettingsCard />
-      <TelegramCard />
-      <ReportCard />
-      <DataCard />
-      <SecurityCard />
-      <PasswordCard />
+        <p className={styles.follows}>
+          <Icon name="info" size={16} /> {t('account.themeFollows')}
+        </p>
 
-      <section className={styles.card} aria-labelledby="acc-help">
-        <h2 id="acc-help" className={styles.h2}>
-          {t('account.help')}
-        </h2>
-        <p className={styles.muted}>{t('account.helpBody')}</p>
-        <Button variant="outline" onClick={() => setContactOpen(true)}>
-          <Icon name="mail" size={18} />
-          {t('common.contactAdmin')}
-        </Button>
-      </section>
+        <section className={styles.card}>
+          <LanguageSelect />
+        </section>
 
-      <DeleteAccountCard />
+        <PreferencesCard />
 
-      <section className={styles.card}>
-        <Button variant="outline" onClick={() => setConfirmOut(true)}>
+        <section className={styles.card} aria-labelledby="acc-theme">
+          <h2 id="acc-theme" className={styles.h2}>
+            {t('account.theme')}
+          </h2>
+          <p className={styles.muted}>{t('account.themeHint')}</p>
+          <div className={styles.themes} role="radiogroup" aria-label={t('account.theme')}>
+            {THEMES.map((item) => (
+              <button key={item} type="button" role="radio" aria-checked={theme === item} className={styles.themeBtn} data-theme-option={item} onClick={() => pick(item)}>
+                <span className={`${styles.dot} ${styles[`dot_${item}`]}`} aria-hidden="true" />
+                {t(`account.theme.${item}` as MessageKey)}
+              </button>
+            ))}
+          </div>
+        </section>
+
+        <ul className={styles.rows} aria-label={t('screen.account.title')}>
+          {isAdmin ? (
+            <li>
+              <button type="button" className={styles.row} onClick={() => navigate('/app/admin')}>
+                <span className={styles.rowIcon} aria-hidden="true">
+                  <Icon name="shield" size={20} />
+                </span>
+                <span className={styles.rowText}>{t('admin.card')}</span>
+                <span className={styles.chevron} aria-hidden="true">
+                  <Icon name="back" size={18} />
+                </span>
+              </button>
+            </li>
+          ) : null}
+          {row('reminders', 'repeat')}
+          {row('telegram', 'bolt')}
+          {row('report', 'mail')}
+          {row('data', 'copy')}
+          {row('security', 'shield')}
+          {row('password', 'key')}
+          {row('help', 'info')}
+          {row('delete', 'alert', true)}
+        </ul>
+
+        <Button variant="outline" block onClick={() => setConfirmOut(true)}>
           <Icon name="logout" size={18} />
           {t('account.signOut')}
         </Button>
-      </section>
+      </div>
 
-      <ContactSheet open={contactOpen} onClose={() => setContactOpen(false)} />
+      {/* each of these is its own pop-up on top of the account pop-up */}
+      <Sheet open={section === 'reminders'} onClose={() => setSection(null)} title={titles.reminders}>
+        <div className={styles.flat}>{section === 'reminders' ? <ReminderSettingsCard /> : null}</div>
+      </Sheet>
+      <Sheet open={section === 'telegram'} onClose={() => setSection(null)} title={titles.telegram}>
+        <div className={styles.flat}>{section === 'telegram' ? <TelegramCard /> : null}</div>
+      </Sheet>
+      <Sheet open={section === 'report'} onClose={() => setSection(null)} title={titles.report}>
+        <div className={styles.flat}>{section === 'report' ? <ReportCard /> : null}</div>
+      </Sheet>
+      <Sheet open={section === 'data'} onClose={() => setSection(null)} title={titles.data}>
+        <div className={styles.flat}>{section === 'data' ? <DataCard /> : null}</div>
+      </Sheet>
+      <Sheet open={section === 'security'} onClose={() => setSection(null)} title={titles.security}>
+        <div className={styles.flat}>{section === 'security' ? <SecurityCard /> : null}</div>
+      </Sheet>
+      <Sheet open={section === 'password'} onClose={() => setSection(null)} title={titles.password}>
+        <div className={styles.flat}>{section === 'password' ? <PasswordCard /> : null}</div>
+      </Sheet>
+      <Sheet open={section === 'delete'} onClose={() => setSection(null)} title={titles.delete}>
+        <div className={styles.flat}>{section === 'delete' ? <DeleteAccountCard /> : null}</div>
+      </Sheet>
+      <ContactSheet open={section === 'help'} onClose={() => setSection(null)} />
       <Sheet open={confirmOut} onClose={() => setConfirmOut(false)} title={t('account.signOut')}>
         <div className={styles.stack}>
           <p className={styles.muted}>{t('account.signOutBody')}</p>
@@ -123,7 +180,7 @@ export function AccountPage() {
           </Button>
         </div>
       </Sheet>
-    </div>
+    </Sheet>
   );
 }
 
@@ -180,7 +237,14 @@ function SecurityCard() {
       {state === 'error' ? (
         <Notice kind="warn">
           {t('error.network')}{' '}
-          <button type="button" className={styles.link} onClick={() => { setState('loading'); void load(); }}>
+          <button
+            type="button"
+            className={styles.link}
+            onClick={() => {
+              setState('loading');
+              void load();
+            }}
+          >
             {t('common.retry')}
           </button>
         </Notice>
@@ -242,7 +306,11 @@ function DisableSheet({ open, onClose, onConfirm }: { open: boolean; onClose: ()
   const { t } = useI18n();
   const [busy, setBusy] = useState(false);
   type Values = z.infer<ReturnType<typeof disableMfaSchema>>;
-  const { register, handleSubmit, formState, setError, reset } = useForm<Values>({ resolver: zodResolver(disableMfaSchema(t)), mode: 'onTouched', defaultValues: { password: '' } });
+  const { register, handleSubmit, formState, setError, reset } = useForm<Values>({
+    resolver: zodResolver(disableMfaSchema(t)),
+    mode: 'onTouched',
+    defaultValues: { password: '' },
+  });
   useEffect(() => {
     if (open) reset({ password: '' });
   }, [open, reset]);
@@ -277,7 +345,11 @@ function PasswordCard() {
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState('');
   type Values = z.infer<ReturnType<typeof changePasswordSchema>>;
-  const { register, handleSubmit, formState, setError, reset, control } = useForm<Values>({ resolver: zodResolver(changePasswordSchema(t)), mode: 'onTouched', defaultValues: { current: '', password: '', confirm: '' } });
+  const { register, handleSubmit, formState, setError, reset, control } = useForm<Values>({
+    resolver: zodResolver(changePasswordSchema(t)),
+    mode: 'onTouched',
+    defaultValues: { current: '', password: '', confirm: '' },
+  });
   const next = useWatch({ control, name: 'password' });
 
   const submit = handleSubmit(async (values) => {
@@ -286,13 +358,21 @@ function PasswordCard() {
     setBusy(true);
     try {
       // The current password is checked through the sign-in door, so wrong guesses are counted and limited
-      const check = await gate('signin', { email: session?.user?.email ?? '', password: values.current });
+      const check = await gate('signin', {
+        email: session?.user?.email ?? '',
+        password: values.current,
+      });
       if (!check.ok) {
-        if (check.code === 'invalid') return setError('current', { message: t('account.password.wrongCurrent') });
+        if (check.code === 'invalid')
+          return setError('current', {
+            message: t('account.password.wrongCurrent'),
+          });
         return setProblem(replyText(check, t));
       }
       if (values.password === values.current) return setError('password', { message: t('setup.sameName') });
-      const { error } = await client.auth.updateUser({ password: values.password });
+      const { error } = await client.auth.updateUser({
+        password: values.password,
+      });
       if (error) {
         if (/same|different/i.test(error.message)) return setError('password', { message: t('setup.sameName') });
         return setProblem(t('reply.generic'));

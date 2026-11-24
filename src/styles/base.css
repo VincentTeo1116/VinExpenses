@@ -109,3 +109,16 @@ a {
 body.scroll-locked {
   overflow: hidden;
 }
+
+/* A fixed wash of colour behind every screen, so cards and the tab bar sit on something */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 70% 40% at 100% 0%, var(--ambient-a), transparent 70%),
+    radial-gradient(ellipse 60% 38% at 0% 100%, var(--ambient-b), transparent 70%),
+    radial-gradient(ellipse 60% 38% at 100% 100%, var(--ambient-c), transparent 70%);
+}

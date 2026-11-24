@@ -2,7 +2,7 @@
   display: grid;
   gap: var(--s-4);
   min-width: 0;
-  max-width: 860px;
+  max-width: none;
 }
 .h1 {
   font-size: var(--fs-2xl);

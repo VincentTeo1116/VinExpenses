@@ -28,9 +28,9 @@ test('the language choice survives a reload and applies to the whole screen', as
   await signInAs(page);
   await page.goto('/app/account');
   await page.getByLabel('Language').selectOption('ms');
-  await expect(page.getByRole('heading', { level: 1, name: 'Akaun' })).toBeVisible();
+  await expect(page.getByRole('dialog', { name: 'Akaun' })).toBeVisible();
   await page.reload();
-  await expect(page.getByRole('heading', { level: 1, name: 'Akaun' })).toBeVisible();
+  await expect(page.getByRole('dialog', { name: 'Akaun' })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.lang)).toBe('ms');
 });
 
@@ -45,7 +45,7 @@ test('storage being unavailable for writes does not break the language switch fo
     });
   });
   await page.getByLabel('Language').selectOption('zh');
-  await expect(page.getByRole('heading', { level: 1, name: '账户' })).toBeVisible();
+  await expect(page.getByRole('dialog', { name: '账户' })).toBeVisible();
 });
 
 test('the manifest and service worker are served and valid', async ({ request }) => {

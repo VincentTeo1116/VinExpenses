@@ -75,3 +75,18 @@
   resize: vertical;
   line-height: 1.5;
 }
+.box {
+  position: relative;
+}
+.lead {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: grid;
+  color: var(--muted);
+  pointer-events: none;
+}
+.withIcon {
+  padding-left: 42px;
+}

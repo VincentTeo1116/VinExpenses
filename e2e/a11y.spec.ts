@@ -23,11 +23,15 @@ for (const scheme of SCHEMES) {
       test('signed-in screens and the add sheet have no accessibility violations', async ({ page }) => {
         test.setTimeout(180_000); // several screens, each scanned, while other suites run
         await signInAs(page);
-        for (const path of ['/app', '/app/history', '/app/plan', '/app/account']) {
+        for (const path of ['/app', '/app/history', '/app/plan']) {
           await page.goto(path);
           await expect(page.locator('h1')).toBeVisible();
           await scan(page, `${path} ${scheme} ${size.width}`);
         }
+        await page.goto('/app/account'); // a pop-up over Home
+        await expect(page.getByRole('dialog', { name: 'Account', exact: true })).toBeVisible();
+        await scan(page, `/app/account ${scheme} ${size.width}`);
+        await page.getByRole('dialog', { name: 'Account', exact: true }).getByRole('button', { name: 'Close' }).click();
         await page.getByRole('button', { name: 'Add a transaction' }).first().click();
         await expect(page.getByRole('dialog')).toBeVisible();
         await scan(page, `add sheet ${scheme} ${size.width}`);

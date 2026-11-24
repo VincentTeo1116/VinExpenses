@@ -41,7 +41,15 @@ export function AppRoutes() {
           <Route index element={<DashboardPage />} />
           <Route path="history" element={<HistoryPage />} />
           <Route path="plan" element={<PlanPage />} />
-          <Route path="account" element={<AccountPage />} />
+          <Route
+            path="account"
+            element={
+              <>
+                <DashboardPage quiet />
+                <AccountPage />
+              </>
+            }
+          />
           <Route path="admin" element={<AdminPage />} />
           <Route path="report" element={<ReportPage />} />
         </Route>

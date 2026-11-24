@@ -2,20 +2,15 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 import { BACKEND } from './api';
-import { dbRows, seedRows, signInAs } from './helpers';
+import { dbRows, openAccount, openSection, seedRows, signInAs } from './helpers';
 
 const setTelegram = (page: Page, email: string, linked: boolean) => page.request.post(`${BACKEND}/__test/telegram`, { data: { email, linked } });
 const verifyEmail = (page: Page, email: string) => page.request.post(`${BACKEND}/__test/verify-report-email`, { data: { email } });
 
-async function openAccount(page: Page) {
-  await page.goto('/app/account');
-  await expect(page.getByRole('heading', { level: 1, name: 'Account' })).toBeVisible();
-}
-
 test.describe('Telegram (AC-04)', () => {
   test('connect gives a one-time link; once linked it shows connected; disconnect puts it back', async ({ page }) => {
     const user = await signInAs(page);
-    await openAccount(page);
+    await openAccount(page, 'Telegram');
     await expect(page.getByTestId('tg-status')).toHaveText('Not connected.');
     await page.getByRole('button', { name: 'Connect Telegram' }).click();
     const open = page.getByRole('link', { name: 'Open Telegram to finish' });
@@ -37,7 +32,7 @@ test.describe('Telegram (AC-04)', () => {
       if (body.action === 'create') return route.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify({ link: 'https://evil.example/?start=ABCDEFGHJK' }) });
       return route.fallback();
     });
-    await openAccount(page);
+    await openAccount(page, 'Telegram');
     await page.getByRole('button', { name: 'Connect Telegram' }).click();
     await expect(page.getByText('The server sent a link the app does not trust')).toBeVisible();
     await expect(page.getByRole('link', { name: 'Open Telegram to finish' })).toHaveCount(0);
@@ -50,8 +45,8 @@ test.describe('Telegram nudge on Home (AC-09)', () => {
     await page.goto('/app');
     await expect(page.getByTestId('tg-prompt')).toBeVisible();
     await page.getByRole('button', { name: 'Connect now' }).click();
-    await expect(page.getByRole('heading', { level: 1, name: 'Account' })).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'Telegram' })).toBeInViewport();
+    await expect(page.getByRole('dialog', { name: 'Account', exact: true })).toBeVisible();
+    await expect(page.getByRole('dialog', { name: 'Telegram', exact: true })).toBeVisible(); // the Telegram section opens straight away
     await page.goto('/app');
     await page.getByRole('button', { name: 'Don\'t ask again' }).click();
     await expect(page.getByTestId('tg-prompt')).toHaveCount(0);
@@ -73,7 +68,7 @@ test.describe('Telegram nudge on Home (AC-09)', () => {
 test.describe('monthly report (AC-05)', () => {
   test('turn it on with an email, save, confirm the address, and the status says confirmed', async ({ page }) => {
     const user = await signInAs(page);
-    await openAccount(page);
+    await openAccount(page, 'Monthly report');
     await page.getByLabel('Send me a monthly report').check();
     await page.getByLabel('Report email address').fill('reports@example.com');
     await page.getByRole('button', { name: 'Save report settings' }).click();
@@ -85,13 +80,14 @@ test.describe('monthly report (AC-05)', () => {
     await expect(page.getByText(/Confirmation email sent/)).toBeVisible();
     await verifyEmail(page, user.email);
     await page.reload();
+    await openSection(page, 'Monthly report');
     await expect(page.getByTestId('report-verified')).toContainText('Confirmed: reports can be sent to this address.');
     await expect(page.getByRole('button', { name: 'Send confirmation email' })).toHaveCount(0);
   });
 
   test('an email is needed when it is on, and a bad address is explained', async ({ page }) => {
     await signInAs(page);
-    await openAccount(page);
+    await openAccount(page, 'Monthly report');
     await page.getByLabel('Send me a monthly report').check();
     await page.getByLabel('Report email address').fill('not an email');
     await page.getByRole('button', { name: 'Save report settings' }).click();
@@ -101,7 +97,7 @@ test.describe('monthly report (AC-05)', () => {
   test('the channel text follows Telegram: connected means reports go there, with email as the backup', async ({ page }) => {
     const user = await signInAs(page);
     await setTelegram(page, user.email, true);
-    await openAccount(page);
+    await openAccount(page, 'Monthly report');
     await expect(page.getByText(/Telegram is connected, so reports go there/)).toBeVisible();
     await expect(page.getByLabel('Backup email address (only if Telegram fails)')).toBeVisible();
     await page.getByRole('button', { name: 'Email', exact: true }).click();
@@ -112,7 +108,7 @@ test.describe('monthly report (AC-05)', () => {
     const user = await signInAs(page);
     await setTelegram(page, user.email, true);
     await seedRows(page, user.email, 'monthly_report_preferences', [{ enabled: true, channel: 'auto', recipient_email: user.email, last_status: 'failed', last_channel: 'telegram', last_month: '2026-10-01', resend_count: 0 }]);
-    await openAccount(page);
+    await openAccount(page, 'Monthly report');
     await expect(page.getByTestId('report-last')).toContainText('could not be sent');
     await page.getByRole('button', { name: 'Send it again (2 left)' }).click();
     await expect(page.getByText('Your report is on its way', { exact: true })).toBeVisible();
@@ -120,23 +116,24 @@ test.describe('monthly report (AC-05)', () => {
     expect(((await dbRows(page, user.email, 'monthly_report_preferences'))[0] as Record<string, unknown>).resend_count).toBe(1);
     // reloading keeps the "on its way" note for 15 minutes (kept on this device)
     await page.reload();
+    await openSection(page, 'Monthly report');
     await expect(page.getByText(/Please allow about 15 minutes/)).toBeVisible();
   });
 
   test('after two re-sends the button is gone and the admin is offered instead', async ({ page }) => {
     const user = await signInAs(page);
     await seedRows(page, user.email, 'monthly_report_preferences', [{ enabled: true, channel: 'auto', recipient_email: user.email, verified_email: user.email, last_status: 'failed', last_channel: 'email', last_month: '2026-10-01', resend_count: 2 }]);
-    await openAccount(page);
+    await openAccount(page, 'Monthly report');
     await expect(page.getByRole('button', { name: /Send it again/ })).toHaveCount(0);
     await page.getByRole('button', { name: 'Contact the admin' }).last().click();
-    await expect(page.getByRole('dialog')).toBeVisible();
+    await expect(page.getByRole('dialog').last()).toBeVisible(); // the contact form, on top of the other pop-ups
   });
 });
 
 test.describe('reminder settings (AC-06)', () => {
   test('save the hour, the pop-up mode and hiding amounts; they come back after a reload', async ({ page }) => {
     const user = await signInAs(page);
-    await openAccount(page);
+    await openAccount(page, 'Reminder settings');
     await page.getByLabel('Send reminders at').selectOption('7');
     await page.getByLabel('Pop-up on the Home screen').selectOption('never');
     await page.getByLabel('Hide amounts in reminder messages').check();
@@ -144,6 +141,7 @@ test.describe('reminder settings (AC-06)', () => {
     await expect(page.getByText('Reminder settings saved')).toBeVisible();
     expect((await dbRows(page, user.email, 'user_preferences'))[0]).toMatchObject({ reminder_hour: 7, reminder_popup: 'never', reminder_hide_amounts: true });
     await page.reload();
+    await openSection(page, 'Reminder settings');
     await expect(page.getByLabel('Send reminders at')).toHaveValue('7');
     await expect(page.getByLabel('Pop-up on the Home screen')).toHaveValue('never');
     await expect(page.getByLabel('Hide amounts in reminder messages')).toBeChecked();
@@ -154,7 +152,7 @@ test.describe('delete account (AC-07)', () => {
   test('the button stays off until DELETE is typed; then the account and its data are gone and sign-in is refused', async ({ page }) => {
     const user = await signInAs(page);
     await seedRows(page, user.email, 'expenses', [{ amount: '5.00', category: 'food', payment: 'card', merchant: 'x', note: null, created_at: new Date().toISOString() }]);
-    await openAccount(page);
+    await openAccount(page, 'Delete my account');
     const button = page.getByRole('button', { name: 'Delete my account and data' });
     await expect(button).toBeDisabled();
     await page.getByLabel('Type DELETE to confirm').fill('delete');
@@ -170,7 +168,7 @@ test.describe('delete account (AC-07)', () => {
 
   test('offline it says to connect first and deletes nothing', async ({ page, context }) => {
     const user = await signInAs(page);
-    await openAccount(page);
+    await openAccount(page, 'Delete my account');
     await page.getByLabel('Type DELETE to confirm').fill('DELETE');
     await context.setOffline(true);
     await page.getByRole('button', { name: 'Delete my account and data' }).click();
@@ -186,11 +184,24 @@ for (const scheme of ['light', 'dark'] as const) {
     await page.emulateMedia({ colorScheme: scheme });
     const user = await signInAs(page);
     await seedRows(page, user.email, 'monthly_report_preferences', [{ enabled: true, channel: 'auto', recipient_email: user.email, last_status: 'failed', last_channel: 'email', last_month: '2026-10-01', resend_count: 0 }]);
+    const scan = async (label: string) => {
+      const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
+      expect(results.violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(' ')).join(' | ')}`), label).toEqual([]);
+    };
     await openAccount(page);
-    await page.getByRole('button', { name: 'Connect Telegram' }).click();
-    await expect(page.getByRole('link', { name: 'Open Telegram to finish' })).toBeVisible();
-    await page.getByLabel('Type DELETE to confirm').fill('DEL');
-    const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
-    expect(results.violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(' ')).join(' | ')}`)).toEqual([]);
+    await scan('the Account pop-up');
+    for (const section of ['Reminder settings', 'Telegram', 'Monthly report', 'Your data', 'Security', 'Change password', 'Delete my account']) {
+      await page.getByRole('dialog', { name: 'Account', exact: true }).getByRole('button', { name: section, exact: true }).click();
+      const inner = page.getByRole('dialog', { name: section, exact: true });
+      await expect(inner).toBeVisible();
+      if (section === 'Telegram') {
+        await inner.getByRole('button', { name: 'Connect Telegram' }).click();
+        await expect(page.getByRole('link', { name: 'Open Telegram to finish' })).toBeVisible();
+      }
+      if (section === 'Delete my account') await page.getByLabel('Type DELETE to confirm').fill('DEL');
+      await scan(section);
+      await inner.getByRole('button', { name: 'Close' }).click();
+      await expect(inner).toHaveCount(0);
+    }
   });
 }
