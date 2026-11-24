@@ -185,3 +185,6 @@
 .big .input.invalid {
   min-height: 48px; /* still a full-size target on the narrowest phones */
 }
+.input {
+  transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+}

@@ -9,6 +9,7 @@ import { useToast } from '@/components/Toast';
 import { useI18n } from '@/lib/i18n';
 import { formatDate, todayYmd } from '@/lib/dates';
 import { formatMoney } from '@/lib/money';
+import { CountMoney } from '@/lib/motion';
 import { useMoney } from '@/features/money/MoneyContext';
 import { DataError } from '@/features/money/data';
 import { useFinanceActions, useFinanceData } from './data';
@@ -234,7 +235,9 @@ export function LoansPanel() {
             <div className={styles.result} data-testid="ln-result">
               <div className={styles.big}>
                 <span>{t('ln.res.instalment')}</span>
-                <strong data-testid="ln-instalment">{formatMoney(result.instalment)}</strong>
+                <strong data-testid="ln-instalment">
+                  <CountMoney value={result.instalment} />
+                </strong>
               </div>
               <p className={styles.muted}>{result.lastInstalment !== result.instalment ? t('ln.res.last', { amount: formatMoney(result.lastInstalment) }) : formatDate(result.lastPaymentDate, money.dateFormat)}</p>
               <div className={styles.facts}>

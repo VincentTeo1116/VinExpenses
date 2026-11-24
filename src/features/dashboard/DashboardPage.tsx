@@ -9,6 +9,8 @@ import { Icon } from '@/components/Icon';
 import { Notice } from '@/components/Notice';
 import { useAuth } from '@/app/AuthProvider';
 import { useI18n, type Lang } from '@/lib/i18n';
+import { useCountUp, useGrown } from '@/lib/motion';
+import { useJustAdded } from '@/features/money/justAdded';
 import { daysBetween, formatDate, isoToYmd, monthKey, todayYmd } from '@/lib/dates';
 import { formatMoney, formatSigned, toCents } from '@/lib/money';
 import { budgetFor, dueWording } from '@/features/money/calc';
@@ -97,6 +99,12 @@ export function DashboardPage({ quiet = false }: { quiet?: boolean } = {}) {
   };
   const change = delta();
 
+  // the amounts count to their value and the bars grow in, as they always did
+  const spentShown = useCountUp(top.spent);
+  const incomeShown = useCountUp(top.income);
+  const balanceShown = useCountUp(top.balance);
+  const grown = useGrown();
+  const fresh = useJustAdded();
   const remOverdue = reminders.list.filter((item) => item.group === 'overdue').length;
   const goHistory = (category?: string) => navigate('/app/history', { state: { month, category } });
 
@@ -193,14 +201,14 @@ export function DashboardPage({ quiet = false }: { quiet?: boolean } = {}) {
                   ) : null}
                 </div>
                 <p className={styles.heroAmount} data-testid="spent">
-                  {money(top.spent)}
+                  {money(Math.round(spentShown))}
                 </p>
                 {top.overall ? (
                   <>
                     <progress
                       className={`${styles.heroBar} ${styles[top.overall.level]}`}
                       max={100}
-                      value={Math.min(100, Math.round(top.overall.percent))}
+                      value={grown ? Math.min(100, Math.round(top.overall.percent)) : 0}
                       aria-label={t('dash.budgetPct', {
                         percent: Math.round(top.overall.percent),
                         amount: money(top.overall.limit),
@@ -248,11 +256,11 @@ export function DashboardPage({ quiet = false }: { quiet?: boolean } = {}) {
               <div className={styles.tiles} role="group" aria-label={t('dash.tiles')}>
                 <div className={styles.tile} data-testid="tile-income">
                   <span className={styles.tileLabel}>{t('dash.income')}</span>
-                  <strong className={styles.tileValue}>{money(top.income)}</strong>
+                  <strong className={styles.tileValue}>{money(Math.round(incomeShown))}</strong>
                 </div>
                 <div className={styles.tile} data-testid="tile-balance" data-negative={top.balance < 0}>
                   <span className={styles.tileLabel}>{t('dash.balance')}</span>
-                  <strong className={`${styles.tileValue} ${top.balance < 0 ? styles.neg : ''}`}>{money(top.balance)}</strong>
+                  <strong className={`${styles.tileValue} ${top.balance < 0 ? styles.neg : ''}`}>{money(Math.round(balanceShown))}</strong>
                 </div>
                 <button
                   type="button"
@@ -369,10 +377,11 @@ export function DashboardPage({ quiet = false }: { quiet?: boolean } = {}) {
                       key: slice.key,
                       color: categoryOf(slice.key).color,
                       percent: slice.percent,
-                      label: categoryOf(slice.key).label,
+                      label: `${categoryOf(slice.key).label}: ${money(slice.cents)}`,
                     }))}
                     centre={money(top.spent)}
                     caption={t('dash.spentWord')}
+                    onPick={goHistory}
                     label={t('dash.donutLabel')}
                   />
                   <ul className={styles.catList}>
@@ -386,7 +395,7 @@ export function DashboardPage({ quiet = false }: { quiet?: boolean } = {}) {
                               <span className={styles.catName}>{item.label}</span>
                               <svg className={styles.catBar} viewBox="0 0 100 4" preserveAspectRatio="none" aria-hidden="true">
                                 <rect className={styles.catTrack} width="100" height="4" rx="2" />
-                                <rect width={Math.max(2, Math.min(100, slice.percent))} height="4" rx="2" fill={item.color} />
+                                <rect className={styles.catFill} width={grown ? Math.max(2, Math.min(100, slice.percent)) : 0} height="4" rx="2" fill={item.color} />
                               </svg>
                             </span>
                             <span className={styles.catAmount}>
@@ -491,7 +500,7 @@ export function DashboardPage({ quiet = false }: { quiet?: boolean } = {}) {
                   const isExpense = entry.kind === 'expense';
                   const title = isExpense ? (entry.row as Expense).merchant || categoryOf((entry.row as Expense).category).label : (entry.row as Income).source;
                   return (
-                    <li key={`${entry.kind}-${entry.row.id}`}>
+                    <li key={`${entry.kind}-${entry.row.id}`} className={fresh === entry.row.id ? styles.fresh : undefined}>
                       <button
                         type="button"
                         className={styles.rowItem}

@@ -118,3 +118,8 @@
 .over::-moz-progress-bar {
   background: var(--danger);
 }
+
+/* the bar fills to how much of the budget is used */
+.bar::-webkit-progress-value {
+  transition: width 0.6s var(--ease), background 0.3s;
+}

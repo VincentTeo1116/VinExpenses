@@ -231,7 +231,7 @@ function AddBody({ request, onClose }: { request: AddRequest; onClose: () => voi
 
   return (
     <Sheet open onClose={onClose} title={title}>
-      <form onSubmit={save} noValidate className={styles.form}>
+      <form onSubmit={save} noValidate className={styles.form} data-kind={kind}>
         {editing ? null : (
           <div className={styles.kind} role="group" aria-label={t('add.kind')}>
             {(['expense', 'income'] as const).map((value) => (

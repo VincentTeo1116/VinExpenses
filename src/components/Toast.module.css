@@ -29,7 +29,7 @@
   font-size: var(--fs-md);
   font-weight: 500;
   box-shadow: 0 12px 30px rgba(0, 0, 0, 0.3);
-  animation: in 0.25s var(--ease);
+  animation: in 0.3s var(--ease);
 }
 .success svg {
   color: #34d399;
@@ -48,7 +48,7 @@
 @keyframes in {
   from {
     opacity: 0;
-    transform: translateY(12px);
+    transform: translateY(14px);
   }
   to {
     opacity: 1;

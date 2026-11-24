@@ -66,3 +66,9 @@
 .chip svg {
   flex: none;
 }
+.chip {
+  transition: border-color 0.15s, background 0.15s, color 0.15s, transform 0.12s;
+}
+.chip:active {
+  transform: scale(0.96);
+}

@@ -26,7 +26,7 @@
   color: var(--text);
   border-radius: 26px 26px 0 0;
   box-shadow: var(--shadow-lg);
-  animation: rise 0.28s var(--ease);
+  animation: rise 0.3s var(--ease);
 }
 /* the pop-up scrolls, but shows no scroll bar */
 .sheet {
@@ -95,7 +95,7 @@
     border-radius: var(--r-xl);
     padding: var(--s-6);
     max-height: calc(100dvh - 32px);
-    animation: pop 0.22s var(--ease);
+    animation: pop 0.25s var(--ease);
   }
   .grabber {
     display: none;
@@ -103,7 +103,7 @@
 }
 @keyframes rise {
   from {
-    transform: translateY(24px);
+    transform: translateY(40px);
     opacity: 0;
   }
   to {
@@ -113,7 +113,7 @@
 }
 @keyframes pop {
   from {
-    transform: scale(0.97);
+    transform: translateY(12px) scale(0.97);
     opacity: 0;
   }
   to {
@@ -143,4 +143,23 @@
     backdrop-filter: none;
     background: var(--surface);
   }
+}
+@keyframes dim {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.overlay {
+  animation: dim 0.2s ease-out;
+}
+.close {
+  transition: background 0.15s, color 0.15s, transform 0.15s;
+}
+.close:hover {
+  background: var(--primary-soft);
+  color: var(--primary);
+  transform: scale(1.08);
 }

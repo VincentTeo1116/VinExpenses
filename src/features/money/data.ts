@@ -1,5 +1,6 @@
 // Loading and saving the person's money records. Every read and write is limited to the signed-in person by the database
 // (row-level security); the app also sends their id, which the database checks against the sign-in.
+import { markJustAdded } from './justAdded';
 import { useCallback, useEffect, useMemo, useRef, useSyncExternalStore } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -180,6 +181,7 @@ export function useMoneyActions() {
         const saved = await insert<Expense & Income>(table, row as unknown as Record<string, unknown>);
         if (kind === 'expense') patchList<Expense>(k.expenses, (list) => [saved as Expense, ...list].sort(byDateDesc));
         else patchList<Income>(k.incomes, (list) => [saved as Income, ...list].sort(byDateDesc));
+        markJustAdded((saved as { id: string }).id);
         return 'saved';
       } catch (error) {
         if (error instanceof DataError && error.offline) return keep();

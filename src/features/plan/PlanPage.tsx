@@ -42,7 +42,7 @@ export function PlanPage() {
           </button>
         ))}
       </div>
-      <div role="tabpanel" id={`${base}-panel`} aria-labelledby={`${base}-${tab}`} className={styles.panel}>
+      <div role="tabpanel" id={`${base}-panel`} aria-labelledby={`${base}-${tab}`} className={styles.panel} key={tab}>
         {tab === 'recurring' ? <RecurringPanel /> : tab === 'budgets' ? <BudgetsPanel /> : tab === 'deposits' ? <DepositsPanel /> : <LoansPanel />}
       </div>
       {reminders.list.length > 0 ? (

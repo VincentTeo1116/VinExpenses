@@ -14,6 +14,7 @@ import { formatMoney, formatSigned, toCents } from '@/lib/money';
 import { useMoney } from '@/features/money/MoneyContext';
 import type { Expense, Income } from '@/features/money/types';
 import { SwipeRow } from './SwipeRow';
+import { useJustAdded } from '@/features/money/justAdded';
 import styles from './HistoryPage.module.css';
 
 type Row = { kind: 'expense'; row: Expense & { pending?: boolean } } | { kind: 'income'; row: Income & { pending?: boolean } };
@@ -77,6 +78,7 @@ export function HistoryPage() {
     }
   };
 
+  const fresh = useJustAdded();
   const filtered = Boolean(type !== 'all' || category || month || search.trim());
   const reset = () => {
     setType('all');
@@ -235,7 +237,7 @@ export function HistoryPage() {
                     const sub = isExpense ? `${item?.label} · ${paymentOf((entry.row as Expense).payment).label}` : t('add.income');
                     const amount = formatSigned((isExpense ? -1 : 1) * (toCents(entry.row.amount) / 100));
                     return (
-                      <SwipeRow key={`${entry.kind}-${entry.row.id}`} className={styles.row} kind={entry.kind} duplicateLabel={t('history.duplicate')} deleteLabel={t('add.delete')} onDuplicate={() => duplicate(entry)} onDelete={() => void remove(entry)}>
+                      <SwipeRow key={`${entry.kind}-${entry.row.id}`} className={`${styles.row} ${fresh === entry.row.id ? styles.fresh : ''}`} kind={entry.kind} duplicateLabel={t('history.duplicate')} deleteLabel={t('add.delete')} onDuplicate={() => duplicate(entry)} onDelete={() => void remove(entry)}>
                         <button type="button" data-slide className={styles.main} onClick={() => openAdd({ edit: { kind: entry.kind, row: entry.row } })}>
                           <span className={styles.glyph} data-glyph={item?.key ?? 'income'}>
                             {item ? <CatIcon name={item.key} color={item.color} glyph={item.glyph} /> : <CatIcon name="income" color="#059669" />}

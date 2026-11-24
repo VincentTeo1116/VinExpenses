@@ -2,6 +2,7 @@
 // the row's own buttons and the edit sheet do the same, so nothing depends on being able to swipe.
 import { useRef, type PointerEvent, type ReactNode } from 'react';
 import { Icon } from '@/components/Icon';
+import { prefersReducedMotion } from '@/lib/motion';
 import styles from './SwipeRow.module.css';
 
 const TRIGGER = 84; // how far the row must travel before letting go does something
@@ -28,12 +29,21 @@ export function SwipeRow({ className, kind, duplicateLabel, deleteLabel, onDupli
     const face = item?.querySelector<HTMLElement>('[data-slide]');
     if (!item || !face) return;
     if (dx === 0) {
-      face.style.removeProperty('transform');
-      if (!face.getAttribute('style')) face.removeAttribute('style');
-      item.removeAttribute('data-swipe');
-      item.removeAttribute('data-armed');
+      const tidy = () => {
+        face.style.removeProperty('transform');
+        face.style.removeProperty('transition');
+        if (!face.getAttribute('style')) face.removeAttribute('style');
+        item.removeAttribute('data-swipe');
+        item.removeAttribute('data-armed');
+      };
+      if (prefersReducedMotion() || !face.style.transform) return tidy();
+      // glide back to rest, then leave no trace
+      face.style.transition = 'transform 0.22s cubic-bezier(0.2, 0.7, 0.2, 1)';
+      face.style.transform = 'translateX(0)';
+      setTimeout(tidy, 240);
       return;
     }
+    face.style.removeProperty('transition');
     face.style.transform = `translateX(${dx}px)`;
     item.setAttribute('data-swipe', dx > 0 ? 'duplicate' : 'delete');
     item.toggleAttribute('data-armed', Math.abs(dx) >= TRIGGER);

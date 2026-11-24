@@ -111,7 +111,9 @@ export function AppShell() {
         <OfflineBanner />
         <main id="main" tabIndex={-1} className={styles.main}>
           <ErrorBoundary resetKey={path}>
-            <Outlet />
+            <div key={path} className={styles.screen}>
+              <Outlet />
+            </div>
           </ErrorBoundary>
         </main>
       </div>

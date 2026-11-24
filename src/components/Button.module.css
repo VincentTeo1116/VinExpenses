@@ -64,3 +64,20 @@
     transform: rotate(360deg);
   }
 }
+
+/* a button answers the pointer and the press */
+.btn {
+  transition: transform 0.15s var(--ease), box-shadow 0.2s, background 0.2s, filter 0.2s, border-color 0.2s;
+}
+.btn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+.primary:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+.btn svg {
+  transition: transform 0.2s var(--ease);
+}
+.btn:hover:not(:disabled) svg {
+  transform: scale(1.12);
+}

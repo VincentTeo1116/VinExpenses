@@ -81,3 +81,27 @@
     font-size: var(--fs-md);
   }
 }
+
+/* ---- motion: each section fades up when its tab is chosen ---- */
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.panel {
+  animation: fadeUp 0.22s var(--ease);
+}
+.tab svg {
+  transition: transform 0.15s var(--ease);
+}
+.on svg {
+  transform: translateY(-1px);
+}
+.tab:active {
+  transform: scale(0.97);
+}

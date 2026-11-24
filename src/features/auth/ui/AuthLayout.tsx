@@ -40,7 +40,9 @@ export function AuthLayout({ title, subtitle, children, footer }: { title: strin
           </div>
           <h1 className={styles.title}>{title}</h1>
           {subtitle ? <p className={styles.subtitle}>{subtitle}</p> : null}
-          <div className={styles.body}>{children}</div>
+          <div className={styles.body} key={title}>
+            {children}
+          </div>
           {footer ? <div className={styles.footer}>{footer}</div> : null}
         </div>
         <div className={styles.lang}>

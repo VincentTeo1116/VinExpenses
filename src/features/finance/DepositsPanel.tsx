@@ -9,6 +9,7 @@ import { useToast } from '@/components/Toast';
 import { useI18n } from '@/lib/i18n';
 import { formatDate, todayYmd } from '@/lib/dates';
 import { formatMoney } from '@/lib/money';
+import { CountMoney } from '@/lib/motion';
 import { useMoney } from '@/features/money/MoneyContext';
 import { DataError } from '@/features/money/data';
 import { useFinanceActions, useFinanceData } from './data';
@@ -260,7 +261,9 @@ export function DepositsPanel() {
             <div className={styles.result} data-testid="fd-result">
               <div className={styles.big}>
                 <span>{t('fd.res.maturity')}</span>
-                <strong data-testid="fd-maturity">{formatMoney(result.maturityAmount)}</strong>
+                <strong data-testid="fd-maturity">
+                  <CountMoney value={result.maturityAmount} />
+                </strong>
               </div>
               <p className={styles.muted}>{t('fd.maturityNow', { date: formatDate(result.maturityDate, money.dateFormat), n: result.days })}</p>
               <div className={styles.facts}>
