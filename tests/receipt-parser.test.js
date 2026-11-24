@@ -3,7 +3,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { parseReceiptText, pdfItemsToText, findAmountsInLine, scoreLabel, parseDate, toLines } = require('../receipt-parser.js');
+const { parseReceiptText, pdfItemsToText, findAmountsInLine, scoreLabel, parseDate, toLines } = require('../legacy/receipt-parser.js');
 
 const NOW = new Date(2026, 9, 20); // fixed "today", so date checks never depend on when the tests run
 const fixture = name => fs.readFileSync(path.join(__dirname, 'fixtures', name), 'utf8');
@@ -177,7 +177,7 @@ test('PDF text: fragments that touch are joined without a gap, wide gaps become 
 });
 
 // Found by running real PDFs through a real browser Section
-const { parseBest, pdfContentOrderToText } = require('../receipt-parser.js');
+const { parseBest, pdfContentOrderToText } = require('../legacy/receipt-parser.js');
 const parseBestNow = texts => parseBest(texts, { now: NOW });
 
 test('PDF readers return look-alike characters (Kangxi radicals); they must still match dates and keywords', () => {

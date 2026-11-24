@@ -1,0 +1,125 @@
+.form {
+  display: grid;
+  gap: var(--s-3);
+  min-width: 0;
+}
+.lead {
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-2) var(--s-4);
+}
+.check {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-height: var(--tap);
+  font-size: var(--fs-sm);
+  cursor: pointer;
+}
+.check input {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--brand);
+}
+.link {
+  min-height: var(--tap);
+  padding: 0 var(--s-2);
+  color: var(--primary);
+  font-weight: 650;
+  font-size: var(--fs-sm);
+  text-align: center;
+}
+.link:hover {
+  text-decoration: underline;
+}
+.inlineLink {
+  color: var(--primary);
+  font-weight: 700;
+  text-decoration: underline;
+}
+.note {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+.divider {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  color: var(--muted);
+  font-size: var(--fs-sm);
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.divider::before,
+.divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+.codeField input {
+  font-size: 1.5rem;
+  letter-spacing: 0.35em;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.timer {
+  min-height: 1.4em;
+  font-size: var(--fs-sm);
+  color: var(--muted);
+  text-align: center;
+}
+.timerExpired {
+  color: var(--danger);
+  font-weight: 650;
+}
+.pauseIcon {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  margin: 0 auto;
+  border-radius: 20px;
+  color: var(--warning);
+  background: var(--warning-soft);
+}
+.bigTimer {
+  text-align: center;
+  font-size: var(--fs-lg);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 4px;
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+}
+.tab {
+  min-height: var(--tap);
+  border-radius: calc(var(--r-md) - 4px);
+  font-weight: 650;
+  color: var(--muted);
+}
+.tabActive {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-sm);
+}
+.agree {
+  font-size: var(--fs-sm);
+  color: var(--muted);
+  text-align: center;
+}

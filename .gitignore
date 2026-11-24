@@ -47,3 +47,11 @@ receipts/
 # ---- Local browser-test scaffolding ----
 test.html
 mock-supabase.js
+
+# React build output and test artefacts
+dist-e2e/
+test-results/
+playwright-report/
+coverage/
+*.tsbuildinfo
+screenshots/

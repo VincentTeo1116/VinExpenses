@@ -8,7 +8,8 @@ const H = require('./helpers/tg-harness.js');
 const { A, CHAT_A, setup, message, deliver, link, seedChoices } = H;
 
 const root = path.join(__dirname, '..');
-const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
+const resolve = (...parts) => { const rel = path.join(...parts); const old = path.join(root, 'legacy', rel); return fs.existsSync(old) ? old : path.join(root, rel); };
+const read = (file) => fs.readFileSync(resolve(file), 'utf8');
 
 test.afterEach(() => { delete globalThis.Deno; });
 
@@ -82,7 +83,7 @@ test('page: strict security policy, only its own scripts, no inline code or styl
     for (const attrs of scripts) {
         const src = attrs.match(/src="([^"]+)"/)[1];
         if (src === '../config.js') continue; // written from your secrets during the build, never committed
-        assert.ok(fs.existsSync(path.join(root, 'miniapp', src)), `${src} exists`);
+        assert.ok(fs.existsSync(resolve('miniapp', src)), `${src} exists`);
     }
 });
 
@@ -101,9 +102,10 @@ test('page: code never writes HTML from raw data, never uses eval, and keeps the
 
 test('page: only this one folder is published for the Mini App, with its policy pinned like the other pages', () => {
     const yml = read('.github/workflows/deploy.yml');
-    assert.match(yml, /cp -r miniapp dist\/miniapp/);
+    assert.match(yml, /cp -r legacy dist/);
+    assert.ok(fs.existsSync(resolve('miniapp/index.html')));
     assert.match(yml, /pin-csp\.js dist\/index\.html dist\/email-action\.html dist\/miniapp\/index\.html/);
-    for (const file of fs.readdirSync(path.join(root, 'miniapp'))) assert.match(file, /^[a-z0-9.\-]+\.(js|css|html)$/, `only page files live in miniapp/: ${file}`);
+    for (const file of fs.readdirSync(resolve('miniapp'))) assert.match(file, /^[a-z0-9.\-]+\.(js|css|html)$/, `only page files live in miniapp/: ${file}`);
 });
 
 // The data service Section

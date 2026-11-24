@@ -8,7 +8,7 @@ const crypto = require('crypto');
 const { execFileSync } = require('child_process');
 
 const ROOT = path.resolve(__dirname, '..');
-const VENDOR = path.join(ROOT, 'vendor');
+const VENDOR = path.join(ROOT, 'legacy', 'vendor');
 const CONFIG = path.join(VENDOR, 'vendor.config.json');
 const LOCK = path.join(VENDOR, 'VENDOR.lock.json');
 

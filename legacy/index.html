@@ -1,0 +1,1510 @@
+<!DOCTYPE html>
+<html lang="en-MY">
+<head>
+    <meta charset="UTF-8" />
+    <!-- SECURITY: keep this policy first in <head>. Only this site's own files may run (see SECURITY.md). -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https://*.supabase.co https://nominatim.openstreetmap.org; worker-src 'self' blob:; manifest-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'" />
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
+    <script src="frame-guard.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="description" content="Track your spending, income and recurring bills in one calm, fast place." />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#f5f6fa" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0b1020" media="(prefers-color-scheme: dark)" />
+    <link rel="icon" href="icon.png" type="image/png">
+    <title>VinExpenses</title>
+
+    <!-- PWA -->
+    <link rel="manifest" href="manifest.json" />
+    <link rel="apple-touch-icon" href="icons/icon-192.png" />
+
+    <!-- Libraries, icons and fonts are served from this site (vendor/), pinned and hash-checked. -->
+    <script src="vendor/supabase-js/supabase.js"></script>
+    <script src="vendor/chartjs/chart.umd.js"></script>
+
+    <link rel="stylesheet" href="vendor/fontawesome/css/all.min.css" />
+    <link rel="stylesheet" href="fonts.css" />
+    <link rel="stylesheet" href="style.css?v=__BUILD__" />
+</head>
+<body class="is-auth">
+    <a class="skip-link" href="#main">Skip to content</a>
+
+    <div class="app-shell" id="app">
+
+        <!-- Sidebar Section: desktop -->
+        <aside class="sidebar" aria-label="Main navigation">
+            <div class="brand">
+                <span class="brand-mark"><img src="icons/icon-192.png" alt="" /></span>
+                <span class="brand-text">VinExpenses</span>
+            </div>
+
+            <button class="btn btn-primary sidebar-add nav-item" data-screen="add">
+                <i class="fas fa-plus"></i> New transaction
+                <kbd class="kbd" title="Keyboard shortcut">N</kbd>
+            </button>
+
+            <nav class="side-links">
+                <button class="nav-item active" data-screen="dashboard">
+                    <i class="fas fa-house"></i><span class="nav-label">Dashboard</span>
+                </button>
+                <button class="nav-item" data-screen="history">
+                    <i class="fas fa-clock-rotate-left"></i><span class="nav-label">History</span>
+                </button>
+                <button class="nav-item" data-screen="plan">
+                    <i class="fas fa-clipboard-list"></i><span class="nav-label">Plan</span>
+                </button>
+                <button class="nav-item hidden" id="adminNav" data-screen="admin">
+                    <i class="fas fa-user-shield"></i><span class="nav-label">Admin</span>
+                </button>
+            </nav>
+
+            <button class="nav-item side-user" data-screen="account" aria-label="Account">
+                <span class="avatar" id="sideAvatar">U</span>
+                <span class="side-user-text">
+                    <span class="side-user-name" id="sideName">User</span>
+                    <span class="side-user-sub">Account &amp; log out</span>
+                </span>
+                <i class="fas fa-ellipsis"></i>
+            </button>
+        </aside>
+
+        <!-- Main Section -->
+        <main class="main" id="main">
+            <!-- Offline / pending-sync notice -->
+            <div id="netBanner" class="net-banner hidden" role="status" aria-live="polite"></div>
+
+            <!-- Auth Screen Section -->
+            <div id="authScreen" class="screen active">
+                <div class="auth-layout">
+                    <aside class="auth-hero" aria-hidden="true">
+                        <div class="auth-hero-inner">
+                            <span class="brand-mark lg"><img src="icons/icon-192.png" alt="" /></span>
+                            <h2>Know where every ringgit goes.</h2>
+                            <ul class="auth-points">
+                                <li><i class="fas fa-bolt"></i> Log an expense in two taps</li>
+                                <li><i class="fas fa-repeat"></i> Bills and subscriptions post themselves</li>
+                                <li><i class="fas fa-chart-pie"></i> Clear monthly insights, light or dark</li>
+                            </ul>
+                        </div>
+                    </aside>
+
+                    <div class="auth-box" id="authBox">
+                        <div class="auth-logo"><img src="icons/icon-192.png" alt="" /></div>
+
+                        <!-- Sign in / Register -->
+                        <div id="auStart" class="au-step">
+                            <h1 id="authTitle">Welcome back</h1>
+                            <p class="sub" id="authSub">Sign in to keep tracking your spending</p>
+                            <div class="auth-tabs segmented" id="authTabs" role="tablist" aria-label="Sign in or register">
+                                <button type="button" class="auth-tab active" id="loginTab" role="tab" aria-selected="true"><i class="fas fa-arrow-right-to-bracket" aria-hidden="true"></i> Sign in</button>
+                                <button type="button" class="auth-tab" id="registerTab" role="tab" aria-selected="false"><i class="fas fa-user-plus" aria-hidden="true"></i> Register</button>
+                            </div>
+                            <div id="auNotice" class="au-notice hidden" role="status"></div>
+
+                            <form id="auSignInForm" novalidate>
+                                <div class="input-group">
+                                    <label for="emailInput">Email</label>
+                                    <div class="input-icon-wrap"><i class="fas fa-envelope" aria-hidden="true"></i><input type="email" id="emailInput" placeholder="you@example.com" autocomplete="email" inputmode="email" aria-describedby="emailInputError" /></div>
+                                    <p class="field-error" id="emailInputError" role="alert"></p>
+                                </div>
+                                <div class="input-group">
+                                    <label for="passInput">Password</label>
+                                    <div class="input-icon-wrap">
+                                        <i class="fas fa-lock" aria-hidden="true"></i>
+                                        <input type="password" id="passInput" placeholder="Your password" autocomplete="current-password" aria-describedby="passInputError" />
+                                        <button type="button" class="toggle-visibility" data-target="passInput" aria-label="Show or hide password"><i class="fas fa-eye" aria-hidden="true"></i></button>
+                                    </div>
+                                    <p class="field-error" id="passInputError" role="alert"></p>
+                                </div>
+                                <div class="au-row">
+                                    <label class="plan-check au-remember" for="auRemember"><input type="checkbox" id="auRemember" checked /> <span>Remember me for 30 days</span></label>
+                                    <button type="button" id="forgotBtn" class="link-btn">Forgot password?</button>
+                                </div>
+                                <div id="auCaptchaSignIn" class="au-captcha"></div>
+                                <button type="submit" id="auSignInBtn" class="btn btn-primary btn-block"><i class="fas fa-arrow-right-to-bracket" aria-hidden="true"></i> Sign in</button>
+                            </form>
+
+                            <form id="auRegisterForm" class="hidden" novalidate>
+                                <div class="input-group">
+                                    <label for="userInput">Name</label>
+                                    <div class="input-icon-wrap"><i class="fas fa-user" aria-hidden="true"></i><input type="text" id="userInput" placeholder="What should we call you?" autocomplete="nickname" maxlength="40" aria-describedby="userInputError" /></div>
+                                    <p class="field-error" id="userInputError" role="alert"></p>
+                                </div>
+                                <div class="input-group">
+                                    <label for="emailInput2">Email</label>
+                                    <div class="input-icon-wrap"><i class="fas fa-envelope" aria-hidden="true"></i><input type="email" id="emailInput2" placeholder="you@example.com" autocomplete="email" inputmode="email" aria-describedby="emailInput2Error" /></div>
+                                    <p class="field-error" id="emailInput2Error" role="alert"></p>
+                                </div>
+                                <div class="input-group">
+                                    <label for="passInput2">Password</label>
+                                    <div class="input-icon-wrap">
+                                        <i class="fas fa-lock" aria-hidden="true"></i>
+                                        <input type="password" id="passInput2" placeholder="Create a strong password" autocomplete="new-password" aria-describedby="passInput2Rules" />
+                                        <button type="button" class="toggle-visibility" data-target="passInput2" aria-label="Show or hide password"><i class="fas fa-eye" aria-hidden="true"></i></button>
+                                    </div>
+                                    <ul class="pw-rules" id="passInput2Rules" aria-live="polite"></ul>
+                                </div>
+                                <div class="input-group">
+                                    <label for="confirmPass">Confirm password</label>
+                                    <div class="input-icon-wrap">
+                                        <i class="fas fa-lock" aria-hidden="true"></i>
+                                        <input type="password" id="confirmPass" placeholder="Type it again" autocomplete="new-password" aria-describedby="confirmPassError" />
+                                        <button type="button" class="toggle-visibility" data-target="confirmPass" aria-label="Show or hide password"><i class="fas fa-eye" aria-hidden="true"></i></button>
+                                    </div>
+                                    <p class="field-error" id="confirmPassError" role="alert"></p>
+                                </div>
+                                <div id="auCaptchaRegister" class="au-captcha"></div>
+                                <button type="submit" id="auRegisterBtn" class="btn btn-primary btn-block"><i class="fas fa-user-plus" aria-hidden="true"></i> Create account</button>
+                                <p class="field-hint"><i class="fas fa-circle-info" aria-hidden="true"></i><span>We'll email you a 6-digit code to confirm your address.</span></p>
+                            </form>
+
+                            <div class="divider"><span>or</span></div>
+                            <button type="button" id="googleBtn" class="btn btn-outline btn-block"><i class="fab fa-google" aria-hidden="true"></i> Continue with Google</button>
+                            <p class="legal-links">By creating an account or signing in you agree to the <a href="terms.html">Terms of Use</a> and the <a href="privacy.html">Privacy Policy</a>. <a href="welcome.html">What is VinExpenses?</a></p>
+                        </div>
+
+                        <!-- Enter the emailed code (after registering) -->
+                        <form id="auVerify" class="au-step hidden" novalidate>
+                            <h1>Check your email</h1>
+                            <p class="sub">Enter the 6-digit code we sent to <b id="auVerifyEmail"></b>.</p>
+                            <div class="input-group">
+                                <label for="auVerifyCode">Verification code</label>
+                                <input type="text" id="auVerifyCode" class="otp-input" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="000000" aria-describedby="auVerifyError auVerifyTimer" />
+                                <p class="field-error" id="auVerifyError" role="alert"></p>
+                                <p class="field-hint" id="auVerifyTimer" role="status"></p>
+                            </div>
+                            <button type="submit" id="auVerifyBtn" class="btn btn-primary btn-block"><i class="fas fa-check" aria-hidden="true"></i> Verify and continue</button>
+                            <div id="auCaptchaVerify" class="au-captcha"></div>
+                            <button type="button" id="auVerifyResend" class="btn btn-ghost btn-block">Send a new code</button>
+                            <button type="button" class="btn btn-ghost btn-block" data-au-back>Use a different email</button>
+                        </form>
+
+                        <!-- Forgot password: ask for the code -->
+                        <form id="auForgot" class="au-step hidden" novalidate>
+                            <h1>Forgot your password?</h1>
+                            <p class="sub">Enter your email and we'll send a 6-digit code to reset it.</p>
+                            <div class="input-group">
+                                <label for="auForgotEmail">Email</label>
+                                <div class="input-icon-wrap"><i class="fas fa-envelope" aria-hidden="true"></i><input type="email" id="auForgotEmail" placeholder="you@example.com" autocomplete="email" inputmode="email" aria-describedby="auForgotError" /></div>
+                                <p class="field-error" id="auForgotError" role="alert"></p>
+                            </div>
+                            <div id="auCaptchaForgot" class="au-captcha"></div>
+                            <button type="submit" id="auForgotBtn" class="btn btn-primary btn-block"><i class="fas fa-paper-plane" aria-hidden="true"></i> Send the code</button>
+                            <button type="button" id="auHaveCode" class="btn btn-ghost btn-block">I already have a code</button>
+                            <button type="button" class="btn btn-ghost btn-block" data-au-back>Back to sign in</button>
+                        </form>
+
+                        <!-- Forgot password: code + new password -->
+                        <form id="auReset" class="au-step hidden" novalidate>
+                            <h1>Choose a new password</h1>
+                            <p class="sub">If <b id="auResetEmail"></b> has an account, a 6-digit code is on its way. Check your spam folder too.</p>
+                            <div class="input-group">
+                                <label for="auResetCode">Code from the email</label>
+                                <input type="text" id="auResetCode" class="otp-input" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="000000" aria-describedby="auResetCodeError auResetTimer" />
+                                <p class="field-error" id="auResetCodeError" role="alert"></p>
+                                <p class="field-hint" id="auResetTimer" role="status"></p>
+                            </div>
+                            <div class="input-group">
+                                <label for="auResetPass">New password</label>
+                                <div class="input-icon-wrap">
+                                    <i class="fas fa-lock" aria-hidden="true"></i>
+                                    <input type="password" id="auResetPass" placeholder="Create a strong password" autocomplete="new-password" aria-describedby="auResetPassRules" />
+                                    <button type="button" class="toggle-visibility" data-target="auResetPass" aria-label="Show or hide password"><i class="fas fa-eye" aria-hidden="true"></i></button>
+                                </div>
+                                <ul class="pw-rules" id="auResetPassRules" aria-live="polite"></ul>
+                            </div>
+                            <div class="input-group">
+                                <label for="auResetConfirm">Confirm new password</label>
+                                <div class="input-icon-wrap">
+                                    <i class="fas fa-lock" aria-hidden="true"></i>
+                                    <input type="password" id="auResetConfirm" placeholder="Type it again" autocomplete="new-password" aria-describedby="auResetConfirmError" />
+                                    <button type="button" class="toggle-visibility" data-target="auResetConfirm" aria-label="Show or hide password"><i class="fas fa-eye" aria-hidden="true"></i></button>
+                                </div>
+                                <p class="field-error" id="auResetConfirmError" role="alert"></p>
+                            </div>
+                            <button type="submit" id="auResetBtn" class="btn btn-primary btn-block"><i class="fas fa-check" aria-hidden="true"></i> Update password</button>
+                            <button type="button" class="btn btn-ghost btn-block" data-au-back>Back to sign in</button>
+                        </form>
+
+                        <!-- Authenticator code (only for people who turned it on) -->
+                        <form id="auMfa" class="au-step hidden" novalidate>
+                            <h1>Two-step verification</h1>
+                            <p class="sub" id="auMfaSub">Open your authenticator app and enter the 6-digit code for VinExpenses.</p>
+                            <div class="input-group" id="auMfaCodeGroup">
+                                <label for="auMfaCode">Authenticator code</label>
+                                <input type="text" id="auMfaCode" class="otp-input" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="000000" aria-describedby="auMfaError" />
+                            </div>
+                            <div class="input-group hidden" id="auMfaRecoveryGroup">
+                                <label for="auMfaRecovery">Recovery code</label>
+                                <div class="input-icon-wrap"><i class="fas fa-life-ring" aria-hidden="true"></i><input type="text" id="auMfaRecovery" placeholder="ABCDE-FGHJK" autocomplete="off" maxlength="12" autocapitalize="characters" aria-describedby="auMfaError" /></div>
+                                <label for="auMfaRecoveryPass" class="au-gap">Your password</label>
+                                <div class="input-icon-wrap"><i class="fas fa-lock" aria-hidden="true"></i><input type="password" id="auMfaRecoveryPass" placeholder="Your password" autocomplete="current-password" /></div>
+                            </div>
+                            <p class="field-error" id="auMfaError" role="alert"></p>
+                            <button type="submit" id="auMfaBtn" class="btn btn-primary btn-block"><i class="fas fa-shield-halved" aria-hidden="true"></i> Verify</button>
+                            <button type="button" id="auMfaSwitch" class="btn btn-ghost btn-block">I lost my phone: use a recovery code</button>
+                            <button type="button" id="auMfaCancel" class="btn btn-ghost btn-block">Sign out</button>
+                        </form>
+
+                        <!-- Too many wrong attempts -->
+                        <div id="auBlocked" class="au-step hidden">
+                            <div class="au-blocked-icon" aria-hidden="true"><i class="fas fa-shield-halved"></i></div>
+                            <h1>Sign-in is paused</h1>
+                            <p class="sub" id="auBlockedText"></p>
+                            <p class="au-countdown" id="auBlockedTimer" role="status"></p>
+                            <button type="button" id="auBlockedReset" class="btn btn-primary btn-block"><i class="fas fa-key" aria-hidden="true"></i> Reset my password</button>
+                            <button type="button" class="btn btn-outline btn-block" data-open-feedback="locked_out"><i class="fas fa-envelope" aria-hidden="true"></i> Contact the admin</button>
+                            <button type="button" class="btn btn-ghost btn-block" data-au-back>Back to sign in</button>
+                        </div>
+
+                        <p class="au-help"><button type="button" class="link-btn" data-open-feedback="other">Need help? Contact the admin</button></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Setup Screen Section: first sign-in with Google -->
+            <div id="setupScreen" class="screen">
+                <div class="auth-layout solo">
+                    <div class="auth-box">
+                        <div class="auth-logo"><i class="fas fa-user-plus" aria-hidden="true"></i></div>
+                        <form id="setupForm" novalidate>
+                            <h1>Finish your account</h1>
+                            <p class="sub">Welcome! Choose a name and a password for VinExpenses. The password lets you sign in without Google, and is needed to turn on extra security.</p>
+                            <div class="input-group">
+                                <label for="setupUsername">Name</label>
+                                <div class="input-icon-wrap"><i class="fas fa-user" aria-hidden="true"></i><input type="text" id="setupUsername" placeholder="What should we call you?" autocomplete="nickname" maxlength="40" aria-describedby="setupUsernameError" /></div>
+                                <p class="field-error" id="setupUsernameError" role="alert"></p>
+                            </div>
+                            <div class="input-group">
+                                <label for="setupPassword">Password</label>
+                                <div class="input-icon-wrap">
+                                    <i class="fas fa-lock" aria-hidden="true"></i>
+                                    <input type="password" id="setupPassword" placeholder="Create a strong password" autocomplete="new-password" aria-describedby="setupPasswordRules" />
+                                    <button type="button" class="toggle-visibility" data-target="setupPassword" aria-label="Show or hide password"><i class="fas fa-eye" aria-hidden="true"></i></button>
+                                </div>
+                                <ul class="pw-rules" id="setupPasswordRules" aria-live="polite"></ul>
+                            </div>
+                            <div class="input-group">
+                                <label for="setupConfirmPassword">Confirm password</label>
+                                <div class="input-icon-wrap">
+                                    <i class="fas fa-lock" aria-hidden="true"></i>
+                                    <input type="password" id="setupConfirmPassword" placeholder="Type it again" autocomplete="new-password" aria-describedby="setupConfirmError" />
+                                    <button type="button" class="toggle-visibility" data-target="setupConfirmPassword" aria-label="Show or hide password"><i class="fas fa-eye" aria-hidden="true"></i></button>
+                                </div>
+                                <p class="field-error" id="setupConfirmError" role="alert"></p>
+                            </div>
+                            <button type="submit" id="setupCompleteBtn" class="btn btn-primary btn-block"><i class="fas fa-check" aria-hidden="true"></i> Continue</button>
+                            <button type="button" id="setupSignOut" class="btn btn-ghost btn-block">Use a different account</button>
+                        </form>
+                        <div id="setupMfaOffer" class="hidden">
+                            <div class="au-blocked-icon good" aria-hidden="true"><i class="fas fa-shield-halved"></i></div>
+                            <h1>Add extra security?</h1>
+                            <p class="sub">Two-step verification asks for a 6-digit code from an authenticator app (Google Authenticator, Microsoft Authenticator, Authy and others) each time you sign in. It is optional, and you can turn it on later in Account.</p>
+                            <button type="button" id="setupMfaStart" class="btn btn-primary btn-block"><i class="fas fa-shield-halved" aria-hidden="true"></i> Set up an authenticator</button>
+                            <button type="button" id="setupMfaSkip" class="btn btn-ghost btn-block">Not now</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dashboard Screen Section -->
+            <div id="dashboardScreen" class="screen" aria-busy="false">
+                <header class="page-head">
+                    <div>
+                        <h1 class="page-title">Hello, <span id="userNameDisplay">User</span></h1>
+                        <p class="page-sub" id="dashSubtitle">Here's your month at a glance</p>
+                    </div>
+
+                    <div class="month-selector" role="group" aria-label="Month">
+                        <button id="prevMonthBtn" class="month-nav-btn" title="Previous month" aria-label="Previous month">
+                            <i class="fas fa-chevron-left"></i>
+                        </button>
+                        <div class="month-display">
+                            <span id="selectedMonthDisplay">October 2026</span>
+                            <input type="month" id="monthPicker" class="month-picker-hidden" tabindex="-1" />
+                            <button id="monthPickerBtn" class="month-picker-btn" title="Pick a month" aria-label="Pick a month">
+                                <i class="fas fa-calendar-days"></i>
+                            </button>
+                        </div>
+                        <button id="nextMonthBtn" class="month-nav-btn" title="Next month" aria-label="Next month">
+                            <i class="fas fa-chevron-right"></i>
+                        </button>
+                        <button id="todayMonthBtn" class="month-today-btn" title="Go to current month" aria-label="Go to current month">
+                            <i class="fas fa-rotate-right"></i>
+                        </button>
+                    </div>
+                </header>
+
+                <section id="telegramPrompt" class="tg-prompt hidden" aria-labelledby="telegramPromptTitle">
+                    <span class="tg-prompt-icon" aria-hidden="true"><i class="fab fa-telegram"></i></span>
+                    <div class="tg-prompt-text">
+                        <h2 id="telegramPromptTitle">Add expenses by chatting</h2>
+                        <p>Connect Telegram to log "lunch 12.50" in a few seconds, scan receipts, get your monthly report and reminders there.</p>
+                    </div>
+                    <div class="tg-prompt-actions">
+                        <button type="button" id="telegramPromptConnect" class="btn btn-primary btn-small"><i class="fab fa-telegram" aria-hidden="true"></i> Connect</button>
+                        <button type="button" id="telegramPromptHide" class="link-btn">Don't ask again</button>
+                    </div>
+                </section>
+
+                <section id="quickStartCard" class="quick-start-card hidden" aria-labelledby="quickStartTitle">
+                    <div class="quick-start-head"><div><h2 id="quickStartTitle">Make VinExpenses yours</h2><p>Set up the basics when you’re ready. You can skip any step.</p></div><button id="quickStartDismiss" class="icon-btn" type="button" aria-label="Dismiss setup guide"><i class="fas fa-xmark" aria-hidden="true"></i></button></div>
+                    <div id="quickStartSteps" class="quick-start-steps"></div>
+                </section>
+
+                <div id="quickAddRow" class="quick-add hidden" aria-label="Quick add your usual purchases"></div>
+
+                <div class="dash-grid">
+                    <!-- Hero -->
+                    <div class="hero-stack">
+                    <section class="hero-card" id="totalCard" aria-label="Spending summary">
+                        <div class="hero-top">
+                            <span class="label" id="heroLabel">Spent this month</span>
+                            <span class="delta hidden" id="spendDelta"></span>
+                        </div>
+                        <div class="amount" id="totalSpent">RM 0.00</div>
+                        <div class="hero-bar" id="heroBarWrap" aria-hidden="true"><span id="heroBar"></span></div>
+                        <div class="hero-bar-caption" id="heroBarCaption"></div>
+                        <div id="budgetForecast" class="budget-forecast hidden" role="status"></div>
+                        <div class="safe-spend" id="safeToSpend"></div>
+                    </section>
+
+                    <!-- Three small tiles under the big spending card -->
+                    <div class="stat-row" aria-label="Income, balance and budget">
+                        <div class="stat-tile" id="incomeTile">
+                            <span class="stat-icon income" aria-hidden="true"><i class="fas fa-arrow-trend-up"></i></span>
+                            <div class="stat-text"><div class="stat-label">Income</div><div class="stat-value" id="totalIncome">RM 0.00</div></div>
+                        </div>
+                        <div class="stat-tile" id="balancePill">
+                            <span class="stat-icon balance" aria-hidden="true"><i class="fas fa-scale-balanced"></i></span>
+                            <div class="stat-text"><div class="stat-label">Balance</div><div class="stat-value" id="totalBalance">RM 0.00</div></div>
+                        </div>
+                        <button type="button" class="stat-tile stat-budget" id="budgetTile" data-action="budget" aria-label="Budget">
+                            <span class="stat-icon budget" aria-hidden="true"><i class="fas fa-bullseye"></i></span>
+                            <div class="stat-text"><div class="stat-label" id="budgetTileLabel">Budget left</div><div class="stat-value" id="budgetTileValue">Not set</div><div class="stat-sub" id="budgetTileSub">Tap to set one</div></div>
+                        </button>
+                    </div>
+                    </div>
+
+                    <!-- Insights -->
+                    <section class="insights" aria-label="Insights">
+                        <div class="insight">
+                            <div class="insight-icon"><i class="fas fa-calendar-day"></i></div>
+                            <div>
+                                <div class="insight-label" id="insightDailyLabel">Daily average</div>
+                                <div class="insight-value" id="insightDaily">RM 0.00</div>
+                                <div class="insight-sub" id="insightDailySub"></div>
+                            </div>
+                        </div>
+                        <div class="insight">
+                            <div class="insight-icon" id="insightTopIcon"><i class="fas fa-trophy"></i></div>
+                            <div>
+                                <div class="insight-label">Top category</div>
+                                <div class="insight-value" id="insightTop">—</div>
+                                <div class="insight-sub" id="insightTopSub"></div>
+                            </div>
+                        </div>
+                        <div class="insight">
+                            <div class="insight-icon"><i class="fas fa-money-bill-wave"></i></div>
+                            <div>
+                                <div class="insight-label">Largest expense</div>
+                                <div class="insight-value" id="insightMax">—</div>
+                                <div class="insight-sub" id="insightMaxSub"></div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Breakdown -->
+                    <section class="card breakdown">
+                        <div class="card-head">
+                            <div>
+                                <h2 class="card-title">Spending by category</h2>
+                                <span class="card-hint">Tap one to see its transactions</span>
+                            </div>
+                            <button id="budgetBtn" class="btn btn-outline btn-small"><i class="fas fa-bullseye"></i> Budgets</button>
+                        </div>
+                        <div class="breakdown-body">
+                            <div class="donut">
+                                <canvas id="pieChart" aria-label="Spending by category chart" role="img"></canvas>
+                                <div class="donut-center">
+                                    <div class="donut-value" id="donutTotal">RM 0</div>
+                                    <div class="donut-label">spent</div>
+                                </div>
+                            </div>
+                            <div class="cat-list" id="categoryGrid"></div>
+                        </div>
+                    </section>
+
+                    <!-- Trend -->
+                    <section class="card trend">
+                        <div class="card-head">
+                            <h2 class="card-title">Last 6 months</h2>
+                            <div class="trend-actions">
+                                <span class="card-hint">Tap a bar to jump to that month</span>
+                                <button id="trendResetBtn" class="trend-reset hidden" type="button"><i class="fas fa-rotate-left"></i> Current month</button>
+                            </div>
+                        </div>
+                        <div class="chart-wrap"><canvas id="barChart" aria-label="Expenses and income by month" role="img"></canvas></div>
+                    </section>
+
+                    <!-- Upcoming -->
+                    <section class="card upcoming">
+                        <div class="card-head">
+                        <h2 class="card-title">Coming up</h2>
+                            <button id="manageRecurringBtn" class="link-btn">Plan <i class="fas fa-arrow-right"></i></button>
+                        </div>
+                        <div id="upcomingList" class="history-list compact" aria-label="Deposits, loans and bills coming up" aria-live="polite"></div>
+                    </section>
+
+                    <!-- Recent -->
+                    <section class="card recent">
+                        <div class="card-head">
+                            <h2 class="card-title">Recent activity</h2>
+                            <button id="viewAllBtn" class="link-btn">View all <i class="fas fa-arrow-right"></i></button>
+                        </div>
+                        <div id="recentList" class="history-list compact"></div>
+                    </section>
+
+                    <section class="card spending-patterns" aria-labelledby="patternsTitle">
+                        <div class="card-head">
+                            <div><h2 class="card-title" id="patternsTitle">Spending patterns</h2><span class="card-hint">A simple weekly check-in and possible repeats</span></div>
+                            <button class="link-btn" type="button" data-screen="recurring">Recurring <i class="fas fa-arrow-right"></i></button>
+                        </div>
+                        <div id="weeklySummary" class="weekly-summary" aria-live="polite"></div>
+                        <div id="repeatSuggestions" class="repeat-suggestions"></div>
+                    </section>
+                </div>
+            </div>
+
+            <!-- Plan Screen Section: recurring, deposits, loans -->
+            <div id="recurringScreen" class="screen">
+                <header class="page-head">
+                    <div>
+                        <h1 class="page-title">Plan</h1>
+                        <p class="page-sub">Regular bills, fixed deposits and loans in one place.</p>
+                    </div>
+                </header>
+                <div class="segmented plan-tabs" role="tablist" aria-label="Plan sections">
+                    <button type="button" class="seg-btn active" id="planTabRecurring" role="tab" aria-selected="true" aria-controls="planPaneRecurring" data-plan-tab="recurring"><i class="fas fa-repeat" aria-hidden="true"></i> Recurring</button>
+                    <button type="button" class="seg-btn" id="planTabDeposits" role="tab" aria-selected="false" aria-controls="planPaneDeposits" data-plan-tab="deposits" tabindex="-1"><i class="fas fa-piggy-bank" aria-hidden="true"></i> Deposits</button>
+                    <button type="button" class="seg-btn" id="planTabLoans" role="tab" aria-selected="false" aria-controls="planPaneLoans" data-plan-tab="loans" tabindex="-1"><i class="fas fa-hand-holding-dollar" aria-hidden="true"></i> Loans</button>
+                </div>
+
+                <div id="planSticky" class="plan-sticky hidden" role="status">
+                    <span class="plan-sticky-text"><span id="planStickyLabel"></span><strong id="planStickyValue"></strong></span>
+                    <button type="button" id="planStickyBtn" class="btn btn-small">Details <i class="fas fa-arrow-down" aria-hidden="true"></i></button>
+                </div>
+
+                <!-- Plan Section: Recurring -->
+                <div id="planPaneRecurring" class="plan-pane" role="tabpanel" aria-labelledby="planTabRecurring">
+                    <p class="plan-intro">Schedule regular bills or income. Entries post the next time you open the app on or after the due date.</p>
+                <div id="recurringSummary" class="history-summary" role="status" aria-live="polite"></div>
+
+                <div class="recurring-grid">
+                    <div class="card form-card">
+                        <h2 class="card-title" id="recurringFormTitle">Add recurring expense</h2>
+                        <div class="input-group">
+                            <label>Repeats as</label>
+                            <div class="segmented recurring-type-tabs" role="group" aria-label="Recurring transaction type">
+                                <button id="recTypeExpense" type="button" class="seg-btn active expense" aria-pressed="true"><i class="fas fa-arrow-trend-down" aria-hidden="true"></i> Expense</button>
+                                <button id="recTypeIncome" type="button" class="seg-btn income" aria-pressed="false"><i class="fas fa-arrow-trend-up" aria-hidden="true"></i> Income</button>
+                            </div>
+                        </div>
+                        <div class="input-group" id="recPresetGroup">
+                            <label>Quick pick</label>
+                            <div class="chip-group" id="recPresetChips"></div>
+                        </div>
+                        <div class="input-group">
+                            <label for="recName" id="recNameLabel">Name</label>
+                            <div class="input-icon-wrap">
+                                <i class="fas fa-tag"></i>
+                                <input type="text" id="recName" placeholder="e.g. Electricity, Netflix" maxlength="60" />
+                            </div>
+                        </div>
+                        <div class="input-group">
+                            <label for="recAmount">Amount (RM)</label>
+                            <div class="input-icon-wrap">
+                                <i class="fas fa-coins"></i>
+                                <input type="number" id="recAmount" placeholder="0.00" step="0.01" min="0" inputmode="decimal" />
+                            </div>
+                        </div>
+                        <div class="input-group">
+                            <label>Repeats</label>
+                            <div class="chip-group" id="recFreqChips"></div>
+                        </div>
+                        <div id="recExpenseFields">
+                            <div class="input-group">
+                                <label>Category</label>
+                                <div class="chip-group" id="recCategoryChips"></div>
+                            </div>
+                            <div class="input-group">
+                                <label>Payment method</label>
+                                <div class="chip-group" id="recPaymentChips"></div>
+                            </div>
+                        </div>
+                        <div class="input-group">
+                            <label for="recDate" id="recDateLabel">First due date</label>
+                            <div class="input-icon-wrap">
+                                <i class="far fa-calendar"></i>
+                                <input type="date" id="recDate" />
+                            </div>
+                            <p class="field-hint"><i class="fas fa-circle-info"></i> A date in the past is back-filled up to today.</p>
+                        </div>
+                        <button id="saveRecurringBtn" class="btn btn-primary btn-block">
+                            <i class="fas fa-floppy-disk"></i> Save recurring
+                        </button>
+                        <button id="cancelRecurringBtn" class="btn btn-ghost btn-block hidden">Cancel edit</button>
+                    </div>
+
+                    <div class="recurring-list-wrap">
+                        <div id="recurringList" class="history-list card-list"></div>
+                    </div>
+                </div>
+                </div>
+
+                <!-- Plan Section: Deposits -->
+                <div id="planPaneDeposits" class="plan-pane hidden" role="tabpanel" aria-labelledby="planTabDeposits">
+                    <div id="fdNotice" class="plan-notice hidden" role="status"></div>
+                    <div class="plan-grid">
+                        <form class="card form-card" id="fdForm" novalidate autocomplete="off">
+                            <h2 class="card-title" id="fdFormTitle">Fixed deposit calculator</h2>
+                            <div class="input-group">
+                                <label for="fdAmount">Amount (RM)</label>
+                                <div class="input-icon-wrap"><i class="fas fa-coins" aria-hidden="true"></i><input type="text" inputmode="decimal" id="fdAmount" placeholder="e.g. 10000" maxlength="16" aria-describedby="fdAmountError" /></div>
+                                <p class="field-error" id="fdAmountError" role="alert"></p>
+                            </div>
+                            <div class="input-group">
+                                <label for="fdRate">Rate (% a year)</label>
+                                <div class="input-icon-wrap"><i class="fas fa-percent" aria-hidden="true"></i><input type="text" inputmode="decimal" id="fdRate" placeholder="e.g. 3.5" maxlength="7" aria-describedby="fdRateError" /></div>
+                                <p class="field-error" id="fdRateError" role="alert"></p>
+                            </div>
+                            <div class="input-group">
+                                <label for="fdTenure">Tenure</label>
+                                <div class="plan-inline">
+                                    <div class="input-icon-wrap"><i class="fas fa-hourglass-half" aria-hidden="true"></i><input type="text" inputmode="numeric" id="fdTenure" value="12" maxlength="4" aria-describedby="fdTenureError" /></div>
+                                    <select id="fdTenureUnit" class="filter-select" aria-label="Tenure unit">
+                                        <option value="days">Days</option>
+                                        <option value="months" selected>Months</option>
+                                        <option value="years">Years</option>
+                                    </select>
+                                </div>
+                                <p class="field-error" id="fdTenureError" role="alert"></p>
+                                <div class="preset-row" id="fdTenurePresets" role="group" aria-label="Common tenures">
+                                    <button type="button" class="preset" data-preset="1" data-unit="months">1 month</button>
+                                    <button type="button" class="preset" data-preset="3" data-unit="months">3 months</button>
+                                    <button type="button" class="preset" data-preset="6" data-unit="months">6 months</button>
+                                    <button type="button" class="preset" data-preset="12" data-unit="months">12 months</button>
+                                    <button type="button" class="preset" data-preset="24" data-unit="months">24 months</button>
+                                </div>
+                            </div>
+                            <div class="field-row">
+                                <div class="input-group">
+                                    <label for="fdStart">Start date</label>
+                                    <div class="input-icon-wrap"><i class="far fa-calendar" aria-hidden="true"></i><input type="date" id="fdStart" aria-describedby="fdStartError" /></div>
+                                    <p class="field-error" id="fdStartError" role="alert"></p>
+                                </div>
+                                <div class="input-group">
+                                    <label for="fdMaturity">Maturity date</label>
+                                    <div class="input-icon-wrap"><i class="far fa-calendar-check" aria-hidden="true"></i><input type="date" id="fdMaturity" aria-describedby="fdMaturityError fdMaturityHint" /></div>
+                                    <p class="field-error" id="fdMaturityError" role="alert"></p>
+                                </div>
+                            </div>
+                            <p class="field-hint plan-hint" id="fdMaturityHint"><i class="fas fa-circle-info" aria-hidden="true"></i><span><span id="fdMaturityHintText">Worked out from the tenure. Change it only if your bank gives a different date.</span> <button type="button" id="fdMaturityReset" class="link-btn hidden">Use the calculated date</button></span></p>
+                            <div class="input-group">
+                                <span class="label" id="fdPayoutLabel">Interest is paid</span>
+                                <div class="choice-group" id="fdPayout" role="group" aria-labelledby="fdPayoutLabel">
+                                    <button type="button" class="choice active" data-value="maturity" aria-pressed="true">At maturity</button>
+                                    <button type="button" class="choice" data-value="monthly" aria-pressed="false">Monthly</button>
+                                    <button type="button" class="choice" data-value="quarterly" aria-pressed="false">Quarterly</button>
+                                    <button type="button" class="choice" data-value="yearly" aria-pressed="false">Yearly</button>
+                                </div>
+                            </div>
+                            <details class="plan-more">
+                                <summary>More options</summary>
+                                <div class="field-row">
+                                    <div class="input-group">
+                                        <label for="fdTax">Tax on interest (%)</label>
+                                        <div class="input-icon-wrap"><i class="fas fa-receipt" aria-hidden="true"></i><input type="text" inputmode="decimal" id="fdTax" placeholder="0" maxlength="6" aria-describedby="fdTaxError" /></div>
+                                        <p class="field-error" id="fdTaxError" role="alert"></p>
+                                    </div>
+                                    <div class="input-group">
+                                        <label for="fdBasis">Days in a year</label>
+                                        <select id="fdBasis" class="filter-select">
+                                            <option value="365" selected>365 (usual)</option>
+                                            <option value="360">360</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </details>
+
+                            <button type="button" id="fdSaveToggle" class="btn btn-outline btn-block" aria-expanded="false" aria-controls="fdSaveFields"><i class="fas fa-bookmark" aria-hidden="true"></i> Save and track this deposit</button>
+                            <div id="fdSaveFields" class="plan-save hidden">
+                            <div class="plan-divider"><span>Save and get reminders</span></div>
+                            <div class="field-row">
+                                <div class="input-group">
+                                    <label for="fdName">Name</label>
+                                    <div class="input-icon-wrap"><i class="fas fa-tag" aria-hidden="true"></i><input type="text" id="fdName" placeholder="e.g. Maybank 12 months" maxlength="60" aria-describedby="fdNameError" /></div>
+                                    <p class="field-error" id="fdNameError" role="alert"></p>
+                                </div>
+                                <div class="input-group">
+                                    <label for="fdBank">Bank (optional)</label>
+                                    <div class="input-icon-wrap"><i class="fas fa-building-columns" aria-hidden="true"></i><input type="text" id="fdBank" placeholder="e.g. Maybank" maxlength="60" /></div>
+                                </div>
+                            </div>
+                            <div class="plan-reminder-row">
+                                <div>
+                                    <span class="label" id="fdRemindLabel">Remind me before it matures</span>
+                                    <span class="plan-sub">By Telegram if connected, otherwise in the app.</span>
+                                </div>
+                                <label class="switch-label" for="fdRemindOn"><span class="visually-hidden">Reminders for this deposit</span><input type="checkbox" id="fdRemindOn" checked /><span class="switch-track" aria-hidden="true"></span></label>
+                            </div>
+                            <div class="input-group" id="fdRemindDaysGroup">
+                                <label for="fdRemindDays">Days before (0 = on the day)</label>
+                                <div class="input-icon-wrap"><i class="fas fa-bell" aria-hidden="true"></i><input type="text" inputmode="numeric" id="fdRemindDays" value="7, 1, 0" maxlength="30" aria-describedby="fdRemindDaysError" /></div>
+                                <p class="field-error" id="fdRemindDaysError" role="alert"></p>
+                            </div>
+                            <button type="submit" id="fdSaveBtn" class="btn btn-primary btn-block"><i class="fas fa-floppy-disk" aria-hidden="true"></i> Save deposit</button>
+                            </div>
+                            <button type="button" id="fdResetBtn" class="btn btn-ghost btn-block">Clear</button>
+                        </form>
+
+                        <section class="card plan-result" aria-labelledby="fdResultTitle" aria-live="polite">
+                            <h2 class="card-title" id="fdResultTitle">What you'll earn</h2>
+                            <div id="fdResultEmpty" class="plan-empty"><i class="fas fa-piggy-bank" aria-hidden="true"></i><p id="fdResultEmptyText">Enter an amount and a rate to see what you'll earn.</p></div>
+                            <div id="fdResult" class="hidden">
+                                <div class="plan-hero">
+                                    <span class="plan-hero-label" id="fdHeroLabel">You'll receive</span>
+                                    <strong class="plan-hero-value" id="fdHeroValue">RM 0.00</strong>
+                                    <span class="plan-hero-sub" id="fdHeroSub"></span>
+                                </div>
+                                <div class="plan-stats key" id="fdStats"></div>
+                                <details class="plan-more plan-details">
+                                    <summary>More details</summary>
+                                    <div class="plan-stats" id="fdStatsMore"></div>
+                                </details>
+                                <p id="fdOverrideNote" class="plan-note hidden"></p>
+                                <div id="fdProgressWrap" class="plan-progress hidden">
+                                    <div class="plan-progress-bar"><span id="fdProgressBar"></span></div>
+                                    <span id="fdProgressText"></span>
+                                </div>
+                                <div class="chart-wrap plan-chart" id="fdChartWrap"><canvas id="fdChart" aria-label="Interest earned over time" role="img"></canvas></div>
+                                <div class="plan-schedule-head">
+                                    <h3>Earnings breakdown</h3>
+                                    <div class="choice-group small" id="fdView" role="group" aria-label="Breakdown by">
+                                        <button type="button" class="choice" data-value="daily" aria-pressed="false">Daily</button>
+                                        <button type="button" class="choice active" data-value="monthly" aria-pressed="true">Monthly</button>
+                                        <button type="button" class="choice" data-value="yearly" aria-pressed="false">Yearly</button>
+                                    </div>
+                                </div>
+                                <div class="plan-table-wrap" tabindex="0" role="region" aria-label="Earnings breakdown table">
+                                    <table class="plan-table" id="fdTable">
+                                        <thead><tr><th scope="col">Period</th><th scope="col">Ends</th><th scope="col" class="num">Interest (RM)</th><th scope="col" class="num">Total so far (RM)</th><th scope="col" class="num" id="fdPaidHead">Paid out (RM)</th></tr></thead>
+                                        <tbody></tbody>
+                                    </table>
+                                </div>
+                                <div class="plan-pager" id="fdPager">
+                                    <button type="button" class="btn btn-outline btn-small" data-page="prev"><i class="fas fa-chevron-left" aria-hidden="true"></i> Previous</button>
+                                    <span id="fdPagerText" role="status"></span>
+                                    <button type="button" class="btn btn-outline btn-small" data-page="next">Next <i class="fas fa-chevron-right" aria-hidden="true"></i></button>
+                                </div>
+                                <p class="plan-disclaimer"><i class="fas fa-circle-info" aria-hidden="true"></i> Estimate only, not financial advice. Your bank's figure can differ slightly because of how it counts days and rounds.</p>
+                            </div>
+                        </section>
+                    </div>
+
+                    <section class="card plan-saved" aria-labelledby="fdListTitle">
+                        <div class="card-head">
+                            <h2 class="card-title" id="fdListTitle">Your deposits</h2>
+                            <span class="card-hint" id="fdListSummary"></span>
+                        </div>
+                        <div id="fdList" class="plan-list" aria-live="polite"></div>
+                    </section>
+                </div>
+
+                <!-- Plan Section: Loans -->
+                <div id="planPaneLoans" class="plan-pane hidden" role="tabpanel" aria-labelledby="planTabLoans">
+                    <div id="loanNotice" class="plan-notice hidden" role="status"></div>
+                    <div class="plan-grid">
+                        <form class="card form-card" id="loanForm" novalidate autocomplete="off">
+                            <h2 class="card-title" id="loanFormTitle">Loan calculator</h2>
+                            <div class="input-group">
+                                <label for="loanAmount">Amount borrowed (RM)</label>
+                                <div class="input-icon-wrap"><i class="fas fa-coins" aria-hidden="true"></i><input type="text" inputmode="decimal" id="loanAmount" placeholder="e.g. 50000" maxlength="16" aria-describedby="loanAmountError" /></div>
+                                <p class="field-error" id="loanAmountError" role="alert"></p>
+                            </div>
+                            <div class="input-group">
+                                <label for="loanRate">Rate (% a year)</label>
+                                <div class="input-icon-wrap"><i class="fas fa-percent" aria-hidden="true"></i><input type="text" inputmode="decimal" id="loanRate" placeholder="e.g. 3.5" maxlength="7" aria-describedby="loanRateError" /></div>
+                                <p class="field-error" id="loanRateError" role="alert"></p>
+                            </div>
+                            <div class="input-group">
+                                <label for="loanTerm">Term</label>
+                                <div class="plan-inline">
+                                    <div class="input-icon-wrap"><i class="fas fa-hourglass-half" aria-hidden="true"></i><input type="text" inputmode="numeric" id="loanTerm" value="5" maxlength="3" aria-describedby="loanTermError" /></div>
+                                    <select id="loanTermUnit" class="filter-select" aria-label="Term unit">
+                                        <option value="years" selected>Years</option>
+                                        <option value="months">Months</option>
+                                    </select>
+                                </div>
+                                <p class="field-error" id="loanTermError" role="alert"></p>
+                                <div class="preset-row" id="loanTermPresets" role="group" aria-label="Common terms">
+                                    <button type="button" class="preset" data-preset="3" data-unit="years">3 years</button>
+                                    <button type="button" class="preset" data-preset="5" data-unit="years">5 years</button>
+                                    <button type="button" class="preset" data-preset="7" data-unit="years">7 years</button>
+                                    <button type="button" class="preset" data-preset="9" data-unit="years">9 years</button>
+                                    <button type="button" class="preset" data-preset="30" data-unit="years">30 years</button>
+                                </div>
+                            </div>
+                            <div class="input-group">
+                                <span class="label" id="loanMethodLabel">How is the interest calculated?</span>
+                                <div class="method-group" id="loanMethod" role="group" aria-labelledby="loanMethodLabel" aria-describedby="loanMethodError">
+                                    <button type="button" class="method" data-value="reducing" aria-pressed="false">
+                                        <b>Reducing balance</b>
+                                        <span>Interest only on what you still owe. Usual for home loans.</span>
+                                    </button>
+                                    <button type="button" class="method" data-value="flat" aria-pressed="false">
+                                        <b>Flat rate</b>
+                                        <span>Interest on the full amount for the whole loan. Usual for car and many personal loans.</span>
+                                    </button>
+                                </div>
+                                <p class="field-error" id="loanMethodError" role="alert"></p>
+                                <p class="field-hint plan-hint"><i class="fas fa-circle-info" aria-hidden="true"></i><span>Not sure? Your loan offer letter says which one. This calculator is for a fixed rate only; rates that change over time are not supported yet.</span></p>
+                            </div>
+                            <div class="input-group">
+                                <label for="loanFirst">First payment date</label>
+                                <div class="input-icon-wrap"><i class="far fa-calendar" aria-hidden="true"></i><input type="date" id="loanFirst" aria-describedby="loanFirstError" /></div>
+                                <p class="field-error" id="loanFirstError" role="alert"></p>
+                                <p class="field-hint plan-hint"><i class="fas fa-circle-info" aria-hidden="true"></i><span>Later payments fall on the same day each month (or the last day of a shorter month).</span></p>
+                            </div>
+                            <details class="plan-more">
+                                <summary>More options</summary>
+                                <div class="input-group">
+                                    <label for="loanFees">One-off fees paid upfront (RM)</label>
+                                    <div class="input-icon-wrap"><i class="fas fa-file-invoice-dollar" aria-hidden="true"></i><input type="text" inputmode="decimal" id="loanFees" placeholder="0" maxlength="16" aria-describedby="loanFeesError" /></div>
+                                    <p class="field-error" id="loanFeesError" role="alert"></p>
+                                </div>
+                            </details>
+
+                            <button type="button" id="loanSaveToggle" class="btn btn-outline btn-block" aria-expanded="false" aria-controls="loanSaveFields"><i class="fas fa-bookmark" aria-hidden="true"></i> Save and track this loan</button>
+                            <div id="loanSaveFields" class="plan-save hidden">
+                            <div class="plan-divider"><span>Save and get reminders</span></div>
+                            <div class="field-row">
+                                <div class="input-group">
+                                    <label for="loanName">Name</label>
+                                    <div class="input-icon-wrap"><i class="fas fa-tag" aria-hidden="true"></i><input type="text" id="loanName" placeholder="e.g. Car loan" maxlength="60" aria-describedby="loanNameError" /></div>
+                                    <p class="field-error" id="loanNameError" role="alert"></p>
+                                </div>
+                                <div class="input-group">
+                                    <label for="loanLender">Lender (optional)</label>
+                                    <div class="input-icon-wrap"><i class="fas fa-building-columns" aria-hidden="true"></i><input type="text" id="loanLender" placeholder="e.g. Public Bank" maxlength="60" /></div>
+                                </div>
+                            </div>
+                            <div class="plan-reminder-row">
+                                <div>
+                                    <span class="label" id="loanRemindLabel">Remind me before each payment</span>
+                                    <span class="plan-sub">By Telegram if connected, otherwise in the app.</span>
+                                </div>
+                                <label class="switch-label" for="loanRemindOn"><span class="visually-hidden">Reminders for this loan</span><input type="checkbox" id="loanRemindOn" checked /><span class="switch-track" aria-hidden="true"></span></label>
+                            </div>
+                            <div class="input-group" id="loanRemindDaysGroup">
+                                <label for="loanRemindDays">Days before (0 = on the day)</label>
+                                <div class="input-icon-wrap"><i class="fas fa-bell" aria-hidden="true"></i><input type="text" inputmode="numeric" id="loanRemindDays" value="3, 0" maxlength="30" aria-describedby="loanRemindDaysError" /></div>
+                                <p class="field-error" id="loanRemindDaysError" role="alert"></p>
+                            </div>
+                            <button type="submit" id="loanSaveBtn" class="btn btn-primary btn-block"><i class="fas fa-floppy-disk" aria-hidden="true"></i> Save loan</button>
+                            </div>
+                            <button type="button" id="loanResetBtn" class="btn btn-ghost btn-block">Clear</button>
+                        </form>
+
+                        <section class="card plan-result" aria-labelledby="loanResultTitle" aria-live="polite">
+                            <h2 class="card-title" id="loanResultTitle">What it costs</h2>
+                            <div id="loanResultEmpty" class="plan-empty"><i class="fas fa-hand-holding-dollar" aria-hidden="true"></i><p id="loanResultEmptyText">Enter an amount and a rate, then choose how the interest is calculated.</p></div>
+                            <div id="loanResult" class="hidden">
+                                <div class="plan-hero">
+                                    <span class="plan-hero-label">Monthly payment</span>
+                                    <strong class="plan-hero-value" id="loanHeroValue">RM 0.00</strong>
+                                    <span class="plan-hero-sub" id="loanHeroSub"></span>
+                                </div>
+                                <div class="plan-stats key" id="loanStats"></div>
+                                <div class="plan-split" id="loanSplit"></div>
+                                <details class="plan-more plan-details">
+                                    <summary>More details</summary>
+                                    <div class="plan-stats" id="loanStatsMore"></div>
+                                </details>
+                                <div class="plan-compare" id="loanCompare"></div>
+                                <div class="plan-schedule-head">
+                                    <h3>Repayment schedule</h3>
+                                    <div class="choice-group small" id="loanView" role="group" aria-label="Schedule by">
+                                        <button type="button" class="choice active" data-value="monthly" aria-pressed="true">Monthly</button>
+                                        <button type="button" class="choice" data-value="yearly" aria-pressed="false">Yearly</button>
+                                    </div>
+                                </div>
+                                <div class="plan-table-wrap" tabindex="0" role="region" aria-label="Repayment schedule table">
+                                    <table class="plan-table" id="loanTable">
+                                        <thead><tr><th scope="col" id="loanPeriodHead">No.</th><th scope="col">Date</th><th scope="col" class="num">Payment (RM)</th><th scope="col" class="num">Principal</th><th scope="col" class="num">Interest</th><th scope="col" class="num">Balance</th></tr></thead>
+                                        <tbody></tbody>
+                                    </table>
+                                </div>
+                                <div class="plan-pager" id="loanPager">
+                                    <button type="button" class="btn btn-outline btn-small" data-page="prev"><i class="fas fa-chevron-left" aria-hidden="true"></i> Previous</button>
+                                    <span id="loanPagerText" role="status"></span>
+                                    <button type="button" class="btn btn-outline btn-small" data-page="next">Next <i class="fas fa-chevron-right" aria-hidden="true"></i></button>
+                                </div>
+                                <p class="plan-disclaimer"><i class="fas fa-circle-info" aria-hidden="true"></i> Estimate only, not financial advice. Fixed rate only. Your lender's figures can differ slightly because of rounding, fees and how it splits flat-rate interest.</p>
+                            </div>
+                        </section>
+                    </div>
+
+                    <section class="card plan-saved" aria-labelledby="loanListTitle">
+                        <div class="card-head">
+                            <h2 class="card-title" id="loanListTitle">Your loans</h2>
+                            <span class="card-hint" id="loanListSummary"></span>
+                        </div>
+                        <div id="loanTotals" class="plan-totals hidden"></div>
+                        <div id="loanList" class="plan-list" aria-live="polite"></div>
+                    </section>
+                </div>
+            </div>
+
+            <!-- Admin Screen Section: only administrators see this, and the server checks it again on every action -->
+            <div id="adminScreen" class="screen">
+                <header class="page-head">
+                    <div>
+                        <h1 class="page-title">Admin</h1>
+                        <p class="page-sub">Manage accounts and help people. You can never see anyone's expenses here.</p>
+                    </div>
+                </header>
+                <div class="segmented plan-tabs" role="tablist" aria-label="Admin sections">
+                    <button type="button" class="seg-btn active" id="adminTabUsers" role="tab" aria-selected="true" data-admin-tab="users"><i class="fas fa-users" aria-hidden="true"></i> Users</button>
+                    <button type="button" class="seg-btn" id="adminTabFeedback" role="tab" aria-selected="false" data-admin-tab="feedback" tabindex="-1"><i class="fas fa-inbox" aria-hidden="true"></i> Feedback <span class="ad-count hidden" id="adminFeedbackCount"></span></button>
+                    <button type="button" class="seg-btn" id="adminTabSystem" role="tab" aria-selected="false" data-admin-tab="system" tabindex="-1"><i class="fas fa-heart-pulse" aria-hidden="true"></i> System</button>
+                </div>
+                <div id="adminNotice" class="plan-notice hidden" role="status"></div>
+
+                <div id="adminPaneUsers" class="plan-pane" role="tabpanel" aria-labelledby="adminTabUsers">
+                    <div class="ad-summary" id="adminSummary" aria-live="polite"></div>
+                    <div class="card filters-card">
+                        <div class="search-wrap"><i class="fas fa-magnifying-glass" aria-hidden="true"></i><input type="search" id="adminSearch" placeholder="Search by email or name" aria-label="Search users" maxlength="100" /></div>
+                        <div class="filter-row ad-filters">
+                            <select id="adminStatus" class="filter-select" aria-label="Filter by status">
+                                <option value="">All accounts</option>
+                                <option value="active">Active</option>
+                                <option value="blocked">Sign-in blocked</option>
+                                <option value="disabled">Disabled</option>
+                            </select>
+                            <button type="button" id="adminRefresh" class="btn btn-outline btn-small"><i class="fas fa-rotate" aria-hidden="true"></i> Refresh</button>
+                        </div>
+                    </div>
+                    <div id="adminUsers" class="ad-users" aria-live="polite"></div>
+                    <div class="plan-pager" id="adminPager">
+                        <button type="button" class="btn btn-outline btn-small" data-page="prev"><i class="fas fa-chevron-left" aria-hidden="true"></i> Previous</button>
+                        <span id="adminPagerText" role="status"></span>
+                        <button type="button" class="btn btn-outline btn-small" data-page="next">Next <i class="fas fa-chevron-right" aria-hidden="true"></i></button>
+                    </div>
+                </div>
+
+                <div id="adminPaneFeedback" class="plan-pane hidden" role="tabpanel" aria-labelledby="adminTabFeedback">
+                    <div class="choice-group small" id="adminFeedbackView" role="group" aria-label="Show">
+                        <button type="button" class="choice active" data-value="open" aria-pressed="true">Open</button>
+                        <button type="button" class="choice" data-value="resolved" aria-pressed="false">Resolved</button>
+                    </div>
+                    <div id="adminFeedbackList" class="ad-feedback" aria-live="polite"></div>
+                </div>
+
+                <div id="adminPaneSystem" class="plan-pane hidden" role="tabpanel" aria-labelledby="adminTabSystem">
+                    <section class="card">
+                        <div class="card-head"><h2 class="card-title">Service health</h2><button type="button" id="adminHealthRefresh" class="link-btn">Check again</button></div>
+                        <ul id="adminHealth" class="admin-checks"></ul>
+                    </section>
+                    <section class="card ad-log-card">
+                        <div class="card-head"><h2 class="card-title">What admins did</h2><span class="card-hint">The last 50 actions. This record can't be edited.</span></div>
+                        <div id="adminLog" class="ad-log"></div>
+                    </section>
+                </div>
+            </div>
+
+            <!-- History Screen Section -->
+            <div id="historyScreen" class="screen">
+                <header class="page-head">
+                    <div>
+                        <h1 class="page-title">History</h1>
+                        <p class="page-sub">Every expense and income in one place</p>
+                    </div>
+                    <button class="btn btn-primary history-add" type="button" data-screen="add" aria-label="Add transaction"><i class="fas fa-plus" aria-hidden="true"></i><span class="history-add-label">Add transaction</span></button>
+                </header>
+
+                <section class="history-overview" aria-label="History overview">
+                    <div class="history-overview-main"><span class="history-overview-label">This month</span><strong id="historyMonthSpend">RM 0.00</strong><span id="historyMonthMeta">0 transactions</span></div>
+                    <div class="history-overview-stats"><div><span>Income</span><b id="historyMonthIncome">RM 0.00</b></div><div><span>Expenses</span><b id="historyMonthExpense">RM 0.00</b></div></div>
+                </section>
+
+                <div class="card filters-card">
+                    <div class="search-wrap">
+                        <i class="fas fa-magnifying-glass"></i>
+                        <input type="search" id="historySearch" placeholder="Search merchant, category, note or source…" aria-label="Search" />
+                    </div>
+                    <div class="filter-row">
+                        <select id="historyTypeFilter" class="filter-select" aria-label="Type">
+                            <option value="all">All types</option>
+                            <option value="expense">Expenses</option>
+                            <option value="income">Income</option>
+                        </select>
+                        <select id="historyCategoryFilter" class="filter-select" aria-label="Category"></select>
+                        <input type="month" id="historyMonthFilter" class="filter-month" aria-label="Month" />
+                        <button id="historyResetBtn" class="btn btn-ghost btn-small" title="Clear filters">
+                            <i class="fas fa-filter-circle-xmark"></i> Reset
+                        </button>
+                    </div>
+                </div>
+
+                <div id="historyFilterStatus" class="history-filter-status hidden" role="status" aria-live="polite">
+                    <span id="historyFilterSummary"></span>
+                    <button id="historyClearFiltersBtn" type="button" class="link-btn">Clear filters</button>
+                </div>
+                <div id="historySummary" class="history-summary" role="status" aria-live="polite"></div>
+                <div class="history-export-actions">
+                    <button id="historyCsvBtn" type="button" class="btn btn-outline btn-small"><i class="fas fa-file-csv"></i> Export CSV</button>
+                    <button id="historyReportBtn" type="button" class="btn btn-outline btn-small"><i class="fas fa-file-lines"></i> Monthly report</button>
+                </div>
+                <p class="history-swipe-hint"><i class="fas fa-arrows-left-right"></i> Swipe right to duplicate · swipe left to delete</p>
+                <div id="historyList" class="history-list grouped" aria-label="Transaction history" aria-live="polite" aria-busy="false">
+                    <div class="history-empty">No transactions yet.</div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Tab Bar Section: mobile -->
+        <nav class="tabbar" aria-label="Primary">
+            <button class="nav-item active" data-screen="dashboard">
+                <i class="fas fa-house"></i><span class="nav-label">Home</span>
+            </button>
+            <button class="nav-item" data-screen="history">
+                <i class="fas fa-clock-rotate-left"></i><span class="nav-label">History</span>
+            </button>
+            <button class="nav-item tab-fab" data-screen="add" aria-label="Add transaction">
+                <i class="fas fa-plus"></i>
+            </button>
+            <button class="nav-item" data-screen="plan">
+                <i class="fas fa-clipboard-list"></i><span class="nav-label">Plan</span>
+            </button>
+            <button class="nav-item" data-screen="account">
+                <i class="fas fa-user"></i><span class="nav-label">Account</span>
+            </button>
+        </nav>
+    </div>
+
+    <!-- Add Transaction Sheet Section -->
+    <div id="addSheet" class="modal-overlay-full sheet-overlay">
+        <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="addSheetTitle">
+            <div class="sheet-grabber" aria-hidden="true"></div>
+            <div class="sheet-head">
+                <h2 id="addSheetTitle">New transaction</h2>
+                <button id="addSheetClose" class="icon-btn" aria-label="Close"><i class="fas fa-xmark"></i></button>
+            </div>
+
+            <div class="segmented" role="tablist" aria-label="Transaction type">
+                <button type="button" role="tab" class="seg-btn active expense" id="addTabExpense" data-type="expense" aria-selected="true">
+                    <i class="fas fa-arrow-trend-down"></i> Expense
+                </button>
+                <button type="button" role="tab" class="seg-btn income" id="addTabIncome" data-type="income" aria-selected="false">
+                    <i class="fas fa-arrow-trend-up"></i> Income
+                </button>
+            </div>
+
+            <!-- Expense -->
+            <div id="expensePane" class="sheet-pane">
+                <label class="amount-field" for="expAmount">
+                    <span class="amount-prefix">RM</span>
+                    <input type="number" id="expAmount" placeholder="0.00" step="0.01" min="0" inputmode="decimal" aria-label="Amount in RM" />
+                </label>
+
+                <div class="receipt-scan-card">
+                    <div><b>Scan a receipt</b><span>Photo or PDF. PDFs with text are read on your device and never uploaded; photos go to OCR.space and aren't saved. Always review the draft.</span></div>
+                    <input id="receiptFileInput" class="visually-hidden" type="file" accept="image/jpeg,image/png,image/webp,application/pdf" />
+                    <button id="scanReceiptBtn" class="btn btn-outline btn-small" type="button"><i class="fas fa-camera"></i> Scan</button>
+                    <div id="receiptScanStatus" class="receipt-scan-status hidden" role="status"></div>
+                    <div id="receiptCandidates" class="receipt-candidates hidden" aria-label="Amounts found on the receipt"></div>
+                    <button id="scanFeedbackBtn" class="link-btn hidden" type="button"><i class="fas fa-flag"></i> Something wrong? Save the scan details</button>
+                    <label class="ai-assist" for="aiAssistToggle">
+                        <input type="checkbox" id="aiAssistToggle" />
+                        <span>Let AI help when a receipt is unclear <small>Sends the receipt text (not the image) to an AI service. Off by default.</small></span>
+                    </label>
+                    <details class="scan-tips">
+                        <summary>Tips for a clean scan</summary>
+                        <ul>
+                            <li><b>PDF receipts</b> (e-mailed receipts, e-invoices) work best: exact, instant, nothing uploaded.</li>
+                            <li>Photos: lay the receipt flat, in bright even light, with the whole receipt in the frame.</li>
+                            <li>Avoid shadows, folds and glare over the total.</li>
+                            <li>If the total is wrong, tap the right amount under the scan.</li>
+                        </ul>
+                    </details>
+                </div>
+
+                <div class="input-group merchant-group">
+                    <label for="expMerchant">Merchant (optional)</label>
+                    <div class="merchant-entry">
+                        <div class="input-icon-wrap"><i class="fas fa-store"></i><input type="text" id="expMerchant" list="merchantSuggestions" placeholder="e.g. Village Grocer" maxlength="80" autocomplete="off" /></div>
+                        <button id="nearbyPlaceBtn" type="button" class="btn btn-ghost btn-small" title="Use your location once to find a nearby mapped place"><i class="fas fa-location-crosshairs"></i><span>Nearby</span></button>
+                    </div>
+                    <datalist id="merchantSuggestions"></datalist>
+                    <span id="nearbyPlaceStatus" class="field-hint nearby-place-status" role="status">Your location is sent to OpenStreetMap only after you tap Nearby; the coordinates aren’t saved.</span>
+                    <span class="field-hint nearby-place-attribution"><a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">© OpenStreetMap contributors</a></span>
+                </div>
+                <div id="expenseTemplates" class="expense-templates hidden" aria-label="Frequent purchases"></div>
+
+                <div class="input-group">
+                    <label>Category</label>
+                    <div class="chip-group" id="expCategoryChips" aria-label="Expense category"></div>
+                    <div id="categorySuggest" class="category-suggest hidden" role="status"></div>
+                </div>
+                <div class="input-group">
+                    <label>Payment</label>
+                    <div class="chip-group" id="expPaymentChips" aria-label="Payment method"></div>
+                </div>
+                <div class="field-row">
+                    <div class="input-group">
+                        <label for="expDate">Date</label>
+                        <div class="input-icon-wrap">
+                            <i class="far fa-calendar"></i>
+                            <input type="date" id="expDate" />
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <label for="expNote" id="expNoteLabel">Note (optional)</label>
+                        <div class="input-icon-wrap">
+                            <i class="fas fa-pen"></i>
+                            <input type="text" id="expNote" placeholder="e.g. Lunch with team" maxlength="80" />
+                        </div>
+                    </div>
+                </div>
+                <button id="saveExpenseBtn" class="btn btn-primary btn-block btn-lg">
+                    <i class="fas fa-check"></i> Save expense
+                </button>
+            </div>
+
+            <!-- Income -->
+            <div id="incomePane" class="sheet-pane hidden">
+                <label class="amount-field income" for="incomeAmount">
+                    <span class="amount-prefix">RM</span>
+                    <input type="number" id="incomeAmount" placeholder="0.00" step="0.01" min="0" inputmode="decimal" aria-label="Income amount in RM" />
+                </label>
+
+                <div class="input-group">
+                    <label for="incomeSource">Source</label>
+                    <div class="chip-group" id="incomeSourceChips"></div>
+                    <div class="input-icon-wrap spaced">
+                        <i class="fas fa-building-columns"></i>
+                        <input type="text" id="incomeSource" placeholder="Salary, Freelance…" maxlength="60" />
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label for="incomeDate">Date</label>
+                    <div class="input-icon-wrap">
+                        <i class="far fa-calendar"></i>
+                        <input type="date" id="incomeDate" />
+                    </div>
+                </div>
+                <button id="saveIncomeBtn" class="btn btn-primary btn-block btn-lg">
+                    <i class="fas fa-check"></i> Save income
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Budgets Sheet Section -->
+    <div id="budgetSheet" class="modal-overlay-full sheet-overlay">
+        <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="budgetSheetTitle">
+            <div class="sheet-grabber" aria-hidden="true"></div>
+            <div class="sheet-head">
+                <h2 id="budgetSheetTitle">Monthly budgets</h2>
+                <button id="budgetSheetClose" class="icon-btn" aria-label="Close"><i class="fas fa-xmark"></i></button>
+            </div>
+            <p class="sheet-sub">Set a limit and it's tracked every month. Leave a field empty for no limit.</p>
+            <div id="budgetFields" class="budget-fields"></div>
+            <p id="budgetWarn" class="recurring-warn hidden"><i class="fas fa-triangle-exclamation"></i> Budgets aren't set up in your database yet. Run <b>supabase-schema.sql</b> in the Supabase SQL Editor, then reload.</p>
+            <button id="saveBudgetsBtn" class="btn btn-primary btn-block btn-lg">
+                <i class="fas fa-check"></i> Save budgets
+            </button>
+        </div>
+    </div>
+
+    <!-- Admin: the actions for one account, as a sheet that works on a phone -->
+    <div id="adminActionSheet" class="modal-overlay-full sheet-overlay stack-top">
+        <div class="sheet narrow" role="dialog" aria-modal="true" aria-labelledby="adminActionTitle">
+            <div class="sheet-grabber" aria-hidden="true"></div>
+            <div class="sheet-head"><h2 id="adminActionTitle">Manage account</h2>
+                <button id="adminActionClose" type="button" class="icon-btn" aria-label="Close"><i class="fas fa-xmark" aria-hidden="true"></i></button></div>
+            <p class="sheet-sub ad-action-who"></p>
+            <div id="adminActionList" class="ad-action-list"></div>
+        </div>
+    </div>
+
+    <!-- Admin: choose the month of a report to resend -->
+    <div id="adminMonthPick" class="modal-overlay-full sheet-overlay stack-top">
+        <div class="sheet narrow" role="dialog" aria-modal="true" aria-labelledby="adminMonthTitle">
+            <div class="sheet-grabber" aria-hidden="true"></div>
+            <div class="sheet-head"><h2 id="adminMonthTitle">Resend a monthly report</h2></div>
+            <p class="sheet-sub">The report goes to <b class="ad-pick-who"></b> by their own Telegram or confirmed email. You will not see it.</p>
+            <div class="input-group"><label for="adminMonthSelect">Month</label><select id="adminMonthSelect" class="filter-select"></select></div>
+            <button id="adminMonthSend" type="button" class="btn btn-primary btn-block"><i class="fas fa-paper-plane" aria-hidden="true"></i> Send</button>
+            <button id="adminMonthCancel" type="button" class="btn btn-ghost btn-block">Cancel</button>
+        </div>
+    </div>
+
+    <!-- Authenticator Setup Sheet Section -->
+    <div id="mfaSheet" class="modal-overlay-full sheet-overlay stack-top">
+        <div class="sheet narrow" role="dialog" aria-modal="true" aria-labelledby="mfaSheetTitle">
+            <div class="sheet-grabber" aria-hidden="true"></div>
+            <div class="sheet-head">
+                <h2 id="mfaSheetTitle">Set up an authenticator</h2>
+                <button id="mfaSheetClose" class="icon-btn" type="button" aria-label="Close"><i class="fas fa-xmark" aria-hidden="true"></i></button>
+            </div>
+            <div id="mfaStepScan">
+                <ol class="mfa-steps">
+                    <li>Install an authenticator app, such as Google Authenticator, Microsoft Authenticator or Authy.</li>
+                    <li>Scan this picture with the app. It will be named <b>VinExpenses</b>.</li>
+                    <li>Type the 6-digit code the app shows.</li>
+                </ol>
+                <div class="mfa-qr" id="mfaQrBox" aria-live="polite"><span class="mfa-loading"><i class="fas fa-spinner fa-spin" aria-hidden="true"></i> Preparing…</span></div>
+                <details class="plan-more"><summary>Can't scan? Type the key instead</summary>
+                    <p class="plan-sub" style="margin:0 0 8px">In your authenticator app choose "Enter a setup key", name it VinExpenses, and type:</p>
+                    <div class="mfa-secret"><code id="mfaSecret" tabindex="0"></code><button type="button" id="mfaCopySecret" class="btn btn-outline btn-small">Copy</button></div>
+                </details>
+                <div class="input-group">
+                    <label for="mfaCode">6-digit code</label>
+                    <input type="text" id="mfaCode" class="otp-input" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="000000" aria-describedby="mfaError" />
+                    <p class="field-error" id="mfaError" role="alert"></p>
+                </div>
+                <button id="mfaConfirmBtn" type="button" class="btn btn-primary btn-block"><i class="fas fa-check" aria-hidden="true"></i> Turn on two-step verification</button>
+            </div>
+            <div id="mfaStepCodes" class="hidden">
+                <div class="au-blocked-icon good" aria-hidden="true"><i class="fas fa-circle-check"></i></div>
+                <h3 class="mfa-h">Two-step verification is on</h3>
+                <p class="plan-sub" style="margin-bottom:12px">Save these 8 recovery codes somewhere safe. Each works once if you lose your phone. <b>They are shown only now.</b></p>
+                <ul class="mfa-codes" id="mfaCodes"></ul>
+                <div class="mfa-actions">
+                    <button type="button" id="mfaCopyCodes" class="btn btn-outline btn-small"><i class="fas fa-copy" aria-hidden="true"></i> Copy</button>
+                    <button type="button" id="mfaDownloadCodes" class="btn btn-outline btn-small"><i class="fas fa-download" aria-hidden="true"></i> Download</button>
+                </div>
+                <label class="plan-check" for="mfaSaved"><input type="checkbox" id="mfaSaved" /> <span>I have saved my recovery codes</span></label>
+                <button id="mfaDone" type="button" class="btn btn-primary btn-block" disabled>Done</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Contact Sheet Section: works for people who can't sign in too -->
+    <div id="feedbackSheet" class="modal-overlay-full sheet-overlay stack-top">
+        <div class="sheet narrow" role="dialog" aria-modal="true" aria-labelledby="feedbackTitle">
+            <div class="sheet-grabber" aria-hidden="true"></div>
+            <div class="sheet-head">
+                <h2 id="feedbackTitle">Contact the admin</h2>
+                <button id="feedbackClose" class="icon-btn" type="button" aria-label="Close"><i class="fas fa-xmark" aria-hidden="true"></i></button>
+            </div>
+            <form id="feedbackForm" novalidate>
+                <p class="sheet-sub">Tell us what happened and we'll reply by email. You can also write to <a href="mailto:teovincentkq1611@gmail.com">teovincentkq1611@gmail.com</a>.</p>
+                <div class="input-group" id="feedbackEmailGroup">
+                    <label for="feedbackEmail">Your email (so we can reply)</label>
+                    <div class="input-icon-wrap"><i class="fas fa-envelope" aria-hidden="true"></i><input type="email" id="feedbackEmail" placeholder="you@example.com" autocomplete="email" inputmode="email" aria-describedby="feedbackEmailError" /></div>
+                    <p class="field-error" id="feedbackEmailError" role="alert"></p>
+                </div>
+                <div class="input-group">
+                    <label for="feedbackTopic">What is it about?</label>
+                    <select id="feedbackTopic" class="filter-select" aria-describedby="feedbackTopicError">
+                        <option value="">Choose one</option>
+                        <option value="locked_out">I'm locked out</option>
+                        <option value="code_limit">I reached the code limit</option>
+                        <option value="report">My report didn't arrive</option>
+                        <option value="bug">Something is broken</option>
+                        <option value="other">Something else</option>
+                    </select>
+                    <p class="field-error" id="feedbackTopicError" role="alert"></p>
+                </div>
+                <div class="input-group">
+                    <label for="feedbackMessage">Message</label>
+                    <textarea id="feedbackMessage" class="feedback-text" rows="5" maxlength="2000" placeholder="Please don't include your password." aria-describedby="feedbackMessageError feedbackCount"></textarea>
+                    <p class="field-error" id="feedbackMessageError" role="alert"></p>
+                    <p class="field-hint" id="feedbackCount" aria-live="off">0 / 2000</p>
+                </div>
+                <div id="feedbackCaptcha" class="au-captcha"></div>
+                <p class="field-error" id="feedbackCaptchaError" role="alert"></p>
+                <button id="feedbackSend" type="submit" class="btn btn-primary btn-block"><i class="fas fa-paper-plane" aria-hidden="true"></i> Send message</button>
+            </form>
+            <div id="feedbackDone" class="hidden">
+                <div class="au-blocked-icon good" aria-hidden="true"><i class="fas fa-circle-check"></i></div>
+                <h3 class="mfa-h">Message sent</h3>
+                <p class="plan-sub" id="feedbackDoneText" style="text-align:center"></p>
+                <button id="feedbackDoneBtn" type="button" class="btn btn-primary btn-block">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Account Sheet Section -->
+    <div id="accountSheet" class="modal-overlay-full sheet-overlay">
+        <div class="sheet narrow" role="dialog" aria-modal="true" aria-labelledby="accountName">
+            <div class="sheet-grabber" aria-hidden="true"></div>
+            <div class="sheet-head">
+                <h2>Account</h2>
+                <button id="accountSheetClose" class="icon-btn" aria-label="Close"><i class="fas fa-xmark"></i></button>
+            </div>
+            <div class="account-card">
+                <span class="avatar lg" id="accountAvatar">U</span>
+                <div>
+                    <div class="account-name" id="accountName">User</div>
+                    <div class="account-email" id="accountEmail"></div>
+                </div>
+            </div>
+            <p class="account-note"><i class="fas fa-circle-half-stroke"></i> The app follows your phone's light or dark setting automatically.</p>
+            <section class="report-email-settings display-preferences" aria-labelledby="displayPreferencesTitle">
+                <div class="report-email-heading"><div><h3 id="displayPreferencesTitle">Display preferences</h3><p>Currency is fixed to Malaysian Ringgit (RM).</p></div></div>
+                <div class="input-group">
+                    <label for="dateFormatSelect">Date format</label>
+                    <select id="dateFormatSelect" class="filter-select">
+                        <option value="dmy_short">19 Oct 2026</option>
+                        <option value="dmy">19/10/2026</option>
+                        <option value="ymd">2026-10-19</option>
+                    </select>
+                </div>
+                <button id="saveDisplayPreferencesBtn" type="button" class="btn btn-outline btn-block"><i class="fas fa-floppy-disk"></i> Save display preferences</button>
+                <p id="displayPreferencesStatus" class="field-hint" role="status">Dates use the Malaysia format.</p>
+                <fieldset class="theme-picker"><legend>Colour theme</legend><p class="field-hint">Saved on this device for this account.</p><div class="theme-options" role="group" aria-label="Choose colour theme">
+                    <button type="button" class="theme-option" data-theme-choice="blue" aria-pressed="true"><span class="theme-swatch blue" aria-hidden="true"></span><span>Blue</span></button>
+                    <button type="button" class="theme-option" data-theme-choice="pink" aria-pressed="false"><span class="theme-swatch pink" aria-hidden="true"></span><span>Pink</span></button>
+                    <button type="button" class="theme-option" data-theme-choice="orange" aria-pressed="false"><span class="theme-swatch orange" aria-hidden="true"></span><span>Orange</span></button>
+                    <button type="button" class="theme-option" data-theme-choice="green" aria-pressed="false"><span class="theme-swatch green" aria-hidden="true"></span><span>Green</span></button>
+                </div><p id="themeStatus" class="field-hint" role="status" aria-live="polite">Blue theme selected. Saved on this device.</p></fieldset>
+            </section>
+            <section class="report-email-settings" id="securitySection" aria-labelledby="securityTitle">
+                <div class="report-email-heading"><div><h3 id="securityTitle">Security</h3><p>Two-step verification asks for a 6-digit code from an authenticator app when you sign in. It is optional.</p></div></div>
+                <div class="sec-row">
+                    <span class="sec-status" id="mfaStatus"><i class="fas fa-shield-halved" aria-hidden="true"></i> <span id="mfaStatusText">Checking…</span></span>
+                </div>
+                <button id="mfaEnableBtn" class="btn btn-outline btn-block" type="button" hidden><i class="fas fa-shield-halved" aria-hidden="true"></i> Set up an authenticator</button>
+                <button id="mfaCodesBtn" class="btn btn-outline btn-block" type="button" hidden><i class="fas fa-life-ring" aria-hidden="true"></i> Make new recovery codes</button>
+                <button id="mfaDisableBtn" class="btn btn-outline btn-block" type="button" hidden><i class="fas fa-shield-xmark" aria-hidden="true"></i> Turn off two-step verification</button>
+                <div id="mfaDisableGroup" class="input-group hidden">
+                    <label for="mfaDisablePass">Type your password to turn it off</label>
+                    <div class="input-icon-wrap"><i class="fas fa-lock" aria-hidden="true"></i><input type="password" id="mfaDisablePass" autocomplete="current-password" aria-describedby="mfaPanelStatus" /></div>
+                    <button id="mfaDisableConfirm" class="btn btn-outline btn-block" type="button" style="margin-top:8px">Turn off</button>
+                </div>
+                <p id="mfaPanelStatus" class="field-hint" role="status"></p>
+            </section>
+            <section class="report-email-settings" id="reportSection" aria-labelledby="reportEmailTitle">
+                <div class="report-email-heading">
+                    <div><h3 id="reportEmailTitle">Monthly report</h3><p>Last month's spending summary, sent on the first day of each month.</p></div>
+                    <label class="switch-label" for="monthlyReportEnabled"><span class="visually-hidden">Receive monthly report</span><input type="checkbox" id="monthlyReportEnabled" /><span class="switch-track" aria-hidden="true"></span></label>
+                </div>
+                <div class="input-group">
+                    <span class="label" id="reportChannelLabel">Send it by</span>
+                    <div class="choice-group" id="reportChannel" role="group" aria-labelledby="reportChannelLabel">
+                        <button type="button" class="choice active" data-value="auto" aria-pressed="true"><i class="fab fa-telegram" aria-hidden="true"></i> Telegram, else email</button>
+                        <button type="button" class="choice" data-value="email" aria-pressed="false"><i class="fas fa-envelope" aria-hidden="true"></i> Email</button>
+                    </div>
+                    <p class="field-hint" id="reportChannelHint"><i class="fas fa-circle-info" aria-hidden="true"></i><span></span></p>
+                </div>
+                <div class="input-group" id="reportEmailGroup">
+                    <label for="monthlyReportEmail">Report email address</label>
+                    <div class="input-icon-wrap"><i class="fas fa-envelope" aria-hidden="true"></i><input type="email" id="monthlyReportEmail" placeholder="you@example.com" autocomplete="email" aria-describedby="reportEmailError" /></div>
+                    <p class="field-error" id="reportEmailError" role="alert"></p>
+                </div>
+                <button id="saveReportEmailBtn" class="btn btn-outline btn-block" type="button"><i class="fas fa-floppy-disk" aria-hidden="true"></i> Save report settings</button>
+                <button id="verifyReportEmailBtn" class="btn btn-outline btn-block" type="button" hidden><i class="fas fa-envelope-circle-check" aria-hidden="true"></i> Send confirmation email</button>
+                <p id="reportEmailStatus" class="field-hint" role="status">Reports are off until you turn them on.</p>
+                <p id="reportEmailVerified" class="field-hint" role="status" hidden></p>
+                <div id="reportLast" class="report-last hidden" role="status"></div>
+            </section>
+            <section class="report-email-settings" id="telegramSection" aria-labelledby="telegramTitle">
+                <div class="report-email-heading"><div><h3 id="telegramTitle">Telegram</h3><p>Add expenses by chatting (for example “lunch 12.50”), and check today or this month. Each person connects their own account.</p></div></div>
+                <p id="telegramStatus" class="field-hint" role="status">Checking…</p>
+                <a id="telegramOpenLink" class="btn btn-outline btn-block" target="_blank" rel="noopener noreferrer" hidden><i class="fab fa-telegram"></i> Open Telegram to finish</a>
+                <button id="telegramConnectBtn" class="btn btn-outline btn-block" type="button"><i class="fab fa-telegram"></i> Connect Telegram</button>
+                <button id="telegramUnlinkBtn" class="btn btn-outline btn-block" type="button" hidden><i class="fas fa-link-slash"></i> Disconnect Telegram</button>
+            </section>
+            <section class="report-email-settings" id="adminEmailSection" aria-labelledby="adminEmailTitle" hidden>
+                <div class="report-email-heading"><div><h3 id="adminEmailTitle">Administrator: email service</h3><p>Sends a real test message to your own address through Gmail and shows exactly where it stops if something is wrong.</p></div></div>
+                <button id="adminOpenBtn" class="btn btn-primary btn-block" type="button"><i class="fas fa-user-shield" aria-hidden="true"></i> Open the admin dashboard</button>
+                <button id="adminEmailTestBtn" class="btn btn-outline btn-block" type="button"><i class="fas fa-paper-plane"></i> Send test email to me</button>
+                <p id="adminEmailStatus" class="field-hint" role="status"></p>
+                <ul id="adminEmailChecks" class="admin-checks"></ul>
+            </section>
+            <section class="report-email-settings" id="reminderSettings" aria-labelledby="reminderSettingsTitle">
+                <div class="report-email-heading"><div><h3 id="reminderSettingsTitle">Reminders</h3><p>For fixed deposits that mature and loan payments that fall due (Plan tab). Sent by Telegram when it is connected, and always listed on your dashboard.</p></div></div>
+                <div class="field-row">
+                    <div class="input-group">
+                        <label for="reminderHour">Telegram send time</label>
+                        <select id="reminderHour" class="filter-select"></select>
+                    </div>
+                    <div class="input-group">
+                        <label for="reminderPopup">Pop-up in the app</label>
+                        <select id="reminderPopup" class="filter-select">
+                            <option value="auto">Only when Telegram is not connected</option>
+                            <option value="always">Always</option>
+                            <option value="never">Never</option>
+                        </select>
+                    </div>
+                </div>
+                <label class="plan-check" for="reminderHideAmounts"><input type="checkbox" id="reminderHideAmounts" /> <span>Hide amounts in Telegram reminders</span></label>
+                <button id="saveReminderSettingsBtn" type="button" class="btn btn-outline btn-block"><i class="fas fa-floppy-disk" aria-hidden="true"></i> Save reminder settings</button>
+                <p id="reminderSettingsStatus" class="field-hint" role="status"></p>
+            </section>
+            <section class="report-email-settings" aria-labelledby="yourDataTitle">
+                <div class="report-email-heading"><div><h3 id="yourDataTitle">Your data</h3><p>Export everything as a spreadsheet, or import a CSV (this app's export or a bank statement). Duplicates are skipped.</p></div></div>
+                <div class="data-actions">
+                    <button id="exportAllCsvBtn" type="button" class="btn btn-outline"><i class="fas fa-file-export"></i> Export all (CSV)</button>
+                    <button id="importCsvBtn" type="button" class="btn btn-outline"><i class="fas fa-file-import"></i> Import CSV</button>
+                </div>
+                <input id="importCsvInput" class="visually-hidden" type="file" accept=".csv,text/csv" />
+                <p id="importCsvStatus" class="field-hint" role="status"></p>
+                <div class="sync-status-card" aria-labelledby="syncStatusTitle"><div class="report-email-heading"><div><h3 id="syncStatusTitle">Sync and recovery</h3><p id="accountSyncStatus" role="status">Checking sync status…</p></div></div><div class="data-actions"><button id="retrySyncBtn" type="button" class="btn btn-outline"><i class="fas fa-rotate" aria-hidden="true"></i> Sync now</button><button id="exportPendingBtn" type="button" class="btn btn-outline"><i class="fas fa-file-export" aria-hidden="true"></i> Export unsynced</button></div></div>
+            </section>
+            <button id="manageTaxonomyBtn"class="btn btn-outline btn-block account-manage-options"><i class="fas fa-sliders"></i> Manage categories &amp; payment methods</button>
+            <button id="showQuickStartBtn" type="button" class="btn btn-outline btn-block account-manage-options"><i class="fas fa-list-check" aria-hidden="true"></i> Show setup guide again</button>
+            <section class="report-email-settings delete-account-section" aria-labelledby="deleteAccountTitle"><div class="report-email-heading"><div><h3 id="deleteAccountTitle">Delete account</h3><p>Deletes your cloud records and this device’s saved and unsynced data. Export a copy first if you need one. This cannot be undone.</p></div></div><details><summary>Show account deletion controls</summary><label class="delete-confirm-label" for="deleteAccountConfirm">Type DELETE to confirm</label><input id="deleteAccountConfirm" class="delete-account-input" type="text" autocomplete="off" /><button id="deleteAccountBtn" type="button" class="btn btn-danger-soft btn-block" disabled>Delete my account and data</button><p id="deleteAccountStatus" class="field-hint" role="status"></p></details></section>
+            <button type="button" class="btn btn-outline btn-block account-manage-options" data-open-feedback="other"><i class="fas fa-life-ring" aria-hidden="true"></i> Contact the admin</button>
+            <p class="legal-links"><a href="welcome.html">About</a> · <a href="privacy.html">Privacy Policy</a> · <a href="terms.html">Terms of Use</a></p>
+            <p class="build-info" id="buildInfo"></p>
+            <button id="logoutBtn" class="btn btn-danger-soft btn-block">
+                <i class="fas fa-arrow-right-from-bracket"></i> Log out
+            </button>
+        </div>
+    </div>
+
+    <!-- Category & Payment Settings Section -->
+    <div id="taxonomySheet" class="modal-overlay-full sheet-overlay">
+        <div class="sheet narrow" role="dialog" aria-modal="true" aria-labelledby="taxonomyTitle">
+            <div class="sheet-grabber" aria-hidden="true"></div>
+            <div class="sheet-head">
+                <h2 id="taxonomyTitle">Spending options</h2>
+                <button id="taxonomyCloseBtn" class="icon-btn" aria-label="Close spending options"><i class="fas fa-xmark"></i></button>
+            </div>
+            <p class="sheet-sub">Rename built-in options or add your own. Inactive options stay on past transactions.</p>
+            <div class="segmented taxonomy-tabs" role="tablist" aria-label="Spending option type">
+                <button id="taxonomyCategoryTab" type="button" role="tab" aria-selected="true" class="seg-btn active">Categories</button>
+                <button id="taxonomyPaymentTab" type="button" role="tab" aria-selected="false" class="seg-btn">Payment methods</button>
+            </div>
+            <div class="taxonomy-add-row">
+                <div class="input-icon-wrap"><i class="fas fa-plus"></i><input id="taxonomyNameInput" type="text" maxlength="32" placeholder="New category name" aria-label="New spending option name" /></div>
+                <button id="taxonomySaveBtn" type="button" class="btn btn-primary">Add</button>
+            </div>
+            <p id="taxonomyStatus" class="field-hint" role="status"></p>
+            <div id="taxonomyList" class="taxonomy-list" aria-live="polite"></div>
+        </div>
+    </div>
+
+    <!-- Reminders Section: one list, never one pop-up per item -->
+    <div id="remindersSheet" class="modal-overlay-full sheet-overlay">
+        <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="remindersTitle">
+            <div class="sheet-grabber" aria-hidden="true"></div>
+            <div class="sheet-head">
+                <h2 id="remindersTitle">Reminders</h2>
+                <button id="remindersClose" class="icon-btn" type="button" aria-label="Close"><i class="fas fa-xmark" aria-hidden="true"></i></button>
+            </div>
+            <p class="sheet-sub" id="remindersSub"></p>
+            <div id="remindersList" class="reminder-list"></div>
+            <label class="plan-check" for="remindersSnooze"><input type="checkbox" id="remindersSnooze" /> <span>Don't show again for 24 hours</span></label>
+            <button id="remindersDone" type="button" class="btn btn-primary btn-block btn-lg"><i class="fas fa-check" aria-hidden="true"></i> Got it</button>
+            <p class="plan-sub reminders-foot">These stay on your dashboard under "Due soon". Change reminder settings in Account.</p>
+        </div>
+    </div>
+
+    <!-- Message / Confirm Modal Section -->
+    <div id="appModal" class="modal-overlay-full">
+        <div class="modal-container" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+            <div class="modal-icon" id="modalIcon"><i class="fas fa-circle-check"></i></div>
+            <div class="modal-title" id="modalTitle">Title</div>
+            <div class="modal-message" id="modalMessage">Message goes here.</div>
+            <div class="modal-warning hidden" id="modalWarning">
+                <i class="fas fa-triangle-exclamation"></i>
+                <span id="modalWarningText"></span>
+            </div>
+            <div class="modal-actions">
+                <button class="modal-btn modal-cancel hidden" id="modalCancelBtn">Cancel</button>
+                <button class="modal-btn modal-confirm" id="modalConfirmBtn">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Transaction Modal Section -->
+    <div id="editModal" class="modal-overlay-full sheet-overlay">
+        <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="editTitle">
+            <div class="sheet-grabber" aria-hidden="true"></div>
+            <div class="sheet-head">
+                <h2 id="editTitle">Edit transaction</h2>
+                <button id="editCancelBtn" class="icon-btn" aria-label="Close"><i class="fas fa-xmark"></i></button>
+            </div>
+            <div class="edit-body">
+                <label class="amount-field" for="editAmount">
+                    <span class="amount-prefix">RM</span>
+                    <input type="number" id="editAmount" step="0.01" min="0" inputmode="decimal" aria-label="Amount in RM" />
+                </label>
+                <div class="input-group">
+                    <label for="editDate">Date</label>
+                    <div class="input-icon-wrap">
+                        <i class="far fa-calendar"></i>
+                        <input type="date" id="editDate" />
+                    </div>
+                </div>
+                <div id="editExpenseFields">
+                    <div class="input-group">
+                        <label for="editMerchant">Merchant (optional)</label>
+                        <div class="input-icon-wrap"><i class="fas fa-store"></i><input type="text" id="editMerchant" maxlength="80" /></div>
+                    </div>
+                    <div class="field-row">
+                        <div class="input-group">
+                            <label for="editCategory">Category</label>
+                            <select id="editCategory"></select>
+                        </div>
+                        <div class="input-group">
+                            <label for="editPayment">Payment</label>
+                            <select id="editPayment"></select>
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <label for="editNote">Note (required for Other)</label>
+                        <div class="input-icon-wrap">
+                            <i class="fas fa-pen"></i>
+                            <input type="text" id="editNote" maxlength="80" />
+                        </div>
+                    </div>
+                </div>
+                <div id="editIncomeFields" class="hidden">
+                    <div class="input-group">
+                        <label for="editSource">Source</label>
+                        <div class="input-icon-wrap">
+                            <i class="fas fa-building-columns"></i>
+                            <input type="text" id="editSource" maxlength="60" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-actions split">
+                <button class="modal-btn modal-danger-ghost" id="editDeleteBtn"><i class="fas fa-trash-can"></i> Delete</button>
+                <button class="modal-btn modal-cancel" id="editDuplicateBtn"><i class="fas fa-copy" aria-hidden="true"></i> Duplicate</button>
+                <button class="modal-btn modal-confirm" id="editSaveBtn">Save changes</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Monthly Report View Section: in-app, so there is always a way back -->
+    <div id="reportView" class="report-view" role="dialog" aria-modal="true" aria-labelledby="reportViewTitle">
+        <div class="report-toolbar">
+            <button id="reportBackBtn" type="button" class="btn btn-ghost btn-small"><i class="fas fa-chevron-left"></i> Back</button>
+            <strong id="reportViewTitle">Monthly report</strong>
+            <button id="reportPrintBtn" type="button" class="btn btn-primary btn-small"><i class="fas fa-print"></i> Print / PDF</button>
+        </div>
+        <div class="report-scroll"><article id="reportDoc" class="report-doc"></article></div>
+    </div>
+
+    <!-- Toasts -->
+    <div id="toastHost" class="toast-host" aria-live="polite"></div>
+
+    <script src="config.js?v=__BUILD__"></script> <!-- generated from .env by build-config.js -->
+    <script src="receipt-parser.js?v=__BUILD__"></script>
+    <script src="smart-entry.js?v=__BUILD__"></script>
+    <script src="csv-import.js?v=__BUILD__"></script>
+    <script src="finance-calc.js?v=__BUILD__"></script>
+    <script src="auth.js?v=__BUILD__"></script> <!-- Sign-in screens: sign up, codes, forgot password, authenticator. app.js starts it. -->
+    <script src="admin.js?v=__BUILD__"></script> <!-- Admin dashboard (only shown to administrators). -->
+    <script src="plan.js?v=__BUILD__"></script> <!-- Plan tab: deposits, loans, reminders. Only defines things; app.js starts it. -->
+    <script src="app.js?v=__BUILD__"></script>
+</body>
+</html>

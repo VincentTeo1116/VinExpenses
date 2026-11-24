@@ -1,0 +1,8 @@
+.form,
+.done {
+  display: grid;
+  gap: var(--s-4);
+}
+.sub {
+  color: var(--muted);
+}

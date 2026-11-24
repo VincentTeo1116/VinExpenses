@@ -1,0 +1,53 @@
+.page {
+  display: grid;
+  gap: var(--s-5);
+  min-width: 0;
+}
+.h1 {
+  font-size: var(--fs-2xl);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+.card {
+  padding: var(--s-5);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+}
+.center {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: var(--s-6) var(--s-4);
+}
+.panel {
+  width: 100%;
+  max-width: 520px;
+  display: grid;
+  gap: var(--s-4);
+  text-align: center;
+  justify-items: center;
+}
+.code {
+  font-size: clamp(72px, 22vw, 128px);
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.04em;
+  background: linear-gradient(135deg, var(--brand), var(--brand-end));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  justify-content: center;
+  width: 100%;
+}
+@media (max-width: 479px) {
+  .actions > * {
+    width: 100%;
+  }
+}

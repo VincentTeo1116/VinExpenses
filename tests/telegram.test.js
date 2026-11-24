@@ -143,7 +143,7 @@ test('newLinkCode: 10 unambiguous characters, different every time', async () =>
 test('the app copies of the category-guessing and receipt-reading code are identical to the ones the bot uses', () => {
     const root = path.join(__dirname, '..');
     for (const file of ['smart-entry.js', 'receipt-parser.js']) {
-        const app = fs.readFileSync(path.join(root, file));
+        const app = fs.readFileSync(path.join(root, 'legacy', file));
         const bot = fs.readFileSync(path.join(root, 'supabase/functions/_shared', file));
         assert.ok(app.equals(bot), `${file} differs from the bot's copy. Run: node tools/sync-shared.js`);
     }

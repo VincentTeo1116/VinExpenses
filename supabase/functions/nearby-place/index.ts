@@ -1,6 +1,30 @@
 import { dailyLimit, json, preflight, requireUser, takeQuota } from "../_shared/guard.ts";
+import { nearestPlaces, type Place, validCoordinates } from "../_shared/nearby.ts";
 
 const DEFAULT_REVERSE_ENDPOINT = "https://nominatim.openstreetmap.org/reverse";
+
+// The nearest named shops, restaurants and amenities within `radius` metres (the person picks one), or [] when none or the service is down
+async function overpassPlaces(lat: number, lon: number, radius: number): Promise<Place[]> {
+  const endpoint = Deno.env.get("OVERPASS_URL") || "https://overpass-api.de/api/interpreter";
+  const filter = '[name][~"^(amenity|shop|tourism|leisure)$"~"."]';
+  const query = `[out:json][timeout:8];(node(around:${radius},${lat},${lon})${filter};way(around:${radius},${lat},${lon})${filter};);out center 60;`;
+  try {
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded", "User-Agent": "VinExpenses/1.0 (personal expense tracker; nearby merchant suggestion)" },
+      body: new URLSearchParams({ data: query }),
+      signal: AbortSignal.timeout(9000),
+    });
+    if (!response.ok) {
+      console.error("nearby-place overpass status", response.status);
+      return [];
+    }
+    return nearestPlaces((await response.json()).elements, lat, lon, 10);
+  } catch (error) {
+    console.error("nearby-place overpass failed", error);
+    return [];
+  }
+}
 
 // Nearest named shop / restaurant / amenity within 80 m, or "" when none (or the service is down)
 async function overpassNearest(lat: number, lon: number): Promise<string> {
@@ -55,8 +79,15 @@ Deno.serve(async (request: Request) => {
     const body = await request.json();
     const lat = Number(body.latitude);
     const lon = Number(body.longitude);
-    if (!Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) {
+    if (!validCoordinates(lat, lon) || typeof body.latitude === "string" || typeof body.longitude === "string") {
       return jsonResponse({ error: "The location coordinates are invalid." }, 400);
+    }
+
+    // A list of the closest places to choose from; the single-name answer further down is kept for older callers.
+    if (body.list === true) {
+      let places = await overpassPlaces(lat, lon, 150);
+      if (!places.length) places = await overpassPlaces(lat, lon, 300);
+      return jsonResponse({ places });
     }
 
     // Set PLACE_REVERSE_URL to switch to a compatible provider without changing the web app.

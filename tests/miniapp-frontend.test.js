@@ -5,12 +5,12 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 
-const F = require('../miniapp/format.js');
-const I18n = require('../miniapp/i18n.js');
-const Bridge = require('../miniapp/bridge.js');
-const Api = require('../miniapp/api.js');
-const Views = require('../miniapp/views.js');
-const Demo = require('../miniapp/demo.js');
+const F = require('../legacy/miniapp/format.js');
+const I18n = require('../legacy/miniapp/i18n.js');
+const Bridge = require('../legacy/miniapp/bridge.js');
+const Api = require('../legacy/miniapp/api.js');
+const Views = require('../legacy/miniapp/views.js');
+const Demo = require('../legacy/miniapp/demo.js');
 
 const NOW = '2026-11-06T04:00:00Z'; // 12:00 Friday 6 Nov 2026 in Kuala Lumpur
 
@@ -78,7 +78,7 @@ test('i18n: every text the screens and the app use exists', () => {
     const keys = new Set(I18n.keys());
     const used = new Set();
     for (const file of ['views.js', 'app.js']) {
-        const source = fs.readFileSync(path.join(__dirname, '..', 'miniapp', file), 'utf8');
+        const source = fs.readFileSync(path.join(__dirname, '..', 'legacy', 'miniapp', file), 'utf8');
         for (const m of source.matchAll(/\bt\(\s*'([a-z][a-z_0-9]*[a-z0-9])'/g)) used.add(m[1]);
         for (const m of source.matchAll(/'((?:err|ins|tab|v|budget|expense_count)_[a-z_0-9]+)'/g)) used.add(m[1]);
     }

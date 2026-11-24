@@ -1,0 +1,87 @@
+/* Design tokens: one set for light and dark. Components use these, never raw colours. */
+:root {
+  --brand: #4f46e5;
+  --brand-600: #4338ca;
+  --brand-end: #7c3aed;
+  --primary: #4f46e5;
+  --primary-soft: rgba(79, 70, 229, 0.1);
+
+  --bg: #f5f6fa;
+  --surface: #ffffff;
+  --surface-2: #f1f3f9;
+  --border: #e4e7f0;
+  --text: #0f172a;
+  --muted: #5b6785;
+  --on-brand: #ffffff;
+
+  --success: #059669;
+  --success-text: #047857; /* darker green for small text: 5.5:1 on white */
+  --success-soft: rgba(5, 150, 105, 0.1);
+  --danger: #dc2626;
+  --danger-text: #b91c1c; /* red for small text on light and tinted backgrounds */
+  --danger-solid: #dc2626; /* a red that white text can sit on */
+  --danger-soft: rgba(220, 38, 38, 0.09);
+  --warning: #b45309;
+  --warning-soft: rgba(245, 158, 11, 0.14);
+
+  --r-sm: 10px;
+  --r-md: 14px;
+  --r-lg: 20px;
+  --r-xl: 24px;
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.05), 0 1px 3px rgba(15, 23, 42, 0.04);
+  --shadow-md: 0 8px 24px rgba(15, 23, 42, 0.08);
+  --shadow-lg: 0 24px 60px rgba(15, 23, 42, 0.22);
+
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 20px;
+  --s-6: 24px;
+  --s-8: 32px;
+
+  --fs-sm: 0.8125rem;
+  --fs-md: 0.9375rem;
+  --fs-lg: 1.125rem;
+  --fs-xl: 1.5rem;
+  --fs-2xl: clamp(1.75rem, 5vw, 2.25rem);
+
+  --sidebar-w: 264px;
+  --tabbar-h: 68px;
+  --tap: 44px;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --dur: 180ms;
+
+  --z-shell: 10;
+  --z-tabbar: 40;
+  --z-sheet: 1000;
+  --z-toast: 3000;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --primary: #9aa2ff;
+    --primary-soft: rgba(154, 162, 255, 0.16);
+    --bg: #0b1020;
+    --surface: #131a2e;
+    --surface-2: #1a2340;
+    --border: #243050;
+    --text: #e8ebf5;
+    --muted: #98a4c2;
+    --success: #34d399;
+    --success-text: #34d399;
+    --success-soft: rgba(52, 211, 153, 0.14);
+    --danger: #f87171;
+    --danger-text: #fca5a5;
+    --danger-solid: #b91c1c;
+    --danger-soft: rgba(248, 113, 113, 0.14);
+    --warning: #fbbf24;
+    --warning-soft: rgba(251, 191, 36, 0.14);
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.35);
+    --shadow-lg: 0 24px 60px rgba(0, 0, 0, 0.6);
+  }
+}

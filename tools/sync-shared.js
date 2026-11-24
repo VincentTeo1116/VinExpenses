@@ -12,6 +12,6 @@ const pairs = [
 ];
 
 for (const [from, to] of pairs) {
-    fs.copyFileSync(path.join(root, from), path.join(root, to));
+    fs.copyFileSync(path.join(root, 'legacy', from), path.join(root, to));
     console.log(`${from} -> ${to}`);
 }

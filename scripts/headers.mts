@@ -1,0 +1,86 @@
+// The security headers and Content-Security-Policy the build writes. Kept apart from the Vite config so tests can read them.
+
+/** Builds the Content-Security-Policy for the production page. Nothing is allowed that the app does not use. */
+/** `meta: true` leaves out frame-ancestors, which browsers ignore (and warn about) inside a <meta> tag. */
+export const TELEGRAM_ORIGINS = ['https://web.telegram.org', 'https://webk.telegram.org', 'https://webz.telegram.org', 'https://telegram.org'];
+
+/** `ancestors` lists the only sites allowed to put the page in a frame (the Mini App lives inside Telegram). */
+export function buildCsp(supabaseUrl: string, turnstile: boolean, meta = false, ancestors: string[] = []): string {
+  let origin = '';
+  try {
+    origin = new URL(supabaseUrl).origin;
+  } catch {
+    origin = '';
+  }
+  const connect = ["'self'", origin].filter(Boolean).join(' ');
+  const scripts = ["'self'", turnstile ? 'https://challenges.cloudflare.com' : ''].filter(Boolean).join(' ');
+  const frames = turnstile ? 'https://challenges.cloudflare.com' : "'none'";
+  return [
+    "default-src 'none'",
+    `script-src ${scripts}`,
+    "style-src 'self'",
+    "img-src 'self' data: blob:",
+    "font-src 'self'",
+    `connect-src ${connect}`,
+    `frame-src ${frames}`,
+    "worker-src 'self'",
+    "manifest-src 'self'",
+    "object-src 'none'",
+    "base-uri 'none'",
+    "form-action 'none'",
+    ...(meta ? [] : [`frame-ancestors ${ancestors.length ? ancestors.join(' ') : "'none'"}`]),
+  ].join('; ');
+}
+
+/** The security headers for Cloudflare Pages (served from a `_headers` file). Also used by the tests. */
+export function headersFile(csp: string, miniCsp = ''): string {
+  return `/*
+  Content-Security-Policy: ${csp}
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(self), microphone=(), geolocation=(self), payment=(), usb=(), interest-cohort=()
+  Strict-Transport-Security: max-age=63072000; includeSubDomains
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Resource-Policy: same-origin
+
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# The app and its sign-in are private: search engines must not list them (the welcome, privacy and terms pages may be listed)
+/app
+  X-Robots-Tag: noindex, nofollow
+/app/*
+  X-Robots-Tag: noindex, nofollow
+/auth
+  X-Robots-Tag: noindex, nofollow
+/auth/*
+  X-Robots-Tag: noindex, nofollow
+/email-action.html
+  X-Robots-Tag: noindex, nofollow
+${
+  miniCsp
+    ? `
+# The Telegram Mini App is the one page that may be framed, and only by Telegram's own web apps
+/miniapp/*
+  ! X-Frame-Options
+  ! Content-Security-Policy
+  Content-Security-Policy: ${miniCsp}
+  Referrer-Policy: no-referrer
+  Cache-Control: no-cache
+  X-Robots-Tag: noindex, nofollow
+`
+    : ''
+}
+/index.html
+  Cache-Control: no-cache
+
+/sw.js
+  Cache-Control: no-cache
+
+/404.html
+  Cache-Control: no-cache
+  X-Robots-Tag: noindex
+`;
+}
+

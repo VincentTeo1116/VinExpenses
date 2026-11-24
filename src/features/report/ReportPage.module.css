@@ -1,0 +1,240 @@
+.page {
+  display: grid;
+  gap: var(--s-4);
+  min-width: 0;
+}
+.bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-2);
+}
+.picker input {
+  min-height: var(--tap);
+  padding: 0 var(--s-3);
+  border-radius: var(--r-md);
+  border: 1.5px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+}
+.h1 {
+  font-size: var(--fs-2xl);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+.sub {
+  color: var(--muted);
+}
+.line {
+  font-size: var(--fs-md);
+}
+.totals {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s-3);
+}
+@media (min-width: 700px) {
+  .totals {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+.totals div,
+.compare div {
+  display: grid;
+  gap: 2px;
+  padding: var(--s-3) var(--s-4);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  min-width: 0;
+}
+.totals span,
+.compare span {
+  color: var(--muted);
+  font-size: var(--fs-sm);
+}
+.totals b {
+  font-size: var(--fs-lg);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.section {
+  display: grid;
+  gap: var(--s-2);
+  align-content: start;
+  min-width: 0;
+}
+.h2 {
+  font-size: var(--fs-lg);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+.muted {
+  color: var(--muted);
+  font-size: var(--fs-sm);
+}
+.good {
+  color: var(--success-text);
+}
+.bad {
+  color: var(--danger-text);
+}
+.compare {
+  display: grid;
+  gap: var(--s-3);
+  grid-template-columns: minmax(0, 1fr);
+}
+@media (min-width: 700px) {
+  .compare {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .wide {
+    grid-column: 1 / -1;
+  }
+}
+.columns {
+  display: grid;
+  gap: var(--s-4);
+  grid-template-columns: minmax(0, 1fr);
+}
+@media (min-width: 700px) {
+  .columns {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+.wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+}
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-sm);
+  font-variant-numeric: tabular-nums;
+}
+.table th,
+.table td {
+  padding: 8px 10px;
+  text-align: left;
+  vertical-align: top;
+}
+.table thead th {
+  background: var(--surface-2);
+  color: var(--muted);
+}
+.table tbody tr + tr > * {
+  border-top: 1px solid var(--border);
+}
+.table tbody th {
+  font-weight: 650;
+}
+.amount {
+  text-align: right !important;
+  white-space: nowrap;
+}
+.daily {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  align-items: end;
+  gap: 2px;
+  height: 120px;
+  padding: var(--s-2);
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+}
+.dayBar {
+  display: block;
+  min-height: 2px;
+  border-radius: 2px 2px 0 0;
+  background: var(--primary);
+}
+.dayBar[data-h='0'] {
+  height: 2%;
+}
+.dayBar[data-h='5'] {
+  height: 5%;
+}
+.dayBar[data-h='10'] {
+  height: 10%;
+}
+.dayBar[data-h='15'] {
+  height: 15%;
+}
+.dayBar[data-h='20'] {
+  height: 20%;
+}
+.dayBar[data-h='25'] {
+  height: 25%;
+}
+.dayBar[data-h='30'] {
+  height: 30%;
+}
+.dayBar[data-h='35'] {
+  height: 35%;
+}
+.dayBar[data-h='40'] {
+  height: 40%;
+}
+.dayBar[data-h='45'] {
+  height: 45%;
+}
+.dayBar[data-h='50'] {
+  height: 50%;
+}
+.dayBar[data-h='55'] {
+  height: 55%;
+}
+.dayBar[data-h='60'] {
+  height: 60%;
+}
+.dayBar[data-h='65'] {
+  height: 65%;
+}
+.dayBar[data-h='70'] {
+  height: 70%;
+}
+.dayBar[data-h='75'] {
+  height: 75%;
+}
+.dayBar[data-h='80'] {
+  height: 80%;
+}
+.dayBar[data-h='85'] {
+  height: 85%;
+}
+.dayBar[data-h='90'] {
+  height: 90%;
+}
+.dayBar[data-h='95'] {
+  height: 95%;
+}
+.dayBar[data-h='100'] {
+  height: 100%;
+}
+
+@media print {
+  .page {
+    gap: 12px;
+    color: #000;
+  }
+  .wrap {
+    overflow: visible;
+    border: 0;
+  }
+  .totals div,
+  .compare div {
+    border-color: #999;
+    background: #fff;
+  }
+  .dayBar {
+    background: #333;
+    print-color-adjust: exact;
+  }
+  [data-noprint] {
+    display: none !important;
+  }
+}

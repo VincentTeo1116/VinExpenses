@@ -1,0 +1,76 @@
+.box {
+  display: grid;
+  gap: var(--s-2);
+  min-width: 0;
+}
+.hint {
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+.note {
+  padding: var(--s-3);
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+  font-size: var(--fs-sm);
+}
+.bad {
+  background: var(--warning-soft);
+}
+.list {
+  display: grid;
+  gap: var(--s-2);
+}
+.label {
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  color: var(--muted);
+}
+.search {
+  display: grid;
+  gap: 4px;
+}
+.searchLabel {
+  font-size: var(--fs-sm);
+  font-weight: 650;
+}
+.search input {
+  min-height: var(--tap);
+  padding: 0 var(--s-3);
+  border-radius: var(--r-md);
+  border: 1.5px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+}
+.place {
+  display: grid;
+  gap: 0;
+  min-height: var(--tap);
+  padding: 6px 14px;
+  border-radius: var(--r-md);
+  border: 1.5px solid var(--border);
+  background: var(--surface);
+  text-align: left;
+  cursor: pointer;
+}
+.place[aria-pressed='true'] {
+  border-color: var(--brand);
+  background: var(--primary-soft);
+}
+.name {
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+.meta {
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+.more {
+  min-height: var(--tap);
+  background: none;
+  border: 0;
+  color: var(--primary);
+  font-weight: 650;
+  text-decoration: underline;
+  cursor: pointer;
+}

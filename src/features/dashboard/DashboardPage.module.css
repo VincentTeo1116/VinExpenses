@@ -1,0 +1,530 @@
+.page {
+  display: grid;
+  gap: var(--s-4);
+  min-width: 0;
+}
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--s-3) var(--s-4);
+}
+.h1 {
+  font-size: var(--fs-2xl);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  overflow-wrap: anywhere;
+}
+.sub {
+  color: var(--muted);
+}
+.switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  border-radius: 999px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+}
+.switch button {
+  display: grid;
+  place-items: center;
+  min-width: var(--tap);
+  min-height: var(--tap);
+  border-radius: 999px;
+  color: var(--muted);
+}
+.switch button:hover:not(:disabled) {
+  background: var(--surface-2);
+  color: var(--text);
+}
+.switch button:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+.flip {
+  display: grid;
+  transform: scaleX(-1);
+}
+.monthName {
+  min-width: 9ch;
+  padding: 0 var(--s-2);
+  text-align: center;
+  font-weight: 750;
+}
+.now {
+  padding: 0 var(--s-3);
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  color: var(--primary) !important;
+}
+.link {
+  color: var(--primary);
+  font-weight: 700;
+  font-size: var(--fs-sm);
+  text-decoration: underline;
+  min-height: var(--tap);
+  padding: 0 var(--s-2);
+}
+.skeleton {
+  height: 320px;
+  border-radius: var(--r-xl);
+  background: linear-gradient(90deg, var(--surface-2), var(--surface), var(--surface-2));
+  background-size: 200% 100%;
+  animation: shimmer 1.4s linear infinite;
+}
+@keyframes shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+
+.top {
+  display: grid;
+  gap: var(--s-3);
+  min-width: 0;
+}
+@media (min-width: 1024px) {
+  .top {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* The big card: what was spent this month */
+.hero {
+  display: grid;
+  gap: var(--s-2);
+  padding: var(--s-6);
+  border-radius: var(--r-xl);
+  color: #fff;
+  background: linear-gradient(135deg, var(--brand) 0%, var(--brand-end) 100%);
+  box-shadow: 0 16px 40px color-mix(in srgb, var(--brand) 32%, transparent);
+  min-width: 0;
+}
+.heroTop {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-2);
+}
+.heroLabel {
+  font-size: var(--fs-md);
+  font-weight: 600;
+}
+.delta {
+  padding: 5px 11px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.2);
+  font-size: var(--fs-sm);
+  font-weight: 650;
+}
+.delta[data-trend='up'] {
+  background: rgba(254, 202, 202, 0.28);
+}
+.delta[data-trend='down'] {
+  background: rgba(187, 247, 208, 0.28);
+}
+.heroAmount {
+  font-size: clamp(2.2rem, 9vw, 3.4rem);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.heroBar {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 100%;
+  height: 8px;
+  border: 0;
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.22);
+}
+.heroBar::-webkit-progress-bar {
+  background: rgba(255, 255, 255, 0.22);
+  border-radius: 999px;
+}
+.heroBar::-webkit-progress-value {
+  background: #fff;
+  border-radius: 999px;
+}
+.heroBar::-moz-progress-bar {
+  background: #fff;
+  border-radius: 999px;
+}
+.heroBar.warn::-webkit-progress-value {
+  background: #fde68a;
+}
+.heroBar.warn::-moz-progress-bar {
+  background: #fde68a;
+}
+.heroBar.over::-webkit-progress-value {
+  background: #fecaca;
+}
+.heroBar.over::-moz-progress-bar {
+  background: #fecaca;
+}
+.heroCaption {
+  font-size: var(--fs-sm);
+  font-weight: 500;
+}
+.safe {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-2) var(--s-4);
+  margin-top: var(--s-2);
+  padding: var(--s-3) var(--s-4);
+  border-radius: var(--r-md);
+  background: rgba(255, 255, 255, 0.16);
+  font-size: var(--fs-sm);
+}
+.safe div {
+  display: grid;
+}
+.safe strong {
+  font-size: var(--fs-xl);
+  font-variant-numeric: tabular-nums;
+}
+.safeBad {
+  background: rgba(127, 29, 29, 0.35);
+}
+.forecast {
+  padding: var(--s-3);
+  border-radius: var(--r-md);
+  background: rgba(120, 74, 0, 0.35);
+  font-size: var(--fs-sm);
+  font-weight: 500;
+}
+
+/* The three small tiles */
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s-3);
+}
+.tile {
+  display: grid;
+  gap: 2px;
+  align-content: center;
+  min-width: 0;
+  padding: var(--s-4);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  text-align: left;
+  color: var(--text);
+}
+.budgetTile {
+  grid-column: 1 / -1;
+  cursor: pointer;
+  transition: border-color var(--dur), transform 120ms var(--ease);
+}
+.budgetTile:hover {
+  border-color: var(--primary);
+}
+.budgetTile:active {
+  transform: scale(0.99);
+}
+.budgetTile.warn .tileValue {
+  color: var(--warning);
+}
+.budgetTile.over {
+  border-color: var(--danger);
+}
+.budgetTile.over .tileValue {
+  color: var(--danger);
+}
+.tileLabel {
+  font-size: var(--fs-sm);
+  color: var(--muted);
+  font-weight: 600;
+}
+.tileValue {
+  font-size: var(--fs-lg);
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.tileSub {
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+.neg {
+  color: var(--danger);
+}
+@media (min-width: 700px) {
+  .tiles {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .budgetTile {
+    grid-column: auto;
+  }
+}
+
+.quick {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
+}
+.quickLabel {
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  color: var(--muted);
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: var(--tap);
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1.5px solid var(--border);
+  background: var(--surface);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+}
+.chip:hover {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+}
+.chip small {
+  color: var(--muted);
+}
+
+.insights {
+  display: grid;
+  gap: var(--s-3);
+  grid-template-columns: minmax(0, 1fr);
+}
+@media (min-width: 700px) {
+  .insights {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+.insight {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  padding: var(--s-4);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+}
+.insightLabel {
+  font-size: var(--fs-sm);
+  color: var(--muted);
+  font-weight: 600;
+}
+.insightValue {
+  font-size: var(--fs-lg);
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.insightSub {
+  font-size: var(--fs-sm);
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.grid2 {
+  display: grid;
+  gap: var(--s-4);
+  grid-template-columns: minmax(0, 1fr);
+}
+@media (min-width: 1024px) {
+  .grid2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+.card {
+  container-type: inline-size;
+  display: grid;
+  gap: var(--s-3);
+  align-content: start;
+  padding: var(--s-5);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  min-width: 0;
+}
+.cardHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+}
+.h2 {
+  font-size: var(--fs-lg);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+.muted {
+  color: var(--muted);
+  font-size: var(--fs-sm);
+}
+.empty {
+  color: var(--muted);
+  padding: var(--s-4) 0;
+}
+
+.catBody {
+  display: grid;
+  gap: var(--s-4);
+  align-items: center;
+}
+/* the card decides by its own width (it is half the page on a laptop), not by the screen's width */
+@container (min-width: 540px) {
+  .catBody {
+    grid-template-columns: 220px minmax(0, 1fr);
+  }
+}
+.catList {
+  list-style: none;
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.catRow {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--s-3);
+  width: 100%;
+  min-height: var(--tap);
+  padding: 6px var(--s-2);
+  border-radius: var(--r-md);
+  text-align: left;
+}
+.catRow:hover {
+  background: var(--surface-2);
+}
+.catGlyph {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: var(--primary-soft);
+}
+.catName {
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+.catAmount {
+  display: grid;
+  justify-items: end;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.catAmount small {
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.legend {
+  list-style: none;
+  display: flex;
+  gap: var(--s-4);
+  justify-content: center;
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+.legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.dotSpent,
+.dotIncome {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+.dotSpent {
+  background: var(--primary);
+}
+.dotIncome {
+  background: var(--success);
+}
+
+.rows {
+  list-style: none;
+  display: grid;
+}
+.rowItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  width: 100%;
+  min-height: 56px;
+  padding: var(--s-2) var(--s-2);
+  border-radius: var(--r-md);
+  text-align: left;
+}
+button.rowItem:hover {
+  background: var(--surface-2);
+}
+.rowText {
+  display: grid;
+  min-width: 0;
+}
+.rowTitle {
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+.rowSub {
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+.soon {
+  color: var(--warning);
+  font-weight: 650;
+}
+.rowAmount {
+  flex: 0 0 auto;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.pos {
+  color: var(--success-text);
+}
+.repeats {
+  padding-left: var(--s-5);
+  display: grid;
+  gap: 4px;
+}
+
+.nudge {
+  display: grid;
+  gap: var(--s-3);
+  padding: var(--s-4) var(--s-5);
+  border-radius: var(--r-lg);
+  background: var(--primary-soft);
+  border: 1px solid var(--border);
+}
+.nudgeActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+}
+
+.nudge .muted {
+  color: var(--text);
+}

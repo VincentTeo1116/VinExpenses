@@ -1,7 +1,7 @@
 // Run with:  node --test "tests/*.test.js"
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const C = require('../csv-import.js');
+const C = require('../legacy/csv-import.js');
 
 test('parser handles quotes, doubled quotes, newlines in cells, BOM and CRLF', () => {
     const rows = C.parseCsv('﻿a,b\r\n"x, y","say ""hi"""\r\n"line1\nline2",z\r\n');

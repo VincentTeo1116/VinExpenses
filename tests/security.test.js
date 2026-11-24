@@ -7,7 +7,8 @@ const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 
 const root = path.join(__dirname, '..');
-const read = (rel) => fs.readFileSync(path.join(root, rel), 'utf8');
+const resolve = (...parts) => { const rel = path.join(...parts); const old = path.join(root, 'legacy', rel); return fs.existsSync(old) ? old : path.join(root, rel); };
+const read = (rel) => fs.readFileSync(resolve(rel), 'utf8');
 const walk = (dir, out = []) => {
     for (const name of fs.readdirSync(path.join(root, dir), { withFileTypes: true })) {
         const rel = path.join(dir, name.name);
@@ -71,7 +72,7 @@ test('vendor/: every file matches the lockfile hashes (nothing swapped, added or
 });
 
 test('vendor/: a tampered library file is detected', () => {
-    const file = path.join(root, 'vendor/chartjs/chart.umd.js');
+    const file = resolve('vendor/chartjs/chart.umd.js');
     const original = fs.readFileSync(file);
     try {
         fs.writeFileSync(file, Buffer.concat([original, Buffer.from('\n/* injected */')]));
@@ -88,7 +89,7 @@ test('deploy workflow: actions pinned to commits, tests + vendor check before de
     assert.match(yml, /node tools\/vendor\.js verify/);
     assert.match(yml, /node --test/);
     assert.match(yml, /pin-csp\.js dist\/index\.html dist\/email-action\.html/);
-    assert.match(yml, /email-action\.html email-action\.js email-action\.css/);
+    assert.match(yml, /cp -r legacy dist/, 'the current site is built from legacy/');
     assert.ok(yml.indexOf('node --test') < yml.indexOf('deploy-pages'));
     assert.match(yml, /^permissions:/m);
 });
@@ -308,8 +309,8 @@ test('pdf.js (vendored) reads a plain text PDF with eval disabled, and rejects a
     pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n${offsets.map((o) => String(o).padStart(10, '0') + ' 00000 n \n').join('')}`;
     pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`;
 
-    const pdfjs = await import(pathToUrl(path.join(root, 'vendor/pdfjs/pdf.min.mjs')));
-    pdfjs.GlobalWorkerOptions.workerSrc = pathToUrl(path.join(root, 'vendor/pdfjs/pdf.worker.min.mjs'));
+    const pdfjs = await import(pathToUrl(resolve('vendor/pdfjs/pdf.min.mjs')));
+    pdfjs.GlobalWorkerOptions.workerSrc = pathToUrl(resolve('vendor/pdfjs/pdf.worker.min.mjs'));
     const task = pdfjs.getDocument({ data: new Uint8Array(Buffer.from(pdf, 'latin1')), isEvalSupported: false, enableXfa: false, useWorkerFetch: false, disableFontFace: true, verbosity: 0 });
     const doc = await task.promise;
     const page = await doc.getPage(1);
@@ -330,7 +331,7 @@ test('Plan: every script the page loads is shipped, cached for offline use, and 
     const deploy = read('.github/workflows/deploy.yml');
     const sw = read('sw.js');
     for (const file of scripts.filter((s) => !s.startsWith('vendor/') && s !== 'config.js')) {
-        assert.ok(new RegExp(`\\b${file.replace('.', '\\.')}\\b`).test(deploy), `${file} is not copied by the deploy workflow`);
+        assert.ok(/cp -r legacy dist/.test(deploy) && fs.existsSync(resolve(file)), `${file} is not shipped by the deploy workflow`);
         assert.ok(sw.includes(`'${file}'`), `${file} is not in the service worker's offline list`);
     }
 });
@@ -401,13 +402,12 @@ test('public pages: no code of their own, no forms, no outside requests, and the
         assert.deepEqual([...html.matchAll(/<script src="([^"]+)"/g)].map((m) => m[1]), ['frame-guard.js'], `${page} runs only the frame guard`);
         assert.ok(!/\sstyle=/.test(html), `${page}: inline styles would be blocked by its policy`);
         assert.ok(!/<form|<input|<iframe/i.test(html));
-        assert.ok(deploy.includes(page), `${page} is not copied by the deploy workflow`);
+        assert.ok(/cp -r legacy dist/.test(deploy) && fs.existsSync(resolve(page)), `${page} is not shipped by the deploy workflow`);
         for (const img of [...html.matchAll(/<img src="([^"]+)"/g)].map((m) => m[1])) {
-            assert.ok(fs.existsSync(path.join(root, img)), `${page}: missing image ${img}`);
+            assert.ok(fs.existsSync(resolve(img)), `${page}: missing image ${img}`);
         }
     }
-    assert.match(deploy, /pages\.css/);
-    assert.match(deploy, /cp -r landing dist\/landing/);
+    assert.ok(fs.existsSync(resolve('pages.css')) && fs.existsSync(resolve('landing')));
     assert.match(read('pages.css'), /html:not\(\[data-top\]\) body \{ display: none !important; \}/, 'the frame guard needs this rule');
 });
 
@@ -507,7 +507,7 @@ test('404 page: served for any missing address, goes back or to the welcome page
     for (const attr of [...html.matchAll(/(?:src|href)="([^"]+)"/g)].map((m) => m[1]).filter((v) => !v.startsWith('#'))) {
         assert.ok(attr.startsWith('__BASE__'), `${attr}: links must use the base so deep addresses still work`);
     }
-    assert.match(deploy, /404\.html 404\.js/);
+    assert.match(deploy, /cp -r legacy dist/);
     assert.match(deploy, /__BASE__/);
     const script = read('404.js');
     assert.match(script, /location\.origin/, 'only a page on this website counts as the previous page');

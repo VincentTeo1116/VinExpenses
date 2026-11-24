@@ -1,0 +1,54 @@
+# Checks the React app on every push and pull request. It never deploys anything and never receives a secret.
+name: Web app checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      # Actions are pinned to a commit, because a tag can be moved to different code.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
+
+      # Exact versions from the lockfile; install scripts are switched off in .npmrc
+      - name: Install
+        run: npm ci
+
+      - name: Only high-severity problems in code that ships to users stop the build
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Lint (includes the security rules)
+        run: npm run lint
+
+      - name: Type check
+        run: npm run typecheck
+
+      - name: Unit and component tests
+        run: npm run test:web
+
+      - name: Production build (dummy public settings)
+        env:
+          VITE_SUPABASE_URL: https://example-project.supabase.co
+          VITE_SUPABASE_ANON_KEY: dummy-public-key-for-ci-only-000000
+        run: npm run build
+
+      - name: Browser tests
+        run: |
+          npx playwright install --with-deps chromium
+          npm run test:e2e
+
+      - name: Backend and legacy tests
+        run: npm test

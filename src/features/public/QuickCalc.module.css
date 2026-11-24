@@ -1,0 +1,95 @@
+.calc {
+  display: grid;
+  gap: var(--s-6);
+  padding: var(--s-6);
+  border-radius: var(--r-xl);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-md);
+}
+.controls {
+  display: grid;
+  gap: var(--s-2);
+}
+.controls label {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--s-3);
+  margin-top: var(--s-3);
+  font-weight: 650;
+}
+.controls label:first-child {
+  margin-top: 0;
+}
+.controls output {
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--primary);
+}
+.controls input[type='range'] {
+  width: 100%;
+  min-height: var(--tap);
+  accent-color: var(--brand);
+  cursor: pointer;
+}
+.result {
+  display: grid;
+  gap: var(--s-2);
+  padding: var(--s-5);
+  border-radius: var(--r-lg);
+  color: #fff;
+  background: linear-gradient(135deg, var(--brand), var(--brand-end));
+  box-shadow: 0 16px 40px color-mix(in srgb, var(--brand) 30%, transparent);
+}
+.label {
+  font-weight: 650;
+}
+.big {
+  font-size: clamp(2rem, 7vw, 2.8rem);
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+  overflow-wrap: anywhere;
+}
+.bar {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 100%;
+  height: 10px;
+  border: 0;
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.28);
+}
+.bar::-webkit-progress-bar {
+  background: rgba(255, 255, 255, 0.28);
+  border-radius: 999px;
+}
+.bar::-webkit-progress-value {
+  background: #fff;
+  border-radius: 999px;
+  transition: width 250ms var(--ease);
+}
+.bar::-moz-progress-bar {
+  background: #fff;
+  border-radius: 999px;
+}
+.facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s-3);
+  margin-top: var(--s-2);
+}
+.facts dt {
+  font-size: var(--fs-sm);
+  opacity: 0.9;
+}
+.facts dd {
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.note {
+  font-size: var(--fs-sm);
+  opacity: 0.92;
+}

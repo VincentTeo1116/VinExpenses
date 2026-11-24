@@ -31,7 +31,7 @@ function fail(message) {
 }
 
 // Real environment variables win over .env, so CI secrets override local files.
-const fromFile = parseEnvFile(path.join(ROOT, '.env'));
+const fromFile = parseEnvFile(path.join(ROOT, '..', '.env'));
 const config = {};
 for (const key of REQUIRED) {
     config[key] = (process.env[key] || fromFile[key] || '').trim();

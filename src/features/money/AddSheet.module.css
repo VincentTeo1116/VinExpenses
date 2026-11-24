@@ -1,0 +1,104 @@
+.form {
+  display: grid;
+  gap: var(--s-3);
+  min-width: 0;
+}
+.kind {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 4px;
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+}
+.kindBtn {
+  min-height: var(--tap);
+  border-radius: calc(var(--r-md) - 4px);
+  font-weight: 650;
+  color: var(--muted);
+}
+.kindOn {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-sm);
+}
+.amount input {
+  font-size: 1.9rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  min-height: 64px;
+  font-variant-numeric: tabular-nums;
+}
+.dup {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  margin-top: var(--s-3);
+}
+.actions {
+  display: grid;
+  gap: var(--s-2);
+  margin-top: var(--s-2);
+}
+
+.scan {
+  display: grid;
+  gap: var(--s-2);
+}
+.fileInput {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+.scanHint {
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+.scanNote {
+  padding: var(--s-3);
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+  font-size: var(--fs-sm);
+}
+.scanBad {
+  background: var(--warning-soft);
+}
+.cands {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
+}
+.candLabel {
+  width: 100%;
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  color: var(--muted);
+}
+.cand {
+  display: grid;
+  gap: 0;
+  min-height: var(--tap);
+  padding: 6px 14px;
+  border-radius: var(--r-md);
+  border: 1.5px solid var(--border);
+  background: var(--surface);
+  text-align: left;
+}
+.cand[aria-pressed='true'] {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+}
+.cand small {
+  color: var(--muted);
+}
+.suggest {
+  display: grid;
+  gap: var(--s-2);
+  padding: var(--s-3);
+  border-radius: var(--r-md);
+  background: var(--primary-soft);
+  font-size: var(--fs-sm);
+}

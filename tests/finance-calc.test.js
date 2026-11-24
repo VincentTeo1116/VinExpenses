@@ -3,7 +3,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const F = require('../finance-calc.js');
+const F = require('../legacy/finance-calc.js');
 
 const fd = (extra = {}) => ({ amount: '10000', rate: '3.5', tenureValue: '90', tenureUnit: 'days', startDate: '2026-01-01', payout: 'maturity', ...extra });
 const loan = (extra = {}) => ({ amount: '100000', rate: '4.5', termValue: '30', termUnit: 'years', method: 'reducing', firstPaymentDate: '2026-01-15', ...extra });
@@ -317,7 +317,7 @@ test('relative day wording', () => {
 
 test('the reminder function uses an identical copy of this file', () => {
     const root = path.join(__dirname, '..');
-    const app = fs.readFileSync(path.join(root, 'finance-calc.js'));
+    const app = fs.readFileSync(path.join(root, 'legacy', 'finance-calc.js'));
     const copy = fs.readFileSync(path.join(root, 'supabase/functions/_shared/finance-calc.js'));
     assert.ok(app.equals(copy), 'finance-calc.js differs from the server copy. Run: node tools/sync-shared.js');
 });

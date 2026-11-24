@@ -1,0 +1,20 @@
+.field {
+  display: grid;
+  gap: var(--s-2);
+  max-width: 320px;
+}
+.field label {
+  font-size: var(--fs-sm);
+  font-weight: 650;
+  color: var(--muted);
+}
+.field select {
+  min-height: var(--tap);
+  padding: 10px 14px;
+  border-radius: var(--r-md);
+  border: 1.5px solid var(--border);
+  background: var(--surface-2);
+}
+.field select:focus-visible {
+  border-color: var(--primary);
+}

@@ -1,5 +1,20 @@
 # Smart Expense Tracker
 
+> **VinExpenses v5: React + TypeScript.** The repository root is the React app (`src/`); it also builds the Telegram Mini App (`/miniapp/`) and the email-link page (`/email-action.html`). The previous plain-JS site is kept in **`legacy/`** as a backup and still deploys to GitHub Pages until the single switch (`docs/CUTOVER.md`). The Supabase back end (`supabase/`, `supabase-schema.sql`) is shared by both.
+>
+> Start with: `docs/REQUIREMENTS-react.md` (what it must do) · `docs/DESIGN.md` · `docs/TRACEABILITY.md` (every requirement → code → test) · `docs/VERIFICATION.md` (what was tested, what was not, bugs found) · `docs/FALLBACKS.md` · `docs/DEPLOY-CLOUDFLARE.md` · `docs/CUTOVER.md`.
+>
+> | Command | What it does |
+> |---|---|
+> | `npm run dev` | Dev server on http://127.0.0.1:5173 (needs `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in `.env`) |
+> | `npm run build` | Type-checks and builds to `dist/` (CSP, `_headers`, `_redirects`, `404.html`, Mini App and email page included) |
+> | `npm run check:web` | Lint, type check, unit tests, build |
+> | `npm run test:web` | Unit and component tests (Vitest) |
+> | `npm run test:e2e` | Builds a test copy and runs the browser tests against a local stand-in for Supabase (Playwright + axe: security, 404, accessibility, 320–1920 px, every feature) |
+> | `npm test` | Backend, original-file and parity tests (`node:test`); the parity tests compare the TypeScript ports with the original JavaScript on thousands of random inputs |
+>
+> Everything below this box describes the **legacy site**; file paths such as `app.js` live under `legacy/`.
+
 A mobile-first expense & income tracker with real Supabase-backed auth
 (email/password with a confirmation **link**, or Google) and a per-user
 dashboard. Plain HTML/CSS/JS — no build step.

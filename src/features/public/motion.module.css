@@ -1,0 +1,36 @@
+.reveal {
+  opacity: 0;
+  transform: translateY(26px);
+  transition:
+    opacity 650ms var(--ease),
+    transform 650ms var(--ease);
+}
+.in {
+  opacity: 1;
+  transform: none;
+}
+.d1 {
+  transition-delay: 80ms;
+}
+.d2 {
+  transition-delay: 160ms;
+}
+.d3 {
+  transition-delay: 240ms;
+}
+.d4 {
+  transition-delay: 320ms;
+}
+.d5 {
+  transition-delay: 400ms;
+}
+.d6 {
+  transition-delay: 480ms;
+}
+@media (prefers-reduced-motion: reduce) {
+  .reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}

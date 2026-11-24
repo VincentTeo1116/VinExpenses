@@ -1,0 +1,16 @@
+.banner {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-3);
+  padding: var(--s-3) var(--s-4);
+  padding-top: calc(var(--s-3) + var(--safe-top));
+  background: var(--warning-soft);
+  color: var(--warning);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  border-bottom: 1px solid color-mix(in srgb, var(--warning) 25%, transparent);
+}
+.banner svg {
+  flex: 0 0 auto;
+  margin-top: 2px;
+}

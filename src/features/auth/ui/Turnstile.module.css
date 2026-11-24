@@ -1,0 +1,14 @@
+.wrap {
+  min-height: 0;
+}
+.error {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--danger);
+}
+.link {
+  color: var(--primary);
+  font-weight: 700;
+  text-decoration: underline;
+  min-height: 0;
+}

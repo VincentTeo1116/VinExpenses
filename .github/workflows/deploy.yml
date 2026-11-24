@@ -45,17 +45,13 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
           TURNSTILE_SITE_KEY: ${{ secrets.TURNSTILE_SITE_KEY }}   # optional: the public key of the Cloudflare security check
-        run: node build-config.js
+        run: node legacy/build-config.js
 
       - name: Stage site files
         run: |
-          mkdir dist
-          cp index.html app.js plan.js auth.js admin.js finance-calc.js receipt-parser.js smart-entry.js csv-import.js config.js style.css fonts.css frame-guard.js email-action.html email-action.js email-action.css welcome.html privacy.html terms.html 404.html 404.js pages.css sw.js manifest.json icon.png dist/
-          cp -r icons dist/icons
-          cp -r landing dist/landing   # screenshots for welcome.html
-          cp -r vendor dist/vendor
-          cp -r miniapp dist/miniapp   # the Telegram Mini App (opened from the bot)
-          rm dist/vendor/vendor.config.json dist/vendor/VENDOR.lock.json   # build metadata, not part of the site
+          # The current site lives in legacy/ (the React rebuild replaces it later). Copy it whole, then drop build-only files.
+          cp -r legacy dist
+          rm -f dist/build-config.js dist/vendor/vendor.config.json dist/vendor/VENDOR.lock.json
           # Stamp the build with the commit id so browsers fetch the new files.
           BUILD="${GITHUB_SHA::7}"
           sed -i "s/__BUILD__/${BUILD}/g" dist/index.html dist/app.js dist/style.css dist/sw.js dist/404.html

@@ -1,0 +1,79 @@
+.card {
+  display: grid;
+  gap: var(--s-4);
+  padding: var(--s-5);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  min-width: 0;
+}
+.h2 {
+  font-size: var(--fs-lg);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+.muted {
+  color: var(--muted);
+}
+.buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+}
+.sheet {
+  display: grid;
+  gap: var(--s-4);
+  min-width: 0;
+}
+.list {
+  list-style: none;
+  display: grid;
+  gap: var(--s-2);
+}
+.item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--s-3);
+}
+.off .name {
+  border-style: dashed;
+}
+.glyph {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: var(--primary-soft);
+}
+.name,
+.add input {
+  min-height: var(--tap);
+  min-width: 0;
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: var(--r-md);
+  border: 1.5px solid var(--border);
+  background: var(--surface-2);
+}
+.name:focus-visible,
+.add input:focus-visible {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 4px var(--primary-soft);
+}
+.add {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--s-2);
+}
+.addLabel {
+  flex: 1;
+  display: grid;
+  gap: 4px;
+  font-size: var(--fs-sm);
+  font-weight: 650;
+  min-width: 0;
+}

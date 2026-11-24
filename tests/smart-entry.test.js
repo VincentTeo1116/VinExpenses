@@ -1,8 +1,8 @@
 // Run with:  node --test tests/*.test.js
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const SE = require('../smart-entry.js');
-const { parseReceiptText } = require('../receipt-parser.js');
+const SE = require('../legacy/smart-entry.js');
+const { parseReceiptText } = require('../legacy/receipt-parser.js');
 const fs = require('node:fs');
 const path = require('node:path');
 

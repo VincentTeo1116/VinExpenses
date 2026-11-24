@@ -1,0 +1,77 @@
+.group {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+.label {
+  font-size: var(--fs-sm);
+  font-weight: 650;
+  color: var(--text);
+}
+.input {
+  width: 100%;
+  min-height: 48px;
+  padding: 11px 14px;
+  border-radius: var(--r-md);
+  border: 1.5px solid var(--border);
+  background: var(--surface-2);
+  transition: border-color var(--dur), background var(--dur);
+}
+.input::placeholder {
+  color: var(--muted);
+}
+.input:hover {
+  border-color: color-mix(in srgb, var(--primary) 40%, var(--border));
+}
+.input:focus-visible {
+  outline: none;
+  border-color: var(--primary);
+  background: var(--surface);
+  box-shadow: 0 0 0 4px var(--primary-soft);
+}
+.invalid {
+  border-color: var(--danger);
+  background: var(--danger-soft);
+}
+.hint {
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+.error {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--danger);
+  overflow-wrap: anywhere;
+  /* One line is always reserved: a message that appears when a field loses focus must not push the button
+     the person is about to press out from under their finger (the click would be lost). */
+  min-height: 1.4em;
+}
+.errorEmpty {
+  visibility: hidden;
+}
+.passwordWrap {
+  position: relative;
+}
+.passwordWrap .input {
+  padding-right: 52px;
+}
+.toggle {
+  position: absolute;
+  right: 4px;
+  top: 28px;
+  width: var(--tap);
+  height: var(--tap);
+  display: grid;
+  place-items: center;
+  border-radius: var(--r-sm);
+  color: var(--muted);
+}
+.toggle:hover {
+  color: var(--text);
+}
+
+.textarea {
+  min-height: 130px;
+  resize: vertical;
+  line-height: 1.5;
+}
