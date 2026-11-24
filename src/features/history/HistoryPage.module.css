@@ -358,7 +358,7 @@
     align-items: center;
   }
   .headAdd button {
-    min-height: 42px;
+    min-height: var(--tap);
     padding-inline: 13px;
     font-size: 0.82rem;
   }

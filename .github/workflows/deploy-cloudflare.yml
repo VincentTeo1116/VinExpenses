@@ -1,0 +1,80 @@
+name: Deploy to Cloudflare
+
+# Puts the web app on Cloudflare ONLY after "Web app checks" (lint, type check, unit, build, browser and backend tests) has passed for
+# a push to main, and it deploys exactly the commit that was checked. A failing check means no deploy.
+#
+# Switched off until the repository variable CLOUDFLARE_DEPLOY is "true". Before switching it on, disconnect the Git build in the
+# Cloudflare dashboard (Workers & Pages -> vinexpenses -> Settings -> Build), or Cloudflare keeps deploying every push on its own,
+# checked or not. Needs these repository secrets:
+#   CLOUDFLARE_API_TOKEN   a token with "Workers Scripts: Edit" for your account
+#   CLOUDFLARE_ACCOUNT_ID  the account id shown in the Cloudflare dashboard
+#   SUPABASE_URL, SUPABASE_ANON_KEY (and the optional TURNSTILE_SITE_KEY)  the same public settings the site is built with
+# Optional repository variable SITE_URL: the public address (defaults to the workers.dev address).
+
+on:
+  workflow_run:
+    workflows: ["Web app checks"]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cloudflare
+  cancel-in-progress: false # never stop a deploy half way
+
+jobs:
+  deploy:
+    # only a passed check of a push to main (never a pull request), and only once switched on
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' && vars.CLOUDFLARE_DEPLOY == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: cloudflare
+      url: ${{ vars.SITE_URL || 'https://vinexpenses.tkqvincent2.workers.dev' }}
+    steps:
+      # Actions are pinned to a commit, because a tag can be moved to different code.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }} # the commit that passed the checks, not whatever main is now
+          persist-credentials: false
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
+
+      - name: Check the settings are there
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          missing=""
+          for name in CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID SUPABASE_URL SUPABASE_ANON_KEY; do
+            if [ -z "${!name}" ]; then missing="$missing $name"; fi
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::Add these repository secrets (see the top of this file):$missing"
+            exit 1
+          fi
+
+      # Exact versions from the lockfile; install scripts are switched off in .npmrc
+      - name: Install
+        run: npm ci
+
+      - name: Build
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          VITE_TURNSTILE_SITE_KEY: ${{ secrets.TURNSTILE_SITE_KEY }}
+          VITE_SITE_URL: ${{ vars.SITE_URL || 'https://vinexpenses.tkqvincent2.workers.dev' }}
+        run: npm run build
+
+      # Uploads dist/ as described in wrangler.jsonc. The Wrangler version is pinned.
+      - name: Deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx --yes wrangler@4.168.0 deploy

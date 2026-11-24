@@ -1,6 +1,5 @@
 // Quick confirmations. Text only (never HTML). Errors are announced assertively; everything else politely.
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Icon, type IconName } from './Icon';
 import styles from './Toast.module.css';
 
 type ToastType = 'success' | 'error' | 'info';
@@ -22,7 +21,20 @@ interface ToastApi {
 }
 
 const ToastContext = createContext<ToastApi | null>(null);
-const icons: Record<ToastType, IconName> = { success: 'check', error: 'alert', info: 'info' };
+/** The coloured dot at the start of a toast: green with a tick that draws itself, red with "!", indigo with "i". */
+function ToastDot({ type }: { type: ToastType }) {
+  return (
+    <span className={`${styles.dot} ${styles[`dot_${type}`]}`} aria-hidden="true">
+      {type === 'success' ? (
+        <svg viewBox="0 0 24 24" className={styles.tick}>
+          <path d="M6.5 12.5l3.6 3.6L17.5 8.7" />
+        </svg>
+      ) : (
+        <span className={styles.mark}>{type === 'error' ? '!' : 'i'}</span>
+      )}
+    </span>
+  );
+}
 const MAX_VISIBLE = 3;
 const LIFETIME_MS = 4500;
 const LIFETIME_WITH_ACTION_MS = 8000;
@@ -92,7 +104,7 @@ function ToastMessage({ item, dismiss }: { item: ToastItem; dismiss: (id: number
           onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
           onFocus={() => setFocused(true)} onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setFocused(false); }}
           onPointerDown={() => setTouching(true)} onPointerUp={() => setTouching(false)} onPointerCancel={() => setTouching(false)} onPointerLeave={() => setTouching(false)}>
-          <Icon name={icons[item.type]} size={18} />
+          <ToastDot type={item.type} />
           <span className={styles.message}>{item.message}</span>
           {item.action ? <button type="button" className={styles.action} disabled={item.leaving} onClick={() => { dismiss(item.id); item.action?.onClick(); }}>{item.action.label}</button> : null}
         </div>

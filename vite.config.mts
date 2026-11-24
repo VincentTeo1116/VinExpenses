@@ -1,6 +1,6 @@
 /// <reference types="vitest/config" />
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, URL } from 'node:url';
 import { defineConfig, loadEnv, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
@@ -8,6 +8,26 @@ import { VitePWA } from 'vite-plugin-pwa';
 import { buildCsp, headersFile, TELEGRAM_ORIGINS } from './scripts/headers.mts';
 import { cleanSiteUrl, robotsTxt, seoTags, sitemapXml } from './scripts/seo.mts';
 import { APP_PATHS } from './src/app/paths';
+
+/**
+ * supabase-js builds a realtime client and a file-storage client for every project, used or not, which put about 85 KB of code
+ * (roughly 20 KB compressed) into every first download. This app uses neither, so the production build swaps both libraries for
+ * tiny stand-ins (src/lib/stubs) that fail loudly if anything ever calls them. Development and tests use the real libraries.
+ * src/test/slim-supabase.test.ts checks the stand-ins against what the installed supabase-js really calls.
+ */
+function slimSupabasePlugin(): Plugin {
+  const here = dirname(fileURLToPath(import.meta.url));
+  const stubs: Record<string, string> = {
+    '@supabase/realtime-js': resolve(here, 'src/lib/stubs/realtime.ts'),
+    '@supabase/storage-js': resolve(here, 'src/lib/stubs/storage.ts'),
+  };
+  return {
+    name: 'vinexpenses-slim-supabase',
+    apply: 'build',
+    enforce: 'pre',
+    resolveId: (source) => stubs[source] ?? null,
+  };
+}
 
 /** In production the policy is also written into the page, so hosts that cannot send headers are still protected. */
 function cspPlugin(supabaseUrl: string, turnstile: boolean): Plugin {
@@ -71,6 +91,7 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [
       react(),
+      slimSupabasePlugin(),
       cspPlugin(env.VITE_SUPABASE_URL ?? '', turnstile),
       seoPlugin(cleanSiteUrl(env.VITE_SITE_URL)),
       appPagesPlugin(),

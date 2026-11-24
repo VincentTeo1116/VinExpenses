@@ -351,23 +351,22 @@ function AddBody({ request, onClose }: { request: AddRequest; onClose: () => voi
         ) : null}
         {problem ? <Notice kind="bad">{problem}</Notice> : null}
 
-        <div className={styles.actions}>
-          <div className={styles.saveBar}>
-            <Button id="add-form-submit" type="submit" block loading={busy}>
-              {busy ? t('add.saving') : t('add.save')}
+        {/* a direct child of the form, so it can stay pinned to the bottom of the pop-up while the form scrolls */}
+        <div className={styles.saveBar}>
+          <Button id="add-form-submit" type="submit" block loading={busy}>
+            {busy ? t('add.saving') : t('add.save')}
+          </Button>
+        </div>
+        {editing ? (
+          <div className={styles.more}>
+            <Button variant="outline" block disabled={busy} onClick={() => { sheetRef.current?.close(() => openAdd({ copy: editing })); }}>
+              {t('history.duplicate')}
+            </Button>
+            <Button variant="danger" block disabled={busy} onClick={() => void remove()}>
+              {t('add.delete')}
             </Button>
           </div>
-          {editing ? (
-            <div className={styles.more}>
-              <Button variant="outline" block disabled={busy} onClick={() => { sheetRef.current?.close(() => openAdd({ copy: editing })); }}>
-                {t('history.duplicate')}
-              </Button>
-              <Button variant="danger" block disabled={busy} onClick={() => void remove()}>
-                {t('add.delete')}
-              </Button>
-            </div>
-          ) : null}
-        </div>
+        ) : null}
       </form>
     </Sheet>
   );

@@ -1,6 +1,6 @@
 // TX-04: on a touch screen, swipe a History row right to duplicate it and left to delete it (with Undo). It is an extra way in:
 // the row's own buttons and the edit sheet do the same, so nothing depends on being able to swipe.
-import { useEffect, useRef, useState, type PointerEvent, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type PointerEvent, type ReactNode } from 'react';
 import { Icon } from '@/components/Icon';
 import { prefersReducedMotion } from '@/lib/motion';
 import styles from './SwipeRow.module.css';
@@ -28,7 +28,7 @@ export function SwipeRow({ className, kind, duplicateLabel, deleteLabel, onDupli
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useEffect(() => () => clearTimeout(timer.current), []);
 
-  const slide = (dx: number, settle = false) => {
+  const slide = useCallback((dx: number, settle = false) => {
     clearTimeout(timer.current);
     const item = row.current;
     const face = item?.querySelector<HTMLElement>('[data-slide]');
@@ -38,25 +38,21 @@ export function SwipeRow({ className, kind, duplicateLabel, deleteLabel, onDupli
     if (dx) item.setAttribute('data-swipe', dx > 0 ? 'duplicate' : 'delete');
     else item.removeAttribute('data-swipe');
     item.toggleAttribute('data-armed', Math.abs(dx) >= TRIGGER);
-  };
-  const close = () => { setOpened(0); slide(0, true); };
+    if (dx === 0) {
+      // back at rest: once it has settled, leave the row exactly as it was (no inline style), so nothing lingers on it
+      if (settle && !prefersReducedMotion()) timer.current = setTimeout(() => face.removeAttribute('style'), 240);
+      else face.removeAttribute('style');
+    }
+  }, []);
+  const close = useCallback(() => { setOpened(0); slide(0, true); }, [slide]);
   useEffect(() => {
     if (!opened) return;
     const outside = (event: globalThis.PointerEvent) => {
-      if (!busy.current && event.target instanceof Node && !row.current?.contains(event.target)) {
-        setOpened(0);
-        const face = row.current?.querySelector<HTMLElement>('[data-slide]');
-        if (face) {
-          face.style.transition = prefersReducedMotion() ? 'none' : 'transform 220ms var(--ease)';
-          face.style.transform = 'translateX(0px)';
-        }
-        row.current?.removeAttribute('data-swipe');
-        row.current?.removeAttribute('data-armed');
-      }
+      if (!busy.current && event.target instanceof Node && !row.current?.contains(event.target)) close();
     };
     document.addEventListener('pointerdown', outside, true);
     return () => document.removeEventListener('pointerdown', outside, true);
-  }, [opened]);
+  }, [opened, close]);
   const duplicate = () => { close(); onDuplicate(); };
   const remove = () => {
     if (busy.current) return;

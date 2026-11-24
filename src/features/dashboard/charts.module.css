@@ -69,7 +69,7 @@
   fill: var(--success);
 }
 .month {
-  font-size: 0.72rem;
+  font-size: 0.78rem;
   font-weight: 650;
 }
 
@@ -108,4 +108,162 @@
 }
 .col:hover .bars rect {
   filter: brightness(1.12);
+}
+
+/* ---- details on pointing: the slice lifts, the rest dims, the middle names it ---- */
+.slice {
+  transition:
+    stroke-dasharray 1s cubic-bezier(0.25, 1, 0.5, 1),
+    stroke-dashoffset 1s cubic-bezier(0.25, 1, 0.5, 1),
+    stroke-width 0.2s var(--ease),
+    opacity 0.2s;
+}
+.focused .slice:not(.lit) {
+  opacity: 0.32;
+}
+.lit {
+  stroke-width: 34;
+}
+.centre {
+  animation: centreIn 0.25s var(--ease) both;
+}
+.centreName {
+  font-weight: 700;
+  color: var(--text) !important;
+  overflow-wrap: anywhere;
+}
+@keyframes centreIn {
+  from {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ---- the month bubble ---- */
+.col {
+  position: relative;
+}
+.pointed {
+  background: var(--surface-2);
+  color: var(--text);
+}
+.pointed .bars rect {
+  filter: brightness(1.12);
+}
+.tip {
+  position: absolute;
+  bottom: calc(100% - 28px);
+  left: 50%;
+  z-index: 5;
+  display: grid;
+  gap: 3px;
+  min-width: 150px;
+  padding: 9px 12px;
+  border-radius: 12px;
+  background: #0f172a;
+  color: #fff;
+  font-size: var(--fs-sm);
+  text-align: left;
+  white-space: nowrap;
+  box-shadow: 0 12px 28px rgba(8, 12, 28, 0.3);
+  pointer-events: none;
+  transform: translateX(-50%);
+  animation: tipIn 0.18s var(--ease) both;
+}
+.tip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  border: 6px solid transparent;
+  border-top-color: #0f172a;
+  transform: translateX(-50%);
+}
+.tipStart {
+  left: 0;
+  transform: none;
+  animation-name: tipInSide;
+}
+.tipStart::after {
+  left: 20px;
+}
+.tipEnd {
+  left: auto;
+  right: 0;
+  transform: none;
+  animation-name: tipInSide;
+}
+.tipEnd::after {
+  left: auto;
+  right: 14px;
+  transform: none;
+}
+.tipTitle {
+  font-weight: 800;
+  margin-bottom: 2px;
+}
+.tipRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.tipRow b {
+  margin-left: auto;
+  padding-left: 10px;
+  font-variant-numeric: tabular-nums;
+}
+.tipDotSpent,
+.tipDotIncome {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #9aa2ff;
+}
+.tipDotIncome {
+  background: #34d399;
+}
+@keyframes tipIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 6px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+@keyframes tipInSide {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@media (prefers-color-scheme: dark) {
+  .tip {
+    background: #e8ebf5;
+    color: #0f172a;
+  }
+  .tip::after {
+    border-top-color: #e8ebf5;
+  }
+  .tipDotSpent {
+    background: #4f46e5;
+  }
+  .tipDotIncome {
+    background: #059669;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .centre,
+  .tip {
+    animation: none;
+  }
 }

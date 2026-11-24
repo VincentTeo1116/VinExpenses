@@ -1,3 +1,8 @@
+/* ============================================================================================================================
+   Pop-ups. On a phone: a floating card that rises from the bottom, stands clear of the screen edges, takes at most 70% of the
+   height, and can be dragged down by its bar to close. On a tablet or computer: a compact card in the middle of the screen.
+   The title bar stays put; only the content scrolls, so the pop-up never reads as a second full page.
+   ============================================================================================================================ */
 .overlay {
   position: fixed;
   inset: 0;
@@ -5,38 +10,28 @@
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  padding: 0;
-  background: rgba(8, 12, 28, 0.55);
-  backdrop-filter: blur(3px);
-  -webkit-backdrop-filter: blur(3px);
+  padding: 0 8px calc(8px + var(--safe-bottom));
+  background: rgba(8, 12, 28, 0.5);
   overscroll-behavior: contain;
   overflow: hidden;
   touch-action: pan-y pinch-zoom; /* a pop-up only ever scrolls up and down */
+  animation: dim 0.24s ease-out;
 }
 .sheet {
+  display: flex;
+  flex-direction: column;
   width: 100%;
-  max-width: 440px;
-  max-height: calc(100dvh - 12px);
-  overflow-x: hidden;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  touch-action: pan-y pinch-zoom;
-  padding: var(--s-4) var(--s-4) calc(var(--s-5) + var(--safe-bottom));
+  max-width: 520px;
+  max-height: 70vh;
+  max-height: 70dvh;
+  overflow: hidden;
   background: var(--surface);
   color: var(--text);
-  border-radius: 26px 26px 0 0;
-  box-shadow: var(--shadow-lg);
-  animation: rise 0.3s var(--ease);
-}
-/* the pop-up scrolls, but shows no scroll bar */
-.sheet {
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-}
-.sheet::-webkit-scrollbar {
-  display: none;
-  width: 0;
-  height: 0;
+  border-radius: 28px;
+  border: 1px solid var(--glass-edge);
+  box-shadow: 0 30px 80px rgba(8, 12, 28, 0.35), 0 2px 10px rgba(8, 12, 28, 0.12);
+  animation: rise 0.42s cubic-bezier(0.32, 0.72, 0, 1);
+  will-change: transform;
 }
 .sheet:focus {
   outline: none;
@@ -44,19 +39,36 @@
 .wide {
   max-width: 640px;
 }
+
+/* the bar and the title: what you grab to drag the pop-up down */
+.handle {
+  flex: none;
+  padding: 10px var(--s-4) var(--s-3);
+  touch-action: none;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.handle:active {
+  cursor: grabbing;
+}
 .grabber {
-  width: 40px;
-  height: 4px;
-  margin: 0 auto var(--s-3);
-  border-radius: 4px;
-  background: var(--border);
+  width: 42px;
+  height: 5px;
+  margin: 0 auto 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--muted) 45%, transparent);
+  transition: width 0.2s var(--ease), background 0.2s;
+}
+.dragging .grabber {
+  width: 56px;
+  background: color-mix(in srgb, var(--primary) 70%, transparent);
 }
 .head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--s-3);
-  margin-bottom: var(--s-4);
 }
 .title {
   font-size: var(--fs-lg);
@@ -73,75 +85,89 @@
   border-radius: 50%;
   background: var(--surface-2);
   color: var(--muted);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, transform 0.15s;
 }
 .close:hover {
-  color: var(--text);
+  background: var(--primary-soft);
+  color: var(--primary);
+  transform: scale(1.08);
 }
+
+/* only the content scrolls, with a hint of what is above and below */
 .body {
+  flex: 1 1 auto;
+  min-height: 0;
   min-width: 0;
-  max-width: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y pinch-zoom;
+  padding: var(--s-1) var(--s-4) calc(var(--s-5) + var(--safe-bottom));
   overflow-wrap: anywhere;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.body::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
 }
 .body > * {
   min-width: 0;
   max-width: 100%;
 }
+/* while dragging, the pop-up follows the finger exactly */
+.dragging {
+  transition: none !important;
+  animation: none !important;
+}
+
 @media (min-width: 640px) {
   .overlay {
     align-items: center;
-    padding: var(--s-4);
+    padding: var(--s-6);
   }
   .sheet {
+    max-width: 460px;
+    max-height: min(82dvh, 760px);
     border-radius: var(--r-xl);
-    padding: var(--s-6);
-    max-height: calc(100dvh - 32px);
-    animation: pop 0.25s var(--ease);
+    animation: pop 0.28s cubic-bezier(0.2, 0.9, 0.3, 1.15);
+  }
+  .wide {
+    max-width: 640px;
   }
   .grabber {
     display: none;
   }
+  .handle {
+    padding: var(--s-5) var(--s-6) var(--s-3);
+    cursor: auto;
+    touch-action: auto;
+    user-select: auto;
+    -webkit-user-select: auto;
+  }
+  .body {
+    padding: var(--s-1) var(--s-6) var(--s-6);
+  }
 }
+
 @keyframes rise {
   from {
-    transform: translateY(40px);
-    opacity: 0;
+    transform: translateY(105%);
   }
   to {
     transform: none;
-    opacity: 1;
   }
 }
 @keyframes pop {
   from {
-    transform: translateY(12px) scale(0.97);
+    transform: translateY(14px) scale(0.94);
     opacity: 0;
   }
   to {
     transform: none;
     opacity: 1;
-  }
-}
-
-/* Glass: the pop-up lets a little of the page show through where the browser can blur */
-@supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
-  .overlay {
-    background: rgba(8, 12, 28, 0.4);
-    -webkit-backdrop-filter: blur(10px);
-    backdrop-filter: blur(10px);
-  }
-  .sheet {
-    background: var(--glass-sheet);
-    border: 1px solid var(--glass-edge);
-    -webkit-backdrop-filter: blur(30px) saturate(1.45);
-    backdrop-filter: blur(30px) saturate(1.45);
-    box-shadow: 0 28px 90px rgba(8, 12, 28, 0.28), inset 0 1px 0 var(--glass-rim);
-  }
-}
-@media (prefers-reduced-transparency: reduce) {
-  .sheet {
-    -webkit-backdrop-filter: none;
-    backdrop-filter: none;
-    background: var(--surface);
   }
 }
 @keyframes dim {
@@ -152,14 +178,36 @@
     opacity: 1;
   }
 }
-.overlay {
-  animation: dim 0.2s ease-out;
+
+/* Glass: the page behind is blurred where the browser can */
+@supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+  .overlay {
+    background: rgba(8, 12, 28, 0.38);
+    -webkit-backdrop-filter: blur(8px) saturate(1.1);
+    backdrop-filter: blur(8px) saturate(1.1);
+  }
+  .sheet {
+    background: var(--glass-sheet);
+    -webkit-backdrop-filter: blur(30px) saturate(1.45);
+    backdrop-filter: blur(30px) saturate(1.45);
+    box-shadow: 0 30px 80px rgba(8, 12, 28, 0.32), 0 2px 10px rgba(8, 12, 28, 0.1), inset 0 1px 0 var(--glass-rim);
+  }
 }
-.close {
-  transition: background 0.15s, color 0.15s, transform 0.15s;
+@media (prefers-reduced-transparency: reduce) {
+  .overlay {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    background: rgba(8, 12, 28, 0.55);
+  }
+  .sheet {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    background: var(--surface);
+  }
 }
-.close:hover {
-  background: var(--primary-soft);
-  color: var(--primary);
-  transform: scale(1.08);
+@media (prefers-reduced-motion: reduce) {
+  .overlay,
+  .sheet {
+    animation: none;
+  }
 }

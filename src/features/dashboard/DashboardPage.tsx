@@ -48,6 +48,7 @@ export function DashboardPage({ quiet = false }: { quiet?: boolean } = {}) {
   const compare = useMemo(() => compareWithLastMonth(data.expenses, month, today), [data.expenses, month, today]);
   const detail = useMemo(() => insights(data.expenses, data.recurring, month, today), [data.expenses, data.recurring, month, today]);
   const slices = useMemo(() => categoryBreakdown(data.expenses, month), [data.expenses, month]);
+  const [pointedCategory, setPointedCategory] = useState<string | null>(null); // a row in the list lights up its slice in the ring
   const bars = useMemo(() => trend(data.expenses, data.incomes, month), [data.expenses, data.incomes, month]);
   const safe = useMemo(() => safeToSpend(overallLimit, top.spent, month, today), [overallLimit, top.spent, month, today]);
   const forecast = useMemo(() => forecastMonth(top.spent, overallLimit, month, today), [top.spent, overallLimit, month, today]);
@@ -378,7 +379,10 @@ export function DashboardPage({ quiet = false }: { quiet?: boolean } = {}) {
                       color: categoryOf(slice.key).color,
                       percent: slice.percent,
                       label: `${categoryOf(slice.key).label}: ${money(slice.cents)}`,
+                      name: categoryOf(slice.key).label,
+                      amount: money(slice.cents),
                     }))}
+                    highlight={pointedCategory}
                     centre={money(top.spent)}
                     caption={t('dash.spentWord')}
                     onPick={goHistory}
@@ -389,7 +393,7 @@ export function DashboardPage({ quiet = false }: { quiet?: boolean } = {}) {
                       const item = categoryOf(slice.key);
                       return (
                         <li key={slice.key}>
-                          <button type="button" className={styles.catRow} onClick={() => goHistory(slice.key)} data-category={slice.key}>
+                          <button type="button" className={styles.catRow} onClick={() => goHistory(slice.key)} data-category={slice.key} onPointerEnter={() => setPointedCategory(slice.key)} onPointerLeave={() => setPointedCategory(null)} onFocus={() => setPointedCategory(slice.key)} onBlur={() => setPointedCategory(null)}>
                             <CatIcon name={slice.key} color={item.color} glyph={item.glyph} size={38} />
                             <span className={styles.catMain}>
                               <span className={styles.catName}>{item.label}</span>
@@ -430,8 +434,11 @@ export function DashboardPage({ quiet = false }: { quiet?: boolean } = {}) {
                 points={bars.map((point) => ({
                   key: point.month,
                   label: monthLabel(point.month, lang, 'short'),
+                  title: monthLabel(point.month, lang, 'long'),
                   spent: point.spent,
                   income: point.income,
+                  spentText: money(point.spent),
+                  incomeText: money(point.income),
                   active: point.month === month,
                   aria: t('dash.trendBar', {
                     month: monthLabel(point.month, lang, 'long'),
@@ -440,6 +447,8 @@ export function DashboardPage({ quiet = false }: { quiet?: boolean } = {}) {
                   }),
                 }))}
                 onPick={setMonth}
+                spentWord={t('dash.legendSpent')}
+                incomeWord={t('dash.legendIncome')}
               />
               <ul className={styles.legend}>
                 <li>

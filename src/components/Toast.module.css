@@ -16,8 +16,10 @@
 .toast {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 10px;
+  min-width: min(240px, calc(100vw - 40px));
+  max-width: min(520px, calc(100vw - 32px));
   margin: 4px 0;
   padding: 12px 16px;
   border-radius: var(--r-lg);
@@ -29,11 +31,7 @@
   animation: toastIn 320ms var(--ease) both;
   pointer-events: auto;
 }
-.toast > svg { flex: none; }
-.message { flex: 1 1 160px; min-width: 0; overflow-wrap: anywhere; }
-.success svg { color: #34d399; }
-.error svg { color: #f87171; }
-.info svg { color: #9aa2ff; }
+.message { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
 .action {
   margin-left: auto;
   padding: 6px 12px;
@@ -52,9 +50,106 @@
 @media (min-width: 1024px) { .host { bottom: 28px; } }
 @media (prefers-color-scheme: dark) {
   .toast { background: #e8ebf5; color: #0f172a; border-color: #fff; }
-  .success svg { color: #047857; }
-  .error svg { color: #b91c1c; }
-  .info svg { color: #4338ca; }
   .action { background: rgba(15, 23, 42, 0.08); }
   .action:hover { background: rgba(15, 23, 42, 0.16); }
+}
+
+/* ---- the dot: pops in, sends out one soft ring, and (for success) draws its tick ---- */
+.dot {
+  position: relative;
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  color: #fff;
+  animation: dotIn 0.42s cubic-bezier(0.2, 0.9, 0.3, 1.4) both;
+}
+.dot::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: inherit;
+  opacity: 0.5;
+  animation: ring 1.4s ease-out 0.25s 2 both;
+}
+.dot_success {
+  background: #10b981;
+}
+.dot_error {
+  background: #ef4444;
+}
+.dot_info {
+  background: #6366f1;
+}
+.tick {
+  position: relative;
+  z-index: 1;
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 20;
+  stroke-dashoffset: 20;
+  animation: draw 0.4s ease-out 0.22s forwards;
+}
+.mark {
+  position: relative;
+  z-index: 1;
+  font-size: 0.8rem;
+  font-weight: 900;
+  line-height: 1;
+}
+/* a success toast also carries a thin green edge, so it reads as "done" at a glance */
+.toast:has(.dot_success) {
+  box-shadow: inset 3px 0 0 #10b981, 0 12px 30px rgba(8, 12, 28, 0.28);
+}
+.toast:has(.dot_error) {
+  box-shadow: inset 3px 0 0 #ef4444, 0 12px 30px rgba(8, 12, 28, 0.28);
+}
+.toast:has(.dot_info) {
+  box-shadow: inset 3px 0 0 #6366f1, 0 12px 30px rgba(8, 12, 28, 0.28);
+}
+@keyframes dotIn {
+  from {
+    transform: scale(0.2);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+@keyframes ring {
+  from {
+    transform: scale(1);
+    opacity: 0.5;
+  }
+  to {
+    transform: scale(2.2);
+    opacity: 0;
+  }
+}
+@keyframes draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dot,
+  .dot::after {
+    animation: none;
+  }
+  .dot::after {
+    opacity: 0;
+  }
+  .tick {
+    animation: none;
+    stroke-dashoffset: 0;
+  }
 }

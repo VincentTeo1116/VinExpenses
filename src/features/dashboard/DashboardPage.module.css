@@ -942,3 +942,96 @@ button.rowItem:active,
 .skeleton {
   animation: shimmer 1.4s linear infinite, pulse 1s ease-in-out infinite;
 }
+
+/* ================= More motion: everything settles in, and answers the pointer ================= */
+/* a slow band of light passes across the spending card now and then */
+.top::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(105deg, transparent 35%, rgba(255, 255, 255, 0.14) 50%, transparent 65%);
+  transform: translateX(-120%);
+  animation: sheen 7s ease-in-out 1.2s infinite;
+  pointer-events: none;
+}
+/* the rings in its corner drift gently after they arrive */
+.top::after {
+  animation: orbitIn 0.8s var(--ease) both, drift 14s ease-in-out 0.8s infinite alternate;
+}
+/* the three tiles and the side insights arrive one after another */
+.tiles > *,
+.insights > * {
+  animation: fadeUp 0.4s var(--ease) backwards;
+}
+.tiles > :nth-child(2),
+.insights > :nth-child(2) {
+  animation-delay: 70ms;
+}
+.tiles > :nth-child(3),
+.insights > :nth-child(3) {
+  animation-delay: 140ms;
+}
+/* cards lift a little under a mouse */
+.card {
+  transition: transform 0.2s var(--ease), box-shadow 0.2s var(--ease), border-color 0.2s;
+}
+@media (hover: hover) and (pointer: fine) {
+  .card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+    border-color: color-mix(in srgb, var(--primary) 18%, var(--border));
+  }
+  .tile:hover {
+    transform: translateY(-2px);
+  }
+}
+/* the cards further down rise into place as they scroll into view (where the browser can tie motion to scrolling) */
+@supports (animation-timeline: view()) {
+  .card {
+    animation: reveal linear both;
+    animation-timeline: view();
+    animation-range: entry 0% entry 40%;
+  }
+}
+@keyframes sheen {
+  0%,
+  60% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(120%);
+  }
+}
+@keyframes drift {
+  from {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+  }
+  to {
+    transform: translate3d(-14px, 10px, 0) rotate(8deg);
+  }
+}
+@keyframes reveal {
+  from {
+    opacity: 0;
+    transform: translateY(24px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .top::before {
+    display: none;
+  }
+  .top::after,
+  .tiles > *,
+  .insights > *,
+  .card {
+    animation: none;
+  }
+  .card:hover,
+  .tile:hover {
+    transform: none;
+  }
+}

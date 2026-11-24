@@ -307,7 +307,7 @@ export function MiniApp() {
           <h2 id="mini-where" className={styles.h2}>
             {t('where_it_went')}
           </h2>
-          <Donut slices={list.map((s) => ({ key: s.key || 'others', color: safeColor(s.color, s.fallback), percent: data.total > 0 ? (s.amount / data.total) * 100 : 0, label: s.label }))} centre={compactMoney(data.total)} caption={t('categories_count', { n: data.byCategory.length })} label={t('chart_donut')} />
+          <Donut slices={list.map((s) => ({ key: s.key || 'others', color: safeColor(s.color, s.fallback), percent: data.total > 0 ? (s.amount / data.total) * 100 : 0, label: s.label, name: s.label, amount: compactMoney(s.amount) }))} centre={compactMoney(data.total)} caption={t('categories_count', { n: data.byCategory.length })} label={t('chart_donut')} />
           <ul className={styles.catList}>
             {list.map((s) => {
               const share = data.total > 0 ? s.amount / data.total : 0;
