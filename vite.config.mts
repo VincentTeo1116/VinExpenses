@@ -1,10 +1,13 @@
 /// <reference types="vitest/config" />
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import { fileURLToPath, URL } from 'node:url';
 import { defineConfig, loadEnv, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 import { buildCsp, headersFile, TELEGRAM_ORIGINS } from './scripts/headers.mts';
 import { cleanSiteUrl, robotsTxt, seoTags, sitemapXml } from './scripts/seo.mts';
+import { APP_PATHS } from './src/app/paths';
 
 /** In production the policy is also written into the page, so hosts that cannot send headers are still protected. */
 function cspPlugin(supabaseUrl: string, turnstile: boolean): Plugin {
@@ -35,6 +38,23 @@ function seoPlugin(siteUrl: string): Plugin {
   };
 }
 
+/** A real copy of the page for every app address, so hosts without rewrite rules (Cloudflare Workers assets) still answer them. */
+function appPagesPlugin(): Plugin {
+  return {
+    name: 'vinexpenses-app-pages',
+    apply: 'build',
+    writeBundle(options) {
+      const dir = options.dir ?? 'dist';
+      const shell = readFileSync(join(dir, 'index.html'));
+      for (const path of new Set(APP_PATHS.map((p) => `${p.replace(/\.html$/, '')}.html`.slice(1)))) {
+        const file = join(dir, path);
+        mkdirSync(dirname(file), { recursive: true });
+        writeFileSync(file, shell);
+      }
+    },
+  };
+}
+
 function headersPlugin(csp: string, miniCsp: string): Plugin {
   return {
     name: 'vinexpenses-headers',
@@ -53,6 +73,7 @@ export default defineConfig(({ mode }) => {
       react(),
       cspPlugin(env.VITE_SUPABASE_URL ?? '', turnstile),
       seoPlugin(cleanSiteUrl(env.VITE_SITE_URL)),
+      appPagesPlugin(),
       headersPlugin(buildCsp(env.VITE_SUPABASE_URL ?? '', turnstile), buildCsp(env.VITE_SUPABASE_URL ?? '', false, false, TELEGRAM_ORIGINS)),
       VitePWA({
         // The page registers the worker itself (no inline script), see src/app/pwa.ts

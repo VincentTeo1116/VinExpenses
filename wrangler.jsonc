@@ -1,0 +1,11 @@
+{
+  // Cloudflare Workers (static assets). "name" must be the same as the Worker's name in the Cloudflare dashboard.
+  "name": "vinexpenses",
+  "compatibility_date": "2026-11-01",
+  "assets": {
+    "directory": "./dist",
+    // /privacy is answered by privacy.html (made at build time); any address that is not a real file gets 404.html with a 404 status
+    "html_handling": "auto-trailing-slash",
+    "not_found_handling": "404-page"
+  }
+}

@@ -58,3 +58,11 @@ test('the built robots.txt and sitemap exist', opts, () => {
     assert.match(fs.readFileSync(path.join(dist, 'robots.txt'), 'utf8'), /Disallow: \/app\//);
     assert.match(fs.readFileSync(path.join(dist, 'sitemap.xml'), 'utf8'), /<loc>http:\/\/127\.0\.0\.1:4173\/privacy<\/loc>/);
 });
+
+test('every app address also exists as a real copy of the page, so hosts without rewrite rules (Workers assets) answer them', opts, () => {
+    const index = fs.readFileSync(path.join(dist, 'index.html'));
+    const paths = ['app', 'app/history', 'app/plan', 'app/account', 'app/admin', 'app/report', 'auth', 'auth/setup', 'welcome', 'privacy', 'terms'];
+    for (const p of paths) assert.ok(fs.readFileSync(path.join(dist, `${p}.html`)).equals(index), `${p}.html`);
+    assert.ok(!fs.existsSync(path.join(dist, 'nothing-here.html')));
+    assert.ok(fs.existsSync(path.join(dist, '404.html')));
+});
