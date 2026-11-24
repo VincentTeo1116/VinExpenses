@@ -1,29 +1,44 @@
 import { dailyLimit, json, preflight, requireUser, takeQuota } from "../_shared/guard.ts";
-import { nearestPlaces, type Place, validCoordinates } from "../_shared/nearby.ts";
+import { mergePlaces, nearestPlaces, type Place, placesFromPhoton, validCoordinates } from "../_shared/nearby.ts";
 
 const DEFAULT_REVERSE_ENDPOINT = "https://nominatim.openstreetmap.org/reverse";
+const USER_AGENT = "VinExpenses/1.0 (personal expense tracker; nearby merchant suggestion)";
+const LOOKUP_MS = 6000;
 
-// The nearest named shops, restaurants and amenities within `radius` metres (the person picks one), or [] when none or the service is down
+// The nearest named shops, restaurants and amenities within `radius` metres (the person picks one).
+// THROWS when the service could not be asked (busy, down, blocked), so "the service failed" is never mistaken for "nothing nearby".
 async function overpassPlaces(lat: number, lon: number, radius: number): Promise<Place[]> {
   const endpoint = Deno.env.get("OVERPASS_URL") || "https://overpass-api.de/api/interpreter";
-  const filter = '[name][~"^(amenity|shop|tourism|leisure)$"~"."]';
-  const query = `[out:json][timeout:8];(node(around:${radius},${lat},${lon})${filter};way(around:${radius},${lat},${lon})${filter};);out center 60;`;
-  try {
-    const response = await fetch(endpoint, {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded", "User-Agent": "VinExpenses/1.0 (personal expense tracker; nearby merchant suggestion)" },
-      body: new URLSearchParams({ data: query }),
-      signal: AbortSignal.timeout(9000),
-    });
-    if (!response.ok) {
-      console.error("nearby-place overpass status", response.status);
-      return [];
-    }
-    return nearestPlaces((await response.json()).elements, lat, lon, 10);
-  } catch (error) {
-    console.error("nearby-place overpass failed", error);
-    return [];
-  }
+  // four simple key filters are much cheaper for Overpass than one regular expression over every key
+  const around = `(around:${radius},${lat},${lon})`;
+  const query = `[out:json][timeout:6];(${["amenity", "shop", "tourism", "leisure"].map((key) => `nwr${around}[name][${key}];`).join("")});out center 60;`;
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded", "User-Agent": USER_AGENT },
+    body: new URLSearchParams({ data: query }),
+    signal: AbortSignal.timeout(LOOKUP_MS),
+  });
+  if (!response.ok) throw new Error(`overpass status ${response.status}`);
+  return nearestPlaces((await response.json()).elements, lat, lon, 20);
+}
+
+// A second, separate service over the same OpenStreetMap data (Photon). Overpass is often at capacity, so both are asked at once.
+async function photonPlaces(lat: number, lon: number, radius: number): Promise<Place[]> {
+  const endpoint = Deno.env.get("PHOTON_URL") || "https://photon.komoot.io/reverse";
+  const url = new URL(endpoint);
+  url.search = new URLSearchParams({ lat: String(lat), lon: String(lon), radius: String(radius / 1000), limit: "40", lang: "en" }).toString();
+  const response = await fetch(url, { headers: { Accept: "application/json", "User-Agent": USER_AGENT }, signal: AbortSignal.timeout(LOOKUP_MS) });
+  if (!response.ok) throw new Error(`photon status ${response.status}`);
+  return placesFromPhoton(await response.json(), lat, lon, 20);
+}
+
+// Asks both services together and joins the answers. Throws only when BOTH failed; an empty list means the map really has nothing there.
+async function nearbyList(lat: number, lon: number, radius: number): Promise<Place[]> {
+  const [overpass, photon] = await Promise.allSettled([overpassPlaces(lat, lon, radius), photonPlaces(lat, lon, radius)]);
+  if (overpass.status === "rejected") console.error("nearby-place overpass failed", overpass.reason);
+  if (photon.status === "rejected") console.error("nearby-place photon failed", photon.reason);
+  if (overpass.status === "rejected" && photon.status === "rejected") throw new Error("no map service answered");
+  return mergePlaces([overpass.status === "fulfilled" ? overpass.value : [], photon.status === "fulfilled" ? photon.value : []], 10);
 }
 
 // Nearest named shop / restaurant / amenity within 80 m, or "" when none (or the service is down)
@@ -85,9 +100,13 @@ Deno.serve(async (request: Request) => {
 
     // A list of the closest places to choose from; the single-name answer further down is kept for older callers.
     if (body.list === true) {
-      let places = await overpassPlaces(lat, lon, 150);
-      if (!places.length) places = await overpassPlaces(lat, lon, 300);
-      return jsonResponse({ places });
+      try {
+        let places = await nearbyList(lat, lon, 150);
+        if (!places.length) places = await nearbyList(lat, lon, 300);
+        return jsonResponse({ places });
+      } catch (_error) {
+        return jsonResponse({ error: "The map services did not answer. Try again in a moment, or enter the merchant manually." }, 502);
+      }
     }
 
     // Set PLACE_REVERSE_URL to switch to a compatible provider without changing the web app.

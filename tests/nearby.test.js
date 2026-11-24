@@ -45,3 +45,38 @@ test('rubbish in gives an empty list, and only real coordinates are accepted', a
     assert.equal(validCoordinates(3.1, 101.6), true);
     for (const [a, b] of [[91, 0], [0, 181], [NaN, 1], ['3', '101'], [null, null], [Infinity, 0]]) assert.equal(validCoordinates(a, b), false, `${a},${b}`);
 });
+
+const feature = (name, key, value, dLat, dLon = 0) => ({ type: 'Feature', properties: { name, osm_key: key, osm_value: value }, geometry: { type: 'Point', coordinates: [101.6 + dLon, 3.1 + dLat] } });
+
+test('a Photon answer keeps only shops, food and amenities, nearest first, reading [lon, lat]', async () => {
+    const { placesFromPhoton } = await load();
+    const result = placesFromPhoton({ features: [
+        feature('Mid Valley Megamall', 'shop', 'mall', 0.0006),
+        feature('Centre Court', 'place', 'square', 0.0001),
+        feature('KFC', 'amenity', 'fast_food', 0.0002),
+        feature('Starbucks', 'amenity', 'cafe', 0.0001),
+        { type: 'Feature', properties: { name: 'No point', osm_key: 'shop', osm_value: 'mall' } },
+        { type: 'Feature', properties: { osm_key: 'shop', osm_value: 'mall' }, geometry: { coordinates: [101.6, 3.1] } },
+    ] }, 3.1, 101.6);
+    assert.deepEqual(result.map((p) => p.name), ['Starbucks', 'KFC', 'Mid Valley Megamall']);
+    assert.equal(result[0].kind, 'cafe');
+    assert.equal(result[1].kind, 'fast food');
+    assert.ok(result[0].distance < result[1].distance);
+});
+
+test('a Photon answer that is not a list gives an empty list', async () => {
+    const { placesFromPhoton } = await load();
+    for (const bad of [null, undefined, 'x', {}, { features: 'x' }]) assert.deepEqual(placesFromPhoton(bad, 3.1, 101.6), []);
+});
+
+test('answers from two services are joined: one entry per name, the one with a kind wins, nearest first', async () => {
+    const { mergePlaces } = await load();
+    const merged = mergePlaces([
+        [{ name: 'KFC', kind: 'fast food', distance: 30 }, { name: 'Watsons', kind: '', distance: 90 }],
+        [{ name: 'kfc', kind: '', distance: 20 }, { name: 'Watsons', kind: 'chemist', distance: 95 }, { name: 'Starbucks', kind: 'cafe', distance: 10 }],
+    ]);
+    assert.deepEqual(merged.map((p) => p.name), ['Starbucks', 'KFC', 'Watsons']);
+    assert.equal(merged[1].kind, 'fast food');
+    assert.equal(merged[2].kind, 'chemist');
+    assert.equal(mergePlaces([[], []]).length, 0);
+});

@@ -421,7 +421,7 @@ test('privacy policy: names every outside service the code actually uses, and th
     for (const file of walk('supabase/functions').filter((f) => f.endsWith('.ts'))) {
         for (const m of read(file).matchAll(/https:\/\/([a-z0-9.-]+\.[a-z]{2,})/g)) hosts.add(m[1]);
     }
-    const known = ['api.ocr.space', 'api.telegram.org', 't.me', 'nominatim.openstreetmap.org', 'overpass-api.de', 'generativelanguage.googleapis.com', 'smtp.gmail.com', 'www.openstreetmap.org',
+    const known = ['api.ocr.space', 'api.telegram.org', 't.me', 'nominatim.openstreetmap.org', 'overpass-api.de', 'photon.komoot.io', 'generativelanguage.googleapis.com', 'smtp.gmail.com', 'www.openstreetmap.org',
         'myaccount.google.com', 'aistudio.google.com', // only links in setup notes
         'challenges.cloudflare.com'];
     const unknown = [...hosts].filter((h) => !known.includes(h) && !/supabase\.co$|github\.io$|example\.|^x$|^me\./.test(h));

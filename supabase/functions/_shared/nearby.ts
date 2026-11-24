@@ -47,6 +47,38 @@ export function nearestPlaces(elements: unknown, lat: number, lon: number, limit
   return found.sort((a, b) => a.distance - b.distance || a.name.localeCompare(b.name)).slice(0, Math.max(1, Math.min(20, limit)));
 }
 
+/** Joins lists from different map services: one entry per name (the nearer one), nearest first, capped. */
+export function mergePlaces(lists: Place[][], limit = 10): Place[] {
+  const byName = new Map<string, Place>();
+  for (const place of lists.flat()) {
+    const key = place.name.toLowerCase();
+    const known = byName.get(key);
+    // keep the entry that has a kind, or else the nearer one
+    if (!known || (!known.kind && place.kind) || (!!known.kind === !!place.kind && place.distance < known.distance)) byName.set(key, place);
+  }
+  return [...byName.values()].sort((a, b) => a.distance - b.distance || a.name.localeCompare(b.name)).slice(0, Math.max(1, Math.min(20, limit)));
+}
+
+/**
+ * Turns a Photon (komoot) reverse-geocoding answer into the same list. Used when Overpass is busy or down: Photon is a separate
+ * service over the same OpenStreetMap data. Only shops, restaurants, amenities, tourism and leisure places are kept.
+ * Photon puts the point at `geometry.coordinates` as [lon, lat]; the same entry-and-merge rules as Overpass apply.
+ */
+export function placesFromPhoton(collection: unknown, lat: number, lon: number, limit = 10): Place[] {
+  const features = (collection as { features?: unknown } | null)?.features;
+  if (!Array.isArray(features)) return [];
+  const elements: Element[] = [];
+  for (const raw of features as { properties?: Record<string, unknown>; geometry?: { coordinates?: unknown } }[]) {
+    const properties = raw?.properties ?? {};
+    const key = properties.osm_key;
+    if (typeof key !== "string" || !(KIND_KEYS as readonly string[]).includes(key)) continue;
+    const point = raw?.geometry?.coordinates;
+    if (!Array.isArray(point)) continue;
+    elements.push({ lon: point[0], lat: point[1], tags: { name: properties.name, [key]: properties.osm_value } });
+  }
+  return nearestPlaces(elements, lat, lon, limit);
+}
+
 /** True for a latitude and longitude that can be real. */
 export const validCoordinates = (lat: unknown, lon: unknown): boolean =>
   typeof lat === "number" && typeof lon === "number" && Number.isFinite(lat) && Number.isFinite(lon) && Math.abs(lat) <= 90 && Math.abs(lon) <= 180;

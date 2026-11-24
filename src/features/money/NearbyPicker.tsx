@@ -14,21 +14,38 @@ const reply = z.object({
     .array(z.object({ name: z.string().min(1).max(80), kind: z.string().max(30), distance: z.number().min(0).max(5000) }))
     .max(20)
     .optional(),
+  // an older deployed server answers with one name instead of a list; it is shown as a list of one
+  name: z.string().min(1).max(80).optional(),
 });
 type Place = { name: string; kind: string; distance: number };
 type Problem = 'unsupported' | 'denied' | 'unavailable' | 'service' | 'offline' | 'limit';
 
 const FIRST = 5;
 
-function position(): Promise<{ latitude: number; longitude: number }> {
+type Fix = { latitude: number; longitude: number };
+
+function once(options: PositionOptions): Promise<Fix> {
   return new Promise((resolve, reject) => {
-    if (!('geolocation' in navigator)) return reject(Object.assign(new Error('unsupported'), { code: 'unsupported' }));
     navigator.geolocation.getCurrentPosition(
       (p) => resolve({ latitude: p.coords.latitude, longitude: p.coords.longitude }),
       (e) => reject(Object.assign(new Error('geo'), { code: e.code === 1 ? 'denied' : 'unavailable' })),
-      { enableHighAccuracy: true, timeout: 12_000, maximumAge: 60_000 },
+      options,
     );
   });
+}
+
+/**
+ * The position once. A quick, network-based fix comes first (works indoors and on computers, which have no GPS; about 100 m is plenty for
+ * naming a shop). Only when that cannot be had does it ask for the GPS, which can take longer. A refusal is never retried.
+ */
+async function position(): Promise<Fix> {
+  if (!('geolocation' in navigator)) throw Object.assign(new Error('unsupported'), { code: 'unsupported' });
+  try {
+    return await once({ enableHighAccuracy: false, timeout: 10_000, maximumAge: 5 * 60_000 });
+  } catch (error) {
+    if ((error as { code?: string }).code === 'denied') throw error;
+    return once({ enableHighAccuracy: true, timeout: 15_000, maximumAge: 60_000 });
+  }
 }
 
 export function NearbyPicker({ onPick }: { onPick: (name: string) => void }) {
@@ -54,7 +71,7 @@ export function NearbyPicker({ onPick }: { onPick: (name: string) => void }) {
       const where = await position();
       setStep('searching');
       const answer = await callFunction('nearby-place', { ...where, list: true }, { baseUrl: envResult.env.supabaseUrl, anonKey: envResult.env.supabaseAnonKey, accessToken: session?.access_token, timeoutMs: 20_000, schema: reply });
-      setPlaces(answer.places ?? []);
+      setPlaces(answer.places ?? (answer.name ? [{ name: answer.name, kind: '', distance: 0 }] : []));
     } catch (error) {
       setPlaces(null);
       const code = (error as { code?: string }).code;
