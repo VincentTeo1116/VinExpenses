@@ -42,7 +42,7 @@ supabase/functions/**/.env
 
 # ---- Real receipts (private data, never commit; test fixtures are anonymized .txt) ----
 *.pdf
-receipts/
+/receipts/
 
 # ---- Local browser-test scaffolding ----
 test.html
