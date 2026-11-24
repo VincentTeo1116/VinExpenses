@@ -133,7 +133,6 @@ test('the mfa setup sheet, setup page and account screen pass accessibility chec
     };
     await scan('account');
     await page.screenshot({ path: `screenshots/account-${scheme}.png`, fullPage: true });
-    await page.getByRole('dialog', { name: 'Account', exact: true }).getByRole('button', { name: 'Security', exact: true }).click();
     await page.getByRole('button', { name: 'Turn on' }).click();
     await expect(page.getByRole('img', { name: 'QR code to scan with your authenticator app' })).toBeVisible();
     await scan('mfa setup');

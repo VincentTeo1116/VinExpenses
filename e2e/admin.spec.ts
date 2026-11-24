@@ -29,8 +29,8 @@ test.describe('who can see it (AC-08, AD-01)', () => {
     await makeAdmin(page, me.email);
     await page.goto('/app/account');
     const account = page.getByRole('dialog', { name: 'Account', exact: true });
-    await expect(account.getByRole('button', { name: 'Administrator' })).toBeVisible();
-    await account.getByRole('button', { name: 'Administrator' }).click();
+    await expect(account.getByRole('heading', { name: 'Administrator' })).toBeVisible();
+    await account.getByRole('button', { name: 'Open the admin area' }).click();
     await expect(page.getByRole('heading', { level: 1, name: 'Admin' })).toBeVisible();
     await expect(page.getByRole('tab', { name: 'Accounts' })).toBeVisible();
   });

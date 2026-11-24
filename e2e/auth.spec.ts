@@ -18,8 +18,9 @@ async function signIn(page: Page, email: string, password: string, remember = tr
 /** Opens the Account pop-up from the menu and one of its sections on top of it. */
 async function openAccountSection(page: Page, section: string) {
   await page.getByRole('link', { name: 'Account' }).first().click();
-  await page.getByRole('dialog', { name: 'Account', exact: true }).getByRole('button', { name: section, exact: true }).click();
-  await expect(page.getByRole('dialog', { name: section, exact: true })).toBeVisible();
+  const heading = page.getByRole('dialog', { name: 'Account', exact: true }).getByRole('heading', { name: section, exact: true });
+  await heading.scrollIntoViewIfNeeded(); // the section is part of the Account pop-up
+  await expect(heading).toBeVisible();
 }
 
 async function signOutViaPage(page: Page) {
@@ -436,7 +437,6 @@ test.describe('authenticator (AU-11 … AU-13, AC-03)', () => {
     await expect(page.getByRole('dialog', { name: 'Set up two-step verification' })).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(page.getByText('Two-step verification is off')).toBeVisible();
-    await page.getByRole('dialog', { name: 'Security', exact: true }).getByRole('button', { name: 'Close' }).click();
     await page.getByRole('dialog', { name: 'Account', exact: true }).getByRole('button', { name: 'Close' }).click();
     await openAccountSection(page, 'Security');
     await expect(page.getByText('Two-step verification is off')).toBeVisible();

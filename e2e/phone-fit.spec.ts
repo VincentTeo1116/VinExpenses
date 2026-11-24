@@ -1,6 +1,6 @@
 // Every pop-up fits the screen exactly (nothing to drag sideways) on phone, tablet and computer; and the History swipe gestures.
 import { expect, test, type Page } from '@playwright/test';
-import { dbRows, isoDaysAgo, openAccount, seedRows, signInAs, ymdDaysFromNow } from './helpers';
+import { dbRows, isoDaysAgo, openAccount, openSection, seedRows, signInAs, ymdDaysFromNow } from './helpers';
 
 const WIDTHS = [320, 375, 430, 768, 1024, 1440];
 
@@ -85,9 +85,8 @@ for (const width of WIDTHS) {
     // Account, and each of its sections on top of it
     await openAccount(page);
     await check('account');
-    for (const section of ['Reminder settings', 'Telegram', 'Monthly report', 'Your data', 'Security', 'Change password', 'Delete my account']) {
-      await page.getByRole('dialog', { name: 'Account', exact: true }).getByRole('button', { name: section, exact: true }).click();
-      await expect(page.getByRole('dialog', { name: section, exact: true })).toBeVisible();
+    for (const section of ['Change password', 'Delete my account']) {
+      await openSection(page, section);
       await check(`account: ${section}`);
       await close();
     }

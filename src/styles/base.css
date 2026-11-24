@@ -159,6 +159,6 @@ button {
   input,
   select,
   textarea {
-    font-size: 16px !important;
+    font-size: max(16px, 1em) !important; /* never under 16px; a box that is meant to be bigger keeps its size */
   }
 }

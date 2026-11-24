@@ -1,4 +1,5 @@
 // AC-06: the date format, and renaming, hiding or adding categories and payment methods.
+import type { ReactNode } from 'react';
 import { useId, useState } from 'react';
 import { Button } from '@/components/Button';
 import { Notice } from '@/components/Notice';
@@ -13,7 +14,8 @@ import styles from './PreferencesCard.module.css';
 
 type Kind = 'category' | 'payment';
 
-export function PreferencesCard() {
+/** `before` goes above the date format (the language), `children` under it (the colour theme). */
+export function PreferencesCard({ before, children }: { before?: ReactNode; children?: ReactNode } = {}) {
   const { t } = useI18n();
   const toast = useToast();
   const { data, actions } = useMoney();
@@ -34,9 +36,13 @@ export function PreferencesCard() {
 
   return (
     <section className={styles.card} aria-labelledby={`${select}-h`}>
-      <h2 id={`${select}-h`} className={styles.h2}>
-        {t('acct.manage')}
-      </h2>
+      <div>
+        <h2 id={`${select}-h`} className={styles.h2}>
+          {t('acct.display')}
+        </h2>
+        <p className={styles.sub}>{t('acct.displaySub')}</p>
+      </div>
+      {before}
       <SelectField label={t('acct.dateFormat')} value={data.dateFormat} onChange={(event) => void changeFormat(event.target.value)}>
         {DATE_FORMATS.map((format) => (
           <option key={format} value={format}>
@@ -45,6 +51,8 @@ export function PreferencesCard() {
         ))}
       </SelectField>
       {problem ? <Notice kind="bad">{problem}</Notice> : null}
+      {children}
+      <p className={styles.sub}>{t('acct.manage')}</p>
       <div className={styles.buttons}>
         <Button variant="outline" onClick={() => setOpen('category')}>
           {t('acct.categories')}

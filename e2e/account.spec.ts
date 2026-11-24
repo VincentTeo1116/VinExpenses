@@ -46,7 +46,7 @@ test.describe('Telegram nudge on Home (AC-09)', () => {
     await expect(page.getByTestId('tg-prompt')).toBeVisible();
     await page.getByRole('button', { name: 'Connect now' }).click();
     await expect(page.getByRole('dialog', { name: 'Account', exact: true })).toBeVisible();
-    await expect(page.getByRole('dialog', { name: 'Telegram', exact: true })).toBeVisible(); // the Telegram section opens straight away
+    await expect(page.getByRole('dialog', { name: 'Account', exact: true }).getByRole('heading', { name: 'Telegram', exact: true })).toBeInViewport(); // it lands on the Telegram section
     await page.goto('/app');
     await page.getByRole('button', { name: 'Don\'t ask again' }).click();
     await expect(page.getByTestId('tg-prompt')).toHaveCount(0);
@@ -190,14 +190,13 @@ for (const scheme of ['light', 'dark'] as const) {
     };
     await openAccount(page);
     await scan('the Account pop-up');
-    for (const section of ['Reminder settings', 'Telegram', 'Monthly report', 'Your data', 'Security', 'Change password', 'Delete my account']) {
-      await page.getByRole('dialog', { name: 'Account', exact: true }).getByRole('button', { name: section, exact: true }).click();
+    // every section is in the pop-up; put two of them in their busier states first
+    await page.getByRole('button', { name: 'Connect Telegram' }).click();
+    await expect(page.getByRole('link', { name: 'Open Telegram to finish' })).toBeVisible();
+    await scan('the Account pop-up with Telegram waiting');
+    for (const section of ['Change password', 'Delete my account']) {
+      await openSection(page, section);
       const inner = page.getByRole('dialog', { name: section, exact: true });
-      await expect(inner).toBeVisible();
-      if (section === 'Telegram') {
-        await inner.getByRole('button', { name: 'Connect Telegram' }).click();
-        await expect(page.getByRole('link', { name: 'Open Telegram to finish' })).toBeVisible();
-      }
       if (section === 'Delete my account') await page.getByLabel('Type DELETE to confirm').fill('DEL');
       await scan(section);
       await inner.getByRole('button', { name: 'Close' }).click();

@@ -242,7 +242,7 @@ function AddBody({ request, onClose }: { request: AddRequest; onClose: () => voi
           </div>
         )}
 
-        <Field label={t('add.amount')} inputMode="decimal" autoComplete="off" placeholder="0.00" data-autofocus className={styles.amount} error={formState.errors.amount?.message} hint={currentAmount} {...register('amount')} />
+        <Field big={kind === 'income' ? 'income' : true} label={t('add.amount')} inputMode="decimal" autoComplete="off" placeholder="0.00" data-autofocus className={styles.amount} error={formState.errors.amount?.message} hint={currentAmount} {...register('amount')} />
 
         {kind === 'expense' ? (
           <>

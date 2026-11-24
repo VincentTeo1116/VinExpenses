@@ -90,3 +90,98 @@
 .withIcon {
   padding-left: 42px;
 }
+
+/* money boxes read as numbers: larger, bolder, digits lined up */
+.box:has(> .input[inputmode='decimal']) {
+  font-size: 1.25rem;
+}
+.input[inputmode='decimal'] {
+  font-size: 1em;
+  font-weight: 750;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+}
+.input[inputmode='decimal']::placeholder {
+  font-weight: 600;
+  color: color-mix(in srgb, var(--muted) 55%, transparent);
+}
+
+/* the big amount at the top of the add form: "RM 0.00", centred, as it was before */
+.big .label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+.big .box:has(> .input) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 16px;
+  border-radius: var(--r-lg);
+  border: 1.5px solid transparent;
+  background: var(--surface-2);
+  font-size: clamp(2.25rem, 10vw, 2.5rem);
+  cursor: text;
+  transition: border-color var(--dur), box-shadow var(--dur), background var(--dur);
+}
+.big .box:focus-within {
+  background: var(--surface);
+  border-color: var(--primary);
+  box-shadow: 0 0 0 4px var(--primary-soft);
+}
+.big .box:has(.invalid) {
+  border-color: var(--danger);
+  background: var(--danger-soft);
+}
+.big[data-tone='income'] .box:focus-within {
+  border-color: var(--success);
+  box-shadow: 0 0 0 4px var(--success-soft);
+}
+.prefix {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+.big[data-tone='income'] .prefix {
+  color: var(--success-text);
+}
+.big .input,
+.big .input:hover,
+.big .input:focus-visible,
+.big .input.invalid {
+  width: 7.5ch;
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  outline: none;
+  background: transparent;
+  box-shadow: none;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+.big .hint,
+.big .error {
+  text-align: center;
+}
+/* the big box already shows the amount: its echo underneath is kept for screen readers only */
+.big .hint {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+.big .input,
+.big .input:hover,
+.big .input:focus-visible,
+.big .input.invalid {
+  min-height: 48px; /* still a full-size target on the narrowest phones */
+}

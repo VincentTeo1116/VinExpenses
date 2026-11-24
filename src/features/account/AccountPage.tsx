@@ -1,12 +1,12 @@
 // AC-01 … AC-03, AC-06 (language), AC-08: profile, language, change password, two-step verification, help and sign out.
 import { useCallback, useEffect, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import type { z } from 'zod';
 import { Button } from '@/components/Button';
 import { PasswordField } from '@/components/Field';
-import { Icon, type IconName } from '@/components/Icon';
+import { Icon } from '@/components/Icon';
 import { LanguageSelect } from '@/components/LanguageSelect';
 import { Notice } from '@/components/Notice';
 import { Sheet } from '@/components/Sheet';
@@ -26,7 +26,7 @@ import { DeleteAccountCard, ReminderSettingsCard, ReportCard, TelegramCard } fro
 import { PasswordRules } from '@/features/auth/ui/PasswordRules';
 import styles from './AccountPage.module.css';
 
-type Section = 'reminders' | 'telegram' | 'report' | 'data' | 'security' | 'password' | 'help' | 'delete';
+type Section = 'password' | 'delete' | 'help';
 
 export function AccountPage() {
   const { t } = useI18n();
@@ -34,8 +34,7 @@ export function AccountPage() {
   const location = useLocation();
   const navigate = useNavigate();
   const state = location.state as { focus?: string; from?: string } | null;
-  // which inner pop-up is open (the Home screen's "connect Telegram" button opens the Telegram one straight away)
-  const [section, setSection] = useState<Section | null>(state?.focus === 'telegram' ? 'telegram' : null);
+  const [section, setSection] = useState<Section | null>(null);
   const [confirmOut, setConfirmOut] = useState(false);
   const [theme, setThemeState] = useState<Theme>(() => readTheme(session?.user?.id));
   const { isAdmin } = useAdminStatus();
@@ -43,6 +42,14 @@ export function AccountPage() {
   const meta = (user?.user_metadata ?? {}) as Record<string, unknown>;
   const name = typeof meta.username === 'string' ? meta.username : '';
   const provider = String((user?.app_metadata as Record<string, unknown> | undefined)?.provider ?? 'email');
+  // the Home screen's "connect Telegram" button lands on the Telegram section
+  const wantTelegram = state?.focus === 'telegram';
+  useEffect(() => {
+    if (!wantTelegram) return undefined;
+    // after the pop-up has opened and taken focus, or it would jump back to the top
+    const timer = setTimeout(() => document.getElementById('acc-tg')?.scrollIntoView({ block: 'center' }), 120);
+    return () => clearTimeout(timer);
+  }, [wantTelegram]);
 
   // Account is a pop-up over the page you were on, so closing it goes back there
   const close = () => navigate(state?.from && state.from.startsWith('/app') ? state.from : '/app', { replace: true });
@@ -51,29 +58,6 @@ export function AccountPage() {
     saveTheme(user?.id, next);
     applyTheme(next);
   };
-  const titles: Record<Section, string> = {
-    reminders: t('remset.title'),
-    telegram: t('tg.title'),
-    report: t('rep.title'),
-    data: t('data.title'),
-    security: t('account.security'),
-    password: t('account.password.title'),
-    help: t('account.help'),
-    delete: t('del.title'),
-  };
-  const row = (id: Section, icon: IconName, danger = false) => (
-    <li key={id}>
-      <button type="button" className={`${styles.row} ${danger ? styles.rowDanger : ''}`} onClick={() => setSection(id)} data-section={id}>
-        <span className={styles.rowIcon} aria-hidden="true">
-          <Icon name={icon} size={20} />
-        </span>
-        <span className={styles.rowText}>{titles[id]}</span>
-        <span className={styles.chevron} aria-hidden="true">
-          <Icon name="back" size={18} />
-        </span>
-      </button>
-    </li>
-  );
 
   return (
     <Sheet open onClose={close} title={t('screen.account.title')}>
@@ -95,77 +79,90 @@ export function AccountPage() {
           <Icon name="info" size={16} /> {t('account.themeFollows')}
         </p>
 
-        <section className={styles.card}>
-          <LanguageSelect />
-        </section>
+        <PreferencesCard before={<LanguageSelect />}>
+          <fieldset className={styles.themePicker}>
+            <legend>{t('account.theme')}</legend>
+            <p className={styles.hint}>{t('account.themeHint')}</p>
+            <div className={styles.themes} role="radiogroup" aria-label={t('account.theme')}>
+              {THEMES.map((item) => (
+                <button key={item} type="button" role="radio" aria-checked={theme === item} className={styles.themeBtn} data-theme-option={item} onClick={() => pick(item)}>
+                  <span className={`${styles.dot} ${styles[`dot_${item}`]}`} aria-hidden="true" />
+                  {t(`account.theme.${item}` as MessageKey)}
+                </button>
+              ))}
+            </div>
+          </fieldset>
+        </PreferencesCard>
 
-        <PreferencesCard />
+        <SecurityCard />
 
-        <section className={styles.card} aria-labelledby="acc-theme">
-          <h2 id="acc-theme" className={styles.h2}>
-            {t('account.theme')}
-          </h2>
-          <p className={styles.muted}>{t('account.themeHint')}</p>
-          <div className={styles.themes} role="radiogroup" aria-label={t('account.theme')}>
-            {THEMES.map((item) => (
-              <button key={item} type="button" role="radio" aria-checked={theme === item} className={styles.themeBtn} data-theme-option={item} onClick={() => pick(item)}>
-                <span className={`${styles.dot} ${styles[`dot_${item}`]}`} aria-hidden="true" />
-                {t(`account.theme.${item}` as MessageKey)}
-              </button>
-            ))}
+        <section className={styles.card} aria-labelledby="acc-pass">
+          <div>
+            <h2 id="acc-pass" className={styles.h2}>
+              {t('account.password.title')}
+            </h2>
+            <p className={styles.hint}>{t('account.password.hint')}</p>
           </div>
+          <Button variant="outline" block onClick={() => setSection('password')} data-section="password">
+            <Icon name="key" size={18} />
+            {t('account.password.btn')}
+          </Button>
         </section>
 
-        <ul className={styles.rows} aria-label={t('screen.account.title')}>
-          {isAdmin ? (
-            <li>
-              <button type="button" className={styles.row} onClick={() => navigate('/app/admin')}>
-                <span className={styles.rowIcon} aria-hidden="true">
-                  <Icon name="shield" size={20} />
-                </span>
-                <span className={styles.rowText}>{t('admin.card')}</span>
-                <span className={styles.chevron} aria-hidden="true">
-                  <Icon name="back" size={18} />
-                </span>
-              </button>
-            </li>
-          ) : null}
-          {row('reminders', 'repeat')}
-          {row('telegram', 'bolt')}
-          {row('report', 'mail')}
-          {row('data', 'copy')}
-          {row('security', 'shield')}
-          {row('password', 'key')}
-          {row('help', 'info')}
-          {row('delete', 'alert', true)}
-        </ul>
+        <ReportCard />
+        <TelegramCard />
 
-        <Button variant="outline" block onClick={() => setConfirmOut(true)}>
+        {isAdmin ? (
+          <section className={styles.card} aria-labelledby="acc-admin">
+            <div>
+              <h2 id="acc-admin" className={styles.h2}>
+                {t('admin.card')}
+              </h2>
+              <p className={styles.hint}>{t('admin.cardBody')}</p>
+            </div>
+            <Button block onClick={() => navigate('/app/admin')}>
+              <Icon name="shield" size={18} />
+              {t('admin.open')}
+            </Button>
+          </section>
+        ) : null}
+
+        <ReminderSettingsCard />
+        <DataCard />
+
+        <section className={`${styles.card} ${styles.dangerCard}`} aria-labelledby="acc-del-open">
+          <div>
+            <h2 id="acc-del-open" className={styles.h2}>
+              {t('del.title')}
+            </h2>
+            <p className={styles.hint}>{t('del.warn')}</p>
+          </div>
+          <Button variant="outline" block className={styles.dangerSoft} onClick={() => setSection('delete')} data-section="delete">
+            <Icon name="trash" size={18} />
+            {t('del.open')}
+          </Button>
+        </section>
+
+        <Button variant="outline" block onClick={() => setSection('help')}>
+          <Icon name="mail" size={18} />
+          {t('common.contactAdmin')}
+        </Button>
+
+        <p className={styles.legal}>
+          <Link to="/welcome">{t('account.about')}</Link> · <Link to="/privacy">{t('auth.privacy')}</Link> · <Link to="/terms">{t('auth.terms')}</Link>
+        </p>
+
+        <Button variant="outline" block className={styles.dangerSoft} onClick={() => setConfirmOut(true)}>
           <Icon name="logout" size={18} />
           {t('account.signOut')}
         </Button>
       </div>
 
-      {/* each of these is its own pop-up on top of the account pop-up */}
-      <Sheet open={section === 'reminders'} onClose={() => setSection(null)} title={titles.reminders}>
-        <div className={styles.flat}>{section === 'reminders' ? <ReminderSettingsCard /> : null}</div>
-      </Sheet>
-      <Sheet open={section === 'telegram'} onClose={() => setSection(null)} title={titles.telegram}>
-        <div className={styles.flat}>{section === 'telegram' ? <TelegramCard /> : null}</div>
-      </Sheet>
-      <Sheet open={section === 'report'} onClose={() => setSection(null)} title={titles.report}>
-        <div className={styles.flat}>{section === 'report' ? <ReportCard /> : null}</div>
-      </Sheet>
-      <Sheet open={section === 'data'} onClose={() => setSection(null)} title={titles.data}>
-        <div className={styles.flat}>{section === 'data' ? <DataCard /> : null}</div>
-      </Sheet>
-      <Sheet open={section === 'security'} onClose={() => setSection(null)} title={titles.security}>
-        <div className={styles.flat}>{section === 'security' ? <SecurityCard /> : null}</div>
-      </Sheet>
-      <Sheet open={section === 'password'} onClose={() => setSection(null)} title={titles.password}>
+      {/* these two open as their own pop-up on top of the account pop-up */}
+      <Sheet open={section === 'password'} onClose={() => setSection(null)} title={t('account.password.title')}>
         <div className={styles.flat}>{section === 'password' ? <PasswordCard /> : null}</div>
       </Sheet>
-      <Sheet open={section === 'delete'} onClose={() => setSection(null)} title={titles.delete}>
+      <Sheet open={section === 'delete'} onClose={() => setSection(null)} title={t('del.title')}>
         <div className={styles.flat}>{section === 'delete' ? <DeleteAccountCard /> : null}</div>
       </Sheet>
       <ContactSheet open={section === 'help'} onClose={() => setSection(null)} />

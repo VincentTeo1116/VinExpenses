@@ -78,8 +78,18 @@ export async function openAccount(page: Page, section?: string): Promise<void> {
   if (section) await openSection(page, section);
 }
 
-/** From the open Account pop-up: opens one of its sections (for example after a reload, which keeps only the Account pop-up). */
+/** Sections that open as their own pop-up on top of Account; every other section is part of the Account pop-up itself. */
+const POPUP_SECTIONS: Record<string, string> = { 'Change password': 'password', 'Delete my account': 'delete' };
+
+/** From the open Account pop-up: goes to one of its sections (opening it when it is one of the pop-up ones). */
 export async function openSection(page: Page, section: string): Promise<void> {
-  await page.getByRole('dialog', { name: 'Account', exact: true }).getByRole('button', { name: section, exact: true }).click();
-  await expect(page.getByRole('dialog', { name: section, exact: true })).toBeVisible();
+  const account = page.getByRole('dialog', { name: 'Account', exact: true });
+  const opener = POPUP_SECTIONS[section];
+  if (opener) {
+    await account.locator(`[data-section="${opener}"]`).click();
+    await expect(page.getByRole('dialog', { name: section, exact: true })).toBeVisible();
+    return;
+  }
+  await account.getByRole('heading', { name: section, exact: true }).scrollIntoViewIfNeeded();
+  await expect(account.getByRole('heading', { name: section, exact: true })).toBeVisible();
 }

@@ -13,19 +13,26 @@ export interface FieldProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 
   ref?: Ref<HTMLInputElement>;
   /** A small picture at the start of the box (decorative). */
   icon?: IconName;
+  /** The large money box at the top of a form ("RM 0.00"). 'income' tints it green. */
+  big?: boolean | 'income';
 }
 
-export function Field({ label, error, hint, children, className, ref, icon, ...input }: FieldProps) {
+export function Field({ label, error, hint, children, className, ref, icon, big, ...input }: FieldProps) {
   const id = useId();
   const errorId = `${id}-error`;
   const hintId = `${id}-hint`;
   const describedBy = [error ? errorId : '', hint ? hintId : ''].filter(Boolean).join(' ') || undefined;
   return (
-    <div className={`${styles.group} ${className ?? ''}`}>
+    <div className={`${styles.group} ${big ? styles.big : ''} ${className ?? ''}`} data-tone={big === 'income' ? 'income' : undefined}>
       <label htmlFor={id} className={styles.label}>
         {label}
       </label>
       <div className={styles.box}>
+        {big ? (
+          <span className={styles.prefix} aria-hidden="true">
+            RM
+          </span>
+        ) : null}
         {icon ? (
           <span className={styles.lead} aria-hidden="true">
             <Icon name={icon} size={18} />
