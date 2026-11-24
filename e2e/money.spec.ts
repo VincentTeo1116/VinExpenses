@@ -191,7 +191,7 @@ test.describe('History (HI-01 … HI-03)', () => {
     await openHistory(page);
 
     // today: -10 -30 +100 = +60
-    const today = page.locator('section[aria-label]').first();
+    const today = page.locator('section[aria-label]').filter({ hasText: 'Today' }).first();
     await expect(today.getByText('+ RM 60.00')).toBeVisible();
     await expect(page.getByRole('button', { name: /^Salary/ })).toContainText('+ RM 100.00');
 
@@ -216,7 +216,7 @@ test.describe('History (HI-01 … HI-03)', () => {
     await signInAs(page);
     await openHistory(page);
     await expect(page.getByText('Nothing here yet. Tap + to add your first transaction.')).toBeVisible();
-    await page.getByRole('main').getByRole('button', { name: 'Add a transaction' }).click();
+    await page.getByRole('main').getByRole('button', { name: 'Add a transaction' }).last().click(); // the one in the empty state
     await expect(sheet(page)).toBeVisible();
   });
 

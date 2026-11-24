@@ -16,6 +16,7 @@ test.describe('recurring (RC-01 … RC-04)', () => {
   test('a monthly bill that was due in the past posts every missed month at once, and keeps its day', async ({ page }) => {
     const user = await signInAs(page);
     await openPlan(page);
+    await page.getByRole('button', { name: 'Add a regular item' }).click(); // the form is a pop-up
     const start = ymdDaysFromNow(-70);
     await page.getByLabel('Name').fill('Rent');
     await page.getByLabel('Amount (RM)').fill('1200');
@@ -47,24 +48,25 @@ test.describe('recurring (RC-01 … RC-04)', () => {
     ]);
     await seedRows(page, user.email, 'recurring_incomes', [{ source: 'Salary', amount: '3000.00', frequency: 'monthly', start_date: ymdDaysFromNow(20), next_due: ymdDaysFromNow(20) }]);
     await openPlan(page);
-    const summary = page.getByRole('list', { name: 'Bills and regular income' });
-    await expect(summary).toContainText('3 active');
-    await expect(summary).toContainText('+ RM 3,000.00 in / month');
-    await expect(summary).toContainText('− RM 1,210.00 out / month');
-    await expect(page.getByTestId('rec-net')).toHaveText('Net + RM 1,790.00 / month');
-    await expect(summary).toContainText('+ RM 21,480.00 / year');
+    // only two totals are shown: each month and each year (3,000 in, 1,200 + 120/12 out; the paused one is left out)
+    await expect(page.getByRole('list', { name: '3 active' })).toBeVisible();
+    await expect(page.getByTestId('rec-totals')).toContainText('Total each month');
+    await expect(page.getByTestId('rec-net')).toHaveText('+ RM 1,790.00');
+    await expect(page.getByTestId('rec-totals')).toContainText('Total each year');
+    await expect(page.getByTestId('rec-net-year')).toHaveText('+ RM 21,480.00');
 
     // each row carries its own sign
     await expect(page.getByRole('listitem').filter({ hasText: 'Rent' }).first()).toContainText('− RM 1,200.00');
     await expect(page.getByRole('listitem').filter({ hasText: 'Salary' }).first()).toContainText('+ RM 3,000.00');
   });
 
-  test('when the bills cost more than the income, the net is minus and red', async ({ page }) => {
+  test('when the bills cost more than the income, both totals are minus', async ({ page }) => {
     const user = await signInAs(page);
     await seedRows(page, user.email, 'recurring_expenses', [{ name: 'Car loan', amount: '900.00', category: 'car', payment: 'bank', frequency: 'monthly', start_date: ymdDaysFromNow(3), next_due: ymdDaysFromNow(3) }]);
     await seedRows(page, user.email, 'recurring_incomes', [{ source: 'Side job', amount: '300.00', frequency: 'monthly', start_date: ymdDaysFromNow(3), next_due: ymdDaysFromNow(3) }]);
     await openPlan(page);
-    await expect(page.getByTestId('rec-net')).toHaveText('Net − RM 600.00 / month');
+    await expect(page.getByTestId('rec-net')).toHaveText('− RM 600.00');
+    await expect(page.getByTestId('rec-net-year')).toHaveText('− RM 7,200.00');
   });
 
   test('pause and resume; resuming skips the dates missed while paused instead of posting them', async ({ page }) => {
@@ -139,6 +141,7 @@ test.describe('recurring (RC-01 … RC-04)', () => {
   test('the form checks each field', async ({ page }) => {
     await signInAs(page);
     await openPlan(page);
+    await page.getByRole('button', { name: 'Add a regular item' }).click();
     await page.getByRole('button', { name: 'Save', exact: true }).click();
     await expect(page.getByText('Enter a name.')).toBeVisible();
     await expect(page.getByText('Enter an amount above 0, with up to 2 decimals.')).toBeVisible();

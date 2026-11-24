@@ -9,23 +9,54 @@
   font-weight: 800;
   letter-spacing: -0.03em;
 }
-.tabs {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 4px;
-  padding: 4px;
-  border-radius: var(--r-md);
-  background: var(--surface-2);
-}
-.tab {
-  min-height: var(--tap);
-  border-radius: calc(var(--r-md) - 4px);
-  font-weight: 650;
+.sub {
   color: var(--muted);
 }
-.on {
-  background: var(--surface);
+.h2 {
+  font-size: var(--fs-lg);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+/* a compact strip: as wide as its four choices, never the whole page */
+.tabs {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 4px;
+  padding: 4px;
+  border-radius: 16px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  width: 100%;
+  max-width: 620px;
+}
+.tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-height: 52px;
+  padding: 6px 4px;
+  border-radius: 12px;
+  font-size: var(--fs-sm);
+  font-weight: 650;
+  color: var(--muted);
+  min-width: 0;
+  transition: background var(--dur), color var(--dur);
+}
+.tab span {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tab:hover {
   color: var(--text);
+}
+.on,
+.on:hover {
+  background: var(--surface);
+  color: var(--primary);
   box-shadow: var(--shadow-sm);
 }
 .panel {
@@ -33,9 +64,20 @@
   gap: var(--s-4);
   min-width: 0;
 }
-
+.reminders {
+  display: grid;
+  gap: var(--s-3);
+  padding: var(--s-5);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+}
 @media (min-width: 640px) {
-  .tabs {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+  .tab {
+    flex-direction: row;
+    gap: var(--s-2);
+    min-height: var(--tap);
+    font-size: var(--fs-md);
   }
 }

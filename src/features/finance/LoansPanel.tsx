@@ -388,7 +388,7 @@ export function LoansPanel() {
                   <p className={styles.small}>{row.reminders_on === false || progress.status === 'closed' ? t('fd.reminderOff') : t('fd.reminderOn', { days: days.map((d) => (d === 0 ? t('fd.onTheDay') : t('fd.dBefore', { n: d }))).join(', ') })}</p>
                   <div className={styles.itemActions}>
                     {progress.status !== 'closed' && progress.status !== 'finished' && progress.firstUnpaid ? (
-                      <button type="button" onClick={() => void run(() => actions.markPaidThrough(row.id, progress.firstUnpaid), t('ln.paidToast'))} aria-label={t('act.openFor', { action: t('act.markNext'), name: row.name })}>
+                      <button type="button" className={styles.good} onClick={() => void run(() => actions.markPaidThrough(row.id, progress.firstUnpaid), t('ln.paidToast'))} aria-label={t('act.openFor', { action: t('act.markNext'), name: row.name })}>
                         {t('act.markNext')}
                       </button>
                     ) : null}

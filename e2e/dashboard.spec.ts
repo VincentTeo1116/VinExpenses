@@ -83,10 +83,14 @@ test.describe('dashboard (DB-01 … DB-10)', () => {
     await expect(page.getByTestId('spent')).toHaveText('RM 40.00');
     await page.getByRole('button', { name: 'Previous month' }).click();
     await expect(page.getByTestId('spent')).toHaveText('RM 90.00');
-    await page.getByRole('button', { name: 'This month' }).click();
+    await page.getByRole('button', { name: 'This month', exact: true }).click();
     await expect(page.getByTestId('spent')).toHaveText('RM 40.00');
     await page.getByRole('button', { name: /spent RM 90\.00/ }).click();
     await expect(page.getByTestId('spent')).toHaveText('RM 90.00');
+    // the chart card has its own way back, and it goes away once you are back
+    await page.getByTestId('back-to-now').click();
+    await expect(page.getByTestId('spent')).toHaveText('RM 40.00');
+    await expect(page.getByTestId('back-to-now')).toHaveCount(0);
   });
 
   test('a fixed bill from a schedule is left out of the daily average, and says so', async ({ page }) => {

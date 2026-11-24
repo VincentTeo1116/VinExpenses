@@ -1,0 +1,38 @@
+.swipe {
+  position: relative;
+  overflow: hidden;
+  touch-action: pan-y; /* up and down still scrolls the list; sideways is the swipe */
+}
+/* what shows behind the row while it is being pulled aside */
+.under {
+  position: absolute;
+  inset: 0;
+  display: none;
+  align-items: center;
+  gap: var(--s-2);
+  padding: 0 var(--s-4);
+  color: #fff;
+  font-size: var(--fs-sm);
+  font-weight: 750;
+}
+.duplicate {
+  justify-content: flex-start;
+  background: var(--brand);
+}
+.delete {
+  justify-content: flex-end;
+  background: var(--danger-solid);
+}
+.swipe[data-swipe='duplicate'] .duplicate,
+.swipe[data-swipe='delete'] .delete {
+  display: flex;
+}
+.swipe[data-swipe] > :not(.under) {
+  position: relative;
+  background: var(--surface);
+}
+/* far enough: letting go now does it */
+.swipe[data-armed] .under {
+  font-weight: 800;
+  filter: brightness(1.12);
+}

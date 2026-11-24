@@ -349,3 +349,29 @@
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
+
+/* the saved items' buttons: the one that moves things forward is green, the rest are quiet pills */
+.itemActions button {
+  border-radius: 999px;
+  background: var(--surface);
+  transition: background var(--dur), border-color var(--dur), transform 120ms var(--ease);
+}
+.itemActions button:active {
+  transform: scale(0.97);
+}
+.itemActions .good {
+  border-color: transparent;
+  background: #047857;
+  color: #fff;
+  box-shadow: 0 6px 16px rgba(5, 150, 105, 0.28);
+}
+.itemActions .good:hover {
+  background: #065f46;
+}
+.itemActions .danger {
+  color: var(--danger-text);
+  border-color: color-mix(in srgb, var(--danger) 35%, var(--border));
+}
+.itemActions .danger:hover {
+  background: var(--danger-soft);
+}

@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/Button';
 import { EmptyState } from '@/components/EmptyState';
+import { CatIcon } from '@/components/CatIcon';
 import { Icon } from '@/components/Icon';
 import { Notice } from '@/components/Notice';
 import { useAuth } from '@/app/AuthProvider';
@@ -36,6 +37,7 @@ export function DashboardPage({ quiet = false }: { quiet?: boolean } = {}) {
   const { data, categoryOf, openAdd } = useMoney();
   const today = todayYmd();
   const [month, setMonth] = useState(monthKey(today));
+  const [remOpen, setRemOpen] = useState(false); // the reminders start folded away, so Home is not pushed down
   const meta = (session?.user?.user_metadata ?? {}) as Record<string, unknown>;
   const name = (typeof meta.username === 'string' && meta.username) || session?.user?.email?.split('@')[0] || '';
 
@@ -66,6 +68,7 @@ export function DashboardPage({ quiet = false }: { quiet?: boolean } = {}) {
             title: r.name,
             amount: -toCents(r.amount),
             due: r.next_due,
+            cat: r.category,
           })),
         ...data.recurringIncomes
           .filter((r) => r.active)
@@ -74,6 +77,7 @@ export function DashboardPage({ quiet = false }: { quiet?: boolean } = {}) {
             title: r.source,
             amount: toCents(r.amount),
             due: r.next_due,
+            cat: 'income',
           })),
       ]
         .sort((a, b) => a.due.localeCompare(b.due))
@@ -93,6 +97,7 @@ export function DashboardPage({ quiet = false }: { quiet?: boolean } = {}) {
   };
   const change = delta();
 
+  const remOverdue = reminders.list.filter((item) => item.group === 'overdue').length;
   const goHistory = (category?: string) => navigate('/app/history', { state: { month, category } });
 
   return (
@@ -135,26 +140,30 @@ export function DashboardPage({ quiet = false }: { quiet?: boolean } = {}) {
       {data.pendingCount > 0 ? <Notice kind="info">{t('money.pendingBanner', { n: data.pendingCount })}</Notice> : null}
 
       {reminders.list.length > 0 ? (
-        <section className={styles.card} aria-labelledby="dash-rem">
-          <div className={styles.cardHead}>
-            <h2 id="dash-rem" className={styles.h2}>
-              {t('rem.title')}
-            </h2>
-            <button
-              type="button"
-              className={styles.link}
-              onClick={() =>
-                navigate('/app/plan', {
-                  state: {
-                    tab: reminders.list[0]?.kind === 'loan' ? 'loans' : 'deposits',
-                  },
-                })
-              }
-            >
-              {t('nav.plan')}
+        <section className={styles.remBar} aria-labelledby="dash-rem" data-open={remOpen} data-testid="reminder-bar">
+          <h2 className={styles.remHead}>
+            <button type="button" className={styles.remToggle} aria-expanded={remOpen} aria-controls="dash-rem-list" onClick={() => setRemOpen((value) => !value)}>
+              <CatIcon name="bell" size={36} color={remOverdue > 0 ? '#dc2626' : undefined} />
+              <span className={styles.remText}>
+                <span id="dash-rem" className={styles.remTitle}>
+                  {t('rem.title')} <span className={styles.remCount}>{reminders.list.length}</span>
+                </span>
+                <span className={styles.remSummary}>{[remOverdue > 0 ? t('rem.barOverdue', { n: remOverdue }) : '', reminders.list.length - remOverdue > 0 ? t('rem.barUpcoming', { n: reminders.list.length - remOverdue }) : ''].filter(Boolean).join(' · ')}</span>
+              </span>
+              <span className={styles.remAction}>{remOpen ? t('rem.hide') : t('rem.show')}</span>
+              <span className={styles.remChevron} aria-hidden="true">
+                <Icon name="back" size={18} />
+              </span>
             </button>
-          </div>
-          <ReminderList list={reminders.list.slice(0, 4)} />
+          </h2>
+          {remOpen ? (
+            <div id="dash-rem-list" className={styles.remBody}>
+              <ReminderList list={reminders.list} />
+              <button type="button" className={styles.link} onClick={() => navigate('/app/plan', { state: { tab: reminders.list[0]?.kind === 'loan' ? 'loans' : 'deposits' } })}>
+                {t('rem.open')}
+              </button>
+            </div>
+          ) : null}
         </section>
       ) : null}
 
@@ -340,10 +349,17 @@ export function DashboardPage({ quiet = false }: { quiet?: boolean } = {}) {
 
           <div className={styles.grid2}>
             <section className={styles.card} aria-labelledby="dash-cat">
-              <h2 id="dash-cat" className={styles.h2}>
-                {t('dash.byCategory')}
-              </h2>
-              <p className={styles.muted}>{t('dash.byCategorySub')}</p>
+              <div className={styles.cardHead}>
+                <div>
+                  <h2 id="dash-cat" className={styles.h2}>
+                    {t('dash.byCategory')}
+                  </h2>
+                  <p className={styles.muted}>{t('dash.byCategorySub')}</p>
+                </div>
+                <button type="button" className={styles.pillBtn} onClick={() => navigate('/app/plan', { state: { tab: 'budgets' } })}>
+                  {t('plan.tab.budgets')}
+                </button>
+              </div>
               {slices.length === 0 ? (
                 <p className={styles.empty}>{t('dash.noSpendMonth')}</p>
               ) : (
@@ -365,10 +381,14 @@ export function DashboardPage({ quiet = false }: { quiet?: boolean } = {}) {
                       return (
                         <li key={slice.key}>
                           <button type="button" className={styles.catRow} onClick={() => goHistory(slice.key)} data-category={slice.key}>
-                            <span className={styles.catGlyph} aria-hidden="true">
-                              {item.glyph}
+                            <CatIcon name={slice.key} color={item.color} glyph={item.glyph} size={38} />
+                            <span className={styles.catMain}>
+                              <span className={styles.catName}>{item.label}</span>
+                              <svg className={styles.catBar} viewBox="0 0 100 4" preserveAspectRatio="none" aria-hidden="true">
+                                <rect className={styles.catTrack} width="100" height="4" rx="2" />
+                                <rect width={Math.max(2, Math.min(100, slice.percent))} height="4" rx="2" fill={item.color} />
+                              </svg>
                             </span>
-                            <span className={styles.catName}>{item.label}</span>
                             <span className={styles.catAmount}>
                               {money(slice.cents)}
                               <small>{Math.round(slice.percent)}%</small>
@@ -383,10 +403,20 @@ export function DashboardPage({ quiet = false }: { quiet?: boolean } = {}) {
             </section>
 
             <section className={styles.card} aria-labelledby="dash-trend">
-              <h2 id="dash-trend" className={styles.h2}>
-                {t('dash.trend')}
-              </h2>
-              <p className={styles.muted}>{t('dash.trendSub')}</p>
+              <div className={styles.cardHead}>
+                <div>
+                  <h2 id="dash-trend" className={styles.h2}>
+                    {t('dash.trend')}
+                  </h2>
+                  <p className={styles.muted}>{t('dash.trendSub')}</p>
+                </div>
+                {isCurrent ? null : (
+                  <button type="button" className={styles.pillBtn} onClick={() => setMonth(monthKey(today))} data-testid="back-to-now">
+                    <Icon name="refresh" size={16} />
+                    {t('dash.backNow')}
+                  </button>
+                )}
+              </div>
               <TrendBars
                 points={bars.map((point) => ({
                   key: point.month,
@@ -432,6 +462,7 @@ export function DashboardPage({ quiet = false }: { quiet?: boolean } = {}) {
                     const when = wording.kind === 'today' ? t('due.today') : wording.kind === 'tomorrow' ? t('due.tomorrow') : t('due.inDays', { n: wording.days });
                     return (
                       <li key={item.id} className={styles.rowItem}>
+                        <CatIcon name={item.cat} color={item.cat === 'income' ? '#059669' : categoryOf(item.cat).color} glyph={item.cat === 'income' ? undefined : categoryOf(item.cat).glyph} />
                         <span className={styles.rowText}>
                           <span className={styles.rowTitle}>{item.title}</span>
                           <span className={`${styles.rowSub} ${daysBetween(today, item.due) <= 3 ? styles.soon : ''}`}>
@@ -470,6 +501,11 @@ export function DashboardPage({ quiet = false }: { quiet?: boolean } = {}) {
                           })
                         }
                       >
+                        {isExpense ? (
+                          <CatIcon name={(entry.row as Expense).category} color={categoryOf((entry.row as Expense).category).color} glyph={categoryOf((entry.row as Expense).category).glyph} />
+                        ) : (
+                          <CatIcon name="income" color="#059669" />
+                        )}
                         <span className={styles.rowText}>
                           <span className={styles.rowTitle}>{title}</span>
                           <span className={styles.rowSub}>{formatDate(isoToYmd(entry.row.created_at), data.dateFormat)}</span>

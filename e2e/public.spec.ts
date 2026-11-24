@@ -81,3 +81,12 @@ test('search engines: the app and sign-in are sent with a no-index header, the p
   expect(await page.title()).toContain('Privacy Policy');
   expect(await page.locator('meta[name="robots"]').count()).toBe(0);
 });
+
+test('coming back from Google onto the front page goes on to sign-in (and so into the app), not the welcome page', async ({ page }) => {
+  await page.goto('/?code=one-time-code-from-google');
+  await expect(page).toHaveURL(/\/auth/);
+  await expect(page.getByRole('heading', { level: 1 })).not.toContainText('Know where your money goes');
+  // an ordinary visit to the front page is still the welcome page
+  await page.goto('/');
+  await expect(page.getByRole('heading', { level: 1 })).toContainText('Know where your money goes');
+});

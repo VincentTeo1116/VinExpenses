@@ -405,7 +405,7 @@ export function DepositsPanel() {
                   <p className={styles.small}>{row.reminders_on === false || status === 'closed' ? t('fd.reminderOff') : t('fd.reminderOn', { days: days.map((d) => (d === 0 ? t('fd.onTheDay') : t('fd.dBefore', { n: d }))).join(', ') })}</p>
                   <div className={styles.itemActions}>
                     {status === 'matured' && !row.interest_recorded && calc.ok && calc.netInterest > 0 ? (
-                      <button type="button" onClick={() => void record(row)}>
+                      <button type="button" className={styles.good} onClick={() => void record(row)}>
                         {t('act.record')}
                       </button>
                     ) : null}

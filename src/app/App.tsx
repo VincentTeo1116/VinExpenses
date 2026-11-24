@@ -10,6 +10,7 @@ import { NotFound } from '@/pages/NotFound';
 import { ConfigError } from '@/pages/ConfigError';
 
 // Each screen is its own file that is downloaded only when it is opened (PERF-01).
+import { ARRIVED_FROM_SIGN_IN } from './arrival';
 const AppFrame = lazy(() => import('@/layouts/AppFrame').then((m) => ({ default: m.AppFrame })));
 const AuthPage = lazy(() => import('@/features/auth/AuthPage').then((m) => ({ default: m.AuthPage })));
 const SetupPage = lazy(() => import('@/features/auth/SetupPage').then((m) => ({ default: m.SetupPage })));
@@ -23,11 +24,15 @@ const TermsPage = lazy(() => import('@/features/public/TermsPage').then((m) => (
 const AdminPage = lazy(() => import('@/features/admin/AdminPage').then((m) => ({ default: m.AdminPage })));
 const AccountPage = lazy(() => import('@/features/account/AccountPage').then((m) => ({ default: m.AccountPage })));
 
+/** Still carrying the code right now? (After it has been used the front page is the front page again.) */
+const fromSignIn = () => /[?&#](code|access_token|error_description)=/.test(`${window.location.search}${window.location.hash}`);
+
 export function AppRoutes() {
   return (
     <Routes>
       {/* the public pages; the old .html addresses (in emails, the Google consent screen, Telegram) still work */}
-      <Route path="/" element={<WelcomePage />} />
+      {/* back from Google on the front page: carry the one-time code on to the sign-in screen, which finishes and opens the app */}
+      <Route path="/" element={ARRIVED_FROM_SIGN_IN && fromSignIn() ? <Navigate to={{ pathname: '/auth', search: window.location.search, hash: window.location.hash }} replace /> : <WelcomePage />} />
       <Route path="/welcome" element={<WelcomePage />} />
       <Route path="/privacy" element={<PrivacyPage />} />
       <Route path="/terms" element={<TermsPage />} />

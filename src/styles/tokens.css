@@ -54,6 +54,17 @@
   --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
   --dur: 180ms;
 
+  /* liquid glass: a bright rim, a hairline and a soft shadow; only floating parts are see-through */
+  --glass-top: rgba(255, 255, 255, 0.52);
+  --glass-bottom: rgba(244, 246, 255, 0.68);
+  --glass-sheet: rgba(255, 255, 255, 0.96);
+  --glass-solid: #ffffff;
+  --glass-edge: rgba(255, 255, 255, 0.62);
+  --glass-rim: rgba(255, 255, 255, 0.95);
+  --glass-rim-soft: rgba(255, 255, 255, 0.55);
+  --glass-hairline: rgba(15, 23, 42, 0.09);
+  --glass-active: rgba(255, 255, 255, 0.82);
+  --glass-shadow: 0 14px 34px rgba(31, 41, 90, 0.22), 0 2px 8px rgba(31, 41, 90, 0.1);
   --ambient-a: rgba(124, 119, 244, 0.2);
   --ambient-b: rgba(236, 72, 153, 0.14);
   --ambient-c: rgba(6, 182, 212, 0.16);
@@ -87,6 +98,16 @@
     --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
     --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.35);
     --shadow-lg: 0 24px 60px rgba(0, 0, 0, 0.6);
+    --glass-top: rgba(40, 52, 92, 0.5);
+    --glass-bottom: rgba(19, 26, 46, 0.68);
+    --glass-sheet: rgba(19, 26, 46, 0.96);
+    --glass-solid: #131a2e;
+    --glass-edge: rgba(255, 255, 255, 0.12);
+    --glass-rim: rgba(255, 255, 255, 0.18);
+    --glass-rim-soft: rgba(255, 255, 255, 0.1);
+    --glass-hairline: rgba(0, 0, 0, 0.45);
+    --glass-active: rgba(255, 255, 255, 0.15);
+    --glass-shadow: 0 16px 38px rgba(0, 0, 0, 0.55), 0 2px 8px rgba(0, 0, 0, 0.35);
     --ambient-a: rgba(93, 83, 220, 0.24);
     --ambient-b: rgba(190, 50, 130, 0.14);
     --ambient-c: rgba(6, 150, 190, 0.16);

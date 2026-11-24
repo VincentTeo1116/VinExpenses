@@ -225,7 +225,7 @@ function AddBody({ request, onClose }: { request: AddRequest; onClose: () => voi
     }
   };
 
-  const incomeOptions = INCOME_SOURCES.map((item) => ({ value: item.key, label: t(item.label), glyph: '💰' }));
+  const incomeOptions = INCOME_SOURCES.map((item) => ({ value: item.key, label: t(item.label), glyph: '💰', icon: 'income', color: '#059669' }));
   const title = editing ? t('add.edit') : t('add.title');
   const currentAmount = amountText ? formatMoney(toCents(amountText) / 100) : '';
 
@@ -277,7 +277,7 @@ function AddBody({ request, onClose }: { request: AddRequest; onClose: () => voi
               render={({ field }) => (
                 <ChipGroup
                   legend={t('add.category')}
-                  options={activeCategories.map((c) => ({ value: c.key, label: c.label, glyph: c.glyph }))}
+                  options={activeCategories.map((c) => ({ value: c.key, label: c.label, glyph: c.glyph, icon: c.key, color: c.color }))}
                   value={field.value}
                   onChange={(value) => {
                     setCategoryTouched(true);
@@ -308,7 +308,7 @@ function AddBody({ request, onClose }: { request: AddRequest; onClose: () => voi
                 </div>
               )
             ) : null}
-            <Controller name="payment" control={control} render={({ field }) => <ChipGroup legend={t('add.payment')} options={activePayments.map((p) => ({ value: p.key, label: p.label, glyph: p.glyph }))} value={field.value} onChange={field.onChange} />} />
+            <Controller name="payment" control={control} render={({ field }) => <ChipGroup legend={t('add.payment')} options={activePayments.map((p) => ({ value: p.key, label: p.label, glyph: p.glyph, icon: p.key, color: p.color }))} value={field.value} onChange={field.onChange} />} />
             <Field label={t('add.merchant')} autoComplete="off" error={formState.errors.merchant?.message} {...register('merchant', { onChange: onMerchantChange })} />
             {editing ? null : <NearbyPicker onPick={onNearby} />}
             <Field label={t('add.note')} autoComplete="off" error={formState.errors.note?.message} {...register('note')} />

@@ -4,10 +4,20 @@
   min-width: 0;
   max-width: none;
 }
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+}
 .h1 {
   font-size: var(--fs-2xl);
   font-weight: 800;
   letter-spacing: -0.03em;
+}
+.pageSub {
+  color: var(--muted);
 }
 .muted {
   color: var(--muted);
@@ -17,24 +27,73 @@
   font-weight: 700;
   text-decoration: underline;
 }
+
+/* The month at a glance */
+.overview {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3) var(--s-6);
+  padding: var(--s-5) var(--s-6);
+  border-radius: 22px;
+  color: #fff;
+  background: linear-gradient(135deg, var(--brand) 0%, color-mix(in srgb, var(--brand-end) 60%, var(--brand)) 100%);
+  box-shadow: 0 12px 28px color-mix(in srgb, var(--brand) 22%, transparent);
+}
+.overviewMain {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.overviewLabel {
+  font-size: var(--fs-sm);
+  font-weight: 650;
+}
+.overviewAmount {
+  font-size: clamp(1.6rem, 6vw, 2.1rem);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.overviewMeta {
+  font-size: var(--fs-sm);
+}
+.overviewStats {
+  display: grid;
+  gap: 4px;
+  font-size: var(--fs-sm);
+}
+.overviewStats div {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--s-4);
+}
+.overviewStats dd {
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Search and filters */
 .filters {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--s-3);
-  padding: var(--s-4);
+  padding: var(--s-3);
   border-radius: var(--r-lg);
   background: var(--surface);
   border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
 }
 .search {
-  grid-column: 1 / -1;
   display: flex;
   align-items: center;
   gap: var(--s-2);
   min-height: 48px;
   padding: 0 14px;
   border-radius: var(--r-md);
-  border: 1.5px solid var(--border);
+  border: 1.5px solid transparent;
   background: var(--surface-2);
   color: var(--muted);
 }
@@ -50,59 +109,140 @@
   min-height: 44px;
   outline: none;
 }
+.filterRow {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s-2);
+}
 .select {
   display: grid;
-  gap: 4px;
-  font-size: var(--fs-sm);
-  font-weight: 650;
+  min-width: 0;
 }
 .select select {
+  width: 100%;
   min-height: var(--tap);
   padding: 8px 12px;
   border-radius: var(--r-md);
-  border: 1.5px solid var(--border);
+  border: 1.5px solid transparent;
   background: var(--surface-2);
   font-weight: 500;
   min-width: 0;
 }
-@media (min-width: 640px) {
-  .filters {
-    grid-template-columns: 2fr 1fr 1fr 1fr;
-  }
-  .search {
-    grid-column: 1 / -1;
+.select select:focus-visible {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 4px var(--primary-soft);
+}
+.reset {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: var(--tap);
+  padding: 0 var(--s-3);
+  border-radius: var(--r-md);
+  color: var(--muted);
+  font-weight: 650;
+}
+.reset:hover:not(:disabled) {
+  background: var(--surface-2);
+  color: var(--text);
+}
+.reset:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+@media (min-width: 720px) {
+  .filterRow {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
   }
 }
+
+.summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2) var(--s-4);
+  padding: 0 var(--s-1);
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+.summary strong {
+  color: var(--text);
+}
+.summary .in,
+.summary .out {
+  font-weight: 700;
+}
+
+/* Export and the monthly report: a card of their own */
+.exportCard {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  padding: var(--s-3) var(--s-4);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+}
+.exportText {
+  display: grid;
+  flex: 1 1 220px;
+  min-width: 0;
+}
+.exportText h2 {
+  font-size: var(--fs-md);
+  font-weight: 750;
+}
+.exportText p {
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+.exportActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+}
+
+/* The list, a day at a time */
 .list {
   display: grid;
   gap: var(--s-4);
 }
 .day {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--r-lg);
-  box-shadow: var(--shadow-sm);
-  overflow: hidden;
+  display: grid;
+  gap: var(--s-2);
+  min-width: 0;
 }
 .dayHead {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
   gap: var(--s-3);
-  padding: var(--s-3) var(--s-4);
-  background: var(--surface-2);
+  padding: 0 var(--s-1);
   font-size: var(--fs-sm);
+  color: var(--muted);
 }
 .dayHead h2 {
   font-size: var(--fs-sm);
-  font-weight: 700;
+  font-weight: 750;
+  color: var(--text);
 }
 .rows {
   list-style: none;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
 }
 .row {
   display: flex;
   align-items: stretch;
+}
+.row + .row {
   border-top: 1px solid var(--border);
 }
 .main {
@@ -111,7 +251,7 @@
   display: flex;
   align-items: center;
   gap: var(--s-3);
-  padding: var(--s-3) var(--s-4);
+  padding: var(--s-2) var(--s-3);
   text-align: left;
   min-height: 60px;
 }
@@ -121,12 +261,6 @@
 .glyph {
   flex: 0 0 auto;
   display: grid;
-  place-items: center;
-  width: 40px;
-  height: 40px;
-  border-radius: 12px;
-  background: var(--primary-soft);
-  font-size: 1.15rem;
 }
 .text {
   flex: 1;
@@ -193,5 +327,23 @@
 @media (max-width: 639px) {
   .tools {
     display: none;
+  }
+  .headAdd {
+    display: none;
+  }
+}
+
+/* only where there is a finger to swipe with */
+.swipeHint {
+  display: none;
+  margin-top: calc(var(--s-2) * -1);
+  padding: 0 var(--s-1);
+  font-size: 0.75rem;
+  color: var(--muted);
+  text-align: right;
+}
+@media (hover: none) and (pointer: coarse) {
+  .swipeHint {
+    display: block;
   }
 }

@@ -54,9 +54,15 @@
 .error {
   font-size: var(--fs-sm);
   font-weight: 600;
-  color: var(--danger);
+  color: var(--danger-text);
   min-height: 1.4em;
 }
 .empty {
   visibility: hidden;
+}
+.chip:has(svg) {
+  padding-left: 8px;
+}
+.chip svg {
+  flex: none;
 }

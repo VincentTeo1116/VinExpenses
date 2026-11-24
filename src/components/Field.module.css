@@ -40,7 +40,7 @@
 .error {
   font-size: var(--fs-sm);
   font-weight: 600;
-  color: var(--danger);
+  color: var(--danger-text);
   overflow-wrap: anywhere;
   /* One line is always reserved: a message that appears when a field loses focus must not push the button
      the person is about to press out from under their finger (the click would be lost). */

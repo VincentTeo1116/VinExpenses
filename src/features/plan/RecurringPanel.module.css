@@ -142,3 +142,150 @@
     flex: 1 1 calc(50% - var(--s-2));
   }
 }
+
+/* ---- redesigned: the form beside the list, two totals only ---- */
+.intro {
+  color: var(--muted);
+}
+.layout {
+  display: grid;
+  gap: var(--s-4);
+  align-items: start;
+  min-width: 0;
+}
+.side {
+  display: grid;
+  gap: var(--s-3);
+  min-width: 0;
+}
+@media (min-width: 1100px) {
+  .layout {
+    grid-template-columns: minmax(360px, 440px) minmax(0, 1fr);
+  }
+}
+.totals {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s-3);
+}
+.totals div {
+  display: grid;
+  gap: 2px;
+  padding: var(--s-3) var(--s-4);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  min-width: 0;
+}
+.totals dt {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--muted);
+}
+.totals dd {
+  font-size: var(--fs-lg);
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.list {
+  gap: 0;
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+.item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2) var(--s-3);
+  padding: var(--s-3) var(--s-4);
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: none;
+}
+.item + .item {
+  border-top: 1px solid var(--border);
+}
+.paused {
+  background: var(--surface-2);
+}
+.itemMain {
+  flex: 1 1 260px;
+}
+.glyph {
+  width: auto;
+  height: auto;
+  background: none;
+}
+.itemTools {
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
+  gap: 4px;
+  margin-left: auto;
+}
+.iconBtn {
+  display: grid;
+  place-items: center;
+  width: var(--tap);
+  height: var(--tap);
+  border-radius: 50%;
+  background: var(--surface-2);
+  color: var(--muted);
+  transition: background var(--dur), color var(--dur);
+}
+.iconBtn:hover:not(:disabled) {
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+.iconBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.iconDanger:hover:not(:disabled) {
+  background: var(--danger-soft);
+  color: var(--danger-text);
+}
+@media (max-width: 479px) {
+  .itemTools > * {
+    flex: 0 0 auto;
+  }
+}
+
+/* Below a laptop the totals and the list come first; the form to add one follows */
+@media (max-width: 1099px) {
+  .side {
+    order: -1;
+  }
+}
+
+.topRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+}
+.topRow .intro {
+  flex: 1 1 260px;
+}
+@media (min-width: 1100px) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+/* the form inside its pop-up: no card frame, no second title */
+.flat > section {
+  padding: 0;
+  border: 0;
+  box-shadow: none;
+  background: none;
+}
+.flat > section > h2 {
+  display: none;
+}

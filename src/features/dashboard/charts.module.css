@@ -46,6 +46,7 @@
   justify-items: center;
   gap: 6px;
   min-height: 148px;
+  align-content: end;
   padding: 6px 2px;
   border-radius: var(--r-md);
   color: var(--muted);
@@ -59,7 +60,7 @@
 }
 .bars {
   width: 100%;
-  height: 100px;
+  height: clamp(110px, 22vw, 260px);
 }
 .spent {
   fill: var(--primary);

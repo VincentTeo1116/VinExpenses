@@ -7,6 +7,7 @@ import { Button } from '@/components/Button';
 import { useToast } from '@/components/Toast';
 import { useI18n } from '@/lib/i18n';
 import { useTelegramStatus } from '@/features/account/useTelegram';
+import { CatIcon } from '@/components/CatIcon';
 import styles from './DashboardPage.module.css';
 
 export function TelegramPrompt() {
@@ -44,7 +45,8 @@ export function TelegramPrompt() {
 
   return (
     <section className={styles.nudge} aria-labelledby="tgp-title" data-testid="tg-prompt">
-      <div>
+      <CatIcon name="telegram" color="#0284c7" size={44} />
+      <div className={styles.nudgeText}>
         <h2 id="tgp-title" className={styles.h2}>
           {t('tgp.title')}
         </h2>

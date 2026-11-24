@@ -3,15 +3,17 @@ import { useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { downloadCsv, entriesToCsv } from '@/features/csv/DataCard';
 import { Button } from '@/components/Button';
+import { CatIcon } from '@/components/CatIcon';
 import { EmptyState } from '@/components/EmptyState';
 import { Icon } from '@/components/Icon';
 import { Notice } from '@/components/Notice';
 import { useToast } from '@/components/Toast';
 import { useI18n } from '@/lib/i18n';
-import { formatDate, isoToYmd, monthKey, monthOf, todayYmd } from '@/lib/dates';
-import { formatSigned, toCents } from '@/lib/money';
+import { daysBetween, formatDate, isoToYmd, monthKey, monthOf, todayYmd } from '@/lib/dates';
+import { formatMoney, formatSigned, toCents } from '@/lib/money';
 import { useMoney } from '@/features/money/MoneyContext';
 import type { Expense, Income } from '@/features/money/types';
+import { SwipeRow } from './SwipeRow';
 import styles from './HistoryPage.module.css';
 
 type Row = { kind: 'expense'; row: Expense & { pending?: boolean } } | { kind: 'income'; row: Income & { pending?: boolean } };
@@ -75,53 +77,119 @@ export function HistoryPage() {
     }
   };
 
-  const filtered = type !== 'all' || category || month || search.trim();
+  const filtered = Boolean(type !== 'all' || category || month || search.trim());
+  const reset = () => {
+    setType('all');
+    setCategory('');
+    setMonth('');
+    setSearch('');
+    setDays(DAYS_PER_PAGE);
+  };
+  const today = todayYmd();
+  // the banner: the chosen month (or this month), from every record, whatever else is filtered
+  const bannerMonth = month || monthKey(today);
+  const inBanner = <T extends { created_at: string; amount: string | number }>(list: T[]) => list.filter((row) => monthOf(row.created_at) === bannerMonth);
+  const total = (list: { amount: string | number }[]) => list.reduce((sum, row) => sum + toCents(row.amount), 0);
+  const banner = { spent: total(inBanner(data.expenses)), income: total(inBanner(data.incomes)), count: inBanner(data.expenses).length + inBanner(data.incomes).length };
+  const monthText = (value: string) => formatDate(`${value}-01`, 'dmy_short').replace(/^1 /, '');
+  // what is listed right now
+  const sumOf = (kind: Row['kind']) => rows.filter((entry) => entry.kind === kind).reduce((total, entry) => total + toCents(entry.row.amount), 0);
+  const listed = { out: sumOf('expense'), in: sumOf('income') };
+  const dayName = (day: string) => {
+    const ago = daysBetween(day, today);
+    return ago === 0 ? t('history.today') : ago === 1 ? t('history.yesterday') : formatDate(day, data.dateFormat);
+  };
+
   return (
     <div className={styles.page}>
-      <h1 className={styles.h1}>{t('screen.history.title')}</h1>
+      <header className={styles.head}>
+        <div>
+          <h1 className={styles.h1}>{t('screen.history.title')}</h1>
+          <p className={styles.pageSub}>{t('history.sub')}</p>
+        </div>
+        <span className={styles.headAdd}>
+          <Button onClick={() => openAdd()}>
+            <Icon name="plus" size={18} />
+            {t('nav.add')}
+          </Button>
+        </span>
+      </header>
+
+      <section className={styles.overview} aria-label={t('history.spentIn', { month: monthText(bannerMonth) })} data-testid="history-overview">
+        <div className={styles.overviewMain}>
+          <span className={styles.overviewLabel}>{t('history.spentIn', { month: monthText(bannerMonth) })}</span>
+          <strong className={styles.overviewAmount}>{formatMoney(banner.spent / 100)}</strong>
+          <span className={styles.overviewMeta}>{t('history.count', { n: banner.count })}</span>
+        </div>
+        <dl className={styles.overviewStats}>
+          <div>
+            <dt>{t('dash.income')}</dt>
+            <dd>{formatMoney(banner.income / 100)}</dd>
+          </div>
+          <div>
+            <dt>{t('history.expenses')}</dt>
+            <dd>{formatMoney(banner.spent / 100)}</dd>
+          </div>
+        </dl>
+      </section>
 
       <div className={styles.filters}>
         <div className={styles.search}>
-          <Icon name="history" size={18} />
+          <Icon name="search" size={18} />
           <input type="search" value={search} onChange={(event) => { setSearch(event.target.value); setDays(DAYS_PER_PAGE); }} placeholder={t('history.search')} aria-label={t('history.search')} autoComplete="off" />
         </div>
-        <label className={styles.select}>
-          <span>{t('history.type')}</span>
-          <select value={type} onChange={(event) => { setType(event.target.value as typeof type); setDays(DAYS_PER_PAGE); }}>
-            <option value="all">{t('history.all')}</option>
-            <option value="expense">{t('add.expense')}</option>
-            <option value="income">{t('add.income')}</option>
-          </select>
-        </label>
-        <label className={styles.select}>
-          <span>{t('history.category')}</span>
-          <select value={category} onChange={(event) => { setCategory(event.target.value); setDays(DAYS_PER_PAGE); }}>
-            <option value="">{t('history.all')}</option>
-            {categories.map((item) => (
-              <option key={item.key} value={item.key}>
-                {item.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className={styles.select}>
-          <span>{t('history.month')}</span>
-          <select value={month} onChange={(event) => { setMonth(event.target.value); setDays(DAYS_PER_PAGE); }}>
-            <option value="">{t('history.anyMonth')}</option>
-            {monthsAvailable.map((value) => (
-              <option key={value} value={value}>
-                {formatDate(`${value}-01`, 'dmy_short').replace(/^1 /, '')}
-              </option>
-            ))}
-          </select>
-        </label>
-        <Button variant="outline" onClick={exportShown} disabled={rows.length === 0}>
-          {t('history.exportCsv')}
-        </Button>
-        <Button variant="outline" onClick={() => navigate(`/app/report?month=${month || monthKey(todayYmd())}`)}>
-          {t('report.open')}
-        </Button>
+        <div className={styles.filterRow}>
+          <label className={styles.select}>
+            <span className="sr-only">{t('history.type')}</span>
+            <select value={type} onChange={(event) => { setType(event.target.value as typeof type); setDays(DAYS_PER_PAGE); }}>
+              <option value="all">{t('history.allTypes')}</option>
+              <option value="expense">{t('add.expense')}</option>
+              <option value="income">{t('add.income')}</option>
+            </select>
+          </label>
+          <label className={styles.select}>
+            <span className="sr-only">{t('history.category')}</span>
+            <select value={category} onChange={(event) => { setCategory(event.target.value); setDays(DAYS_PER_PAGE); }}>
+              <option value="">{t('history.allCategories')}</option>
+              {categories.map((item) => (
+                <option key={item.key} value={item.key}>
+                  {item.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className={styles.select}>
+            <span className="sr-only">{t('history.month')}</span>
+            <select value={month} onChange={(event) => { setMonth(event.target.value); setDays(DAYS_PER_PAGE); }}>
+              <option value="">{t('history.anyMonth')}</option>
+              {monthsAvailable.map((value) => (
+                <option key={value} value={value}>
+                  {monthText(value)}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button type="button" className={styles.reset} onClick={reset} disabled={!filtered}>
+            <Icon name="x" size={16} />
+            {t('history.reset')}
+          </button>
+        </div>
       </div>
+
+      <section className={styles.exportCard} aria-labelledby="history-export">
+        <div className={styles.exportText}>
+          <h2 id="history-export">{t('history.exportTitle')}</h2>
+          <p>{t('history.exportBody')}</p>
+        </div>
+        <div className={styles.exportActions}>
+          <Button variant="outline" onClick={exportShown} disabled={rows.length === 0}>
+            {t('history.exportCsv')}
+          </Button>
+          <Button variant="outline" onClick={() => navigate(`/app/report?month=${month || monthKey(todayYmd())}`)}>
+            {t('report.open')}
+          </Button>
+        </div>
+      </section>
 
       {data.failed ? (
         <Notice kind="warn">
@@ -143,12 +211,20 @@ export function HistoryPage() {
         </EmptyState>
       ) : (
         <div className={styles.list}>
+          <p className={styles.summary} role="status" data-testid="history-summary">
+            <span>
+              <strong>{rows.length}</strong> {t('history.entriesWord')}
+            </span>
+            {listed.in > 0 ? <span className={styles.in}>{formatSigned(listed.in / 100)}</span> : null}
+            {listed.out > 0 ? <span className={styles.out}>{formatSigned(-listed.out / 100)}</span> : null}
+          </p>
+          <p className={styles.swipeHint}>{t('history.swipeHint')}</p>
           {shown.map(([day, entries]) => {
             const net = entries.reduce((total, entry) => total + (entry.kind === 'income' ? 1 : -1) * toCents(entry.row.amount), 0);
             return (
               <section key={day} className={styles.day} aria-label={formatDate(day, data.dateFormat)}>
                 <header className={styles.dayHead}>
-                  <h2>{formatDate(day, data.dateFormat)}</h2>
+                  <h2>{dayName(day)}</h2>
                   <span className={net < 0 ? styles.out : styles.in}>{formatSigned(net / 100)}</span>
                 </header>
                 <ul className={styles.rows}>
@@ -159,10 +235,10 @@ export function HistoryPage() {
                     const sub = isExpense ? `${item?.label} · ${paymentOf((entry.row as Expense).payment).label}` : t('add.income');
                     const amount = formatSigned((isExpense ? -1 : 1) * (toCents(entry.row.amount) / 100));
                     return (
-                      <li key={`${entry.kind}-${entry.row.id}`} className={styles.row} data-kind={entry.kind}>
-                        <button type="button" className={styles.main} onClick={() => openAdd({ edit: { kind: entry.kind, row: entry.row } })}>
-                          <span className={styles.glyph} aria-hidden="true" data-glyph={item?.key ?? 'income'}>
-                            {isExpense ? item?.glyph : '💰'}
+                      <SwipeRow key={`${entry.kind}-${entry.row.id}`} className={styles.row} kind={entry.kind} duplicateLabel={t('history.duplicate')} deleteLabel={t('add.delete')} onDuplicate={() => duplicate(entry)} onDelete={() => void remove(entry)}>
+                        <button type="button" data-slide className={styles.main} onClick={() => openAdd({ edit: { kind: entry.kind, row: entry.row } })}>
+                          <span className={styles.glyph} data-glyph={item?.key ?? 'income'}>
+                            {item ? <CatIcon name={item.key} color={item.color} glyph={item.glyph} /> : <CatIcon name="income" color="#059669" />}
                           </span>
                           <span className={styles.text}>
                             <span className={styles.title}>{title}</span>
@@ -181,7 +257,7 @@ export function HistoryPage() {
                             <Icon name="x" size={18} />
                           </button>
                         </div>
-                      </li>
+                      </SwipeRow>
                     );
                   })}
                 </ul>

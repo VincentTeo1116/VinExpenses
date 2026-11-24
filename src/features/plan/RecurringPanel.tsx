@@ -4,15 +4,17 @@ import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Button } from '@/components/Button';
+import { CatIcon } from '@/components/CatIcon';
 import { ChipGroup } from '@/components/ChipGroup';
 import { EmptyState } from '@/components/EmptyState';
 import { Field, SelectField } from '@/components/Field';
+import { Icon } from '@/components/Icon';
 import { Notice } from '@/components/Notice';
 import { Sheet } from '@/components/Sheet';
 import { useToast } from '@/components/Toast';
 import { useI18n, type MessageKey } from '@/lib/i18n';
 import { formatDate, isYmd, todayYmd, type Frequency } from '@/lib/dates';
-import { formatMoney, formatSigned, toCents } from '@/lib/money';
+import { formatSigned, toCents } from '@/lib/money';
 import { dueWording, recurringTotals } from '@/features/money/calc';
 import { useMoney } from '@/features/money/MoneyContext';
 import { INCOME_SOURCES } from '@/features/money/taxonomy';
@@ -41,6 +43,12 @@ export function RecurringPanel() {
   const { data } = useMoney();
   const [editing, setEditing] = useState<Item | null>(null);
   const [formKey, setFormKey] = useState(0);
+  const [adding, setAdding] = useState(false);
+  const closeForm = () => {
+    setEditing(null);
+    setAdding(false);
+    setFormKey((n) => n + 1);
+  };
   const [removing, setRemoving] = useState<Item | null>(null);
 
   const totals = useMemo(() => recurringTotals(data.recurring, data.recurringIncomes), [data.recurring, data.recurringIncomes]);
@@ -48,45 +56,46 @@ export function RecurringPanel() {
 
   return (
     <>
-      <section className={styles.card} aria-labelledby="rec-title">
-        <h2 id="rec-title" className={styles.h2}>
-          {t('rec.title')}
-        </h2>
-        <p className={styles.muted}>{t('rec.sub')}</p>
-        {items.length > 0 ? (
-          <ul className={styles.summary} aria-label={t('rec.title')}>
-            <li>{t('rec.active', { n: totals.active })}</li>
-            <li className={styles.in}>+ {t('rec.in', { amount: formatMoney(totals.incomePerMonth / 100) })}</li>
-            <li>− {t('rec.out', { amount: formatMoney(totals.expensePerMonth / 100) })}</li>
-            <li className={totals.netPerMonth < 0 ? styles.neg : styles.in} data-testid="rec-net">
-              {t('rec.net', { amount: formatSigned(totals.netPerMonth / 100) })}
-            </li>
-            <li className={totals.netPerMonth < 0 ? styles.neg : styles.in}>{t('rec.netYear', { amount: formatSigned(totals.netPerYear / 100) })}</li>
-          </ul>
-        ) : null}
-      </section>
+      <div className={styles.topRow}>
+        <p className={styles.intro}>{t('rec.sub')}</p>
+        <Button onClick={() => setAdding(true)}>
+          <Icon name="plus" size={18} />
+          {t('rec.new')}
+        </Button>
+      </div>
+      <div className={styles.layout}>
+        <div className={styles.side}>
+          {items.length > 0 ? (
+            <dl className={styles.totals} aria-label={t('rec.title')} data-testid="rec-totals">
+              <div>
+                <dt>{t('rec.totalMonth')}</dt>
+                <dd data-testid="rec-net">{formatSigned(totals.netPerMonth / 100)}</dd>
+              </div>
+              <div>
+                <dt>{t('rec.totalYear')}</dt>
+                <dd data-testid="rec-net-year">{formatSigned(totals.netPerYear / 100)}</dd>
+              </div>
+            </dl>
+          ) : null}
+          {items.length === 0 ? (
+            <EmptyState icon="plan" title={t('rec.title')}>
+              {t('rec.empty')}
+            </EmptyState>
+          ) : (
+            <ul className={styles.list} aria-label={t('rec.active', { n: totals.active })}>
+              {items.map((item) => (
+                <RecurringRow key={`${item.kind}-${item.row.id}`} item={item} onEdit={() => setEditing(item)} onDelete={() => setRemoving(item)} />
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
 
-      <RecurringForm
-        key={`${formKey}-${editing?.row.id ?? 'new'}`}
-        editing={editing}
-        onDone={() => {
-          setEditing(null);
-          setFormKey((n) => n + 1);
-        }}
-      />
-
-      {items.length === 0 ? (
-        <EmptyState icon="plan" title={t('rec.title')}>
-          {t('rec.empty')}
-        </EmptyState>
-      ) : (
-        <ul className={styles.list}>
-          {items.map((item) => (
-            <RecurringRow key={`${item.kind}-${item.row.id}`} item={item} onEdit={() => { setEditing(item); window.scrollTo({ top: 0 }); }} onDelete={() => setRemoving(item)} />
-          ))}
-        </ul>
-      )}
-
+      <Sheet open={adding || editing !== null} onClose={closeForm} title={editing ? t('rec.edit') : t('rec.new')}>
+        <div className={styles.flat}>
+          <RecurringForm key={`${formKey}-${editing?.row.id ?? 'new'}`} editing={editing} onDone={closeForm} />
+        </div>
+      </Sheet>
       <RemoveSheet item={removing} onClose={() => setRemoving(null)} />
     </>
   );
@@ -117,8 +126,8 @@ function RecurringRow({ item, onEdit, onDelete }: { item: Item; onEdit: () => vo
   return (
     <li className={`${styles.item} ${row.active ? '' : styles.paused}`} data-kind={item.kind}>
       <div className={styles.itemMain}>
-        <span className={styles.glyph} aria-hidden="true">
-          {item.kind === 'expense' ? categoryOf(item.row.category).glyph : '💰'}
+        <span className={styles.glyph}>
+          {item.kind === 'expense' ? <CatIcon name={item.row.category} color={categoryOf(item.row.category).color} glyph={categoryOf(item.row.category).glyph} /> : <CatIcon name="income" color="#059669" />}
         </span>
         <div className={styles.itemText}>
           <p className={styles.itemTitle}>
@@ -133,17 +142,15 @@ function RecurringRow({ item, onEdit, onDelete }: { item: Item; onEdit: () => vo
         <p className={`${styles.itemAmount} ${item.kind === 'income' ? styles.in : ''}`}>{formatSigned((item.kind === 'income' ? 1 : -1) * (toCents(row.amount) / 100))}</p>
       </div>
       <div className={styles.itemTools}>
-        <Button variant="outline" disabled={busy || finished} onClick={() => void toggle()}>
-          {row.active ? t('rec.pause') : t('rec.resume')}
-        </Button>
-        <Button variant="outline" onClick={onEdit}>
-          {t('rec.edit')}
-          <span className="sr-only"> {title}</span>
-        </Button>
-        <Button variant="ghost" onClick={onDelete}>
-          {t('rec.delete')}
-          <span className="sr-only"> {title}</span>
-        </Button>
+        <button type="button" className={styles.iconBtn} disabled={busy || finished} onClick={() => void toggle()} aria-label={row.active ? t('rec.pause') : t('rec.resume')} title={row.active ? t('rec.pause') : t('rec.resume')}>
+          <Icon name={row.active ? 'pause' : 'play'} size={18} />
+        </button>
+        <button type="button" className={styles.iconBtn} onClick={onEdit} aria-label={`${t('rec.edit')} ${title}`} title={t('rec.edit')}>
+          <Icon name="edit" size={18} />
+        </button>
+        <button type="button" className={`${styles.iconBtn} ${styles.iconDanger}`} onClick={onDelete} aria-label={`${t('rec.delete')} ${title}`} title={t('rec.delete')}>
+          <Icon name="trash" size={18} />
+        </button>
       </div>
     </li>
   );
@@ -228,8 +235,8 @@ function RecurringForm({ editing, onDone }: { editing: Item | null; onDone: () =
         <Field label={t('add.amount')} inputMode="decimal" autoComplete="off" placeholder="0.00" error={formState.errors.amount?.message} {...register('amount')} />
         {kind === 'expense' ? (
           <>
-            <Controller name="category" control={control} render={({ field }) => <ChipGroup legend={t('add.category')} options={activeCategories.map((c) => ({ value: c.key, label: c.label, glyph: c.glyph }))} value={field.value} onChange={field.onChange} />} />
-            <Controller name="payment" control={control} render={({ field }) => <ChipGroup legend={t('add.payment')} options={activePayments.map((p) => ({ value: p.key, label: p.label, glyph: p.glyph }))} value={field.value} onChange={field.onChange} />} />
+            <Controller name="category" control={control} render={({ field }) => <ChipGroup legend={t('add.category')} options={activeCategories.map((c) => ({ value: c.key, label: c.label, glyph: c.glyph, icon: c.key, color: c.color }))} value={field.value} onChange={field.onChange} />} />
+            <Controller name="payment" control={control} render={({ field }) => <ChipGroup legend={t('add.payment')} options={activePayments.map((p) => ({ value: p.key, label: p.label, glyph: p.glyph, icon: p.key, color: p.color }))} value={field.value} onChange={field.onChange} />} />
           </>
         ) : null}
         <div className={styles.two}>

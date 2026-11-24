@@ -326,8 +326,14 @@ test.describe('reminders (PL-04)', () => {
     await page.reload();
     await expect(page.getByRole('heading', { level: 1, name: /^Hello,/ })).toBeVisible();
     await expect(page.getByRole('dialog', { name: 'Don\'t forget' })).toHaveCount(0);
-    // still listed on the page itself
+    // still on the page itself: a slim bar that opens
+    const bar = page.getByTestId('reminder-bar');
+    await expect(bar).toContainText('1 coming up');
+    await expect(page.getByRole('list', { name: 'Reminders', exact: true })).toHaveCount(0);
+    await bar.getByRole('button', { name: /Reminders/ }).click();
     await expect(page.getByRole('list', { name: 'Reminders', exact: true })).toContainText('Soon FD');
+    await bar.getByRole('button', { name: /Reminders/ }).click();
+    await expect(page.getByRole('list', { name: 'Reminders', exact: true })).toHaveCount(0);
   });
 
   test('closed items and items with reminders off are not listed; the pop-up can just be closed', async ({ page }) => {

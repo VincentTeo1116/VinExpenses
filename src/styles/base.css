@@ -122,3 +122,43 @@ body::before {
     radial-gradient(ellipse 60% 38% at 0% 100%, var(--ambient-b), transparent 70%),
     radial-gradient(ellipse 60% 38% at 100% 100%, var(--ambient-c), transparent 70%);
 }
+
+/* A phone screen is exactly as wide as the page: nothing may push it wider or be dragged sideways */
+html,
+body {
+  overflow-x: hidden; /* for browsers without "clip" */
+  overflow-x: clip;
+  max-width: 100%;
+}
+input,
+select,
+textarea,
+button {
+  max-width: 100%;
+  min-width: 0;
+}
+/* iPhone: date and time boxes otherwise keep a wide built-in size and stick out of their form */
+@supports (-webkit-touch-callout: none) {
+  input[type='date'],
+  input[type='month'],
+  input[type='time'],
+  input[type='datetime-local'] {
+    -webkit-appearance: none;
+    appearance: none;
+    display: block;
+    width: 100%;
+    min-width: 0;
+    text-align: left;
+  }
+  input::-webkit-date-and-time-value {
+    text-align: left;
+  }
+}
+/* iPhone zooms the page in when a box with small text is tapped, and leaves it zoomed: keep every box at 16px on touch screens */
+@media (hover: none), (max-width: 1023px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
