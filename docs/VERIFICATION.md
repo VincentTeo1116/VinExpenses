@@ -56,7 +56,7 @@ All breaks were reverted and the suites re-run green.
 
 ## 5. Not verified, and limits
 
-- **Real Supabase and Cloudflare Pages were not used.** Tests run against a local server that imitates Pages' redirects and headers. The real `_headers`/`_redirects` behaviour on Cloudflare must be checked after the first deploy.
+- **Real Supabase and Cloudflare Pages were not used.** Tests run against a local server that imitates Pages' redirects and headers. The real `_headers` behaviour on Cloudflare must be checked after the first deploy. (First deploy found that a `_redirects` rewrite to `/index.html` becomes a redirect to `/`, so a refresh on `/app` showed the home page. The rewrites were removed; the build already writes a real page for every app address, and the local test server now follows Cloudflare's clean-address rules, checked with `wrangler dev`.)
 - **Only Chromium** was tested. Firefox, Safari and real iPhone/Android devices were not.
 - **No screen reader** was used; only automated checks and a keyboard walk.
 - **No Lighthouse or load-time measurement.** Bundle size is measured (178 KB gzip); speed is not.

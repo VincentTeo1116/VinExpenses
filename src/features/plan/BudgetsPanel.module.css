@@ -56,6 +56,10 @@
   background: var(--surface-2);
   text-align: right;
   font-variant-numeric: tabular-nums;
+  font-weight: 800;
+}
+.input::placeholder {
+  font-weight: 700;
 }
 .input:focus-visible {
   outline: none;

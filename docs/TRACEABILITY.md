@@ -89,7 +89,7 @@ Tests: `src/**/*.test.ts(x)` (unit/component, Vitest) · `e2e/*.spec.ts` (browse
 |---|---|---|---|
 | PU-01 contact form | Verified | `ContactSheet`, `LazyContactSheet` | `auth.spec.ts` |
 | PU-02 welcome, privacy, terms | Verified | `features/public/*` (React, with motion that respects reduced-motion) | `public.spec.ts`, `public-motion.spec.ts`, `security.test.ts` |
-| PU-03 404 page | Verified | `public/404.*`, `_redirects` | `notfound.spec.ts`, `security.test.ts` |
+| PU-03 404 page | Verified | `public/404.*`, `vite.config.mts` (appPagesPlugin) | `notfound.spec.ts`, `security.test.ts` |
 | PU-04 email action page | Verified | `email-action.html`, `src/email-action/main.ts` | `emailaction.spec.ts` |
 | PU-05 hide built files from direct typing | **Not built** | | optional (Should); cosmetic |
 | PF-01 PWA | Partly | `vite-plugin-pwa`, `pwa.ts` | `fallback.spec.ts`; **install and update prompts were not run on a real device** |

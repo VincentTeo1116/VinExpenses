@@ -38,6 +38,15 @@ export default tseslint.config(
     languageOptions: { globals: { ...globals.browser }, sourceType: 'script' },
   },
   {
+    // the redirect page script also loads in Node for its tests; the replacement service worker runs in a worker
+    files: ['redirect/redirect.js'],
+    languageOptions: { globals: { ...globals.browser, ...globals.commonjs }, sourceType: 'script' },
+  },
+  {
+    files: ['redirect/sw.js'],
+    languageOptions: { globals: { ...globals.serviceworker }, sourceType: 'script' },
+  },
+  {
     files: ['src/**/*.test.{ts,tsx}', 'e2e/**/*.ts', 'src/test/**/*.ts'],
     rules: { 'no-restricted-syntax': 'off', 'no-script-url': 'off' },
   },

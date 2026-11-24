@@ -97,12 +97,12 @@
 }
 .input[inputmode='decimal'] {
   font-size: 1em;
-  font-weight: 750;
+  font-weight: 800;
   letter-spacing: -0.01em;
   font-variant-numeric: tabular-nums;
 }
 .input[inputmode='decimal']::placeholder {
-  font-weight: 600;
+  font-weight: 800;
   color: color-mix(in srgb, var(--muted) 55%, transparent);
 }
 
@@ -222,4 +222,47 @@
   top: 50%;
   transform: translateY(-50%);
   display: grid;
+}
+
+/* a big amount box that keeps its label visible above it (Plan forms) */
+.big.labelShown .label {
+  position: static;
+  width: auto;
+  height: auto;
+  overflow: visible;
+  clip: auto;
+  white-space: normal;
+  margin-bottom: 2px;
+}
+
+/* a compact money box: "RM" in bold at the start, the amount in bold, and a bold placeholder */
+.prefixSmall {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 0.8em;
+  font-weight: 900;
+  color: var(--text);
+  pointer-events: none;
+}
+.input.withPrefix {
+  padding-left: 48px;
+  font-weight: 900;
+}
+.input.withPrefix::placeholder {
+  font-weight: 800;
+}
+
+/* on a white card (the Plan forms) the box is tinted instead of white so its edge shows; it turns white while typing */
+.big.labelShown .box:has(> .input) {
+  background: var(--surface-2);
+  box-shadow: none;
+}
+.big.labelShown .box:focus-within {
+  background: var(--surface);
+  box-shadow: 0 0 0 4px var(--primary-soft);
+}
+.big.labelShown[data-tone='income'] .box:focus-within {
+  box-shadow: 0 0 0 4px var(--success-soft);
 }

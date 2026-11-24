@@ -12,7 +12,7 @@ export default defineConfig({
   outputDir: 'test-results',
   // Reduced motion keeps measurements steady (no element is mid-animation) and also proves the setting is respected
   use: { baseURL: `http://127.0.0.1:${PORT}`, trace: 'off', screenshot: 'off', reducedMotion: 'reduce' },
-  // The test build (npm run build:e2e) is served like Cloudflare Pages would serve it: _redirects, _headers and a real 404
+  // The test build (npm run build:e2e) is served like Cloudflare Pages would serve it: clean addresses, _headers and a real 404
   webServer: [
     { command: `node scripts/serve-dist.mjs dist-e2e ${PORT}`, url: `http://127.0.0.1:${PORT}/app`, reuseExistingServer: false, timeout: 60_000 },
     // a local stand-in for Supabase (Auth, auth-gate, feedback); see scripts/fake-backend.mjs

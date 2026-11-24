@@ -1,5 +1,9 @@
-// A tiny static server that behaves like Cloudflare Pages: it applies `_redirects` (200 rewrites) and `_headers`,
-// and answers any other unknown address with /404.html and a real 404 status. Used by the end-to-end tests.
+// A tiny static server that behaves like Cloudflare (Workers static assets with `html_handling: auto-trailing-slash` and
+// `not_found_handling: 404-page`): /app is answered by app.html, /app.html and /index.html redirect to their clean address, /miniapp
+// redirects to /miniapp/, `_headers` is applied, and any other unknown address gets /404.html with a real 404 status.
+// Used by the end-to-end tests.
+// There are NO rewrite rules on purpose: on Cloudflare a rewrite to /index.html is turned into a redirect to /, so a refresh on /app
+// landed on the home page. The app addresses are real files instead (made by the build, see appPagesPlugin in vite.config.mts).
 import { createServer } from 'node:http';
 import { readFile, stat } from 'node:fs/promises';
 import { extname, join, normalize, resolve, sep } from 'node:path';
@@ -27,14 +31,6 @@ async function readRules(file) {
     return [];
   }
 }
-
-const redirectLines = await readRules('_redirects');
-const rewrites = redirectLines
-  .map((line) => line.trim())
-  .filter((line) => line && !line.startsWith('#'))
-  .map((line) => line.split(/\s+/))
-  .filter((parts) => parts.length >= 3 && parts[2] === '200')
-  .map(([from, to]) => ({ from, to }));
 
 const headerBlocks = [];
 {
@@ -69,9 +65,12 @@ function headersFor(path) {
 
 async function send(response, status, file, path, alsoPath) {
   const body = await readFile(file);
-  response.writeHead(status, { 'Content-Type': types[extname(file)] ?? 'application/octet-stream', ...(alsoPath ? { 'Cache-Control': headersFor(alsoPath)['Cache-Control'] } : {}), ...headersFor(path) });
+  const cache = alsoPath ? headersFor(alsoPath)['Cache-Control'] : undefined; // the cache rule of the page file itself, when it has one
+  response.writeHead(status, { 'Content-Type': types[extname(file)] ?? 'application/octet-stream', ...(cache ? { 'Cache-Control': cache } : {}), ...headersFor(path) });
   response.end(body);
 }
+
+const exists = (file) => stat(file).catch(() => null);
 
 createServer(async (request, response) => {
   try {
@@ -81,14 +80,31 @@ createServer(async (request, response) => {
     const file = resolve(root, safe);
     if (file !== root && !file.startsWith(root + sep)) return send(response, 404, join(root, '404.html'), '/404.html');
 
-    const info = await stat(file).catch(() => null);
-    if (info?.isFile()) return send(response, 200, file, path);
-    if (path === '/' && (await stat(join(root, 'index.html')).catch(() => null))) return send(response, 200, join(root, 'index.html'), '/index.html');
-    if ((path === '/miniapp' || path === '/miniapp/') && (await stat(join(root, 'miniapp', 'index.html')).catch(() => null))) return send(response, 200, join(root, 'miniapp', 'index.html'), '/miniapp/index.html');
+    const redirect = (to) => {
+      response.writeHead(307, { Location: to + url.search, ...headersFor(path) });
+      response.end();
+    };
 
-    const rule = rewrites.find(({ from }) => (from.endsWith('*') ? path.startsWith(from.slice(0, -1)) : from === path));
-    // header rules match the address that was asked for (as on Cloudflare), plus the cache rule of the page it is answered with
-    if (rule) return send(response, 200, join(root, rule.to), path, rule.to);
+    // a real file
+    const info = await exists(file);
+    if (info?.isFile()) {
+      // /x.html and /x/index.html go to their clean address; 404.html is only ever served as the not-found page
+      if (path.endsWith('.html') && path !== '/404.html') return redirect(path.endsWith('/index.html') ? path.slice(0, -'index.html'.length) : path.slice(0, -'.html'.length));
+      return send(response, 200, file, path);
+    }
+    if (path === '/') return send(response, 200, join(root, 'index.html'), '/index.html');
+
+    // clean addresses: /x is x.html (or x/index.html); /x/ is x/index.html, or goes to /x when only x.html exists
+    const bare = safe.replace(/[/\\]+$/, '');
+    const page = join(root, `${bare}.html`);
+    const folderIndex = join(file, 'index.html');
+    if (path.endsWith('/')) {
+      if ((await exists(folderIndex))?.isFile()) return send(response, 200, folderIndex, path, `${path}index.html`);
+      if ((await exists(page))?.isFile()) return redirect(path.replace(/\/+$/, ''));
+    } else {
+      if ((await exists(page))?.isFile()) return send(response, 200, page, path, `${path}.html`);
+      if ((await exists(folderIndex))?.isFile()) return redirect(`${path}/`);
+    }
     return send(response, 404, join(root, '404.html'), '/404.html');
   } catch {
     response.writeHead(500, { 'Content-Type': 'text/plain' });

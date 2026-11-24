@@ -55,3 +55,6 @@ playwright-report/
 coverage/
 *.tsbuildinfo
 screenshots/
+
+# Cloudflare local runtime scratch files
+.wrangler/

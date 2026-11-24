@@ -17,15 +17,27 @@ export interface FieldProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 
   big?: boolean | 'income';
   /** A small button that sits inside the box at its end (for example the map pin). */
   trailing?: ReactNode;
+  /** With `big`: keep the label visible above the box (the Add pop-up hides it because the box says it all). */
+  showLabel?: boolean;
+  /** A short word at the start of a compact box, such as "RM" (bold, with the amount). */
+  prefix?: string;
 }
 
-export function Field({ label, error, hint, children, className, ref, icon, big, trailing, ...input }: FieldProps) {
+/**
+ * What `data-len` to give a big amount box so long amounts get smaller type instead of spilling out (see Field.module.css).
+ * The box itself cannot know the length when the form keeps the value elsewhere.
+ */
+export function amountSize(text: string): string | undefined {
+  return text.length > 11 ? '12' : text.length > 9 ? '10' : text.length > 7 ? '9' : undefined;
+}
+
+export function Field({ label, error, hint, children, className, ref, icon, big, trailing, showLabel, prefix, ...input }: FieldProps) {
   const id = useId();
   const errorId = `${id}-error`;
   const hintId = `${id}-hint`;
   const describedBy = [error ? errorId : '', hint ? hintId : ''].filter(Boolean).join(' ') || undefined;
   return (
-    <div className={`${styles.group} ${big ? styles.big : ''} ${className ?? ''}`} data-tone={big === 'income' ? 'income' : undefined}>
+    <div className={`${styles.group} ${big ? styles.big : ''} ${big && showLabel ? styles.labelShown : ''} ${className ?? ''}`} data-tone={big === 'income' ? 'income' : undefined}>
       <label htmlFor={id} className={styles.label}>
         {label}
       </label>
@@ -35,12 +47,17 @@ export function Field({ label, error, hint, children, className, ref, icon, big,
             RM
           </span>
         ) : null}
+        {!big && prefix ? (
+          <span className={styles.prefixSmall} aria-hidden="true">
+            {prefix}
+          </span>
+        ) : null}
         {icon ? (
           <span className={styles.lead} aria-hidden="true">
             <Icon name={icon} size={18} />
           </span>
         ) : null}
-        <input {...input} ref={ref} id={id} className={`${styles.input} ${icon ? styles.withIcon : ''} ${trailing ? styles.withTrailing : ''} ${error ? styles.invalid : ''}`} aria-invalid={error ? true : undefined} aria-describedby={describedBy} />
+        <input {...input} ref={ref} id={id} className={`${styles.input} ${icon ? styles.withIcon : ''} ${trailing ? styles.withTrailing : ''} ${!big && prefix ? styles.withPrefix : ''} ${error ? styles.invalid : ''}`} aria-invalid={error ? true : undefined} aria-describedby={describedBy} />
         {trailing ? <span className={styles.trailing}>{trailing}</span> : null}
       </div>
       {hint ? (

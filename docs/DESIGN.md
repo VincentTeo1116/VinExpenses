@@ -8,7 +8,7 @@ Requirements: `docs/REQUIREMENTS-react.md` (IDs such as AU-04, PF-03). Decisions
 | Part | Responsibility | Owns |
 |---|---|---|
 | **Web app** (`src/`, React + TypeScript, Vite) | Screens, validation messages, offline queue, language, theme | UI, PF-*, I18N-01 |
-| **Static host** (Cloudflare Pages) | Serves files, security headers (`_headers`), real 404 (`_redirects` + `404.html`) | SEC-01, PU-03 |
+| **Static host** (Cloudflare Pages) | Serves files, security headers (`_headers`), real 404 (one page per app address + `404.html`) | SEC-01, PU-03 |
 | **Supabase Auth + Postgres (RLS)** | Who a person is, who may read which row, the authenticator rule (`mfa_ok()`) | SEC-02, AU-12 |
 | **Edge Functions** (`supabase/functions/`) | Everything that must not be decided in a browser: sign-in counting and lockout, codes, admin actions, report delivery, OCR | AU-*, AD-*, RP-* |
 | **Legacy site** (`legacy/`) | The previous plain-JS app, kept as a deployable backup until the single switch (D-17) | rollback |
@@ -73,7 +73,7 @@ src/pages/      screens (placeholders until their phase)
 src/components/ Button, Sheet, Toast, EmptyState, OfflineBanner, Icon, LanguageSelect
 src/lib/        env, supabase client, api, money, i18n (en, ms, zh)
 src/styles/     tokens.css, base.css
-public/         404.html/js/css, _redirects, icons, fonts
+public/         404.html/js/css, icons, fonts
 scripts/        headers (CSP + security headers), serve-dist (Pages-like server for tests), build-e2e
 e2e/            Playwright tests (responsive, a11y, security, 404, fallbacks)
 legacy/         previous site (backup)

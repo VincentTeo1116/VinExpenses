@@ -2,7 +2,7 @@
 import { useMemo, useRef, useState, type FormEvent } from 'react';
 import { Button } from '@/components/Button';
 import { EmptyState } from '@/components/EmptyState';
-import { Field, SelectField } from '@/components/Field';
+import { amountSize, Field, SelectField } from '@/components/Field';
 import { Notice } from '@/components/Notice';
 import { Sheet } from '@/components/Sheet';
 import { useToast } from '@/components/Toast';
@@ -193,9 +193,10 @@ export function DepositsPanel() {
           </h2>
           <p className={styles.muted}>{t('fd.sub')}</p>
           <form className={styles.form} onSubmit={onSave} noValidate>
+            <Field big showLabel label={t('fd.amount')} inputMode="decimal" autoComplete="off" placeholder="0.00" data-len={amountSize(form.amount)} value={form.amount} onChange={(e) => set('amount', e.target.value)} error={shown('amount', form.amount)} />
             <div className={styles.two}>
-              <Field label={t('fd.amount')} inputMode="decimal" autoComplete="off" value={form.amount} onChange={(e) => set('amount', e.target.value)} error={shown('amount', form.amount)} />
               <Field label={t('fd.rate')} inputMode="decimal" autoComplete="off" value={form.rate} onChange={(e) => set('rate', e.target.value)} error={shown('rate', form.rate)} />
+              <Field label={t('fd.tax')} inputMode="decimal" autoComplete="off" value={form.taxRate} onChange={(e) => set('taxRate', e.target.value)} error={shown('taxRate', form.taxRate)} />
             </div>
             <div className={styles.two}>
               <Field label={t('fd.tenure')} inputMode="numeric" autoComplete="off" value={form.tenureValue} onChange={(e) => set('tenureValue', e.target.value)} error={shown('tenureValue', form.tenureValue)} />
@@ -214,13 +215,10 @@ export function DepositsPanel() {
                 <option value="yearly">{t('fd.payout.yearly')}</option>
               </SelectField>
             </div>
-            <div className={styles.two}>
-              <Field label={t('fd.tax')} inputMode="decimal" autoComplete="off" value={form.taxRate} onChange={(e) => set('taxRate', e.target.value)} error={shown('taxRate', form.taxRate)} />
-              <SelectField label={t('fd.dayBasis')} value={form.dayBasis} onChange={(e) => set('dayBasis', e.target.value)}>
-                <option value="365">365</option>
-                <option value="360">360</option>
-              </SelectField>
-            </div>
+            <SelectField label={t('fd.dayBasis')} value={form.dayBasis} onChange={(e) => set('dayBasis', e.target.value)}>
+              <option value="365">365</option>
+              <option value="360">360</option>
+            </SelectField>
             <Field label={t('fd.maturity')} type="date" value={form.maturityDate || auto} onChange={(e) => set('maturityDate', e.target.value === auto ? '' : e.target.value)} hint={t('fd.maturityHint')} error={shown('maturityDate', form.maturityDate)} />
 
             <div className={styles.card} role="group" aria-labelledby="fd-save-title">

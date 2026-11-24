@@ -60,7 +60,10 @@ export function headersFile(csp: string, miniCsp = ''): string {
   X-Robots-Tag: noindex, nofollow
 /auth/*
   X-Robots-Tag: noindex, nofollow
+# the emailed link is /email-action.html; Cloudflare answers it at the clean address /email-action, so both are listed
 /email-action.html
+  X-Robots-Tag: noindex, nofollow
+/email-action
   X-Robots-Tag: noindex, nofollow
 ${
   miniCsp

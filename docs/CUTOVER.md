@@ -22,7 +22,7 @@ The old site (plain JavaScript) is kept in `legacy/` and still deploys to GitHub
 
 1. Point your domain (or the address you share) at the Cloudflare Pages project.
 2. Update the allowed addresses in Supabase, Google, the Edge Function secrets and BotFather (step 2 of `docs/DEPLOY-CLOUDFLARE.md`).
-3. Switch off the GitHub Pages deploy: delete `.github/workflows/deploy.yml` (or set it to manual), and in GitHub → Settings → Pages turn it off.
+3. Send the old GitHub Pages address to the new site. `.github/workflows/deploy.yml` now publishes a small redirect site instead of the old app (`redirect/`, built by `tools/build-redirect.js`): every old address opens the same page on Cloudflare, keeping the query and the hash (`/` and `index.html` open `/app`; `welcome.html` opens the front page). It also replaces the old service worker, which clears the old cached app on phones and laptops that still have it. The address is `https://vinexpenses.tkqvincent2.workers.dev`; set the repository variable `REDIRECT_TO` (GitHub → Settings → Secrets and variables → Actions → Variables) to change it, or to `off` to publish the old site again. Push to `main` (or run the workflow) to publish it. Sessions are not carried across: each person signs in again on the new address, and anyone who installed the old site as an app should install the new one.
 4. Keep `legacy/` for **at least two weeks** after the switch.
 
 ## Removing the old site (only when you are sure)

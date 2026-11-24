@@ -1,13 +1,13 @@
 // RC-01 … RC-04: bills, subscriptions and regular income. They post themselves; the summary counts income as plus and bills as minus.
 import { useMemo, useState, type FormEvent } from 'react';
-import { Controller, useForm } from 'react-hook-form';
+import { Controller, useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Button } from '@/components/Button';
 import { CatIcon } from '@/components/CatIcon';
 import { ChipGroup } from '@/components/ChipGroup';
 import { EmptyState } from '@/components/EmptyState';
-import { Field, SelectField } from '@/components/Field';
+import { amountSize, Field, SelectField } from '@/components/Field';
 import { Icon } from '@/components/Icon';
 import { Notice } from '@/components/Notice';
 import { Sheet } from '@/components/Sheet';
@@ -179,6 +179,7 @@ function RecurringForm({ editing, onDone }: { editing: Item | null; onDone: () =
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const { register, control, handleSubmit, formState, reset } = useForm<Values>({ resolver: zodResolver(schema), mode: 'onTouched', defaultValues: defaults });
+  const amountText = useWatch({ control, name: 'amount' }) ?? '';
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     void handleSubmit(async (values) => {
@@ -232,7 +233,7 @@ function RecurringForm({ editing, onDone }: { editing: Item | null; onDone: () =
             ))}
           </datalist>
         ) : null}
-        <Field label={t('add.amount')} inputMode="decimal" autoComplete="off" placeholder="0.00" error={formState.errors.amount?.message} {...register('amount')} />
+        <Field big={kind === 'income' ? 'income' : true} showLabel label={t('add.amount')} inputMode="decimal" autoComplete="off" placeholder="0.00" data-len={amountSize(amountText)} error={formState.errors.amount?.message} {...register('amount')} />
         {kind === 'expense' ? (
           <>
             <Controller name="category" control={control} render={({ field }) => <ChipGroup legend={t('add.category')} options={activeCategories.map((c) => ({ value: c.key, label: c.label, glyph: c.glyph, icon: c.key, color: c.color }))} value={field.value} onChange={field.onChange} />} />

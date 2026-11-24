@@ -2,7 +2,7 @@
 import { useMemo, useRef, useState, type FormEvent } from 'react';
 import { Button } from '@/components/Button';
 import { EmptyState } from '@/components/EmptyState';
-import { Field, SelectField } from '@/components/Field';
+import { amountSize, Field, SelectField } from '@/components/Field';
 import { Notice } from '@/components/Notice';
 import { Sheet } from '@/components/Sheet';
 import { useToast } from '@/components/Toast';
@@ -178,9 +178,10 @@ export function LoansPanel() {
           </h2>
           <p className={styles.muted}>{t('ln.sub')}</p>
           <form className={styles.form} onSubmit={onSave} noValidate>
+            <Field big showLabel label={t('ln.amount')} inputMode="decimal" autoComplete="off" placeholder="0.00" data-len={amountSize(form.amount)} value={form.amount} onChange={(e) => set('amount', e.target.value)} error={shown('amount', form.amount)} />
             <div className={styles.two}>
-              <Field label={t('ln.amount')} inputMode="decimal" autoComplete="off" value={form.amount} onChange={(e) => set('amount', e.target.value)} error={shown('amount', form.amount)} />
               <Field label={t('ln.rate')} inputMode="decimal" autoComplete="off" value={form.rate} onChange={(e) => set('rate', e.target.value)} error={shown('rate', form.rate)} />
+              <Field label={t('ln.fees')} prefix="RM" inputMode="decimal" autoComplete="off" placeholder="0.00" value={form.fees} onChange={(e) => set('fees', e.target.value)} error={shown('fees', form.fees)} />
             </div>
             <div className={styles.two}>
               <Field label={t('ln.term')} inputMode="numeric" autoComplete="off" value={form.termValue} onChange={(e) => set('termValue', e.target.value)} error={shown('termValue', form.termValue)} />
@@ -196,7 +197,6 @@ export function LoansPanel() {
               </SelectField>
               <Field label={t('ln.first')} type="date" value={form.firstPaymentDate} onChange={(e) => set('firstPaymentDate', e.target.value)} error={shown('firstPaymentDate', form.firstPaymentDate)} />
             </div>
-            <Field label={t('ln.fees')} inputMode="decimal" autoComplete="off" value={form.fees} onChange={(e) => set('fees', e.target.value)} error={shown('fees', form.fees)} />
 
             <div className={styles.card} role="group" aria-labelledby="ln-save-title">
               <h3 id="ln-save-title" className={styles.h3}>

@@ -42,8 +42,9 @@ test('the headers file forbids framing everywhere except the Mini App, which onl
     assert.ok(!/frame-ancestors[^;\n]*\*/.test(headers), 'no wildcard framing');
 });
 
-test('the redirect list is only the app addresses (everything else is a real 404)', opts, () => {
-    const lines = fs.readFileSync(path.join(dist, '_redirects'), 'utf8').split('\n').filter((l) => l.trim() && !l.startsWith('#'));
-    for (const line of lines) assert.match(line, /^\/(app|auth|welcome|privacy|terms)(\.html|\/[a-z]+)?\s+\/index\.html\s+200$/, line);
-    assert.ok(!lines.some((l) => /\*/.test(l)), 'no catch-all rewrite');
+test('every app address is a real page in the build, and no rewrite rule exists (a rewrite to /index.html is turned into a redirect to / on Cloudflare)', opts, () => {
+    assert.ok(!fs.existsSync(path.join(dist, '_redirects')), 'there must be no _redirects file');
+    const pages = ['app', 'app/history', 'app/plan', 'app/account', 'app/admin', 'app/report', 'auth', 'auth/setup', 'welcome', 'privacy', 'terms'];
+    for (const page of pages) assert.ok(fs.existsSync(path.join(dist, page + '.html')), page + '.html is missing from the build');
+    for (const page of ['app/nope', 'history', 'plan', 'account']) assert.ok(!fs.existsSync(path.join(dist, page + '.html')), page + '.html must not exist (it would not be a 404)');
 });

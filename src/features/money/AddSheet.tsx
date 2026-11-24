@@ -5,7 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Button } from '@/components/Button';
 import { ChipGroup } from '@/components/ChipGroup';
-import { Field } from '@/components/Field';
+import { amountSize, Field } from '@/components/Field';
 import { Notice } from '@/components/Notice';
 import { Sheet, type SheetHandle } from '@/components/Sheet';
 import { useToast } from '@/components/Toast';
@@ -245,7 +245,7 @@ function AddBody({ request, onClose }: { request: AddRequest; onClose: () => voi
               ))}
             </div>
           )}
-          <Field big={kind === 'income' ? 'income' : true} label={t('add.amount')} inputMode="decimal" autoComplete="off" placeholder="0.00" data-autofocus data-len={amountText.length > 11 ? "12" : amountText.length > 9 ? "10" : amountText.length > 7 ? "9" : undefined} className={styles.amount} error={formState.errors.amount?.message} hint={currentAmount} {...register('amount')} />
+          <Field big={kind === 'income' ? 'income' : true} label={t('add.amount')} inputMode="decimal" autoComplete="off" placeholder="0.00" data-autofocus data-len={amountSize(amountText)} className={styles.amount} error={formState.errors.amount?.message} hint={currentAmount} {...register('amount')} />
         </div>
 
         {kind === 'expense' ? (

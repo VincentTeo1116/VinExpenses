@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { Button } from '@/components/Button';
 import { ChipGroup } from '@/components/ChipGroup';
-import { Field } from '@/components/Field';
+import { amountSize, Field } from '@/components/Field';
 import { Sheet } from '@/components/Sheet';
 import { useToast } from '@/components/Toast';
 import { Donut } from '@/features/dashboard/charts';
@@ -798,7 +798,7 @@ function ExpenseBody({ sheet, categories, payments, today, maxDaysBack, t, onClo
   return (
     <Sheet open onClose={onClose} title={t(editing ? 'edit_expense' : 'add_expense')}>
       <form onSubmit={(event) => void save(event)} noValidate className={styles.form}>
-        <Field label={t('amount')} inputMode="decimal" autoComplete="off" placeholder="0.00" maxLength={10} data-autofocus value={amount} onChange={(event) => setAmount(event.target.value)} />
+        <Field big label={t('amount')} inputMode="decimal" autoComplete="off" placeholder="0.00" maxLength={10} data-autofocus data-len={amountSize(amount)} value={amount} onChange={(event) => setAmount(event.target.value)} />
         <Field label={t('merchant')} maxLength={80} autoComplete="off" placeholder={t('merchant_placeholder')} value={merchant} onChange={(event) => setMerchant(event.target.value)} />
         <ChipGroup legend={t('category')} options={activeCategories.map((c) => ({ value: c.key, label: truncate(c.label, 14), glyph: emojiFor(c.key) }))} value={categoryKey} onChange={setCategoryKey} />
         <ChipGroup legend={t('payment')} options={activePayments.map((p) => ({ value: p.key, label: truncate(p.label, 16) }))} value={paymentKey} onChange={setPaymentKey} />

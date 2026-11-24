@@ -1,6 +1,8 @@
 name: Deploy to GitHub Pages
 
-# Builds config.js from repo secrets and publishes the site to GitHub Pages (setup steps are in the README).
+# Publishes to GitHub Pages. The app now lives on Cloudflare, so by default this publishes only a small "we have moved" site that sends every
+# old address to the same page on the new one (tools/build-redirect.js). Set the repository variable REDIRECT_TO to change the new address,
+# or to "off" to publish the old site again (it builds config.js from the repo secrets; setup steps are in the README).
 
 on:
   push:
@@ -19,6 +21,8 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    env:
+      REDIRECT_TO: ${{ vars.REDIRECT_TO || 'https://vinexpenses.tkqvincent2.workers.dev' }}
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -34,13 +38,16 @@ jobs:
 
       # Fails if any file in vendor/ was changed, added or removed without going through tools/vendor.js
       - name: Verify self-hosted libraries
+        if: env.REDIRECT_TO == 'off'
         run: node tools/vendor.js verify
 
       # A failing test stops the deploy, so a broken receipt reader, category rule or security rule never reaches your phone
       - name: Run tests
+        if: env.REDIRECT_TO == 'off'
         run: node --test "tests/*.test.js"
 
       - name: Generate config.js from secrets
+        if: env.REDIRECT_TO == 'off'
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
@@ -48,6 +55,7 @@ jobs:
         run: node legacy/build-config.js
 
       - name: Stage site files
+        if: env.REDIRECT_TO == 'off'
         run: |
           # The current site lives in legacy/ (the React rebuild replaces it later). Copy it whole, then drop build-only files.
           cp -r legacy dist
@@ -61,10 +69,18 @@ jobs:
 
       # Limit the page to your own Supabase project; the deploy fails if a wildcard is left.
       - name: Pin the Content-Security-Policy to your Supabase project
+        if: env.REDIRECT_TO == 'off'
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           TURNSTILE_SITE_KEY: ${{ secrets.TURNSTILE_SITE_KEY }}
         run: node tools/pin-csp.js dist/index.html dist/email-action.html dist/miniapp/index.html
+
+      - name: Check the redirect, then build it
+        if: env.REDIRECT_TO != 'off'
+        run: |
+          node --test tests/redirect.test.js
+          if [ -f CNAME ]; then BASE="/"; else BASE="/${GITHUB_REPOSITORY#*/}/"; fi
+          BASE="$BASE" node tools/build-redirect.js dist
 
       - uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5.0.0
 

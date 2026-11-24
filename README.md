@@ -7,7 +7,7 @@
 > | Command | What it does |
 > |---|---|
 > | `npm run dev` | Dev server on http://127.0.0.1:5173 (needs `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in `.env`) |
-> | `npm run build` | Type-checks and builds to `dist/` (CSP, `_headers`, `_redirects`, `404.html`, Mini App and email page included) |
+> | `npm run build` | Type-checks and builds to `dist/` (CSP, `_headers`, `404.html`, Mini App and email page included) |
 > | `npm run check:web` | Lint, type check, unit tests, build |
 > | `npm run test:web` | Unit and component tests (Vitest) |
 > | `npm run test:e2e` | Builds a test copy and runs the browser tests against a local stand-in for Supabase (Playwright + axe: security, 404, accessibility, 320–1920 px, every feature) |

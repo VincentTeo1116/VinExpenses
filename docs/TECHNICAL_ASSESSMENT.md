@@ -55,7 +55,7 @@ Assessment date: 2026-11-24. Scope: this repository: the React app (`src/`), the
 | Cryptographic failures | TLS and HSTS; no custom crypto; no secrets in the client |
 | Injection | React escapes all text; no HTML sinks; admin messages shown as plain text (tested with `<img onerror>`); no search text in database queries from the Mini App (server filters in code) |
 | Insecure design | Fail-closed design (Turnstile, unknown link, unsigned launch); limits on every expensive path |
-| Security misconfiguration | CSP `default-src 'none'`, no `unsafe-inline` or `unsafe-eval`, framing banned, HSTS, nosniff, referrer and permissions policies, COOP/CORP; `_redirects` lists only app addresses so anything else is a real 404. Checked on the built files and a local host that behaves like Cloudflare. **Verify** on the live host |
+| Security misconfiguration | CSP `default-src 'none'`, no `unsafe-inline` or `unsafe-eval`, framing banned, HSTS, nosniff, referrer and permissions policies, COOP/CORP; only the app addresses exist as pages (no rewrite rules), so anything else is a real 404. Checked on the built files and a local host that behaves like Cloudflare. **Verify** on the live host |
 | Vulnerable components | 0 known in shipped code; exact versions pinned; install scripts disabled; CI audit fails on high severity |
 | Identification and authentication failures | See Spoofing above |
 | Software and data integrity | Lockfile and exact versions; CI actions pinned to commits; the preview and production build use public values only |

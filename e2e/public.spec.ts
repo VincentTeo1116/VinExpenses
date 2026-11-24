@@ -69,7 +69,7 @@ for (const width of WIDTHS) {
 }
 
 test('search engines: the app and sign-in are sent with a no-index header, the public pages are not, and robots.txt agrees', async ({ request, page }) => {
-  for (const path of ['/app', '/app/history', '/auth', '/email-action.html', '/miniapp/']) expect((await request.get(path)).headers()['x-robots-tag'], path).toMatch(/noindex/);
+  for (const path of ['/app', '/app/history', '/auth', '/email-action.html', '/email-action', '/miniapp/']) expect((await request.get(path)).headers()['x-robots-tag'], path).toMatch(/noindex/);
   for (const path of ['/', '/privacy', '/terms']) expect((await request.get(path)).headers()['x-robots-tag'], path).toBeUndefined();
   const robots = await (await request.get('/robots.txt')).text();
   expect(robots).toContain('Disallow: /app/');

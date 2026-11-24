@@ -32,7 +32,7 @@ In Supabase (and the Edge Function secrets) the allowed website list must includ
 `dist/` contains the app, `miniapp/`, `email-action.html`, the public pages, and two plain files Cloudflare reads:
 
 - `_headers`: the Content-Security-Policy, framing ban, HSTS, cache rules, and the **one exception**: `/miniapp/*` may be framed, by Telegram's web apps only.
-- `_redirects`: the exact addresses of the app (`/app`, `/app/history`, … `/auth`, `/auth/setup`, `/app/admin`, `/app/report`). Any other address gets the real **404 page with a 404 status**. A test keeps this list and `src/app/paths.ts` identical.
+- No `_redirects` file, on purpose: the build writes one real page for each app address (`app.html`, `app/history.html`, `auth.html`, …) and Cloudflare serves `/app` from `app.html`. Any other address gets the real **404 page with a 404 status**. (A rewrite such as `/app /index.html 200` does not work on Workers: Cloudflare turns it into a redirect to `/`, so a refresh on `/app` landed on the home page.) A test checks the pages exist and no rewrite file does.
 
 ## 4. Check it yourself (10 minutes)
 

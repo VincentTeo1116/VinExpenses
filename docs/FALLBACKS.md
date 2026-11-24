@@ -15,7 +15,7 @@ Rule: a failure never makes the app more permissive or more reassuring. A failed
 | `localStorage` unavailable | English still works; language switch applies for the visit | `I18nProvider` | `fallback.spec.ts` |
 | Tampered saved language | Ignored, English used | `isLang` | `i18n.test.tsx`, `notfound.spec.ts` |
 | Missing translation key | Falls back to English, then to the key | `translate` | `i18n.test.tsx` |
-| Unknown address | Real HTTP 404 with the custom page; back to the previous same-site page or the app | `404.html/js`, `_redirects` | `notfound.spec.ts` |
+| Unknown address | Real HTTP 404 with the custom page; back to the previous same-site page or the app | `404.html/js` | `notfound.spec.ts` |
 | Unknown address inside the app (client side) | React 404 screen | `NotFound` | `routing.test.tsx` |
 | Page framed by another site | Headers forbid it; a script guard shows only a notice | `_headers`, `main.tsx` | `security.spec.ts` |
 | Service worker fails to register | App works online without offline support | `pwa.ts` | by design (try/catch) |

@@ -58,9 +58,9 @@ test('the legal pages: the contents list follows the reading, the top button app
 });
 
 test('the old .html addresses still open the new pages', async ({ page }) => {
-  for (const [from, to, heading] of [['/privacy.html', '/privacy', 'Privacy Policy'], ['/terms.html', '/terms', 'Terms of Use'], ['/welcome.html', '/', 'Know where your money goes']] as const) {
+  for (const [from, to, heading] of [['/privacy.html', '/privacy', 'Privacy Policy'], ['/terms.html', '/terms', 'Terms of Use'], ['/welcome.html', '/welcome', 'Know where your money goes']] as const) {
     await page.goto(from);
-    await expect(page).toHaveURL(new RegExp(`${to === '/' ? '/$' : `${to}$`}`));
+    await expect(page).toHaveURL(new RegExp(`${to}$`)); // the host sends /x.html to the clean address /x
     await expect(page.getByRole('heading', { level: 1 })).toContainText(heading);
   }
 });

@@ -1,7 +1,7 @@
 // SEC-01, SEC-02, SEC-04: rules that must stay true for the source and for the headers the build writes.
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
-import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { buildCsp, headersFile } from '../../scripts/headers.mts';
 
@@ -110,16 +110,18 @@ describe('security headers file', () => {
 });
 
 describe('static host routing (PU-03)', () => {
-  it('_redirects lists exactly the app addresses, so any other address is a real 404', async () => {
+  it('has no rewrite rules: on Cloudflare a rewrite to /index.html becomes a redirect to / (a refresh on /app landed on the home page)', () => {
+    // The app addresses are real files made by the build (see appPagesPlugin in vite.config.mts), so the host needs no _redirects.
+    expect(existsSync(join(root, 'public/_redirects'))).toBe(false);
+  });
+
+  it('the build writes one page for each app address, and the host answers anything else with the real 404', async () => {
     const { APP_PATHS } = await import('../app/paths');
-    const lines = readFileSync(join(root, 'public/_redirects'), 'utf8')
-      .split('\n')
-      .map((line) => line.trim())
-      .filter((line) => line && !line.startsWith('#'));
-    const listed = lines.map((line) => line.split(/\s+/)[0]).sort();
-    expect([...APP_PATHS].sort()).toEqual(listed);
-    for (const line of lines) expect(line).toMatch(/^\/\S+\s+\/index\.html\s+200$/);
-    expect(lines.join('\n')).not.toMatch(/\*/); // no wildcard: a wildcard would turn typos into "found" pages
+    const config = readFileSync(join(root, 'vite.config.mts'), 'utf8');
+    expect(config).toContain("APP_PATHS.map((p) => `${p.replace(/\\.html$/, '')}.html`");
+    expect(config).not.toMatch(/_redirects/);
+    expect(readFileSync(join(root, 'wrangler.jsonc'), 'utf8')).toMatch(/"not_found_handling":\s*"404-page"/);
+    expect(APP_PATHS).toContain('/app/history'); // a deep address is one of the pages the build writes
   });
 });
 
