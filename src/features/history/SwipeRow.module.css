@@ -14,6 +14,7 @@
   color: #fff;
   font-size: var(--fs-sm);
   font-weight: 750;
+  transition: filter 0.18s var(--ease), padding 0.18s var(--ease);
 }
 .duplicate {
   justify-content: flex-start;
@@ -36,3 +37,5 @@
   font-weight: 800;
   filter: brightness(1.12);
 }
+.swipe[data-armed=''] .duplicate { padding-left: calc(var(--s-4) + 4px); }
+.swipe[data-armed=''] .delete { padding-right: calc(var(--s-4) + 4px); }

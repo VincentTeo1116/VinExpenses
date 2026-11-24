@@ -579,6 +579,22 @@ button.rowItem:hover {
     linear-gradient(135deg, var(--brand) 0%, color-mix(in srgb, var(--brand-end) 60%, var(--brand)) 100%);
   box-shadow: 0 16px 40px color-mix(in srgb, var(--brand) 30%, transparent);
   align-content: space-between;
+  position: relative;
+  overflow: hidden;
+  animation: heroArrive 0.42s var(--ease) both;
+}
+.top::after {
+  content: '';
+  position: absolute;
+  top: -60%;
+  right: -18%;
+  width: min(65vw, 360px);
+  aspect-ratio: 1;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 50%;
+  box-shadow: 0 0 0 24px rgba(255, 255, 255, 0.045), 0 0 0 52px rgba(255, 255, 255, 0.03);
+  pointer-events: none;
+  animation: orbitIn 0.8s var(--ease) both;
 }
 .top .hero {
   padding: 0;
@@ -624,10 +640,14 @@ button.rowItem:hover {
   background: rgba(255, 255, 255, 0.14);
   box-shadow: none;
   color: #fff;
+  transition: transform 0.18s var(--ease), background 0.18s var(--ease), border-color 0.18s var(--ease);
 }
 .top .budgetTile:hover {
   background: rgba(255, 255, 255, 0.22);
   border-color: rgba(255, 255, 255, 0.5);
+}
+@media (hover: hover) and (pointer: fine) {
+  .top .tile:hover { transform: translateY(-2px); background: rgba(255, 255, 255, 0.21); }
 }
 .top .tileLabel,
 .top .tileSub {
@@ -853,6 +873,14 @@ button.rowItem:hover {
   50% {
     opacity: 0.45;
   }
+}
+@keyframes heroArrive {
+  from { opacity: 0; transform: translateY(12px) scale(0.99); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes orbitIn {
+  from { opacity: 0; transform: translate3d(18px, 12px, 0) scale(0.88); }
+  to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
 }
 /* the budget bar fills up, and each category's bar slides out to its share */
 .heroBar::-webkit-progress-value {

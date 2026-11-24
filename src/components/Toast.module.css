@@ -29,7 +29,10 @@
   font-size: var(--fs-md);
   font-weight: 500;
   box-shadow: 0 12px 30px rgba(0, 0, 0, 0.3);
-  animation: in 0.3s var(--ease);
+  animation: toastIn 0.32s var(--ease) both;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
 }
 .success svg {
   color: #34d399;
@@ -54,6 +57,11 @@
     opacity: 1;
     transform: none;
   }
+}
+@keyframes toastIn {
+  0% { opacity: 0; transform: translate3d(0, 12px, 0) scale(0.96); }
+  70% { opacity: 1; transform: translate3d(0, -2px, 0) scale(1.01); }
+  100% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
 }
 
 .action {
