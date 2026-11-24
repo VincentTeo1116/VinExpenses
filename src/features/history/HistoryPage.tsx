@@ -237,7 +237,7 @@ export function HistoryPage() {
                     const sub = isExpense ? `${item?.label} · ${paymentOf((entry.row as Expense).payment).label}` : t('add.income');
                     const amount = formatSigned((isExpense ? -1 : 1) * (toCents(entry.row.amount) / 100));
                     return (
-                      <SwipeRow key={`${entry.kind}-${entry.row.id}`} className={`${styles.row} ${fresh === entry.row.id ? styles.fresh : ''}`} kind={entry.kind} duplicateLabel={t('history.duplicate')} deleteLabel={t('add.delete')} onDuplicate={() => duplicate(entry)} onDelete={() => void remove(entry)}>
+                      <SwipeRow key={`${entry.kind}-${entry.row.id}`} className={`${styles.row} ${fresh === entry.row.id ? styles.fresh : ''}`} kind={entry.kind} duplicateLabel={t('history.duplicate')} deleteLabel={t('add.delete')} onDuplicate={() => duplicate(entry)} onDelete={() => remove(entry)}>
                         <button type="button" data-slide className={styles.main} onClick={() => openAdd({ edit: { kind: entry.kind, row: entry.row } })}>
                           <span className={styles.glyph} data-glyph={item?.key ?? 'income'}>
                             {item ? <CatIcon name={item.key} color={item.color} glyph={item.glyph} /> : <CatIcon name="income" color="#059669" />}

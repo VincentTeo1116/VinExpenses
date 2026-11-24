@@ -941,3 +941,7 @@ button.rowItem:active,
 .skeleton {
   animation: shimmer 1.4s linear infinite, pulse 1s ease-in-out infinite;
 }
+
+.remBody { padding: var(--s-3) var(--s-4) var(--s-4); gap: var(--s-4); }
+.remToggle { padding-block: var(--s-4); }
+.remText { gap: 4px; }

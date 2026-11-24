@@ -47,7 +47,7 @@
   min-height: var(--tap);
   font-weight: 650;
 }
-.check input {
+.check input:not([role='switch']) {
   width: 20px;
   height: 20px;
   accent-color: var(--primary);

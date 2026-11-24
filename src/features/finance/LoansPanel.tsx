@@ -209,7 +209,7 @@ export function LoansPanel() {
                 <Field label={t('save.lender')} maxLength={80} value={form.lender} onChange={(e) => set('lender', e.target.value)} />
               </div>
               <label className={styles.remind}>
-                <input type="checkbox" checked={form.remindOn} onChange={(e) => set('remindOn', e.target.checked)} />
+                <input className="animated-switch" type="checkbox" role="switch" checked={form.remindOn} onChange={(e) => set('remindOn', e.target.checked)} />
                 {t('save.remind')}
               </label>
               {form.remindOn ? <Field label={t('save.days')} autoComplete="off" value={form.remindDays} onChange={(e) => set('remindDays', e.target.value)} hint={t('save.daysHint')} error={saveErrors.days} /> : null}

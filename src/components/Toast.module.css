@@ -84,3 +84,8 @@
 .toast {
   pointer-events: auto;
 }
+
+@keyframes toastOut {
+  to { opacity: 0; transform: translateY(12px) scale(0.97); }
+}
+.toast.leaving { animation: toastOut 220ms var(--ease) both; pointer-events: none; }

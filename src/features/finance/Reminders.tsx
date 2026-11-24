@@ -86,6 +86,7 @@ export function ReminderPopup() {
 
   return (
     <Sheet open={open} onClose={() => setClosed(true)} title={t('rem.popupTitle')}>
+      <div className={styles.popupBody}>
       <ReminderList list={list} />
       <div className={styles.actions}>
         <Button
@@ -99,6 +100,7 @@ export function ReminderPopup() {
         <Button variant="outline" onClick={() => void snooze()}>
           {t('rem.snooze')}
         </Button>
+      </div>
       </div>
     </Sheet>
   );

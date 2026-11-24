@@ -202,7 +202,7 @@
   min-height: var(--tap);
   font-weight: 650;
 }
-.remind input {
+.remind input:not([role='switch']) {
   width: 20px;
   height: 20px;
   accent-color: var(--primary);
@@ -407,3 +407,9 @@
 .bar::-webkit-progress-value {
   transition: width 0.4s var(--ease);
 }
+
+.popupBody { display: grid; gap: var(--s-5); padding-top: var(--s-2); }
+.reminders { gap: var(--s-3); }
+.reminder { padding: var(--s-4); }
+.reminderText { gap: 6px; }
+@media (max-width: 380px) { .reminder { flex-wrap: wrap; } }

@@ -223,7 +223,7 @@ export function ReportCard() {
       </h2>
       <p className={styles.muted}>{t('rep.sub')}</p>
       <label className={styles.check}>
-        <input type="checkbox" checked={enabled} onChange={(event) => setEdits((e) => ({ ...e, enabled: event.target.checked }))} />
+        <input className="animated-switch" type="checkbox" role="switch" checked={enabled} onChange={(event) => setEdits((e) => ({ ...e, enabled: event.target.checked }))} />
         {t('rep.on')}
       </label>
       <div className={styles.seg} role="group" aria-label={t('rep.channel')}>

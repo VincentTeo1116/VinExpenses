@@ -10,6 +10,7 @@ export interface ToastAction {
 }
 interface ToastItem {
   id: number;
+  leaving?: boolean;
   type: ToastType;
   message: string;
   action?: ToastAction | undefined;
@@ -30,7 +31,10 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<ToastItem[]>([]);
   const counter = useRef(0);
 
-  const dismiss = useCallback((id: number) => setItems((current) => current.filter((item) => item.id !== id)), []);
+  const dismiss = useCallback((id: number) => {
+    setItems((current) => current.map((item) => item.id === id ? { ...item, leaving: true } : item));
+    setTimeout(() => setItems((current) => current.filter((item) => item.id !== id)), 220);
+  }, []);
 
   const show = useCallback(
     (type: ToastType, message: string, action?: ToastAction) => {
@@ -52,11 +56,11 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       <div className={styles.host}>
         <div role="status" aria-live="polite" className={styles.stack}>
           {polite.map((item) => (
-            <div key={item.id} className={`${styles.toast} ${styles[item.type]}`}>
+            <div key={item.id} className={`${styles.toast} ${styles[item.type]} ${item.leaving ? styles.leaving : ''}`}>
               <Icon name={icons[item.type]} size={18} />
               <span>{item.message}</span>
               {item.action ? (
-                <button type="button" className={styles.action} onClick={() => { item.action?.onClick(); dismiss(item.id); }}>
+                <button type="button" className={styles.action} disabled={item.leaving} onClick={() => { item.action?.onClick(); dismiss(item.id); }}>
                   {item.action.label}
                 </button>
               ) : null}
@@ -65,11 +69,11 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         </div>
         <div role="alert" aria-live="assertive" className={styles.stack}>
           {urgent.map((item) => (
-            <div key={item.id} className={`${styles.toast} ${styles[item.type]}`}>
+            <div key={item.id} className={`${styles.toast} ${styles[item.type]} ${item.leaving ? styles.leaving : ''}`}>
               <Icon name={icons[item.type]} size={18} />
               <span>{item.message}</span>
               {item.action ? (
-                <button type="button" className={styles.action} onClick={() => { item.action?.onClick(); dismiss(item.id); }}>
+                <button type="button" className={styles.action} disabled={item.leaving} onClick={() => { item.action?.onClick(); dismiss(item.id); }}>
                   {item.action.label}
                 </button>
               ) : null}

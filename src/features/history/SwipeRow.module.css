@@ -39,3 +39,11 @@
 }
 .swipe[data-armed=''] .duplicate { padding-left: calc(var(--s-4) + 4px); }
 .swipe[data-armed=''] .delete { padding-right: calc(var(--s-4) + 4px); }
+
+.under { display: flex; opacity: 0; padding: 0; pointer-events: none; transition: opacity 120ms ease, filter 180ms ease; }
+.swipe[data-swipe='duplicate'] .duplicate,
+.swipe[data-swipe='delete'] .delete { opacity: 1; }
+.under[aria-hidden='false'] { pointer-events: auto; }
+.under button { width: 96px; align-self: stretch; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 5px; padding: 8px; font-size: 12px; }
+.swipe > [data-slide] { position: relative; z-index: 1; background: var(--surface); }
+.swipe[data-armed] .under { padding: 0; }

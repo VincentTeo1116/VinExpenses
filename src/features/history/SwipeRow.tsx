@@ -1,11 +1,11 @@
 // TX-04: on a touch screen, swipe a History row right to duplicate it and left to delete it (with Undo). It is an extra way in:
 // the row's own buttons and the edit sheet do the same, so nothing depends on being able to swipe.
-import { useRef, type PointerEvent, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type PointerEvent, type ReactNode } from 'react';
 import { Icon } from '@/components/Icon';
 import { prefersReducedMotion } from '@/lib/motion';
 import styles from './SwipeRow.module.css';
 
-const TRIGGER = 84; // how far the row must travel before letting go does something
+const TRIGGER = 120; // how far the row must travel before letting go does something
 const LIMIT = 132;
 
 interface Props {
@@ -14,7 +14,7 @@ interface Props {
   duplicateLabel: string;
   deleteLabel: string;
   onDuplicate: () => void;
-  onDelete: () => void;
+  onDelete: () => void | Promise<void>;
   children: ReactNode;
 }
 
@@ -23,33 +23,39 @@ export function SwipeRow({ className, kind, duplicateLabel, deleteLabel, onDupli
   const drag = useRef<{ id: number; x: number; y: number; dx: number; active: boolean } | null>(null);
   const swiped = useRef(false);
 
-  // the row is moved through the DOM directly, and left exactly as it was found (no style attribute stays behind)
-  const slide = (dx: number) => {
+  const [opened, setOpened] = useState(0);
+  const busy = useRef(false);
+  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  useEffect(() => () => clearTimeout(timer.current), []);
+
+  const slide = (dx: number, settle = false) => {
+    clearTimeout(timer.current);
     const item = row.current;
     const face = item?.querySelector<HTMLElement>('[data-slide]');
     if (!item || !face) return;
-    if (dx === 0) {
-      const tidy = () => {
-        face.style.removeProperty('transform');
-        face.style.removeProperty('transition');
-        if (!face.getAttribute('style')) face.removeAttribute('style');
-        item.removeAttribute('data-swipe');
-        item.removeAttribute('data-armed');
-      };
-      if (prefersReducedMotion() || !face.style.transform) return tidy();
-      // glide back to rest, then leave no trace
-      face.style.transition = 'transform 0.22s cubic-bezier(0.2, 0.7, 0.2, 1)';
-      face.style.transform = 'translateX(0)';
-      setTimeout(tidy, 240);
-      return;
-    }
-    face.style.removeProperty('transition');
+    face.style.transition = settle && !prefersReducedMotion() ? 'transform 220ms var(--ease)' : 'none';
     face.style.transform = `translateX(${dx}px)`;
-    item.setAttribute('data-swipe', dx > 0 ? 'duplicate' : 'delete');
+    if (dx) item.setAttribute('data-swipe', dx > 0 ? 'duplicate' : 'delete');
+    else item.removeAttribute('data-swipe');
     item.toggleAttribute('data-armed', Math.abs(dx) >= TRIGGER);
+  };
+  const close = () => { setOpened(0); slide(0, true); };
+  const duplicate = () => { close(); onDuplicate(); };
+  const remove = () => {
+    if (busy.current) return;
+    busy.current = true;
+    setOpened(0);
+    slide(-(row.current?.offsetWidth ?? 400), true);
+    timer.current = setTimeout(() => {
+      void Promise.resolve().then(onDelete).finally(() => {
+        busy.current = false;
+        if (row.current) slide(0, true);
+      }).catch(() => undefined);
+    }, prefersReducedMotion() ? 0 : 220);
   };
 
   const onDown = (event: PointerEvent<HTMLLIElement>) => {
+    if (busy.current || (event.target as HTMLElement).closest('[data-action]')) return;
     if (event.pointerType === 'mouse') return; // a mouse has the buttons on the row
     drag.current = { id: event.pointerId, x: event.clientX, y: event.clientY, dx: 0, active: false };
     swiped.current = false;
@@ -73,17 +79,21 @@ export function SwipeRow({ className, kind, duplicateLabel, deleteLabel, onDupli
         // not every pointer can be captured; the gesture still works while it stays over the row
       }
     }
-    current.dx = Math.max(-LIMIT, Math.min(LIMIT, dx));
+    current.dx = Math.max(-LIMIT, Math.min(LIMIT, dx + opened));
     slide(current.dx);
   };
   const finish = (act: boolean) => {
     const current = drag.current;
     drag.current = null;
     if (!current?.active) return;
-    slide(0);
-    if (!act) return;
-    if (current.dx >= TRIGGER) onDuplicate();
-    else if (current.dx <= -TRIGGER) onDelete();
+    if (!act) { close(); return; }
+    if (current.dx >= TRIGGER) duplicate();
+    else if (current.dx <= -TRIGGER) remove();
+    else if (Math.abs(current.dx) > 42) {
+      const next = current.dx > 0 ? 96 : -96;
+      setOpened(next);
+      slide(next, true);
+    } else close();
   };
 
   return (
@@ -98,19 +108,25 @@ export function SwipeRow({ className, kind, duplicateLabel, deleteLabel, onDupli
       onPointerCancel={() => finish(false)}
       onClickCapture={(event) => {
         // letting go after a swipe must not also open the row
-        if (!swiped.current) return;
+        if ((event.target as HTMLElement).closest('[data-action]')) return;
+        if (!swiped.current && !opened) return;
+        if (!swiped.current && opened) close();
         swiped.current = false;
         event.preventDefault();
         event.stopPropagation();
       }}
     >
-      <span className={`${styles.under} ${styles.duplicate}`} aria-hidden="true">
+      <span className={`${styles.under} ${styles.duplicate}`} aria-hidden={opened !== 96}>
+        <button type="button" onKeyDown={(event) => { if (event.key === 'Escape') { close(); row.current?.querySelector<HTMLButtonElement>('[data-slide]')?.focus(); } }} data-action tabIndex={opened === 96 ? 0 : -1} onClick={duplicate}>
         <Icon name="copy" size={18} />
         {duplicateLabel}
+        </button>
       </span>
-      <span className={`${styles.under} ${styles.delete}`} aria-hidden="true">
+      <span className={`${styles.under} ${styles.delete}`} aria-hidden={opened !== -96}>
+        <button type="button" onKeyDown={(event) => { if (event.key === 'Escape') { close(); row.current?.querySelector<HTMLButtonElement>('[data-slide]')?.focus(); } }} data-action tabIndex={opened === -96 ? 0 : -1} onClick={remove}>
         {deleteLabel}
         <Icon name="trash" size={18} />
+        </button>
       </span>
       {children}
     </li>

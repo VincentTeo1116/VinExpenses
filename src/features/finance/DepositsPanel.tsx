@@ -235,7 +235,7 @@ export function DepositsPanel() {
                 <Field label={t('save.bank')} maxLength={80} value={form.bank} onChange={(e) => set('bank', e.target.value)} />
               </div>
               <label className={styles.remind}>
-                <input type="checkbox" checked={form.remindOn} onChange={(e) => set('remindOn', e.target.checked)} />
+                <input className="animated-switch" type="checkbox" role="switch" checked={form.remindOn} onChange={(e) => set('remindOn', e.target.checked)} />
                 {t('save.remind')}
               </label>
               {form.remindOn ? <Field label={t('save.days')} autoComplete="off" value={form.remindDays} onChange={(e) => set('remindDays', e.target.value)} hint={t('save.daysHint')} error={saveErrors.days} /> : null}
