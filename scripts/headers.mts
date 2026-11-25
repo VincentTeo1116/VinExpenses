@@ -12,8 +12,11 @@ export const MAP_ORIGINS = ['https://photon.komoot.io', 'https://overpass-api.de
 export const ANALYTICS_SCRIPT = ['https://www.googletagmanager.com'];
 export const ANALYTICS_CONNECT = ['https://www.googletagmanager.com', 'https://www.google-analytics.com', 'https://*.google-analytics.com', 'https://*.analytics.google.com'];
 export const ANALYTICS_IMG = ['https://www.googletagmanager.com', 'https://www.google-analytics.com', 'https://*.google-analytics.com'];
-/** The pages that may load analytics (after a Yes). */
-export const ANALYTICS_PAGES = ['/', '/welcome', '/privacy', '/terms'];
+/**
+ * The pages that may load analytics (after a Yes). The front page is listed twice on purpose: Cloudflare answers "/" from the file index.html and
+ * matches the rules again for that file name, so without the second entry the stricter policy came back on the front page (seen live).
+ */
+export const ANALYTICS_PAGES = ['/', '/index.html', '/welcome', '/privacy', '/terms'];
 
 /** `maps` lets the page ask those map services directly (see MAP_ORIGINS). `analytics` adds Google Analytics (only the public pages get it in the headers). */
 export function buildCsp(supabaseUrl: string, turnstile: boolean, meta = false, ancestors: string[] = [], maps = false, analytics = false): string {
