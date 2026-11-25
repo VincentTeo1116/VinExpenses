@@ -17,7 +17,6 @@ import { budgetFor, dueWording } from '@/features/money/calc';
 import { useMoney } from '@/features/money/MoneyContext';
 import type { Expense, Income } from '@/features/money/types';
 import { ReminderList, ReminderPopup, useReminderList } from '@/features/finance/Reminders';
-import { TelegramPrompt } from './TelegramPrompt';
 import { Donut, TrendBars } from './charts';
 import { categoryBreakdown, compareWithLastMonth, forecastMonth, frequentMerchants, headline, insights, safeToSpend, shiftMonth, spendingPatterns, trend } from './summary';
 import styles from './DashboardPage.module.css';
@@ -94,9 +93,11 @@ export function DashboardPage({ quiet = false }: { quiet?: boolean } = {}) {
   const nothingAtAll = !data.loading && data.expenses.length === 0 && data.incomes.length === 0;
 
   const delta = () => {
-    if (compare.percent === null) return null;
-    const text = compare.percent > 0 ? t('dash.up', { percent: compare.percent }) : compare.percent < 0 ? t('dash.down', { percent: Math.abs(compare.percent) }) : t('dash.same');
-    return { text, up: compare.percent > 0, down: compare.percent < 0 };
+    if (compare.percent === null || compare.diffCents === null) return null;
+    // an amount, not a percentage: "+1,641%" after a quiet month says nothing, "RM 650.00 more" does
+    const diff = compare.diffCents;
+    const text = diff > 0 ? t('dash.up', { amount: money(diff) }) : diff < 0 ? t('dash.down', { amount: money(-diff) }) : t('dash.same');
+    return { text, up: diff > 0, down: diff < 0 };
   };
   const change = delta();
 
@@ -145,7 +146,6 @@ export function DashboardPage({ quiet = false }: { quiet?: boolean } = {}) {
         </Notice>
       ) : null}
       {quiet ? null : <ReminderPopup />}
-      {quiet ? null : <TelegramPrompt />}
       {data.pendingCount > 0 ? <Notice kind="info">{t('money.pendingBanner', { n: data.pendingCount })}</Notice> : null}
 
       {reminders.list.length > 0 ? (

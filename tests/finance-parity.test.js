@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
 
-const legacy = require('../legacy/finance-calc.js');
+const legacy = require('../supabase/functions/_shared/finance-calc.js');
 const load = (rel) => import(pathToFileURL(path.join(__dirname, '..', rel)).href);
 
 // A small repeatable random generator, so a failure can be reproduced

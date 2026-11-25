@@ -267,3 +267,40 @@
     animation: none;
   }
 }
+
+/* ---- spending bars and the income line ---- */
+.trend {
+  gap: 0; /* the columns touch, so the income line runs through without a break */
+}
+.bars {
+  overflow: visible;
+}
+.incomeLine {
+  fill: none;
+  stroke: var(--success);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0;
+  transition: opacity 0.6s var(--ease) 0.4s;
+}
+.incomeDot {
+  fill: none;
+  stroke: var(--success);
+  stroke-width: 9;
+  stroke-linecap: round;
+  opacity: 0;
+  transition: opacity 0.4s var(--ease) 0.6s, stroke-width 0.2s var(--ease);
+}
+.grown .incomeLine,
+.grown .incomeDot {
+  opacity: 1;
+}
+.pointed .incomeDot,
+.active .incomeDot {
+  stroke-width: 12;
+}
+/* the line is not a rectangle: it never takes part in the bars' grow-in */
+.bars path {
+  transform: none !important;
+}

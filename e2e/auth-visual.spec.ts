@@ -2,7 +2,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 import { BACKEND, GOOD, seed, uniqueEmail } from './api';
-import { HEIGHTS, WIDTHS } from './helpers';
+import { accountView, HEIGHTS, WIDTHS } from './helpers';
 
 const tabs = (page: Page) => page.getByRole('group', { name: 'Sign in or register' });
 const submitIn = (page: Page) => page.locator('form').getByRole('button', { name: 'Sign in', exact: true });
@@ -126,7 +126,7 @@ test('the mfa setup sheet, setup page and account screen pass accessibility chec
     await submitIn(page).click();
     await expect(page.getByRole('heading', { level: 1, name: /^Hello,/ })).toBeVisible();
     await page.getByRole('link', { name: 'Account' }).first().click();
-    await expect(page.getByRole('dialog', { name: 'Account', exact: true })).toBeVisible();
+    await expect(accountView(page)).toBeVisible();
     const scan = async (label: string) => {
       const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa']).analyze();
       expect(results.violations.map((v) => `${v.impact}: ${v.id}: ${v.nodes.map((n) => n.target.join(' ')).join(' | ')}`), `${label} ${scheme}`).toEqual([]);

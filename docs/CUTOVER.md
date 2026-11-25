@@ -27,7 +27,9 @@ The old site (plain JavaScript) is kept in `legacy/` and still deploys to GitHub
 
 ## Removing the old site (only when you are sure)
 
-You asked that the backup is removed only after a **double confirmation**. When you are ready, tell me "remove legacy" and I will first list what would be deleted and ask you to confirm once more. Things that still read from `legacy/` and must change first:
+You asked that the backup is removed only after a **double confirmation** ("remove legacy", then a second yes). Nothing depends on `legacy/` any more, so removing it is now only deleting the folder:
 
-- `tools/sync-shared.js` copies **`legacy/finance-calc.js`**, **`legacy/smart-entry.js`** and **`legacy/receipt-parser.js`** into `supabase/functions/_shared/`, which the reminder, report and bot functions use (and `.github/workflows/deploy-functions.yml` redeploys when those three change). Removing the folder means making the copies in `_shared/` the real files (delete the sync step) and updating that workflow. The TypeScript versions in `src/` are tested to give the same answers.
-- The tests in `tests/*.test.js` that load `../legacy/...` and the parity tests that compare the new code with the old files (`tests/finance-parity.test.js`, `tests/ports-parity.test.js`). They are the proof that the rewrite did not change any number; keep them until the old files are gone, then keep the new tests that remain.
+- The three shared calculation files are used from `supabase/functions/_shared/` (byte-for-byte the same as the old ones); the sync tool is gone and the functions workflow no longer watches `legacy/`.
+- The backend tests load the `_shared/` copies. The parity tests that compared the app with the old CSV reader and Mini App helpers replay the old code's recorded answers (`tests/fixtures/golden/`, made with `GOLDEN_WRITE=1` while the folder existed), so they keep proving the rewrite changed no number.
+- The tests of the old site's own pages, the CSP-pinning and vendor tools, and the old Mini App front end were removed; the app's equivalents are in `src/test/security.test.ts`, `tests/build-security.test.js` and `e2e/`.
+- GitHub Pages only publishes the redirect to the app (`.github/workflows/deploy.yml`); there is no switch back to the old site.

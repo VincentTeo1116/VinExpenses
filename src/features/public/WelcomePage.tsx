@@ -14,6 +14,7 @@ const ICONS: Record<string, string> = {
   report: 'M5 3h10l4 4v14H5zM14 3v5h5M8 13h8M8 17h5',
   telegram: 'M21 4 3 11l5 2 2 6 3-4 5 4zM8 13l9-6',
   language: 'M3 5h8M7 3v2M5 9c1.5 3 4 5 6 6M11 5c-.5 4-3 8-7 10M13 21l4-10 4 10M14.5 18h5',
+  pin: 'M12 21s-7-5.7-7-11a7 7 0 1 1 14 0c0 5.3-7 11-7 11zM12 7.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5z',
 };
 
 function Icon({ name }: { name: keyof typeof ICONS }) {
@@ -26,6 +27,7 @@ function Icon({ name }: { name: keyof typeof ICONS }) {
 
 const FEATURES: { icon: keyof typeof ICONS; title: string; text: string }[] = [
   { icon: 'scan', title: 'Scan a receipt', text: 'Take a photo or choose a PDF. The total, merchant and date are filled in for you to check. PDF receipts with text are read on your own device and never uploaded.' },
+  { icon: 'pin', title: 'Places near you', text: 'Tap the map pin and pick the shop you are at, instead of typing its name. Your position is used once and never kept.' },
   { icon: 'budget', title: 'Budgets that warn you early', text: 'Set a monthly limit overall or per category. See what is safe to spend today, and get a heads-up before you go over.' },
   { icon: 'repeat', title: 'Bills and income on autopilot', text: 'Rent, utilities, subscriptions and salary are added when they fall due, even the ones you missed while away.' },
   { icon: 'bank', title: 'Fixed deposits', text: 'See what you will receive, with a daily, monthly or yearly breakdown. Save it and get reminded before it matures.' },
@@ -178,7 +180,7 @@ export function WelcomePage() {
                   <strong>Telegram:</strong> connect the bot to add an expense by chatting, and open your dashboard inside Telegram as a Mini App.
                 </li>
                 <li>
-                  <strong>Phone and computer:</strong> one account, the same data on every device, in light or dark mode.
+                  <strong>Phone, tablet and computer:</strong> one account, the same data on every device, in light or dark mode.
                 </li>
                 <li>
                   <strong>Malaysian receipts:</strong> the receipt reader understands English, Malay and Chinese totals.

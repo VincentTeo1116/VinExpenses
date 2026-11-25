@@ -65,10 +65,10 @@ test('the replacement service worker clears every cache, removes itself and relo
     assert.ok(!/addEventListener\('fetch'/.test(sw), 'it must not answer requests from a cache');
 });
 
-test('the GitHub Pages workflow sends people to a valid address by default, and keeps a switch to publish the old site', () => {
+test('the GitHub Pages workflow sends people to a valid address by default, and publishes nothing else', () => {
     const workflow = fs.readFileSync(path.join(__dirname, '..', '.github', 'workflows', 'deploy.yml'), 'utf8');
     const fallback = /REDIRECT_TO: \$\{\{ vars\.REDIRECT_TO \|\| '([^']+)' \}\}/.exec(workflow)?.[1];
     assert.ok(fallback && validTarget(fallback), 'the default address is missing or not a plain https address');
-    assert.match(workflow, /if: env\.REDIRECT_TO == 'off'/);
-    assert.match(workflow, /if: env\.REDIRECT_TO != 'off'/);
+    assert.ok(!/legacy|REDIRECT_TO == 'off'/.test(workflow), 'the old site is never published again');
+    assert.match(workflow, /node tools\/build-redirect\.js dist/);
 });

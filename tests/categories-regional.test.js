@@ -1,7 +1,7 @@
 // Run with:  node --test tests/*.test.js
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const SE = require('../legacy/smart-entry.js');
+const SE = require('../supabase/functions/_shared/smart-entry.js');
 
 const CATEGORIES = [
     ['food', 'Food'], ['beverages', 'Beverages'], ['travel', 'Travel'], ['entertain', 'Entertain'], ['work', 'Work'],

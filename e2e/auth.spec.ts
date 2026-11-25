@@ -1,7 +1,7 @@
 // AU-01 … AU-16, AC-02, AC-03, PU-01: every sign-in flow in a real browser, against the local stand-in for Supabase.
 import { expect, test, type Page } from '@playwright/test';
 import { BACKEND, GOOD, mailFor, NEW_GOOD, seed, uniqueEmail } from './api';
-import { cspViolations, watchProblems } from './helpers';
+import { accountView, cspViolations, leaveAccount, watchProblems } from './helpers';
 
 const tabs = (page: Page) => page.getByRole('group', { name: 'Sign in or register' });
 const submitIn = (page: Page) => page.locator('form').getByRole('button', { name: 'Sign in', exact: true });
@@ -18,15 +18,19 @@ async function signIn(page: Page, email: string, password: string, remember = tr
 /** Opens the Account pop-up from the menu and one of its sections on top of it. */
 async function openAccountSection(page: Page, section: string) {
   await page.getByRole('link', { name: 'Account' }).first().click();
-  const heading = page.getByRole('dialog', { name: 'Account', exact: true }).getByRole('heading', { name: section, exact: true });
+  const heading = accountView(page).getByRole('heading', { name: section, exact: true });
   await heading.scrollIntoViewIfNeeded(); // the section is part of the Account pop-up
   await expect(heading).toBeVisible();
 }
 
 async function signOutViaPage(page: Page) {
-  // close any section that is open on top of the Account pop-up first
-  for (let i = 0; i < 3 && (await page.locator('[role="dialog"]').count()) > 1; i += 1) await page.getByRole('dialog').last().getByRole('button', { name: 'Close' }).click();
-  await page.getByRole('dialog', { name: 'Account', exact: true }).getByRole('button', { name: 'Sign out' }).click();
+  // close any section that is open on top of Account first (Account itself is a pop-up on a phone, a page on a computer)
+  for (let i = 0; i < 3; i += 1) {
+    const others = (await page.locator('[role="dialog"]').count()) - (await page.getByRole('dialog', { name: 'Account', exact: true }).count());
+    if (others <= 0) break;
+    await page.getByRole('dialog').last().getByRole('button', { name: 'Close' }).click();
+  }
+  await accountView(page).getByRole('button', { name: 'Sign out' }).first().click(); // on a computer it is in the side menu and at the end
   await page.getByRole('dialog', { name: 'Sign out', exact: true }).getByRole('button', { name: 'Sign out' }).click();
   await expect(page).toHaveURL(/\/auth$/);
   await expect(page.getByRole('heading', { name: 'Welcome back' })).toBeVisible();
@@ -437,7 +441,7 @@ test.describe('authenticator (AU-11 … AU-13, AC-03)', () => {
     await expect(page.getByRole('dialog', { name: 'Set up two-step verification' })).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(page.getByText('Two-step verification is off')).toBeVisible();
-    await page.getByRole('dialog', { name: 'Account', exact: true }).getByRole('button', { name: 'Close' }).click();
+    await leaveAccount(page);
     await openAccountSection(page, 'Security');
     await expect(page.getByText('Two-step verification is off')).toBeVisible();
   });
@@ -449,7 +453,7 @@ test.describe('account (AC-01, AC-02) and first-time setup (AU-10)', () => {
     await seed(request, { email, name: 'Account Owner' });
     await signIn(page, email, GOOD);
     await page.getByRole('link', { name: 'Account' }).first().click();
-    const account = page.getByRole('dialog', { name: 'Account', exact: true });
+    const account = accountView(page);
     await expect(account.getByText('Account Owner')).toBeVisible(); // the sidebar's user card shows the name too
     await expect(account.getByText(email)).toBeVisible();
     await expect(account.getByText('Email and password')).toBeVisible();
@@ -528,7 +532,7 @@ test.describe('contact the admin (PU-01) and old links (AU-16)', () => {
     await signIn(page, email, GOOD);
     await appReady(page);
     await page.getByRole('link', { name: 'Account' }).first().click();
-    await expect(page.getByRole('dialog', { name: 'Account', exact: true }).getByText('<img src=x onerror=alert(1)>')).toBeVisible();
+    await expect(accountView(page).getByText('<img src=x onerror=alert(1)>')).toBeVisible();
     await expect(page.locator('aside').getByText('<img src=x onerror=alert(1)>')).toBeVisible(); // also as plain text in the sidebar card
     expect(await page.locator('main img').count()).toBe(0);
   });

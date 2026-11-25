@@ -255,8 +255,8 @@ devices.
 
 ## Before sharing a release
 
-Run `npm run check` from the project folder. It checks the app JavaScript syntax
-and runs the receipt, CSV, categorisation and report tests. Then, with the
+Run `npm run check:web`, `npm run test:e2e` and `npm test` from the project folder. Together they
+lint and type-check the app, run its unit, browser and backend tests, and build it. Then, with the
 project's Supabase URL and public anon key configured, open the app on a desktop
 and phone and confirm: sign-in; a manual expense and income; receipt scan review
 before save (if OCR is deployed); an offline transaction marked pending and
@@ -310,8 +310,8 @@ be wired in by editing `supabase/functions/receipt-ai/index.ts`.
    (default 60) limits how many reminders one run sends.
 3. Without step 2, reminders still appear in the app.
 
-If you change `finance-calc.js`, run `node tools/sync-shared.js` so the function's copy matches (a test fails
-if it does not).
+The server's copy, `supabase/functions/_shared/finance-calc.js`, is the one to edit; the app's `src/features/finance/finance.ts`
+is tested to give the same answers (`tests/finance-parity.test.js`).
 
 ### Tests
 
@@ -530,8 +530,9 @@ weekly summary is unavailable, the bot still saves what you typed and tells you 
 *To enable the new parts:* run the latest `supabase-schema.sql` again (adds language, weekly-summary and
 pending-confirmation storage, and schedules the weekly job once the three Vault secrets from section 4 exist),
 make sure `OCR_SPACE_API_KEY` is set (the same key the app uses), deploy the functions (the auto-deploy does this),
-and run `node tools/set-telegram-webhook.js` once more to refresh the command menu. When you change
-`smart-entry.js` or `receipt-parser.js`, run `node tools/sync-shared.js` so the bot's copy matches (a test fails if not).
+and run `node tools/set-telegram-webhook.js` once more to refresh the command menu. The bot's
+`supabase/functions/_shared/smart-entry.js` and `receipt-parser.js` are the copies to edit; the app's TypeScript versions are
+tested to give the same answers (`tests/ports-parity.test.js`).
 
 **Auto-deploy the functions.** `.github/workflows/deploy-functions.yml` redeploys all Supabase
 functions whenever code under `supabase/functions` changes on `main` (after the tests pass).

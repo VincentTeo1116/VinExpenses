@@ -1,7 +1,7 @@
 {
   "name": "vinexpenses",
   "private": true,
-  "description": "VinExpenses: React web app (src/), the Supabase backend (supabase/) and the previous plain-JS site kept as a backup (legacy/).",
+  "description": "VinExpenses: React web app (src/) and its Supabase backend (supabase/).",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
@@ -13,8 +13,6 @@
     "test:web": "vitest run",
     "test:e2e": "npm run build:e2e && playwright test",
     "check:web": "npm run lint && npm run typecheck && npm run test:web && npm run build",
-    "check": "node --check legacy/app.js && node --check legacy/build-config.js && node --test \"tests/*.test.js\"",
-    "config": "node legacy/build-config.js",
     "fixture": "node tools/make-fixture.js",
     "emails": "node tools/auth-emails.js"
   },

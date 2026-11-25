@@ -1,5 +1,5 @@
 /* eslint-disable jsx-a11y/no-noninteractive-tabindex -- tables that scroll sideways must be reachable by keyboard */
-// Privacy Policy: the text of the privacy, ported from the old static page. The words are unchanged except where a feature that is no longer in the app was removed.
+// Privacy Policy. Keep it true to the app: a test (tests/security.test.js) fails if the code reaches an outside service the policy does not name.
 import { LegalPage, LegalSection } from './LegalPage';
 
 const SECTIONS = [{ id: 'collect', label: 'What is collected' }, { id: 'use', label: 'How your data is used' }, { id: 'device', label: 'What is stored on your device' }, { id: 'share', label: 'Who else receives your data' }, { id: 'keep', label: 'How long it is kept' }, { id: 'security', label: 'How it is protected' }, { id: 'rights', label: 'Your rights and choices' }, { id: 'children', label: 'Children' }, { id: 'changes', label: 'Changes to this policy' }, { id: 'contact', label: 'Contact' }];
@@ -29,7 +29,7 @@ export function PrivacyPage() {
         <tr><td>Email address, display name, password (stored only as a protected hash by the sign-in service). If you use Google sign-in: your Google email and name.</td><td>You, when you create an account</td><td>Yes, to have an account</td></tr>
         <tr><td>Your records: expenses, income, merchants, notes, categories, payment methods, budgets, recurring items, fixed deposits, loans and reminder settings.</td><td>You, when you use the app</td><td>Yes, this is the service</td></tr>
         <tr><td>Receipt photos or scanned PDFs you choose to scan.</td><td>You</td><td>Optional</td></tr>
-        <tr><td>Your approximate position (latitude and longitude), only when you tap “Find places near me” and allow your browser to share it.</td><td>Your device</td><td>Optional</td></tr>
+        <tr><td>Your approximate position (latitude and longitude), only when you tap the map pin in the “Where” field (“Find places near me”) and allow your browser to share it.</td><td>Your device</td><td>Optional</td></tr>
         <tr><td>Your Telegram chat ID and language, if you connect the Telegram bot; messages and photos you send to the bot.</td><td>You and Telegram</td><td>Optional</td></tr>
         <tr><td>An email address for the monthly report, if you turn it on, and whether the last report was sent.</td><td>You</td><td>Optional</td></tr>
         <tr><td>Security records: when 6-digit codes were requested for your email, wrong-password counts per device (a random device number kept in your browser), a lockout time when sign-in is paused, and, if you turn on two-step verification, the authenticator registration and the hashes of your recovery codes.</td><td>Generated when you sign up or sign in</td><td>Yes, to protect your account</td></tr>
@@ -54,7 +54,7 @@ export function PrivacyPage() {
         <ul>
         <li>your sign-in session, so you stay logged in;</li>
         <li>the app's own files, so it opens without a connection, and any entries you added while offline that are waiting to be sent;</li>
-        <li>small preferences such as the language, the colour theme, whether to remember you, and a random device number used to count wrong passwords.</li>
+        <li>small preferences such as the language, the colour theme, whether to remember you, whether you asked not to be reminded about Telegram, and a random device number used to count wrong passwords.</li>
         </ul>
         <p>Signing out removes your session from that device. Entries still waiting to be sent stay on the device, so nothing is lost, until they are sent or you delete your account. PDF receipts that contain text are read on your device and are not uploaded.</p>
       </LegalSection>
@@ -64,11 +64,12 @@ export function PrivacyPage() {
         <thead><tr><th scope="col">Provider</th><th scope="col">What it receives</th><th scope="col">When</th></tr></thead>
         <tbody>
         <tr><td>Supabase (database, sign-in, server functions)</td><td>Your account and all your records</td><td>Always</td></tr>
-        <tr><td>Cloudflare Pages (website hosting)</td><td>Technical data only (IP address, browser details)</td><td>When you open the site</td></tr>
+        <tr><td>Cloudflare (website hosting)</td><td>Technical data only (IP address, browser details)</td><td>When you open the site</td></tr>
+        <tr><td>GitHub Pages (the app&apos;s previous address)</td><td>Technical data only (IP address, browser details)</td><td>Only if you open the previous address, which sends you on to the app</td></tr>
         <tr><td>Google (sign-in)</td><td>That you are signing in to this app</td><td>Only if you choose Google sign-in</td></tr>
         <tr><td>OCR.space (text recognition)</td><td>The receipt image you scan. It is not stored by the app.</td><td>Only when you scan a photo or a scanned PDF</td></tr>
         <tr><td>Telegram</td><td>The messages, photos, summaries and reminders exchanged with the bot. If you open the Telegram Mini App, Telegram also tells the app who you are (your Telegram name and number), signed so it cannot be faked.</td><td>Only if you connect Telegram</td></tr>
-        <tr><td>OpenStreetMap map services (Overpass, and Photon by Komoot, which serve OpenStreetMap data)</td><td>Your position, sent straight from your device to these services (and, if they cannot be reached from your device, through the app&apos;s server) so the list of places near you can be shown. The services also see your IP address, as any website would. The app does not keep your position.</td><td>Only when you tap “Find places near me”</td></tr>
+        <tr><td>OpenStreetMap map services (Overpass, and Photon by Komoot, which serve OpenStreetMap data)</td><td>Your position, sent straight from your device to these services (and, if they cannot be reached from your device, through the app&apos;s server) so the list of places near you can be shown. The services also see your IP address, as any website would. The app does not keep your position.</td><td>Only when you tap the map pin (“Find places near me”)</td></tr>
         <tr><td>Google Gmail (sending email)</td><td>The recipient address and the email's content, such as a 6-digit code or your monthly summary</td><td>When an email is sent to you</td></tr>
         <tr><td>Cloudflare Turnstile (security check)</td><td>Your browser's technical details, so it can tell you are not a robot</td><td>On sign-up, sign-in, password reset and the contact form, when the check is switched on</td></tr>
         </tbody>
@@ -78,7 +79,7 @@ export function PrivacyPage() {
       <LegalSection id="keep" title="5. How long it is kept">
         <ul>
         <li>Your account and records are kept until you delete them or delete your account.</li>
-        <li>Deleting your account in the app (Account → Delete account) removes your account and the records linked to it from the server. Copies may remain in the provider's backups for a limited time before they are overwritten.</li>
+        <li>Deleting your account in the app (Account → Delete my account) removes your account and the records linked to it from the server. Copies may remain in the provider's backups for a limited time before they are overwritten.</li>
         <li>Receipt images are not stored after they are read. Daily usage counters are kept only to enforce limits.</li>
         <li>An account that has been unused for a long time may be deleted after a notice is sent to its email address.</li>
         <li>Code and lockout records are kept for a few days to a month, then removed. Contact-form messages are kept until resolved and then removed after a reasonable time.</li>
@@ -96,9 +97,9 @@ export function PrivacyPage() {
       <LegalSection id="rights" title="7. Your rights and choices">
         <ul>
         <li><strong>See and correct:</strong> everything you entered is visible and editable in the app.</li>
-        <li><strong>Take a copy:</strong> Account → Your data → Export all (CSV).</li>
+        <li><strong>Take a copy:</strong> Account → Your data → Export everything (CSV).</li>
         <li><strong>Delete:</strong> delete single records, or delete your account in the app.</li>
-        <li><strong>Limit:</strong> the optional features (receipt scanning, Telegram, monthly email) are off until you use or enable them, and can be switched off again.</li>
+        <li><strong>Limit:</strong> the optional features (receipt scanning, places near you, Telegram, monthly email) are off until you use or enable them, and can be switched off again.</li>
         <li><strong>Ask or complain:</strong> write to the address below. I will answer within 21 days. You may also contact Malaysia's Personal Data Protection Commissioner.</li>
         </ul>
       </LegalSection>

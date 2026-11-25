@@ -1,5 +1,5 @@
 // AC-01 … AC-03, AC-06 (language), AC-08: profile, language, change password, two-step verification, help and sign out.
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -10,6 +10,8 @@ import { Icon } from '@/components/Icon';
 import { LanguageSelect } from '@/components/LanguageSelect';
 import { Notice } from '@/components/Notice';
 import { Sheet } from '@/components/Sheet';
+import { DESKTOP, useMediaQuery } from '@/lib/useMediaQuery';
+import { prefersReducedMotion } from '@/lib/motion';
 import { useToast } from '@/components/Toast';
 import { ContactSheet } from '@/features/contact/LazyContactSheet';
 import { MfaSetupSheet } from '@/features/mfa/MfaSetupSheet';
@@ -28,6 +30,25 @@ import styles from './AccountPage.module.css';
 
 type Section = 'password' | 'delete' | 'help';
 
+/** The side menu of the Account page on a computer: each entry jumps to its card (the ids are on the cards' sections or headings). */
+const MENU: { id: string; label: MessageKey; admin?: boolean }[] = [
+  { id: 'acc-profile', label: 'account.profile' },
+  { id: 'acc-display', label: 'acct.display' },
+  { id: 'acc-security', label: 'account.security' },
+  { id: 'acc-pass', label: 'account.password.title' },
+  { id: 'acc-report', label: 'rep.title' },
+  { id: 'acc-tg', label: 'tg.title' },
+  { id: 'acc-admin', label: 'admin.card', admin: true },
+  { id: 'acc-rem', label: 'remset.title' },
+  { id: 'acc-data', label: 'data.title' },
+  { id: 'acc-del-open', label: 'del.title' },
+];
+/** The card an id belongs to (the id is on the card itself or on its heading). */
+const cardOf = (id: string) => {
+  const found = document.getElementById(id);
+  return found?.closest('section') ?? found;
+};
+
 export function AccountPage() {
   const { t } = useI18n();
   const { session, signOut } = useAuth();
@@ -38,6 +59,9 @@ export function AccountPage() {
   const [confirmOut, setConfirmOut] = useState(false);
   const [theme, setThemeState] = useState<Theme>(() => readTheme(session?.user?.id));
   const { isAdmin } = useAdminStatus();
+  const desktop = useMediaQuery(DESKTOP);
+  const [current, setCurrent] = useState('acc-profile');
+  const jumping = useRef(0); // while a menu jump scrolls the page, the menu keeps the chosen entry
   const user = session?.user;
   const meta = (user?.user_metadata ?? {}) as Record<string, unknown>;
   const name = typeof meta.username === 'string' ? meta.username : '';
@@ -59,9 +83,37 @@ export function AccountPage() {
     applyTheme(next);
   };
 
-  return (
-    <Sheet open onClose={close} title={t('screen.account.title')}>
-      <div className={styles.popup}>
+  // on a computer the side menu follows the reading position: the last card whose top has passed the upper part of the window
+  useEffect(() => {
+    if (!desktop) return undefined;
+    let frame = 0;
+    const onScroll = () => {
+      if (performance.now() < jumping.current) return;
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        let at = 'acc-profile';
+        for (const item of MENU) {
+          const card = cardOf(item.id);
+          if (card && card.getBoundingClientRect().top < 140) at = item.id;
+        }
+        setCurrent(at);
+      });
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener('scroll', onScroll);
+    };
+  }, [desktop]);
+  /** `at` is the click's time stamp (the same clock as performance.now()). */
+  const jump = (id: string, at: number) => {
+    setCurrent(id);
+    jumping.current = at + 900;
+    cardOf(id)?.scrollIntoView({ block: 'start', behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
+  };
+
+  const content = (
+      <div className={desktop ? `${styles.popup} ${styles.pageBody}` : styles.popup}>
         <section className={styles.profile} aria-labelledby="acc-profile">
           <span className={styles.avatar} aria-hidden="true">
             {((name || user?.email || '?').trim()[0] ?? '?').toUpperCase()}
@@ -157,8 +209,10 @@ export function AccountPage() {
           {t('account.signOut')}
         </Button>
       </div>
-
-      {/* these two open as their own pop-up on top of the account pop-up */}
+  );
+  const sheets = (
+    <>
+      {/* these open as their own pop-up on top of Account */}
       <Sheet open={section === 'password'} onClose={() => setSection(null)} title={t('account.password.title')}>
         <div className={styles.flat}>{section === 'password' ? <PasswordCard /> : null}</div>
       </Sheet>
@@ -177,6 +231,49 @@ export function AccountPage() {
           </Button>
         </div>
       </Sheet>
+    </>
+  );
+
+  if (desktop) {
+    // a computer: a settings page with a section menu, instead of a long pop-up
+    return (
+      <section className={styles.settingsPage} aria-labelledby="acc-title">
+        <h1 id="acc-title" className={styles.pageTitle}>
+          {t('screen.account.title')}
+        </h1>
+        <div className={styles.settings}>
+          <nav aria-label={t('acct.sections')} className={styles.sideMenu}>
+            {MENU.filter((item) => !item.admin || isAdmin).map((item) => (
+              <a
+                key={item.id}
+                href={`#${item.id}`}
+                aria-current={current === item.id ? 'true' : undefined}
+                onClick={(event) => {
+                  event.preventDefault();
+                  jump(item.id, event.timeStamp);
+                }}
+              >
+                {t(item.label)}
+              </a>
+            ))}
+            <button type="button" onClick={() => setSection('help')}>
+              {t('account.help')}
+            </button>
+            <button type="button" className={styles.menuOut} onClick={() => setConfirmOut(true)}>
+              {t('account.signOut')}
+            </button>
+          </nav>
+          {content}
+        </div>
+        {sheets}
+      </section>
+    );
+  }
+
+  return (
+    <Sheet open onClose={close} title={t('screen.account.title')}>
+      {content}
+      {sheets}
     </Sheet>
   );
 }

@@ -35,7 +35,7 @@ export function PreferencesCard({ before, children }: { before?: ReactNode; chil
   };
 
   return (
-    <section className={styles.card} aria-labelledby={`${select}-h`}>
+    <section className={styles.card} aria-labelledby={`${select}-h`} id="acc-display">
       <div>
         <h2 id={`${select}-h`} className={styles.h2}>
           {t('acct.display')}

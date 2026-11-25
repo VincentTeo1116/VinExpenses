@@ -12,7 +12,7 @@ for (const width of [320, 390]) {
     await expect(dialog).toBeVisible();
     await page.evaluate(() => { document.documentElement.style.fontSize = '20px'; });
     await expect.poll(() => dialog.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
-    const heading = await dialog.getByRole('heading').boundingBox();
+    const heading = await dialog.getByRole('heading', { name: "Don't forget" }).boundingBox();
     const item = await dialog.getByRole('listitem').first().boundingBox();
     expect(item!.y - (heading!.y + heading!.height)).toBeGreaterThanOrEqual(20);
     await page.screenshot({ path: `test-results/reminders-${width}.png` });

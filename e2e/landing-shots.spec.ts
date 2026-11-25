@@ -35,7 +35,10 @@ async function sampleData(page: Page) {
   ];
   for (const [category, merchant, amount, ago] of spend) rows.push({ amount, category, payment: 'card', merchant, note: null, created_at: isoDaysAgo(ago) });
   await seedRows(page, user.email, 'expenses', rows);
-  await seedRows(page, user.email, 'incomes', [{ amount: '4800.00', source: 'Salary', created_at: isoDaysAgo(2) }]);
+  // five earlier months too, so the six-month chart looks like a real person's
+  const earlier: [string, string, string][] = [['food', 'Village Park', '612.40'], ['car', 'Petronas', '380.00'], ['shopping', 'Uniqlo', '455.90'], ['utilities', 'TNB', '540.70'], ['food', 'Sushi Zanmai', '702.30']];
+  await seedRows(page, user.email, 'expenses', earlier.flatMap(([category, merchant, amount], i) => [31, 62, 93, 124, 155].slice(i, i + 1).map((ago) => ({ amount, category, payment: 'card', merchant, note: null, created_at: isoDaysAgo(ago) }))));
+  await seedRows(page, user.email, 'incomes', [2, 33, 64, 95, 126, 157].map((ago, i) => ({ amount: ['4800.00', '4800.00', '4650.00', '4650.00', '4650.00', '4500.00'][i], source: 'Salary', created_at: isoDaysAgo(ago) })));
   await seedRows(page, user.email, 'budgets', [{ category: 'all', amount: '1800.00' }, { category: 'food', amount: '400.00' }]);
   await seedRows(page, user.email, 'recurring_expenses', [
     { name: 'Rent', amount: '1200.00', category: 'utilities', payment: 'bank', frequency: 'monthly', start_date: ymdDaysFromNow(5), next_due: ymdDaysFromNow(5) },

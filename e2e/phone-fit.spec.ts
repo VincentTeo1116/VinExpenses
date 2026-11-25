@@ -1,6 +1,6 @@
 // Every pop-up fits the screen exactly (nothing to drag sideways) on phone, tablet and computer; and the History swipe gestures.
 import { expect, test, type Page } from '@playwright/test';
-import { dbRows, isoDaysAgo, openAccount, openSection, seedRows, signInAs, ymdDaysFromNow } from './helpers';
+import { accountView, dbRows, isoDaysAgo, openAccount, openSection, seedRows, signInAs, ymdDaysFromNow } from './helpers';
 
 const WIDTHS = [320, 375, 430, 768, 1024, 1440];
 
@@ -90,7 +90,7 @@ for (const width of WIDTHS) {
       await check(`account: ${section}`);
       await close();
     }
-    await page.getByRole('dialog', { name: 'Account', exact: true }).getByRole('button', { name: 'Categories' }).click();
+    await accountView(page).getByRole('button', { name: 'Categories' }).click();
     await check('account: categories');
     await context.close();
   });

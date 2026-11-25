@@ -28,6 +28,14 @@ const PHONE = '(max-width: 639px)';
 const CLOSE_DISTANCE = 120;
 const CLOSE_SPEED = 0.6;
 
+/** A drag that did not go far enough: the card springs back into place. */
+function springBack(dialog: HTMLElement, from: number) {
+  if (from !== 0 && dialog.animate && !prefersReducedMotion()) {
+    dialog.animate([{ transform: dialog.style.transform || 'none' }, { transform: 'none' }], { duration: 260, easing: 'cubic-bezier(0.2, 0.9, 0.3, 1.2)' });
+  }
+  dialog.style.transform = '';
+}
+
 export function Sheet({ open, onClose, title, children, size = 'narrow', dismissible = true, ref }: SheetProps) {
   const id = useId();
   const { t } = useI18n();
@@ -101,12 +109,75 @@ export function Sheet({ open, onClose, title, children, size = 'narrow', dismiss
       requestClose(undefined, current.dy);
       return;
     }
-    // not far enough: spring back
-    if (current.dy !== 0 && dialog.animate && !prefersReducedMotion()) {
-      dialog.animate([{ transform: dialog.style.transform || 'none' }, { transform: 'none' }], { duration: 260, easing: 'cubic-bezier(0.2, 0.9, 0.3, 1.2)' });
-    }
-    dialog.style.transform = '';
+    springBack(dialog, current.dy);
   };
+
+  // ---- the same pull from the content itself, when it is scrolled to the top (as native sheets do) ----
+  // Touch events, not pointer events: once the browser decides a touch is a scroll it cancels the pointer, but a touch can be held.
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const closeRef = useRef(requestClose);
+  useEffect(() => {
+    closeRef.current = requestClose;
+  });
+  useEffect(() => {
+    const body = bodyRef.current;
+    const dialog = dialogRef.current;
+    if (!open || !dismissible || !body || !dialog) return undefined;
+    let startX = 0;
+    let startY = 0;
+    let at = 0;
+    let dy = 0;
+    let tracking = false;
+    let pulling = false;
+    const onStart = (event: TouchEvent) => {
+      const touch = event.touches[0];
+      tracking = Boolean(touch) && event.touches.length === 1 && !closingRef.current && body.scrollTop <= 0 && window.matchMedia(PHONE).matches;
+      pulling = false;
+      if (!touch) return;
+      startX = touch.clientX;
+      startY = touch.clientY;
+    };
+    const onMove = (event: TouchEvent) => {
+      const touch = event.touches[0];
+      if (!tracking || !touch) return;
+      const down = touch.clientY - startY;
+      if (!pulling) {
+        // only a clear downward pull at the top starts it; anything else is ordinary scrolling or tapping
+        if (down < -4 || Math.abs(touch.clientX - startX) > 12 || body.scrollTop > 0) {
+          tracking = false;
+          return;
+        }
+        if (down < 10) return;
+        pulling = true;
+        startY = touch.clientY;
+        at = performance.now();
+        setDragging(true);
+      }
+      if (event.cancelable) event.preventDefault(); // the content does not bounce while the card is being pulled
+      dy = Math.max(0, touch.clientY - startY);
+      dialog.style.transform = `translateY(${dy}px)`;
+    };
+    const onEnd = () => {
+      tracking = false;
+      if (!pulling) return;
+      pulling = false;
+      setDragging(false);
+      const speed = dy / Math.max(1, performance.now() - at);
+      if (dy > CLOSE_DISTANCE || (dy > 30 && speed > CLOSE_SPEED)) closeRef.current(undefined, dy);
+      else springBack(dialog, dy);
+      dy = 0;
+    };
+    body.addEventListener('touchstart', onStart, { passive: true });
+    body.addEventListener('touchmove', onMove, { passive: false });
+    body.addEventListener('touchend', onEnd);
+    body.addEventListener('touchcancel', onEnd);
+    return () => {
+      body.removeEventListener('touchstart', onStart);
+      body.removeEventListener('touchmove', onMove);
+      body.removeEventListener('touchend', onEnd);
+      body.removeEventListener('touchcancel', onEnd);
+    };
+  }, [open, dismissible]);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -176,7 +247,7 @@ export function Sheet({ open, onClose, title, children, size = 'narrow', dismiss
             ) : null}
           </div>
         </div>
-        <div className={styles.body} inert={closing}>{children}</div>
+        <div ref={bodyRef} className={styles.body} inert={closing}>{children}</div>
       </div>
     </div>,
     document.body,

@@ -175,3 +175,45 @@
 .cand:active {
   transform: scale(0.97);
 }
+
+/* the scan button with a small "how it works" button beside it */
+.scanRow {
+  display: flex;
+  gap: var(--s-2);
+  align-items: stretch;
+}
+.scanRow > :first-child {
+  flex: 1 1 auto;
+}
+.infoBtn {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: var(--tap);
+  min-height: var(--tap);
+  border-radius: var(--r-md);
+  border: 1.5px solid var(--border);
+  background: var(--surface);
+  color: var(--muted);
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+.infoBtn:hover,
+.infoBtn[aria-expanded='true'] {
+  color: var(--primary);
+  border-color: var(--primary);
+  background: var(--primary-soft);
+}
+.scanHint {
+  animation: hintIn 0.2s var(--ease) both;
+}
+@keyframes hintIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .scanHint {
+    animation: none;
+  }
+}

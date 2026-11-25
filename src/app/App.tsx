@@ -8,6 +8,7 @@ import { ProtectedRoute } from './ProtectedRoute';
 import { ErrorBoundary } from './ErrorBoundary';
 import { NotFound } from '@/pages/NotFound';
 import { ConfigError } from '@/pages/ConfigError';
+import { DESKTOP, useMediaQuery } from '@/lib/useMediaQuery';
 
 // Each screen is its own file that is downloaded only when it is opened (PERF-01).
 import { ARRIVED_FROM_SIGN_IN } from './arrival';
@@ -26,6 +27,18 @@ const AccountPage = lazy(() => import('@/features/account/AccountPage').then((m)
 
 /** Still carrying the code right now? (After it has been used the front page is the front page again.) */
 const fromSignIn = () => /[?&#](code|access_token|error_description)=/.test(`${window.location.search}${window.location.hash}`);
+
+/** Account: a page of its own on a computer; on a phone or tablet a pop-up over the Home screen. */
+function AccountRoute() {
+  const desktop = useMediaQuery(DESKTOP);
+  if (desktop) return <AccountPage />;
+  return (
+    <>
+      <DashboardPage quiet />
+      <AccountPage />
+    </>
+  );
+}
 
 export function AppRoutes() {
   return (
@@ -48,12 +61,7 @@ export function AppRoutes() {
           <Route path="plan" element={<PlanPage />} />
           <Route
             path="account"
-            element={
-              <>
-                <DashboardPage quiet />
-                <AccountPage />
-              </>
-            }
+            element={<AccountRoute />}
           />
           <Route path="admin" element={<AdminPage />} />
           <Route path="report" element={<ReportPage />} />

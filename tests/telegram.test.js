@@ -140,15 +140,6 @@ test('newLinkCode: 10 unambiguous characters, different every time', async () =>
     assert.equal(seen.size, 500);
 });
 
-test('the app copies of the category-guessing and receipt-reading code are identical to the ones the bot uses', () => {
-    const root = path.join(__dirname, '..');
-    for (const file of ['smart-entry.js', 'receipt-parser.js']) {
-        const app = fs.readFileSync(path.join(root, 'legacy', file));
-        const bot = fs.readFileSync(path.join(root, 'supabase/functions/_shared', file));
-        assert.ok(app.equals(bot), `${file} differs from the bot's copy. Run: node tools/sync-shared.js`);
-    }
-});
-
 // Telegram-link Section: the website side
 const callLink = async (token, action, { origin = 'https://me.github.io' } = {}) => {
     const { handle } = await linkModule();

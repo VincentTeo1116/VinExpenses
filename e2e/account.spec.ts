@@ -1,8 +1,8 @@
-// AC-04 … AC-07, AC-09: Telegram, the monthly report, reminder settings, deleting the account, and the Telegram nudge on Home.
+// AC-04 … AC-07, AC-09: Telegram, the monthly report, reminder settings, deleting the account, and the Telegram nudge in the reminder pop-up.
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 import { BACKEND } from './api';
-import { dbRows, openAccount, openSection, seedRows, signInAs } from './helpers';
+import { accountView, dbRows, openAccount, openSection, seedRows, signInAs, ymdDaysFromNow } from './helpers';
 
 const setTelegram = (page: Page, email: string, linked: boolean) => page.request.post(`${BACKEND}/__test/telegram`, { data: { email, linked } });
 const verifyEmail = (page: Page, email: string) => page.request.post(`${BACKEND}/__test/verify-report-email`, { data: { email } });
@@ -39,27 +39,45 @@ test.describe('Telegram (AC-04)', () => {
   });
 });
 
-test.describe('Telegram nudge on Home (AC-09)', () => {
-  test('shown while not connected; "don\'t ask again" is kept with the account and on reload', async ({ page }) => {
-    await signInAs(page);
+test.describe('Telegram nudge (AC-09): in the reminder pop-up, only for people with a deposit or loan', () => {
+  // a loan whose payment is due tomorrow, so the "Don't forget" pop-up opens on Home
+  const loanDue = (page: Page, email: string) =>
+    seedRows(page, email, 'loans', [{ name: 'Car loan', lender: null, principal: 30000, rate: 3, method: 'reducing', term_months: 60, first_payment_date: ymdDaysFromNow(1), fees: 0, instalment: 540, reminders_on: true, reminder_days: [3, 0], status: 'open', paid_through: null }]);
+
+  test('shown inside the reminder pop-up; Connect lands on Telegram in Account; "don\'t ask again" is kept after a reload', async ({ page }) => {
+    const user = await signInAs(page);
+    await loanDue(page, user.email);
     await page.goto('/app');
-    await expect(page.getByTestId('tg-prompt')).toBeVisible();
-    await page.getByRole('button', { name: 'Connect now' }).click();
-    await expect(page.getByRole('dialog', { name: 'Account', exact: true })).toBeVisible();
-    await expect(page.getByRole('dialog', { name: 'Account', exact: true }).getByRole('heading', { name: 'Telegram', exact: true })).toBeInViewport(); // it lands on the Telegram section
+    const popup = page.getByRole('dialog', { name: "Don't forget" });
+    await expect(popup).toBeVisible();
+    await expect(popup.getByTestId('tg-prompt')).toBeVisible();
+    await popup.getByRole('button', { name: 'Connect now' }).click();
+    await expect(accountView(page)).toBeVisible();
+    await expect(accountView(page).getByRole('heading', { name: 'Telegram', exact: true })).toBeInViewport(); // it lands on the Telegram section
     await page.goto('/app');
-    await page.getByRole('button', { name: 'Don\'t ask again' }).click();
+    await expect(popup.getByTestId('tg-prompt')).toBeVisible();
+    await popup.getByRole('button', { name: 'Don\'t ask again' }).click();
     await expect(page.getByTestId('tg-prompt')).toHaveCount(0);
     await page.reload();
-    await expect(page.getByRole('heading', { level: 1, name: /^Hello,/ })).toBeVisible();
+    await expect(popup).toBeVisible(); // the loan is still due
     await expect(page.getByTestId('tg-prompt')).toHaveCount(0);
+  });
+
+  test('without a deposit or loan it never appears on Home (Telegram is in Account)', async ({ page }) => {
+    await signInAs(page);
+    await page.goto('/app');
+    await expect(page.getByRole('heading', { level: 1, name: /^Hello,/ })).toBeVisible();
+    await page.waitForTimeout(600);
+    await expect(page.getByTestId('tg-prompt')).toHaveCount(0);
+    await expect(page.getByRole('dialog')).toHaveCount(0);
   });
 
   test('never shown to someone who is already connected', async ({ page }) => {
     const user = await signInAs(page);
     await setTelegram(page, user.email, true);
+    await loanDue(page, user.email);
     await page.goto('/app');
-    await expect(page.getByRole('heading', { level: 1, name: /^Hello,/ })).toBeVisible();
+    await expect(page.getByRole('dialog', { name: "Don't forget" })).toBeVisible();
     await page.waitForTimeout(500);
     await expect(page.getByTestId('tg-prompt')).toHaveCount(0);
   });

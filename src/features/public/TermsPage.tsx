@@ -1,4 +1,4 @@
-// Terms of Use: the text of the terms, ported from the old static page. The words are unchanged except where a feature that is no longer in the app was removed.
+// Terms of Use. Keep them true to the app (the Privacy Policy lists the outside services in detail).
 import { Link } from 'react-router-dom';
 import { LegalPage, LegalSection } from './LegalPage';
 
@@ -41,7 +41,7 @@ export function TermsPage() {
         <ul>
         <li>The app is a record-keeping and planning tool. Nothing in it is financial, investment, tax, legal or accounting advice.</li>
         <li>The fixed deposit and loan calculators use simplified, fixed-rate formulas. A bank's or lender's actual figures can differ because of fees, rounding, day-count rules, rate changes and its own terms. Always rely on the documents your bank or lender gives you.</li>
-        <li>Receipt reading and category suggestions can be wrong. Check every entry before you save it.</li>
+        <li>Receipt reading, category suggestions and the list of places near you can be wrong. Check every entry before you save it.</li>
         <li>Reminders are a convenience. They can be late or fail to arrive, so do not depend on them alone for a payment or a maturity date.</li>
         <li>The app never moves money and has no connection to your bank.</li>
         </ul>
@@ -57,7 +57,7 @@ export function TermsPage() {
         <p>Fair-use limits apply, for example a daily number of receipt scans and a maximum number of saved deposits and loans per account.</p>
       </LegalSection>
       <LegalSection id="third" title="6. Services from other providers">
-        <p>Some features depend on other providers, such as Google sign-in, Telegram, receipt text recognition. Those features are optional, the providers' own terms apply to them, and I am not responsible for their availability or conduct.</p>
+        <p>Some features depend on other providers, such as Google sign-in, Telegram, receipt text recognition and the map services that list places near you. Those features are optional, the providers' own terms apply to them, and I am not responsible for their availability or conduct.</p>
       </LegalSection>
       <LegalSection id="free" title="7. A free service that may change">
         <p>The app is free of charge. I may add, change or remove features, set limits, or stop offering the app. If the app is to be closed, I will try to give at least 30 days' notice in the app or by email so that you can export your data. If paid features are ever introduced, they will be clearly marked and you will not be charged without agreeing first.</p>

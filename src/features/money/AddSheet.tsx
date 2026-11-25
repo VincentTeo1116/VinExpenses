@@ -1,13 +1,15 @@
 // TX-01 … TX-05: one sheet to add or change an expense or an income: amount first, then what it was for, then when.
-import { useMemo, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import { Controller, useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Button } from '@/components/Button';
 import { ChipGroup } from '@/components/ChipGroup';
 import { amountSize, Field } from '@/components/Field';
+import { Icon } from '@/components/Icon';
 import { Notice } from '@/components/Notice';
 import { Sheet, type SheetHandle } from '@/components/Sheet';
+import { prefersReducedMotion } from '@/lib/motion';
 import { useToast } from '@/components/Toast';
 import { useAuth } from '@/app/AuthProvider';
 import { envResult } from '@/lib/env';
@@ -65,6 +67,8 @@ function AddBody({ request, onClose }: { request: AddRequest; onClose: () => voi
   const [scanNote, setScanNote] = useState<{ text: string; bad: boolean } | null>(null);
   const [candidates, setCandidates] = useState<{ list: Candidate[]; unsure: boolean }>({ list: [], unsure: false });
   const fileInput = useRef<HTMLInputElement>(null);
+  const categoryBox = useRef<HTMLDivElement>(null);
+  const [scanInfo, setScanInfo] = useState(false);
 
   const first = (rows: { key: string }[]) => rows[0]?.key ?? '';
   const initial = useMemo<Values>(() => {
@@ -74,7 +78,7 @@ function AddBody({ request, onClose }: { request: AddRequest; onClose: () => voi
     const copying = Boolean(request.copy);
     return {
       amount: row ? toCents(row.amount) / 100 + '' : '',
-      category: expense?.category ?? first(activeCategories),
+      category: expense?.category ?? '', // a new expense starts with no category: the person (or the place they type) chooses it
       payment: expense?.payment ?? first(activePayments),
       source: income?.source ?? 'Salary',
       date: row && !copying ? isoToYmd(row.created_at) : todayYmd(),
@@ -86,10 +90,14 @@ function AddBody({ request, onClose }: { request: AddRequest; onClose: () => voi
   }, []);
 
   const schema = useMemo(() => buildSchema(t), [t]);
-  const { register, control, handleSubmit, formState, setValue } = useForm<Values>({ resolver: zodResolver(schema), mode: 'onTouched', defaultValues: initial });
+  const { register, control, handleSubmit, formState, setValue, setError, clearErrors } = useForm<Values>({ resolver: zodResolver(schema), mode: 'onTouched', defaultValues: initial });
   const amountText = useWatch({ control, name: 'amount' });
   const merchantText = useWatch({ control, name: 'merchant' });
   const categoryValue = useWatch({ control, name: 'category' });
+  // a category chosen any way (a tap, a typed or nearby place, a scanned receipt) answers the "choose a category" message
+  useEffect(() => {
+    if (categoryValue) clearErrors('category');
+  }, [categoryValue, clearErrors]);
 
   // TX-02: a category suggestion with its reason, from the person's own history first, then the built-in merchant lists
   const memory = useMemo(() => buildMerchantMemory(data.expenses), [data.expenses]);
@@ -164,7 +172,13 @@ function AddBody({ request, onClose }: { request: AddRequest; onClose: () => voi
       setBusy(true);
       try {
         if (kind === 'expense') {
-          if (!values.category) return setProblem(t('add.noCategories'));
+          if (!activeCategories.length) return setProblem(t('add.noCategories'));
+          if (!values.category) {
+            setError('category', { message: t('add.chooseCategory') });
+            categoryBox.current?.scrollIntoView({ block: 'center', behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
+            categoryBox.current?.querySelector<HTMLInputElement>('input[type="radio"]')?.focus({ preventScroll: true });
+            return;
+          }
           const row = { amount, category: values.category, payment: values.payment || first(activePayments), merchant: values.merchant.trim() || null, note: values.note.trim() || null, created_at: createdAt };
           if (!confirmed.current) {
             const duplicate = findDuplicate(row, data.expenses, editing?.row.id);
@@ -253,10 +267,18 @@ function AddBody({ request, onClose }: { request: AddRequest; onClose: () => voi
             {editing ? null : (
               <div className={styles.scan}>
                 <input ref={fileInput} type="file" accept="image/jpeg,image/png,image/webp,application/pdf" className={styles.fileInput} tabIndex={-1} aria-hidden="true" data-testid="receipt-file" onChange={(event) => void onReceipt(event)} />
-                <Button variant="outline" block loading={scanning} onClick={() => fileInput.current?.click()}>
-                  {scanning ? t('scan.reading') : t('scan.button')}
-                </Button>
-                <p className={styles.scanHint}>{t('scan.hint')}</p>
+                <div className={styles.scanRow}>
+                  <Button variant="outline" block loading={scanning} onClick={() => fileInput.current?.click()}>
+                    {scanning ? t('scan.reading') : t('scan.button')}
+                  </Button>
+                  {/* how scanning treats the file, one tap away instead of three lines on every visit */}
+                  <button type="button" className={styles.infoBtn} aria-label={t('scan.info')} aria-expanded={scanInfo} aria-controls="scan-hint" onClick={() => setScanInfo((open) => !open)}>
+                    <Icon name="info" size={20} />
+                  </button>
+                </div>
+                <p id="scan-hint" className={styles.scanHint} hidden={!scanInfo}>
+                  {t('scan.hint')}
+                </p>
                 {scanNote ? (
                   <p className={`${styles.scanNote} ${scanNote.bad ? styles.scanBad : ''}`} role="status" data-testid="scan-note">
                     {scanNote.text}
@@ -275,21 +297,25 @@ function AddBody({ request, onClose }: { request: AddRequest; onClose: () => voi
                 ) : null}
               </div>
             )}
-            <Controller
-              name="category"
-              control={control}
-              render={({ field }) => (
-                <ChipGroup
-                  legend={t('add.category')}
-                  options={activeCategories.map((c) => ({ value: c.key, label: c.label, glyph: c.glyph, icon: c.key, color: c.color }))}
-                  value={field.value}
-                  onChange={(value) => {
-                    setCategoryTouched(true);
-                    field.onChange(value);
-                  }}
-                />
-              )}
-            />
+            <div ref={categoryBox}>
+              <Controller
+                name="category"
+                control={control}
+                render={({ field }) => (
+                  <ChipGroup
+                    legend={t('add.category')}
+                    options={activeCategories.map((c) => ({ value: c.key, label: c.label, glyph: c.glyph, icon: c.key, color: c.color }))}
+                    value={field.value}
+                    error={formState.errors.category?.message}
+                    onChange={(value) => {
+                      setCategoryTouched(true);
+                      clearErrors('category');
+                      field.onChange(value);
+                    }}
+                  />
+                )}
+              />
+            </div>
             {suggestion ? (
               suggestion.key === categoryValue ? (
                 categoryTouched ? null : (

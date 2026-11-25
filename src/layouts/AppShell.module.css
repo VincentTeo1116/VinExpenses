@@ -330,3 +330,39 @@
     animation: none;
   }
 }
+
+/* ================= Tablets (768-1023px): the bar becomes a slim rail down the left side ================= */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .main {
+    padding: calc(var(--s-6) + var(--safe-top)) var(--s-6) var(--s-8) calc(96px + var(--s-6));
+  }
+  .tabbar {
+    top: 12px;
+    bottom: calc(12px + var(--safe-bottom));
+    left: 12px;
+    right: auto;
+    width: 84px;
+    height: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    gap: 6px;
+    padding: 12px 8px;
+    border-radius: 28px;
+  }
+  .tab {
+    min-height: 60px;
+    font-size: 12px;
+  }
+  /* the + button leads the rail */
+  .fab {
+    order: -1;
+    align-self: center;
+    margin: 0 0 10px;
+    transform: none;
+  }
+  .fab:active {
+    transform: scale(0.96);
+  }
+}

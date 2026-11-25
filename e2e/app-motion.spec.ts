@@ -63,6 +63,7 @@ test('with motion allowed: a transaction that was just saved flashes once in His
   const sheet = page.getByRole('dialog', { name: 'Add a transaction' });
   await sheet.getByLabel('Amount (RM)').fill('12.34');
   await sheet.getByLabel('Where (optional)').fill('Fresh one');
+  await sheet.getByRole('radio', { name: 'Food', exact: true }).check(); // a new expense starts with no category
   await sheet.getByRole('button', { name: 'Save', exact: true }).click();
   const row = page.locator('li', { has: page.getByRole('button', { name: /^Fresh one/ }) });
   await expect(row).toBeVisible();

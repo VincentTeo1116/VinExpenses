@@ -153,3 +153,21 @@
     stroke-dashoffset: 0;
   }
 }
+
+/* tablets have no bottom bar; computers show messages in the bottom-right corner, away from the content */
+@media (min-width: 768px) {
+  .host {
+    bottom: calc(24px + var(--safe-bottom));
+  }
+}
+@media (min-width: 1024px) {
+  .host {
+    left: auto;
+    right: 28px;
+    transform: none;
+    justify-items: end;
+  }
+  .stack {
+    justify-items: end;
+  }
+}

@@ -8,9 +8,6 @@ on:
     paths:
       - "supabase/functions/**"
       - "supabase/config.toml"
-      - "legacy/smart-entry.js"
-      - "legacy/receipt-parser.js"
-      - "legacy/finance-calc.js"
       - ".github/workflows/deploy-functions.yml"
   workflow_dispatch:
 

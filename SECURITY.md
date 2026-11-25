@@ -4,7 +4,9 @@ No website can honestly be called "unhackable". The goal here is **defence in de
 layers, so that one mistake or one stolen secret does not become a breach, plus tests that fail if a layer is
 weakened. This file explains the layers, what **you** must still do, and the limits.
 
-Run all checks: `npm test` (also runs before every deploy) and `node tools/vendor.js verify`.
+Run all checks: `npm run check:web` (lint, type check, unit tests, build), `npm run test:e2e` (browser tests) and `npm test` (backend tests). They also run in CI before every deploy.
+
+> Section 1 below describes the earlier plain-JavaScript site, which is kept in `legacy/` as a backup and is **no longer published** (the old GitHub Pages address now only redirects to the app). The React app's browser-side protections are listed in `docs/TECHNICAL_ASSESSMENT.md`; sections 2 onwards (the server side) apply to both.
 
 ## 1. The website (browser side)
 

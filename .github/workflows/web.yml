@@ -50,5 +50,5 @@ jobs:
           npx playwright install --with-deps chromium
           npm run test:e2e
 
-      - name: Backend and legacy tests
+      - name: Backend tests
         run: npm test

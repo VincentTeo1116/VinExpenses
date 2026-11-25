@@ -49,6 +49,8 @@ export function trend(expenses: Expense[], incomes: Income[], endMonth: string, 
 export interface Comparison {
   /** Whole percent change versus the same days of the previous month, or null when there is nothing to compare. */
   percent: number | null;
+  /** How much more (positive) or less (negative) was spent than on the same days of last month, in cents; null as above. */
+  diffCents: number | null;
   /** The number of days compared when this is the current month (a part month). */
   throughDay: number | null;
   previousMonth: string;
@@ -60,8 +62,8 @@ export function compareWithLastMonth(expenses: Expense[], month: string, today: 
   const through = current ? parseYmd(today).d : 31;
   const spent = sumCents(inMonth(expenses, month));
   const before = sumCents(inMonth(expenses, previousMonth).filter((row) => parseYmd(isoToYmd(row.created_at)).d <= through));
-  if (before <= 0) return { percent: null, throughDay: current ? through : null, previousMonth };
-  return { percent: Math.round(((spent - before) / before) * 100), throughDay: current ? through : null, previousMonth };
+  if (before <= 0) return { percent: null, diffCents: null, throughDay: current ? through : null, previousMonth };
+  return { percent: Math.round(((spent - before) / before) * 100), diffCents: spent - before, throughDay: current ? through : null, previousMonth };
 }
 
 export interface Insights {

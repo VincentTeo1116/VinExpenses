@@ -73,7 +73,7 @@ export async function cspViolations(page: Page): Promise<string[]> {
 /** Opens the Account pop-up (it sits on top of Home) and, when a section name is given, that section's own pop-up on top of it. */
 export async function openAccount(page: Page, section?: string): Promise<void> {
   await page.goto('/app/account');
-  const account = page.getByRole('dialog', { name: 'Account', exact: true });
+  const account = accountView(page);
   await expect(account).toBeVisible();
   if (section) await openSection(page, section);
 }
@@ -83,7 +83,7 @@ const POPUP_SECTIONS: Record<string, string> = { 'Change password': 'password', 
 
 /** From the open Account pop-up: goes to one of its sections (opening it when it is one of the pop-up ones). */
 export async function openSection(page: Page, section: string): Promise<void> {
-  const account = page.getByRole('dialog', { name: 'Account', exact: true });
+  const account = accountView(page);
   const opener = POPUP_SECTIONS[section];
   if (opener) {
     await account.locator(`[data-section="${opener}"]`).click();
@@ -92,4 +92,16 @@ export async function openSection(page: Page, section: string): Promise<void> {
   }
   await account.getByRole('heading', { name: section, exact: true }).scrollIntoViewIfNeeded();
   await expect(account.getByRole('heading', { name: section, exact: true })).toBeVisible();
+}
+
+/** Account: a pop-up on phones and tablets, a page (a region named "Account") on a computer. */
+export function accountView(page: Page) {
+  return page.getByRole('dialog', { name: 'Account', exact: true }).or(page.getByRole('region', { name: 'Account', exact: true }));
+}
+
+/** Leaves Account: closes the pop-up, or on a computer goes back Home. */
+export async function leaveAccount(page: Page): Promise<void> {
+  const popup = page.getByRole('dialog', { name: 'Account', exact: true });
+  if (await popup.count()) await popup.getByRole('button', { name: 'Close' }).click();
+  else await page.getByRole('link', { name: 'Home' }).first().click();
 }

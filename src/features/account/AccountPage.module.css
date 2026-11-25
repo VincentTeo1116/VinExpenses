@@ -350,3 +350,74 @@
   min-height: var(--tap);
   padding: 0 6px;
 }
+
+/* ================= Account as a settings page on a computer ================= */
+.settingsPage {
+  display: grid;
+  gap: var(--s-5);
+  animation: pageIn 0.3s var(--ease) both;
+}
+.pageTitle {
+  font-size: var(--fs-2xl);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+.settings {
+  display: grid;
+  grid-template-columns: 230px minmax(0, 760px);
+  gap: var(--s-8);
+  align-items: start;
+}
+.sideMenu {
+  position: sticky;
+  top: var(--s-6);
+  display: grid;
+  gap: 2px;
+  padding: var(--s-2);
+  border-radius: var(--r-lg);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+.sideMenu a,
+.sideMenu button {
+  display: flex;
+  align-items: center;
+  min-height: var(--tap);
+  padding: 0 var(--s-3);
+  border-radius: var(--r-md);
+  color: var(--muted);
+  font-weight: 650;
+  text-align: left;
+  text-decoration: none;
+  transition: background 0.15s, color 0.15s;
+}
+.sideMenu a:hover,
+.sideMenu button:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+.sideMenu a[aria-current='true'] {
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+.sideMenu .menuOut {
+  margin-top: var(--s-2);
+  border-top: 1px solid var(--border);
+  border-radius: 0 0 var(--r-md) var(--r-md);
+  color: var(--danger-text);
+}
+.pageBody > section {
+  scroll-margin-top: var(--s-6);
+}
+@keyframes pageIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .settingsPage {
+    animation: none;
+  }
+}

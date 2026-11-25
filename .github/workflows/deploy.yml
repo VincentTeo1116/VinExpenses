@@ -1,8 +1,7 @@
 name: Deploy to GitHub Pages
 
-# Publishes to GitHub Pages. The app now lives on Cloudflare, so by default this publishes only a small "we have moved" site that sends every
-# old address to the same page on the new one (tools/build-redirect.js). Set the repository variable REDIRECT_TO to change the new address,
-# or to "off" to publish the old site again (it builds config.js from the repo secrets; setup steps are in the README).
+# The app lives on Cloudflare. The old GitHub Pages address only publishes a small "we have moved" site that sends every old address
+# to the same page on the new one (tools/build-redirect.js). Set the repository variable REDIRECT_TO to change the new address.
 
 on:
   push:
@@ -34,49 +33,10 @@ jobs:
 
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
-          node-version: 24   # the tests load the TypeScript helpers directly (type stripping is on by default in 24)
+          node-version: 24
 
-      # Fails if any file in vendor/ was changed, added or removed without going through tools/vendor.js
-      - name: Verify self-hosted libraries
-        if: env.REDIRECT_TO == 'off'
-        run: node tools/vendor.js verify
-
-      # A failing test stops the deploy, so a broken receipt reader, category rule or security rule never reaches your phone
-      - name: Run tests
-        if: env.REDIRECT_TO == 'off'
-        run: node --test "tests/*.test.js"
-
-      - name: Generate config.js from secrets
-        if: env.REDIRECT_TO == 'off'
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
-          TURNSTILE_SITE_KEY: ${{ secrets.TURNSTILE_SITE_KEY }}   # optional: the public key of the Cloudflare security check
-        run: node legacy/build-config.js
-
-      - name: Stage site files
-        if: env.REDIRECT_TO == 'off'
-        run: |
-          # The current site lives in legacy/ (the React rebuild replaces it later). Copy it whole, then drop build-only files.
-          cp -r legacy dist
-          rm -f dist/build-config.js dist/vendor/vendor.config.json dist/vendor/VENDOR.lock.json
-          # Stamp the build with the commit id so browsers fetch the new files.
-          BUILD="${GITHUB_SHA::7}"
-          sed -i "s/__BUILD__/${BUILD}/g" dist/index.html dist/app.js dist/style.css dist/sw.js dist/404.html
-          # The 404 page is served for any missing address, even a deep one, so its links must not depend on where it is shown.
-          if [ -f CNAME ]; then BASE="/"; else BASE="/${GITHUB_REPOSITORY#*/}/"; fi
-          sed -i "s#__BASE__#${BASE}#g" dist/404.html
-
-      # Limit the page to your own Supabase project; the deploy fails if a wildcard is left.
-      - name: Pin the Content-Security-Policy to your Supabase project
-        if: env.REDIRECT_TO == 'off'
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          TURNSTILE_SITE_KEY: ${{ secrets.TURNSTILE_SITE_KEY }}
-        run: node tools/pin-csp.js dist/index.html dist/email-action.html dist/miniapp/index.html
-
+      # A failing check stops the deploy, so a redirect that could send people to the wrong place is never published
       - name: Check the redirect, then build it
-        if: env.REDIRECT_TO != 'off'
         run: |
           node --test tests/redirect.test.js
           if [ -f CNAME ]; then BASE="/"; else BASE="/${GITHUB_REPOSITORY#*/}/"; fi
@@ -84,7 +44,7 @@ jobs:
 
       - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
 
-      # v4 and later leave dotfiles out of the site; neither the redirect nor the old site needs one
+      # v4 and later leave dotfiles out of the site; the redirect needs none
       - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
           path: dist

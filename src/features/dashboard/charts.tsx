@@ -110,53 +110,76 @@ export interface BarPoint {
 }
 
 /**
- * Two bars per month (spent and income), each a button that jumps to that month. Pointing at a month, focusing it with the keyboard,
- * or pressing it shows a bubble with its spending and income.
+ * The two kinds of figure get their own band of the chart, so they are never read against each other: income is a slim line across
+ * the top quarter, spending the bars below it (0 is the top of a column, 100 the floor).
+ */
+const incomeLevel = (value: number, max: number) => (max > 0 ? 26 - (Math.max(0, value) / max) * 20 : 26);
+const spentTop = (value: number, max: number) => (max > 0 && value > 0 ? 100 - Math.max(3, (value / max) * 62) : 100);
+
+/**
+ * Spending as bars and income as a line above them, one column per month. Each has its own band and its own scale, so a month of
+ * RM 300 spending is still readable next to a RM 4,800 salary, and the two are never mistaken for each other; the exact amounts are in
+ * the bubble and the legend says which is which. Each column is a button that jumps to that month. Pointing at a month, focusing it with the keyboard, or pressing it
+ * shows a bubble with its spending and income.
  */
 export function TrendBars({ points, onPick, spentWord, incomeWord }: { points: BarPoint[]; onPick: (key: string) => void; spentWord: string; incomeWord: string }) {
-  const max = Math.max(1, ...points.flatMap((point) => [point.spent, point.income]));
-  const height = (value: number) => (value > 0 ? Math.max(4, Math.round((value / max) * 100)) : 0);
-  const grown = useGrown(); // the bars rise from the baseline
+  const maxSpent = Math.max(0, ...points.map((point) => point.spent));
+  const maxIncome = Math.max(0, ...points.map((point) => point.income));
+  const barTop = (value: number) => spentTop(value, maxSpent);
+  const lineY = points.map((point) => incomeLevel(point.income, maxIncome));
+  const grown = useGrown(); // the bars rise from the baseline and the line fades in
   const [shown, setShown] = useState<string | null>(null);
   return (
     <div className={styles.trend} onPointerLeave={(event) => { if (event.pointerType === 'mouse') setShown(null); }}>
-      {points.map((point, index) => (
-        <button
-          key={point.key}
-          type="button"
-          className={`${styles.col} ${point.active ? styles.active : ''} ${shown === point.key ? styles.pointed : ''}`}
-          onClick={() => onPick(point.key)}
-          onPointerEnter={(event) => { if (event.pointerType === 'mouse') setShown(point.key); }}
-          onPointerDown={() => setShown(point.key)}
-          onFocus={() => setShown(point.key)}
-          onBlur={() => setShown((current) => (current === point.key ? null : current))}
-          aria-pressed={point.active}
-          title={point.aria}
-          data-month={point.key}
-        >
-          {shown === point.key ? (
-            <span className={`${styles.tip} ${index === 0 ? styles.tipStart : index === points.length - 1 ? styles.tipEnd : ''}`} aria-hidden="true" data-testid="trend-tip">
-              <span className={styles.tipTitle}>{point.title}</span>
-              <span className={styles.tipRow}>
-                <span className={styles.tipDotSpent} />
-                {spentWord}
-                <b>{point.spentText}</b>
+      {points.map((point, index) => {
+        const y = lineY[index] ?? 96;
+        const before = index > 0 ? lineY[index - 1] : undefined;
+        const after = index < points.length - 1 ? lineY[index + 1] : undefined;
+        // each column draws its piece of the income line: from halfway to the month before, through its own dot, to halfway to the next
+        const line = [before === undefined ? `M20 ${y}` : `M-1 ${(before + y) / 2} L20 ${y}`, after === undefined ? '' : `L41 ${(y + after) / 2}`].join(' ');
+        return (
+          <button
+            key={point.key}
+            type="button"
+            className={`${styles.col} ${point.active ? styles.active : ''} ${shown === point.key ? styles.pointed : ''}`}
+            onClick={() => onPick(point.key)}
+            onPointerEnter={(event) => { if (event.pointerType === 'mouse') setShown(point.key); }}
+            onPointerDown={() => setShown(point.key)}
+            onFocus={() => setShown(point.key)}
+            onBlur={() => setShown((current) => (current === point.key ? null : current))}
+            aria-pressed={point.active}
+            title={point.aria}
+            data-month={point.key}
+          >
+            {shown === point.key ? (
+              <span className={`${styles.tip} ${index === 0 ? styles.tipStart : index === points.length - 1 ? styles.tipEnd : ''}`} aria-hidden="true" data-testid="trend-tip">
+                <span className={styles.tipTitle}>{point.title}</span>
+                <span className={styles.tipRow}>
+                  <span className={styles.tipDotSpent} />
+                  {spentWord}
+                  <b>{point.spentText}</b>
+                </span>
+                <span className={styles.tipRow}>
+                  <span className={styles.tipDotIncome} />
+                  {incomeWord}
+                  <b>{point.incomeText}</b>
+                </span>
               </span>
-              <span className={styles.tipRow}>
-                <span className={styles.tipDotIncome} />
-                {incomeWord}
-                <b>{point.incomeText}</b>
-              </span>
-            </span>
-          ) : null}
-          <svg viewBox="0 0 40 100" preserveAspectRatio="none" className={`${styles.bars} ${grown ? styles.grown : ''}`} aria-hidden="true">
-            <rect x="3" y={100 - height(point.spent)} width="15" height={height(point.spent)} rx="3" className={styles.spent} />
-            <rect x="22" y={100 - height(point.income)} width="15" height={height(point.income)} rx="3" className={styles.income} />
-          </svg>
-          <span className={styles.month}>{point.label}</span>
-          <span className="sr-only"> {point.aria}</span>
-        </button>
-      ))}
+            ) : null}
+            <svg viewBox="0 0 40 100" preserveAspectRatio="none" className={`${styles.bars} ${grown ? styles.grown : ''}`} aria-hidden="true">
+              <rect x="9" y={barTop(point.spent)} width="22" height={100 - barTop(point.spent)} rx="4" className={styles.spent} />
+              {maxIncome > 0 ? (
+                <>
+                  <path d={line} className={styles.incomeLine} vectorEffect="non-scaling-stroke" />
+                  <path d={`M20 ${y} L20 ${y}`} className={styles.incomeDot} vectorEffect="non-scaling-stroke" />
+                </>
+              ) : null}
+            </svg>
+            <span className={styles.month}>{point.label}</span>
+            <span className="sr-only"> {point.aria}</span>
+          </button>
+        );
+      })}
     </div>
   );
 }

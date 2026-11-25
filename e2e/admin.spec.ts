@@ -2,7 +2,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 import { BACKEND } from './api';
-import { isoDaysAgo, seedRows, signInAs } from './helpers';
+import { accountView, isoDaysAgo, seedRows, signInAs } from './helpers';
 
 const makeAdmin = (page: Page, email: string) => page.request.post(`${BACKEND}/__test/make-admin`, { data: { email } });
 const person = (page: Page, name: string) => page.request.post(`${BACKEND}/__test/seed`, { data: { email: `${name}.${Date.now().toString(36)}${Math.floor(Math.random() * 1e5)}@example.com`, name } }).then((r) => r.json() as Promise<{ id: string; email: string }>);
@@ -28,7 +28,7 @@ test.describe('who can see it (AC-08, AD-01)', () => {
     const me = await signInAs(page);
     await makeAdmin(page, me.email);
     await page.goto('/app/account');
-    const account = page.getByRole('dialog', { name: 'Account', exact: true });
+    const account = accountView(page);
     await expect(account.getByRole('heading', { name: 'Administrator' })).toBeVisible();
     await account.getByRole('button', { name: 'Open the admin area' }).click();
     await expect(page.getByRole('heading', { level: 1, name: 'Admin' })).toBeVisible();

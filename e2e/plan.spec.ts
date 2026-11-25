@@ -1,6 +1,6 @@
 // RC-01 … RC-04, BU-01, AC-06: recurring bills and income, budgets, and the person's own categories and date format.
 import { expect, test, type Page } from '@playwright/test';
-import { dbRows, seedRows, signInAs, ymdDaysFromNow } from './helpers';
+import { dbRows, leaveAccount, seedRows, signInAs, ymdDaysFromNow } from './helpers';
 
 const sheet = (page: Page, name: string) => page.getByRole('dialog', { name });
 
@@ -230,7 +230,7 @@ test.describe('account preferences (AC-06)', () => {
     await dialog.getByRole('button', { name: 'Add', exact: true }).click();
     await expect(dialog.getByText('You already have one with that name.')).toBeVisible();
     await page.keyboard.press('Escape');
-    await page.getByRole('dialog', { name: 'Account', exact: true }).getByRole('button', { name: 'Close' }).click(); // Account is a pop-up too
+    await leaveAccount(page); // Account is a pop-up too
 
     // the add sheet offers the renamed and the new one, but not the hidden one
     await page.getByRole('button', { name: 'Add a transaction' }).first().click();

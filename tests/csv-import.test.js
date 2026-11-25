@@ -1,7 +1,14 @@
 // Run with:  node --test "tests/*.test.js"
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const C = require('../legacy/csv-import.js');
+const path = require('node:path');
+const { pathToFileURL } = require('node:url');
+
+// the app's CSV reader and writer (src/features/csv/csv.ts)
+let C;
+test.before(async () => {
+    C = await import(pathToFileURL(path.join(__dirname, '..', 'src', 'features', 'csv', 'csv.ts')).href);
+});
 
 test('parser handles quotes, doubled quotes, newlines in cells, BOM and CRLF', () => {
     const rows = C.parseCsv('﻿a,b\r\n"x, y","say ""hi"""\r\n"line1\nline2",z\r\n');
@@ -71,12 +78,12 @@ test('single Amount column with no negatives: everything is spending unless told
 test('bad rows are skipped with a reason, good rows still import', () => {
     const r = C.importRecords('Date,Amount\nnot a date,5\n2026-09-01,abc\n2026-09-01,5\n');
     assert.equal(r.records.length, 1);
-    assert.deepEqual(r.skipped.map(s => s.reason), ['unreadable date', 'no amount']);
+    assert.deepEqual(r.skipped.map(s => s.reason), ['date', 'amount']); // codes; the screen words them in the person's language
 });
 
 test('files without the needed columns give a clear error', () => {
-    assert.match(C.importRecords('Foo,Bar\n1,2\n').error, /Date column/);
-    assert.match(C.importRecords('Date,Amount\n').error, /no rows/);
+    assert.equal(C.importRecords('Foo,Bar\n1,2\n').error, 'noColumns'); // codes; the screen words them in the person's language
+    assert.equal(C.importRecords('Date,Amount\n').error, 'noRows');
 });
 
 test('huge files are capped', () => {

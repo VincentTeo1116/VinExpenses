@@ -141,8 +141,9 @@ describe('public pages (PU-02)', () => {
   });
   it('the privacy policy names the host that really serves the site, and no feature that was not rebuilt', () => {
     const text = readFileSync(join(root, 'src/features/public/PrivacyPage.tsx'), 'utf8');
-    expect(text).toContain('Cloudflare Pages');
-    expect(text).not.toContain('GitHub Pages');
+    // Cloudflare serves the app; the previous GitHub Pages address only sends visitors on to it (and so sees their IP address)
+    expect(text).toContain('Cloudflare (website hosting)');
+    expect(text).toContain('GitHub Pages (the app&apos;s previous address)');
     // the policy names the map service the Nearby lookup uses, and still must not name features that do not exist
     expect(text).toMatch(/OpenStreetMap/);
     expect(text).toMatch(/Find places near me/);

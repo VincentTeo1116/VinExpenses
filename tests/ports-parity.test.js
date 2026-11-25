@@ -1,14 +1,16 @@
 // The TypeScript ports of the receipt reader, the category suggester and the CSV reader must behave exactly like the original files
-// (which the server and the older tests still use). Same inputs in, same answers out.
+// (the server's copies, and the old site's recorded answers). Same inputs in, same answers out.
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
 
-const legacyReceipt = require('../legacy/receipt-parser.js');
-const legacyEntry = require('../legacy/smart-entry.js');
-const legacyCsv = require('../legacy/csv-import.js');
+const legacyReceipt = require('../supabase/functions/_shared/receipt-parser.js');
+const legacyEntry = require('../supabase/functions/_shared/smart-entry.js');
+const { golden } = require('./helpers/golden.js');
+// the old site's CSV reader and Mini App helpers, replayed from their recorded answers (tests/fixtures/golden) now that legacy/ is gone
+const legacyCsv = golden('csv-import', () => require('../legacy/csv-import.js'));
 const load = (rel) => import(pathToFileURL(path.join(__dirname, '..', rel)).href);
 
 function rng(seed) {
@@ -173,10 +175,10 @@ test('monthly report numbers: totals, top merchants, category shares and the com
 });
 
 test('mini app: the words, the formatting helpers, the Telegram launch reader and the sample data match the original', async () => {
-    const legacyFormat = require('../legacy/miniapp/format.js');
-    const legacyI18n = require('../legacy/miniapp/i18n.js');
-    const legacyBridge = require('../legacy/miniapp/bridge.js');
-    const legacyDemo = require('../legacy/miniapp/demo.js');
+    const legacyFormat = golden('miniapp-format', () => require('../legacy/miniapp/format.js'));
+    const legacyI18n = golden('miniapp-i18n', () => require('../legacy/miniapp/i18n.js'));
+    const legacyBridge = golden('miniapp-bridge', () => require('../legacy/miniapp/bridge.js'));
+    const legacyDemo = golden('miniapp-demo', () => require('../legacy/miniapp/demo.js'));
     const fmt = await load('src/miniapp/format.ts');
     const dict = await load('src/miniapp/dict.ts');
     const bridge = await load('src/miniapp/bridge.ts');

@@ -1,19 +1,19 @@
-// AC-09: a gentle nudge on Home to connect Telegram, until it is connected or the person says "don't ask again".
-// The choice is kept with the account (so it holds on every device) and also on this device.
+// AC-09: a gentle nudge to connect Telegram. It lives at the bottom of the "Don't forget" pop-up, so it only ever appears to people who
+// have a saved fixed deposit or loan with something due (that is what Telegram reminders are for). Everyone else finds Telegram in Account.
+// It stops once Telegram is connected or the person says "don't ask again"; that choice is kept with the account and on this device.
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/app/AuthProvider';
 import { Button } from '@/components/Button';
 import { useToast } from '@/components/Toast';
 import { useI18n } from '@/lib/i18n';
 import { useTelegramStatus } from '@/features/account/useTelegram';
 import { CatIcon } from '@/components/CatIcon';
-import styles from './DashboardPage.module.css';
+import styles from './TelegramPrompt.module.css';
 
-export function TelegramPrompt() {
+/** The Telegram section of the reminder pop-up. `onConnect` closes the pop-up and opens Account at the Telegram card. */
+export function TelegramNudge({ onConnect }: { onConnect: () => void }) {
   const { t } = useI18n();
   const toast = useToast();
-  const navigate = useNavigate();
   const { client, session } = useAuth();
   const { status } = useTelegramStatus();
   const userId = session?.user?.id ?? '';
@@ -45,15 +45,17 @@ export function TelegramPrompt() {
 
   return (
     <section className={styles.nudge} aria-labelledby="tgp-title" data-testid="tg-prompt">
-      <CatIcon name="telegram" color="#0284c7" size={44} />
-      <div className={styles.nudgeText}>
-        <h2 id="tgp-title" className={styles.h2}>
-          {t('tgp.title')}
-        </h2>
-        <p className={styles.muted}>{t('tgp.body')}</p>
+      <div className={styles.row}>
+        <CatIcon name="telegram" color="#0284c7" size={40} />
+        <div className={styles.text}>
+          <h3 id="tgp-title" className={styles.title}>
+            {t('tgp.popTitle')}
+          </h3>
+          <p className={styles.body}>{t('tgp.body')}</p>
+        </div>
       </div>
-      <div className={styles.nudgeActions}>
-        <Button onClick={() => navigate('/app/account', { state: { focus: 'telegram' } })}>{t('tgp.connect')}</Button>
+      <div className={styles.actions}>
+        <Button onClick={onConnect}>{t('tgp.connect')}</Button>
         <Button variant="ghost" onClick={() => void hide()}>
           {t('tgp.hide')}
         </Button>

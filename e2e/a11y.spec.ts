@@ -1,7 +1,7 @@
 // A11Y-01: automated accessibility scan in light and dark, plus a keyboard-only walk through the frame.
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
-import { signInAs } from './helpers';
+import { accountView, leaveAccount, signInAs } from './helpers';
 
 const SCHEMES = ['light', 'dark'] as const;
 const SIZES = [
@@ -29,9 +29,9 @@ for (const scheme of SCHEMES) {
           await scan(page, `${path} ${scheme} ${size.width}`);
         }
         await page.goto('/app/account'); // a pop-up over Home
-        await expect(page.getByRole('dialog', { name: 'Account', exact: true })).toBeVisible();
+        await expect(accountView(page)).toBeVisible();
         await scan(page, `/app/account ${scheme} ${size.width}`);
-        await page.getByRole('dialog', { name: 'Account', exact: true }).getByRole('button', { name: 'Close' }).click();
+        await leaveAccount(page);
         await page.getByRole('button', { name: 'Add a transaction' }).first().click();
         await expect(page.getByRole('dialog')).toBeVisible();
         await scan(page, `add sheet ${scheme} ${size.width}`);

@@ -14,6 +14,7 @@ import { useFinanceData } from './data';
 import { dueReminders, type Reminder } from './finance';
 import { whenText } from './format';
 import styles from './finance.module.css';
+import { TelegramNudge } from '@/features/dashboard/TelegramPrompt';
 
 export function useReminderList(): { list: Reminder[]; loading: boolean } {
   const finance = useFinanceData();
@@ -100,6 +101,8 @@ export function ReminderPopup() {
           {t('rem.snooze')}
         </Button>
       </div>
+      {/* people with a deposit or loan due are the ones Telegram reminders help, so the suggestion lives here */}
+      <TelegramNudge onConnect={() => sheet.current?.close(() => navigate('/app/account', { state: { focus: 'telegram', from: '/app' } }))} />
       </div>
     </Sheet>
   );

@@ -34,7 +34,7 @@ describe('the headline (DB-02, DB-03)', () => {
 describe('same-days comparison (DB-02)', () => {
   it('this month so far is compared with the same days of last month, not the whole of it', () => {
     const expenses = [ex('100.00', '2026-10-05'), ex('900.00', '2026-10-25'), ex('150.00', '2026-11-04')];
-    expect(compareWithLastMonth(expenses, '2026-11', '2026-11-10')).toEqual({ percent: 50, throughDay: 10, previousMonth: '2026-10' });
+    expect(compareWithLastMonth(expenses, '2026-11', '2026-11-10')).toEqual({ percent: 50, diffCents: 5000, throughDay: 10, previousMonth: '2026-10' });
   });
   it('a finished month is compared with the whole of the one before', () => {
     const expenses = [ex('100.00', '2026-09-05'), ex('100.00', '2026-09-25'), ex('300.00', '2026-10-04')];

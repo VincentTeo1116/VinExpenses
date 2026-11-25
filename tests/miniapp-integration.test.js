@@ -8,7 +8,7 @@ const H = require('./helpers/tg-harness.js');
 const { A, CHAT_A, setup, message, deliver, link, seedChoices } = H;
 
 const root = path.join(__dirname, '..');
-const resolve = (...parts) => { const rel = path.join(...parts); const old = path.join(root, 'legacy', rel); return fs.existsSync(old) ? old : path.join(root, rel); };
+const resolve = (...parts) => path.join(root, ...parts);
 const read = (file) => fs.readFileSync(resolve(file), 'utf8');
 
 test.afterEach(() => { delete globalThis.Deno; });
@@ -60,54 +60,6 @@ test('bot: the command list, help text and every language mention the dashboard'
 });
 
 // The page Section
-test('page: strict security policy, only its own scripts, no inline code or styles, no third-party addresses', () => {
-    const html = read('miniapp/index.html');
-    const policy = html.match(/http-equiv="Content-Security-Policy"[^>]+content="([^"]*)"/)[1];
-    assert.match(policy, /default-src 'none'/);
-    assert.match(policy, /script-src 'self'(;|$)/);
-    assert.match(policy, /style-src 'self'(;|$)/, 'no inline styles at all');
-    assert.match(policy, /connect-src 'self' https:\/\/\*\.supabase\.co(;|$)/, 'pinned to one project at deploy');
-    assert.match(policy, /form-action 'none'/);
-    assert.match(policy, /object-src 'none'/);
-    assert.doesNotMatch(policy, /unsafe-inline|unsafe-eval|http:/);
-    const scripts = [...html.matchAll(/<script([^>]*)>/g)].map((m) => m[1]);
-    assert.ok(scripts.length >= 8);
-    for (const attrs of scripts) {
-        assert.match(attrs, /src="(\.\.\/)?[a-z0-9\-/.]+\.js"/, `a local file: ${attrs}`);
-        assert.doesNotMatch(attrs, /https?:|\/\//);
-    }
-    assert.doesNotMatch(html, /<script>[^<]|<style|\sstyle=|\son[a-z]+=/i);
-    assert.doesNotMatch(html, /telegram\.org\/js|cdn\./i, 'Telegram\'s own script is not loaded: the page speaks the protocol itself');
-    assert.match(html, /name="referrer" content="no-referrer"/);
-    // every script file named in the page exists
-    for (const attrs of scripts) {
-        const src = attrs.match(/src="([^"]+)"/)[1];
-        if (src === '../config.js') continue; // written from your secrets during the build, never committed
-        assert.ok(fs.existsSync(resolve('miniapp', src)), `${src} exists`);
-    }
-});
-
-test('page: code never writes HTML from raw data, never uses eval, and keeps the launch data out of storage beyond the tab', () => {
-    for (const file of ['app.js', 'views.js', 'bridge.js', 'api.js', 'format.js', 'demo.js']) {
-        const source = read(`miniapp/${file}`);
-        assert.doesNotMatch(source, /\beval\(|new Function\(|document\.write|insertAdjacentHTML|localStorage|\.outerHTML\s*=/, file);
-        assert.doesNotMatch(source, /fetch\(\s*['"]https?:/, `${file} makes no request to a fixed outside address`);
-    }
-    const app = read('miniapp/app.js');
-    for (const match of app.matchAll(/\.innerHTML\s*=\s*([^;]+);/g)) {
-        assert.match(match[1], /^(html|views\.[a-zA-Z]+\(\)|''|views \? views\.sheet\(\) : ''|state\.status === 'ready' \? views\.(monthBar|tabBar)\(\) : '')$/, `innerHTML only receives screen builders: ${match[1]}`);
-    }
-    assert.match(read('miniapp/bridge.js'), /sessionStorage/);
-});
-
-test('page: only this one folder is published for the Mini App, with its policy pinned like the other pages', () => {
-    const yml = read('.github/workflows/deploy.yml');
-    assert.match(yml, /cp -r legacy dist/);
-    assert.ok(fs.existsSync(resolve('miniapp/index.html')));
-    assert.match(yml, /pin-csp\.js dist\/index\.html dist\/email-action\.html dist\/miniapp\/index\.html/);
-    for (const file of fs.readdirSync(resolve('miniapp'))) assert.match(file, /^[a-z0-9.\-]+\.(js|css|html)$/, `only page files live in miniapp/: ${file}`);
-});
-
 // The data service Section
 test('service: signature is checked before any database access, every query is scoped to the verified user', () => {
     const handler = read('supabase/functions/miniapp-api/handler.ts');
@@ -126,5 +78,5 @@ test('service: the data service address is the only thing the page can reach, an
     const guard = read('supabase/functions/_shared/guard.ts');
     assert.match(guard, /x-telegram-init-data/);
     assert.doesNotMatch(guard, /Access-Control-Allow-Origin["']?:\s*["']\*/);
-    assert.match(read('miniapp/api.js'), /\/functions\/v1\/miniapp-api/);
+    assert.match(read('src/miniapp/api.ts'), /\/functions\/v1\/miniapp-api/);
 });

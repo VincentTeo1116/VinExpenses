@@ -26,7 +26,7 @@ test('the signed-in app runs with no policy violation, no console error and no i
   await page.keyboard.press('Escape');
   await page.goto('/app/account');
   await page.getByLabel('Language').selectOption('zh');
-  await expect(page.getByRole('dialog', { name: '账户' })).toBeVisible();
+  await expect(page.getByRole('dialog', { name: '账户', exact: true }).or(page.getByRole('region', { name: '账户', exact: true }))).toBeVisible();
 
   expect(await cspViolations(page)).toEqual([]);
   expect(problems.filter((p) => !/Failed to load resource|net::ERR/.test(p))).toEqual([]);
