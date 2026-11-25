@@ -103,7 +103,7 @@ export function scoreLabel(label: unknown): number {
   let negative = 0;
   for (const [re, weight] of NEGATIVE_RULES) if (re.test(l)) negative += weight;
   // "TOTAL (INCL. TAX)" mentions tax but is the amount you pay: undo the tax/fee penalty
-  if (positive && /incl(?:uding|usive|uded|\.)?\s*(?:of\s*)?(?:tax|sst|gst)|tax\s*\(?(?:incl|included)/.test(l)) negative = Math.max(negative, negative + 6);
+  if (positive && /incl(?:uding|usive|uded|\.)?\s*(?:of\s*)?(?:tax|sst|gst)|tax\s*\(?(?:incl|included)|(?:with|plus)\s*(?:service\s*)?(?:tax|sst|gst|vat)/.test(l)) negative = Math.max(negative, negative + 6);
   return positive + Math.min(0, negative);
 }
 
@@ -158,6 +158,8 @@ export interface Candidate {
 }
 interface Total {
   amount: number;
+  /** The receipt line the amount was read from (shown to the person so they can confirm it at a glance). */
+  evidence?: string;
   confidence: Confidence;
   currency: string | null;
   candidates: Candidate[];
@@ -186,7 +188,16 @@ function pickTotal(lines: string[]): Total {
   });
 
   const usable = tokens.filter((t) => t.value > 0 && !t.negative && !t.converted);
-  if (!usable.length) return { amount: 0, confidence: 'none', candidates: [], currency: null };
+  if (!usable.length) {
+    // An e-wallet payment screen shows what you paid as "-RM 163.92" (money out). With nothing else to go on, and words that say it is a
+    // payment, that amount is the answer.
+    const paid = tokens.filter((t) => t.value > 0 && t.negative && !t.converted && (!t.currency || t.currency === 'MYR'));
+    if (paid.length && /\b(?:payment|paid|transaction|purchase|debit|bayaran|pembayaran|successful(?:ly)?)\b/i.test(lines.join('\n'))) {
+      const top = [...paid].sort((a, b) => b.value - a.value)[0] as Token;
+      return { amount: top.value, confidence: 'medium', currency: 'MYR', evidence: lines[top.line] as string, candidates: [{ amount: top.value, label: 'Payment', score: 9, currency: 'MYR', verified: false }] };
+    }
+    return { amount: 0, confidence: 'none', candidates: [], currency: null };
+  }
 
   const arithmetic = arithmeticTargets(tokens);
   const groups = new Map<string, Group>();
@@ -251,7 +262,7 @@ function pickTotal(lines: string[]): Total {
     }
     return result;
   }
-  return { amount: best.value, confidence, currency: best.currency || 'MYR', candidates };
+  return { amount: best.value, confidence, currency: best.currency || 'MYR', candidates, evidence: best.best ? (lines[best.best.line] as string) : '' };
 }
 
 // ---- dates ----
@@ -305,6 +316,8 @@ export function parseDate(lines: string[], nowIn?: Date): string {
       const near = `${line.slice(Math.max(0, hit.index - 30), hit.index + 1).toLowerCase()} ${(lines[i - 1] || '').toLowerCase()}`;
       if (/pick-?up|order\s*time|transaction|invoice\s*date|date\s*of\s*(?:issue|invoice)|printed\s*on|tarikh|日期/.test(near)) weight += 3;
       else if (/\bdate\b|\btime\b/.test(near)) weight += 2;
+      // "Invoice" or "Receipt" on its own line, then the date: that is the document's date (not, say, the date an email was forwarded)
+      if (/^(?:tax\s*)?(?:invoice|receipt)\s*:?$/i.test((lines[i - 1] || '').trim())) weight = Math.max(weight, 3);
       if (/\bdue\b|expir|valid\s*until|birth|到期/.test(context.toLowerCase())) weight -= 3;
       if (!best || weight > best.weight) best = { iso: hit.iso, weight };
     }
@@ -389,8 +402,49 @@ export interface ParsedReceipt {
   currency: string | null;
   date: string;
   template: string;
-  hints: { category?: string };
+  hints: { category?: string; payment?: string };
+  /** The receipt line the amount came from, when it was filled in. */
+  amountEvidence: string;
   warnings: string[];
+}
+
+
+// ---- extras: a tidy merchant name, the payment method, and the line the total came from ----
+/** "THE CONTS SDN BHD (1521322-V)" -> "The Conts Sdn Bhd"; "99 SPEEDMART KB 12" -> "99 Speedmart". Names that are not all capitals are left alone. */
+const SHORT_WORDS = new Set(['the', 'and', 'sdn', 'bhd', 'co', 'ltd', 'llp', 'plt']);
+export function tidyMerchant(name: unknown): string {
+  let s = String(name || '')
+    .replace(/\s*\(\s*\d{4,}\s*-?\s*[A-Za-z]?\s*\)/g, '') // company registration number
+    .replace(/\s*-\s*(?:branch|outlet|cawangan)\b.*$/i, '')
+    .replace(/\s+(?:branch|outlet|cawangan|store|kedai)\s*#?\d+$/i, '')
+    .replace(/\s+#\d+$/, '')
+    .replace(/\s+[A-Z]{1,3}\s?\d{1,3}$/, '') // a store code such as "KB 12"
+    .replace(/\s+/g, ' ')
+    .trim();
+  const capitals = s !== '' && !/[a-z]/.test(s) && /[A-Z]{4}/.test(s);
+  if (capitals) {
+    s = s.replace(/(\S{3,}) \d{1,3}$/, '$1'); // a bare branch number after a long capitalised name ("99 SPEEDMART 12")
+    s = s
+      .split(' ')
+      .map((word) => {
+        const letters = word.replace(/[^A-Za-z]/g, '');
+        if (letters.length <= 3 && !SHORT_WORDS.has(letters.toLowerCase())) return word; // KFC, TSL, F&B stay as they are
+        return word.charAt(0) + word.slice(1).toLowerCase();
+      })
+      .join(' ');
+  }
+  return s.slice(0, 80);
+}
+
+const PAYMENT_FAMILIES: [string, RegExp][] = [
+  ['ewallet', /touch\s*['`]?\s*n\s*['`]?\s*go|\btng\b|grab\s*pay|\bboost\b|shopee\s*pay|\bbigpay\b|e-?wallet|duitnow\s*qr|alipay|wechat\s*pay|\bsetel\b|paylater/i],
+  ['card', /\bvisa\b|master\s*card|\bamex\b|american\s*express|credit\s*card|debit\s*card|card\s*payment/i],
+  ['bank', /\bfpx\b|online\s*banking|bank\s*transfer|\bibg\b|duitnow\s*transfer|\bgiro\b/i],
+];
+/** The payment method the receipt names (e-wallet, card or bank), only when it names exactly one kind. */
+export function paymentHint(text: string): { payment?: string } {
+  const found = PAYMENT_FAMILIES.filter(([, re]) => re.test(text)).map(([key]) => key);
+  return found.length === 1 ? { payment: found[0] as string } : {};
 }
 
 /** "TOTAL 1 2.50" (OCR split the digits): rejoin when a total-like label is followed by "d dd.dd" */
@@ -408,16 +462,18 @@ export function parseReceiptText(text: unknown, options: { now?: Date } = {}): P
   const warnings: string[] = [];
   if (total.currency && total.currency !== 'MYR' && total.amount) warnings.push(`The amount looks like ${total.currency}, not RM. Check it.`);
   if (total.foreignTotal) warnings.push(`This receipt is in ${total.foreignTotal.currency} (${total.foreignTotal.amount.toFixed(2)}), not RM. Enter the ringgit amount you actually paid.`);
+  const filled = total.confidence === 'high' || total.confidence === 'medium';
   return {
-    merchant,
-    amount: total.confidence === 'high' || total.confidence === 'medium' ? total.amount : 0,
+    merchant: tidyMerchant(merchant),
+    amount: filled ? total.amount : 0,
+    amountEvidence: filled ? (total.evidence || '').slice(0, 80) : '',
     bestGuess: total.amount || (total.candidates[0] ? total.candidates[0].amount : 0),
     amountConfidence: total.confidence,
     amountCandidates: total.candidates,
     currency: total.currency,
     date: parseDate(lines, options.now),
     template: template.id,
-    hints: template.category ? { category: template.category } : {},
+    hints: { ...(template.category ? { category: template.category } : {}), ...paymentHint(normalized) },
     warnings,
   };
 }

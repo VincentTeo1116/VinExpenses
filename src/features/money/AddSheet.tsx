@@ -67,6 +67,10 @@ function AddBody({ request, onClose }: { request: AddRequest; onClose: () => voi
   const [scanNote, setScanNote] = useState<{ text: string; bad: boolean } | null>(null);
   const [candidates, setCandidates] = useState<{ list: Candidate[]; unsure: boolean }>({ list: [], unsure: false });
   const fileInput = useRef<HTMLInputElement>(null);
+  const cameraInput = useRef<HTMLInputElement>(null);
+  const [chooser, setChooser] = useState(false);
+  // Phones and tablets get the Take a photo / Choose a file choice; a computer goes straight to the file picker.
+  const hasCamera = typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches;
   const categoryBox = useRef<HTMLDivElement>(null);
   const [scanInfo, setScanInfo] = useState(false);
 
@@ -268,7 +272,8 @@ function AddBody({ request, onClose }: { request: AddRequest; onClose: () => voi
               <div className={styles.scan}>
                 <input ref={fileInput} type="file" accept="image/jpeg,image/png,image/webp,application/pdf" className={styles.fileInput} tabIndex={-1} aria-hidden="true" data-testid="receipt-file" onChange={(event) => void onReceipt(event)} />
                 <div className={styles.scanRow}>
-                  <Button variant="outline" block loading={scanning} onClick={() => fileInput.current?.click()}>
+                  <input ref={cameraInput} type="file" accept="image/*" capture="environment" className={styles.fileInput} tabIndex={-1} aria-hidden="true" data-testid="receipt-camera" onChange={(event) => void onReceipt(event)} />
+                  <Button variant="outline" block loading={scanning} aria-expanded={hasCamera ? chooser : undefined} onClick={() => (hasCamera ? setChooser((open) => !open) : fileInput.current?.click())}>
                     {scanning ? t('scan.reading') : t('scan.button')}
                   </Button>
                   {/* how scanning treats the file, one tap away instead of three lines on every visit */}
@@ -276,6 +281,18 @@ function AddBody({ request, onClose }: { request: AddRequest; onClose: () => voi
                     <Icon name="info" size={20} />
                   </button>
                 </div>
+                {chooser && hasCamera ? (
+                  <div className={styles.chooser} role="group" aria-label={t('scan.button')}>
+                    <button type="button" className={styles.chooseBtn} onClick={() => { setChooser(false); cameraInput.current?.click(); }}>
+                      <Icon name="camera" size={22} />
+                      <span><b>{t('scan.takePhoto')}</b><small>{t('scan.takePhotoHint')}</small></span>
+                    </button>
+                    <button type="button" className={styles.chooseBtn} onClick={() => { setChooser(false); fileInput.current?.click(); }}>
+                      <Icon name="receipt" size={22} />
+                      <span><b>{t('scan.chooseFile')}</b><small>{t('scan.chooseFileHint')}</small></span>
+                    </button>
+                  </div>
+                ) : null}
                 <p id="scan-hint" className={styles.scanHint} hidden={!scanInfo}>
                   {t('scan.hint')}
                 </p>

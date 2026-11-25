@@ -219,12 +219,26 @@ async function ocr(imageData: string, context: OcrContext): Promise<string> {
 export interface Scanned extends ParsedReceipt {
   text: string;
   source: 'pdf-text' | 'ocr';
+  /** Where the time went, in milliseconds: getting the file ready, the OCR call, and everything together. Stays on the device. */
+  timings: { prepMs: number; ocrMs: number; totalMs: number };
 }
 
 /** Reads a receipt file and works out merchant, amount and date. Throws a ScanError with what went wrong. */
 export async function scanReceipt(file: File, context: OcrContext, onStep?: (step: 'pdf' | 'scan' | 'image' | 'text') => void): Promise<Scanned> {
   let texts: string[] = [];
   let source: Scanned['source'] = 'ocr';
+  const started = performance.now();
+  let ocrMs = 0;
+  let prepMs = 0;
+  const timedOcr = async (imageData: string): Promise<string> => {
+    prepMs = performance.now() - started;
+    const t = performance.now();
+    try {
+      return await withTimeout(ocr(imageData, context), 45_000, 'ocrSlow');
+    } finally {
+      ocrMs = performance.now() - t;
+    }
+  };
   if (isPdf(file)) {
     onStep?.('pdf');
     const pdf = await withTimeout(readPdf(file), 40_000, 'pdfSlow');
@@ -233,15 +247,19 @@ export async function scanReceipt(file: File, context: OcrContext, onStep?: (ste
       source = 'pdf-text';
     } else {
       onStep?.('scan');
-      texts = [await withTimeout(ocr(pdf.imageData, context), 45_000, 'ocrSlow')];
+      texts = [await timedOcr(pdf.imageData)];
     }
   } else {
     onStep?.('image');
     const imageData = await withTimeout(compressImage(file), 30_000, 'prepSlow');
     onStep?.('text');
-    texts = [await withTimeout(ocr(imageData, context), 45_000, 'ocrSlow')];
+    texts = [await timedOcr(imageData)];
   }
   if (!texts.join('').trim()) throw new ScanError('noText');
   const best = parseBest(texts);
-  return { ...best, source };
+  const totalMs = performance.now() - started;
+  if (!prepMs) prepMs = totalMs;
+  const timings = { prepMs: Math.round(prepMs), ocrMs: Math.round(ocrMs), totalMs: Math.round(totalMs) };
+  if (import.meta.env.DEV) console.debug('[scan] timings (ms)', timings);
+  return { ...best, source, timings };
 }

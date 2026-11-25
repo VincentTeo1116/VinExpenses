@@ -49,7 +49,7 @@ export function AppRoutes() {
       <Route path="/welcome" element={<WelcomePage />} />
       <Route path="/privacy" element={<PrivacyPage />} />
       <Route path="/terms" element={<TermsPage />} />
-      <Route path="/welcome.html" element={<Navigate to="/" replace />} />
+      <Route path="/welcome.html" element={<Navigate to="/welcome" replace />} />
       <Route path="/privacy.html" element={<Navigate to="/privacy" replace />} />
       <Route path="/terms.html" element={<Navigate to="/terms" replace />} />
       <Route path="/auth" element={<AuthPage />} />

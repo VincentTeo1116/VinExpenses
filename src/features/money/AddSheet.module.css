@@ -217,3 +217,26 @@
     animation: none;
   }
 }
+
+/* Take a photo / Choose a file, shown under the scan button on phones and tablets */
+.chooser {
+  display: grid;
+  gap: var(--s-2);
+  margin-top: var(--s-2);
+}
+.chooseBtn {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  min-height: var(--tap);
+  padding: var(--s-2) var(--s-3);
+  border-radius: var(--r-md);
+  border: 1.5px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  text-align: left;
+}
+.chooseBtn small {
+  display: block;
+  color: var(--muted);
+}

@@ -240,3 +240,30 @@ test('content-order text: pdf.js ends a line with a separate EMPTY item (this is
     assert.equal(parse(text).amount, 125.40);
     assert.equal(pdfContentOrderToText([{ str: '', hasEOL: true }]), '', 'a marker with nothing before it adds nothing');
 });
+
+// ---- scan upgrades (anonymised, invented text) ----
+test('"Total with Service Tax" is the amount you pay, and is filled in', () => {
+    const r = parse('Sample Catering Sdn Bhd\nInvoice\n04 Nov 2026\nSubtotal 971.99\nService Tax 8% 58.33\nInvoice Total with Service Tax RM 1,030.32');
+    assert.equal(r.amount, 1030.32);
+    assert.equal(r.amountConfidence, 'high');
+    assert.match(r.amountEvidence, /1,030\.32/);
+});
+
+test('an e-wallet payment screen shows money out as a negative amount, and that is the amount paid', () => {
+    const r = parse('Payment successful\n-RM163.92\nPaid with Touch n Go eWallet\n12 Oct 2026');
+    assert.equal(r.amount, 163.92);
+    assert.equal(r.hints.payment, 'ewallet');
+});
+
+test('a negative amount with no payment wording is still not guessed', () => {
+    assert.equal(parse('Credit note\n-RM20.00').amount, 0);
+});
+
+test('merchant names are tidied: registration number and capitals', () => {
+    assert.equal(parse('THE CONTS SDN BHD (1521322-V)\nTotal RM 10.00\n12 Oct 2026').merchant, 'The Conts Sdn Bhd');
+});
+
+test('payment method is only suggested when the receipt names one kind', () => {
+    assert.deepEqual(parse('Shop Sdn Bhd\nVISA ****1234\nTotal RM 10.00').hints, { payment: 'card' });
+    assert.equal(parse('Shop Sdn Bhd\nVISA ****1234\nTouch n Go eWallet\nTotal RM 10.00').hints.payment, undefined);
+});
