@@ -67,7 +67,7 @@ describe('Google Analytics in the policy (AN-01)', () => {
     const file = headersFile(base, '', withGa);
     const [everywhere, rest] = file.split(/^\/miniapp\/\*/m);
     expect(everywhere).toContain(`Content-Security-Policy: ${base}`);
-    for (const page of ['/', '/index.html', '/welcome', '/privacy', '/terms']) {
+    for (const page of ['/', '/index', '/index/', '/index.html', '/welcome', '/privacy', '/terms']) {
       expect(everywhere).toMatch(new RegExp(`^${page}\\n  ! Content-Security-Policy\\n  Content-Security-Policy: .*googletagmanager`, 'm'));
     }
     for (const page of ['/app', '/auth']) expect(everywhere).not.toMatch(new RegExp(`^${page}\\n  ! Content-Security-Policy`, 'm'));
