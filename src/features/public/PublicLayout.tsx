@@ -1,6 +1,7 @@
 // The frame around the public pages (welcome, privacy, terms): a header that settles as you scroll, and a footer.
 import { useEffect, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
+import { AnalyticsConsent } from '@/features/analytics/AnalyticsConsent';
 import styles from './PublicLayout.module.css';
 
 /** Sets the tab title and description for a public page (the page is drawn by the app, so these are set here). */
@@ -75,6 +76,7 @@ export function PublicLayout({ children, nav }: { children: ReactNode; nav?: Rea
           </nav>
         </div>
       </footer>
+      <AnalyticsConsent />
     </div>
   );
 }

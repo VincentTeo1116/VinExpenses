@@ -72,6 +72,8 @@ Tests: `src/**/*.test.ts(x)` (unit/component, Vitest) · `e2e/*.spec.ts` (browse
 | MN-01 scan statistics | Partly | `scan-log.ts`, `receipt-ocr`, Admin system tab | `tests/telegram-parts.test.js`, `admin.spec.ts`; **the scan_events table must be created in Supabase (see supabase-schema.sql)** |
 | TX-06 future-dated record warning | Verified | `AddSheet` | `polish.spec.ts` |
 | ON-01 first-time guided tour | Verified | `Tour.tsx`, `tourStore.ts` | `tour.spec.ts` |
+| AN-01 Google Analytics on the public pages, after consent | Verified in a browser with Google blocked | `analytics.ts`, `AnalyticsConsent`, `headers.mts` (public pages only), `PrivacyPage` | `analytics.test.tsx`, `security.test.ts`; **the real Google property and its reports were not checked** |
+| AN-02 readable sitemap | Verified | `seo.mts`, `headers.mts` (no page policy on sitemap.xml) | `seo.test.js`, `public.spec.ts` |
 | CT-01 categorisation order and brand lists | Verified | `smartEntry.ts`, `knownMerchants.ts` | `ports-parity.test.js` (every brand in every list), `entry.spec.ts` |
 | CS-01 CSV export and import | Verified | `csv.ts`, `plan.ts`, `DataCard` | `ports-parity.test.js`, `plan.test.ts`, `entry.spec.ts` |
 

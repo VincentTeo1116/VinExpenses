@@ -30,6 +30,15 @@ test('the sitemap lists exactly the public pages', async () => {
     assert.ok(!/\/app|\/auth/.test(xml));
 });
 
+test('the sitemap is readable, indented XML with a change hint for each public page', async () => {
+    const { sitemapXml } = await load();
+    const xml = sitemapXml('https://vin.pages.dev', '2026-11-24');
+    assert.ok(xml.startsWith('<?xml version="1.0" encoding="UTF-8"?>' + String.fromCharCode(10) + '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' + String.fromCharCode(10) + '  <url>' + String.fromCharCode(10)));
+    assert.ok(xml.includes(['  <url>', '    <loc>https://vin.pages.dev/</loc>', '    <lastmod>2026-11-24</lastmod>', '    <changefreq>weekly</changefreq>', '    <priority>1.0</priority>', '  </url>'].join(String.fromCharCode(10))));
+    assert.equal([...xml.matchAll(/<url>/g)].length, 3);
+    assert.ok(!xml.includes('xml-stylesheet'), 'XSLT is gone from browsers, so no stylesheet is linked');
+});
+
 test('social tags are escaped, and absolute links appear only with a known address', async () => {
     const { seoTags } = await load();
     assert.ok(!/og:image/.test(seoTags('')));

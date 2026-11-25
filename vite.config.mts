@@ -30,7 +30,7 @@ function slimSupabasePlugin(): Plugin {
 }
 
 /** In production the policy is also written into the page, so hosts that cannot send headers are still protected. */
-function cspPlugin(supabaseUrl: string, turnstile: boolean): Plugin {
+function cspPlugin(supabaseUrl: string, turnstile: boolean, analytics: boolean): Plugin {
   return {
     name: 'vinexpenses-csp',
     apply: 'build',
@@ -39,7 +39,7 @@ function cspPlugin(supabaseUrl: string, turnstile: boolean): Plugin {
       handler: (html) =>
         html.replace(
           '<!-- CSP -->',
-          `<meta http-equiv="Content-Security-Policy" content="${buildCsp(supabaseUrl, turnstile, true, [], true)}" />`,
+          `<meta http-equiv="Content-Security-Policy" content="${buildCsp(supabaseUrl, turnstile, true, [], true, analytics)}" />`,
         ),
     },
   };
@@ -53,7 +53,9 @@ function seoPlugin(siteUrl: string): Plugin {
     transformIndexHtml: { order: 'pre', handler: (html) => html.replace('<!-- SEO -->', seoTags(siteUrl)) },
     generateBundle() {
       this.emitFile({ type: 'asset', fileName: 'robots.txt', source: robotsTxt(siteUrl) });
-      if (siteUrl) this.emitFile({ type: 'asset', fileName: 'sitemap.xml', source: sitemapXml(siteUrl, new Date().toISOString().slice(0, 10)) });
+      if (siteUrl) {
+        this.emitFile({ type: 'asset', fileName: 'sitemap.xml', source: sitemapXml(siteUrl, new Date().toISOString().slice(0, 10)) });
+      }
     },
   };
 }
@@ -75,12 +77,12 @@ function appPagesPlugin(): Plugin {
   };
 }
 
-function headersPlugin(csp: string, miniCsp: string): Plugin {
+function headersPlugin(csp: string, miniCsp: string, analyticsCsp = ''): Plugin {
   return {
     name: 'vinexpenses-headers',
     apply: 'build',
     generateBundle() {
-      this.emitFile({ type: 'asset', fileName: '_headers', source: headersFile(csp, miniCsp) });
+      this.emitFile({ type: 'asset', fileName: '_headers', source: headersFile(csp, miniCsp, analyticsCsp) });
     },
   };
 }
@@ -121,15 +123,17 @@ function ocrAssetsPlugin(): Plugin {
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), 'VITE_');
   const turnstile = Boolean(env.VITE_TURNSTILE_SITE_KEY);
+  // Google Analytics only when a measurement ID is given at build time (the tests and local builds leave it out)
+  const analytics = /^G-[A-Z0-9]{6,14}$/.test(env.VITE_GA_ID ?? '');
   return {
     plugins: [
       react(),
       slimSupabasePlugin(),
-      cspPlugin(env.VITE_SUPABASE_URL ?? '', turnstile),
+      cspPlugin(env.VITE_SUPABASE_URL ?? '', turnstile, analytics),
       seoPlugin(cleanSiteUrl(env.VITE_SITE_URL)),
       appPagesPlugin(),
       ocrAssetsPlugin(),
-      headersPlugin(buildCsp(env.VITE_SUPABASE_URL ?? '', turnstile, false, [], true), buildCsp(env.VITE_SUPABASE_URL ?? '', false, false, TELEGRAM_ORIGINS)),
+      headersPlugin(buildCsp(env.VITE_SUPABASE_URL ?? '', turnstile, false, [], true), buildCsp(env.VITE_SUPABASE_URL ?? '', false, false, TELEGRAM_ORIGINS), analytics ? buildCsp(env.VITE_SUPABASE_URL ?? '', turnstile, false, [], true, true) : ''),
       VitePWA({
         // The page registers the worker itself (no inline script), see src/app/pwa.ts
         injectRegister: false,

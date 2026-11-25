@@ -46,6 +46,35 @@ describe('source code rules (SEC-04)', () => {
   });
 });
 
+describe('Google Analytics in the policy (AN-01)', () => {
+  const base = buildCsp('https://abcd.supabase.co', true);
+  const withGa = buildCsp('https://abcd.supabase.co', true, false, [], true, true);
+
+  it('is absent from the normal policy, so the signed-in app never allows it', () => {
+    expect(base).not.toMatch(/google|gtag/i);
+    expect(headersFile(base)).not.toMatch(/googletagmanager|google-analytics/);
+  });
+
+  it('is added to scripts, connections and images only when asked, and nothing else loosens', () => {
+    expect(withGa).toContain("script-src 'self' https://challenges.cloudflare.com https://www.googletagmanager.com");
+    expect(withGa).toMatch(/connect-src [^;]*https:\/\/\*\.google-analytics\.com/);
+    expect(withGa).toMatch(/img-src 'self' data: blob: https:\/\/www\.googletagmanager\.com/);
+    expect(withGa).not.toMatch(/unsafe-inline|unsafe-eval/);
+    expect(withGa).toContain("default-src 'none'");
+  });
+
+  it('the headers give it to the four public pages only, and the stricter rule stays everywhere else', () => {
+    const file = headersFile(base, '', withGa);
+    const [everywhere, rest] = file.split(/^\/miniapp\/\*/m);
+    expect(everywhere).toContain(`Content-Security-Policy: ${base}`);
+    for (const page of ['/', '/welcome', '/privacy', '/terms']) {
+      expect(everywhere).toMatch(new RegExp(`^${page}\\n  ! Content-Security-Policy\\n  Content-Security-Policy: .*googletagmanager`, 'm'));
+    }
+    for (const page of ['/app', '/auth']) expect(everywhere).not.toMatch(new RegExp(`^${page}\\n  ! Content-Security-Policy`, 'm'));
+    expect(rest ?? '').not.toMatch(/googletagmanager/);
+  });
+});
+
 describe('Content-Security-Policy (SEC-01)', () => {
   const csp = buildCsp('https://abcd.supabase.co', false);
   const directive = (name: string) => (csp.split(';').map((d) => d.trim()).find((d) => d.startsWith(`${name} `)) ?? '').split(/\s+/).slice(1);

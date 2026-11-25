@@ -70,6 +70,8 @@ jobs:
           VITE_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
           VITE_TURNSTILE_SITE_KEY: ${{ secrets.TURNSTILE_SITE_KEY }}
           VITE_SITE_URL: ${{ vars.SITE_URL || 'https://vinexpenses.tkqvincent2.workers.dev' }}
+          # public value: the Google Analytics measurement ID for the public pages (set the repository variable GA_MEASUREMENT_ID to change it)
+          VITE_GA_ID: ${{ vars.GA_MEASUREMENT_ID || 'G-5CEMNWXB0K' }}
         run: npm run build
 
       # Uploads dist/ as described in wrangler.jsonc. The Wrangler version is pinned.

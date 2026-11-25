@@ -22,6 +22,7 @@ const types = {
   '.svg': 'image/svg+xml',
   '.woff2': 'font/woff2',
   '.txt': 'text/plain; charset=utf-8',
+  '.xml': 'application/xml',
 };
 
 async function readRules(file) {
@@ -92,7 +93,7 @@ createServer(async (request, response) => {
       if (path.endsWith('.html') && path !== '/404.html') return redirect(path.endsWith('/index.html') ? path.slice(0, -'index.html'.length) : path.slice(0, -'.html'.length));
       return send(response, 200, file, path);
     }
-    if (path === '/') return send(response, 200, join(root, 'index.html'), '/index.html');
+    if (path === '/') return send(response, 200, join(root, 'index.html'), '/', '/index.html'); // headers by the address asked for, the cache rule of the file itself
 
     // clean addresses: /x is x.html (or x/index.html); /x/ is x/index.html, or goes to /x when only x.html exists
     const bare = safe.replace(/[/\\]+$/, '');

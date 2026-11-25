@@ -19,8 +19,19 @@ export function robotsTxt(siteUrl: string): string {
   return `${lines.join('\n')}\n`;
 }
 
+/** How often each public page changes and how important it is (search engines treat these as hints only). */
+const PAGE_HINTS: Record<string, { changefreq: string; priority: string }> = {
+  '/': { changefreq: 'weekly', priority: '1.0' },
+  '/privacy': { changefreq: 'monthly', priority: '0.5' },
+  '/terms': { changefreq: 'monthly', priority: '0.5' },
+};
+
+/** The sitemap: valid, indented XML. A person who opens it in a browser sees it in the browser's own XML viewer (the headers let that viewer style itself). */
 export function sitemapXml(siteUrl: string, today: string): string {
-  const urls = PUBLIC_PATHS.map((p) => `  <url><loc>${siteUrl}${p}</loc><lastmod>${today}</lastmod></url>`).join('\n');
+  const urls = PUBLIC_PATHS.map((p) => {
+    const hint = PAGE_HINTS[p] ?? { changefreq: 'monthly', priority: '0.5' };
+    return `  <url>\n    <loc>${siteUrl}${p}</loc>\n    <lastmod>${today}</lastmod>\n    <changefreq>${hint.changefreq}</changefreq>\n    <priority>${hint.priority}</priority>\n  </url>`;
+  }).join('\n');
   return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`;
 }
 
@@ -29,7 +40,7 @@ const escape = (text: string) => text.replace(/&/g, '&amp;').replace(/"/g, '&quo
 /** Tags for the page shell. Social apps read these without running any script, so they are written into the HTML itself. */
 export function seoTags(siteUrl: string): string {
   const title = 'VinExpenses: track spending, budgets, deposits and loans';
-  const description = 'A free expense tracker for Malaysia: scan receipts, set budgets, plan fixed deposits and loans, and get reminders. No ads, no tracking.';
+  const description = 'A free expense tracker for Malaysia: scan receipts, set budgets, plan fixed deposits and loans, and get reminders. No ads, and your records stay private.';
   const tags = [
     `<meta property="og:type" content="website" />`,
     `<meta property="og:site_name" content="VinExpenses" />`,

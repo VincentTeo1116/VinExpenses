@@ -90,3 +90,19 @@ test('coming back from Google onto the front page goes on to sign-in (and so int
   await page.goto('/');
   await expect(page.getByRole('heading', { level: 1 })).toContainText('Know where your money goes');
 });
+
+test('the sitemap is plain, indented XML listing the three public pages, and the browser can show it formatted (AN-02)', async ({ request, page }) => {
+  const res = await request.get('/sitemap.xml');
+  expect(res.status()).toBe(200);
+  expect(res.headers()['content-type']).toContain('xml');
+  // no page policy on this one data file: with it, the browser's own XML viewer cannot style itself and the sitemap looks like loose text
+  expect(res.headers()['content-security-policy']).toBeUndefined();
+  const xml = await res.text();
+  expect(xml).toMatch(/^<\?xml version="1.0" encoding="UTF-8"\?>\n<urlset xmlns="http:\/\/www.sitemaps.org\/schemas\/sitemap\/0.9">\n {2}<url>\n {4}<loc>/);
+  expect([...xml.matchAll(/<loc>(.*?)<\/loc>/g)].map((m) => new URL(m[1] as string).pathname)).toEqual(['/', '/privacy', '/terms']);
+  const problems: string[] = [];
+  page.on('console', (m) => { if (m.type() === 'error') problems.push(m.text()); });
+  await page.goto('/sitemap.xml');
+  await expect(page.locator('#xml-viewer-style')).toHaveCount(1);
+  expect(problems.filter((p) => /Content Security Policy/i.test(p))).toEqual([]);
+});

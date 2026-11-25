@@ -203,7 +203,7 @@ export function WelcomePage() {
           </Reveal>
           <div className={styles.grid4}>
             {[
-              ['No ads, no tracking', 'There are no advertising or analytics scripts. The app loads its code from this site only.'],
+              ['No ads, no tracking inside the app', 'There are no ads, and nothing inside the app is tracked. These public pages count visits with Google Analytics only if you say yes.'],
               ['Only you can see your records', 'Every record is tied to your account and protected by database rules, so one account cannot read another’s data.'],
               ['Take it with you', 'Export everything as a spreadsheet at any time, from Account in the app.'],
               ['Delete it for good', 'Delete your account from inside the app and your records are removed from the server.'],

@@ -8,22 +8,29 @@ export const TELEGRAM_ORIGINS = ['https://web.telegram.org', 'https://webk.teleg
 /** The two public map services the browser asks for places near the person ("Find places near me"). Allowed for the website only, never for the Mini App. */
 export const MAP_ORIGINS = ['https://photon.komoot.io', 'https://overpass-api.de'];
 
-/** `maps` lets the page ask those map services directly (see MAP_ORIGINS). */
-export function buildCsp(supabaseUrl: string, turnstile: boolean, meta = false, ancestors: string[] = [], maps = false): string {
+/** Google Analytics, for the public pages only (see src/features/analytics). The signed-in app's own headers never list these. */
+export const ANALYTICS_SCRIPT = ['https://www.googletagmanager.com'];
+export const ANALYTICS_CONNECT = ['https://www.googletagmanager.com', 'https://www.google-analytics.com', 'https://*.google-analytics.com', 'https://*.analytics.google.com'];
+export const ANALYTICS_IMG = ['https://www.googletagmanager.com', 'https://www.google-analytics.com', 'https://*.google-analytics.com'];
+/** The pages that may load analytics (after a Yes). */
+export const ANALYTICS_PAGES = ['/', '/welcome', '/privacy', '/terms'];
+
+/** `maps` lets the page ask those map services directly (see MAP_ORIGINS). `analytics` adds Google Analytics (only the public pages get it in the headers). */
+export function buildCsp(supabaseUrl: string, turnstile: boolean, meta = false, ancestors: string[] = [], maps = false, analytics = false): string {
   let origin = '';
   try {
     origin = new URL(supabaseUrl).origin;
   } catch {
     origin = '';
   }
-  const connect = ["'self'", origin, ...(maps ? MAP_ORIGINS : [])].filter(Boolean).join(' ');
-  const scripts = ["'self'", turnstile ? 'https://challenges.cloudflare.com' : ''].filter(Boolean).join(' ');
+  const connect = ["'self'", origin, ...(maps ? MAP_ORIGINS : []), ...(analytics ? ANALYTICS_CONNECT : [])].filter(Boolean).join(' ');
+  const scripts = ["'self'", turnstile ? 'https://challenges.cloudflare.com' : '', ...(analytics ? ANALYTICS_SCRIPT : [])].filter(Boolean).join(' ');
   const frames = turnstile ? 'https://challenges.cloudflare.com' : "'none'";
   return [
     "default-src 'none'",
     `script-src ${scripts}`,
     "style-src 'self'",
-    "img-src 'self' data: blob:",
+    `img-src 'self' data: blob:${analytics ? ` ${ANALYTICS_IMG.join(' ')}` : ''}`,
     "font-src 'self'",
     `connect-src ${connect}`,
     `frame-src ${frames}`,
@@ -37,7 +44,7 @@ export function buildCsp(supabaseUrl: string, turnstile: boolean, meta = false, 
 }
 
 /** The security headers for Cloudflare Pages (served from a `_headers` file). Also used by the tests. */
-export function headersFile(csp: string, miniCsp = ''): string {
+export function headersFile(csp: string, miniCsp = '', analyticsCsp = ''): string {
   return `/*
   Content-Security-Policy: ${csp}
   X-Content-Type-Options: nosniff
@@ -50,6 +57,17 @@ export function headersFile(csp: string, miniCsp = ''): string {
 
 /assets/*
   Cache-Control: public, max-age=31536000, immutable
+${
+  analyticsCsp
+    ? `
+# Only the public pages may load Google Analytics (after a Yes). The app, sign-in and everything else keep the stricter policy above.
+${ANALYTICS_PAGES.map((page) => `${page}\n  ! Content-Security-Policy\n  Content-Security-Policy: ${analyticsCsp}`).join('\n')}
+`
+    : ''
+}
+# The sitemap is a plain data file. Without this rule the page policy blocks the browser's own XML viewer from styling it, and it looks like unformatted text.
+/sitemap.xml
+  ! Content-Security-Policy
 
 # The on-device receipt reader runs in its own worker, which needs WebAssembly. Only these files get that permission (not the page), and they may only
 # fetch from this site.

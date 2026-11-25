@@ -14,7 +14,7 @@ export function PrivacyPage() {
       }
       summary={[
         <>The app stores what you type into it (your account email and your money records) so it can show them back to you. Nothing else is collected about you.</>,
-        <>There are no ads, no analytics and no tracking. Your data is not sold or used for marketing.</>,
+        <>There are no ads and nothing inside the app is tracked. If you say yes, the public pages (this one, the terms and the welcome page) count visits with Google Analytics. Your data is not sold or used for marketing.</>,
         <>A few outside services help run the app. Each receives only what its job needs, listed in section 4.</>,
         <>You can export everything, and you can delete your account and its records from inside the app.</>,
         <>An administrator can manage accounts (for example reset a password or unblock sign-in) but can never see your expenses, income or reports.</>,
@@ -50,7 +50,7 @@ export function PrivacyPage() {
         <p>Your data is not used for advertising, profiling, or training artificial intelligence models by me, and it is not sold. I process it because you asked for the service by creating an account (your consent), and you can withdraw that consent by deleting your account.</p>
       </LegalSection>
       <LegalSection id="device" title="3. What is stored on your device">
-        <p>The app does not use advertising or tracking cookies. It keeps the following in your browser's storage so that it works:</p>
+        <p>The app does not use advertising cookies. It keeps the following in your browser's storage so that it works. If you say yes to analytics on the public pages, Google Analytics also sets its own cookies (named _ga) there; nothing of this is used inside the app:</p>
         <ul>
         <li>your sign-in session, so you stay logged in;</li>
         <li>the app's own files, so it opens without a connection, and any entries you added while offline that are waiting to be sent;</li>
@@ -71,6 +71,7 @@ export function PrivacyPage() {
         <tr><td>Telegram</td><td>The messages, photos, summaries and reminders exchanged with the bot. If you open the Telegram Mini App, Telegram also tells the app who you are (your Telegram name and number), signed so it cannot be faked.</td><td>Only if you connect Telegram</td></tr>
         <tr><td>OpenStreetMap map services (Overpass, and Photon by Komoot, which serve OpenStreetMap data)</td><td>Your position, sent straight from your device to these services (and, if they cannot be reached from your device, through the app&apos;s server) so the list of places near you can be shown. The services also see your IP address, as any website would. The app does not keep your position.</td><td>Only when you tap the map pin (“Find places near me”)</td></tr>
         <tr><td>Tesseract (text recognition inside your browser, hosted on this website)</td><td>Nothing leaves your device: the photo is read locally, and the reader&apos;s own files come from this website</td><td>Only when the online reader is busy, unavailable or you are offline</td></tr>
+        <tr><td>Google Analytics (visit counts on the public pages)</td><td>Which public page was opened, roughly where from (country or city), the type of device and browser, and how you reached the page. It is never used inside the app and never receives your records. Advertising features are switched off.</td><td>Only on the welcome, privacy and terms pages, and only if you click yes. It is not loaded if your browser sends a do-not-track signal. To change your mind, clear this site's data in your browser.</td></tr>
         <tr><td>Frankfurter (exchange rates from the European Central Bank)</td><td>Only a currency code and a date, sent by the app&apos;s server, never your name, account or amounts</td><td>When a receipt is in a foreign currency and you scan it</td></tr>
         <tr><td>Google Gmail (sending email)</td><td>The recipient address and the email's content, such as a 6-digit code or your monthly summary</td><td>When an email is sent to you</td></tr>
         <tr><td>Cloudflare Turnstile (security check)</td><td>Your browser's technical details, so it can tell you are not a robot</td><td>On sign-up, sign-in, password reset and the contact form, when the check is switched on</td></tr>
