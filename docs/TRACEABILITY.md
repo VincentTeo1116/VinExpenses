@@ -48,7 +48,7 @@ Tests: `src/**/*.test.ts(x)` (unit/component, Vitest) · `e2e/*.spec.ts` (browse
 | ID | Status | Code | Evidence |
 |---|---|---|---|
 | RC-01, RC-02 schedules, back-fill, never twice | Verified | `RecurringPanel`, `calc.planDue`, `data.processRecurring` | `calc.test.ts`, `plan.spec.ts` (two devices at once) |
-| RC-03 a loan makes its own recurring payments | **Not built** | | listed as a gap |
+| RC-03 a loan makes its own recurring payments | Verified | `LoansPanel` ("Add payments to my expenses"), `recurring_expenses.loan_id` | `finance.spec.ts` (RC-03). By choice the loan is **not** marked paid by it: the person confirms each payment |
 | RC-04 signed totals | Verified | `calc.recurringTotals` | `calc.test.ts`, `plan.spec.ts` |
 | BU-01 budgets | Verified | `BudgetsPanel` | `plan.spec.ts` |
 | BU-02 month-end forecast | Verified | `summary.forecastMonth` | `summary.test.ts`, `dashboard.spec.ts` |

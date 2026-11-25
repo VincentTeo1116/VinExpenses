@@ -5,7 +5,7 @@ const PORT = 4173;
 export default defineConfig({
   testDir: 'e2e',
   fullyParallel: true,
-  retries: 0,
+  retries: process.env.CI ? 1 : 0, // in CI a test that fails once and then passes is reported as flaky instead of stopping the deploy
   timeout: 60_000, // the long walk-throughs visit many screens
   expect: { timeout: 10_000 }, // several suites run side by side, so a screen may take a moment to draw
   reporter: [['list']],

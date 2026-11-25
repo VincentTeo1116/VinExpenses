@@ -364,7 +364,7 @@ Every number that comes from pure logic was compared with the original JavaScrip
 ## Honest list of what is not done or not verified
 
 **Not built** (all optional or decided):
-- Swipe gestures on rows (TX-04); a loan adding its own recurring payments (RC-03); the optional AI receipt helper (RX-03) and nearby-place lookup (RX-04); the cosmetic "typed built-file address shows 404" rule (PU-05).
+- Swipe gestures on rows (TX-04); the optional AI receipt helper (RX-03) and nearby-place lookup (RX-04); the cosmetic "typed built-file address shows 404" rule (PU-05).
 - Saving deposits, loans and CSV imports **while offline** is refused with a message (adding one expense or income offline works and is queued).
 
 **Not verified because it needs the real thing** (everything was run against a local stand-in for Supabase, its functions, the receipt reader and Telegram):

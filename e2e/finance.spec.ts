@@ -377,3 +377,58 @@ for (const scheme of ['light', 'dark'] as const) {
     }
   });
 }
+
+// RC-03: a saved loan can add its own payments to the expenses; the person still confirms each one, so a missed payment is never hidden
+test.describe('loan payments added to the expenses (RC-03)', () => {
+  test('one button creates the monthly item (ending at the last payment), the loan says so, and "Stop adding" removes it', async ({ page }) => {
+    const user = await signInAs(page);
+    await seedRows(page, user.email, 'loans', [loan({ name: 'Link me', first_payment_date: ymdDaysFromNow(10), term_months: 12, principal: 12000, rate: 0, instalment: 1000 })]);
+    await openTab(page, 'Loans');
+    const card = page.locator('[data-loan="Link me"]');
+    await card.getByRole('button', { name: /^Add payments to my expenses: / }).click();
+    await expect(page.getByText('Each payment will be added to your expenses on its due date.')).toBeVisible();
+    await expect(card.getByText('Each payment is added to your expenses on its due date.')).toBeVisible();
+    await expect(card.getByRole('button', { name: /^Add payments to my expenses: / })).toHaveCount(0); // one item per loan
+
+    const [saved] = (await dbRows(page, user.email, 'loans')) as { id: string }[];
+    const items = (await dbRows(page, user.email, 'recurring_expenses')) as { name: string; amount: string; frequency: string; loan_id: string; next_due: string; end_date: string; active: boolean }[];
+    expect(items).toHaveLength(1);
+    expect(items[0]).toMatchObject({ name: 'Link me', amount: '1000.00', frequency: 'monthly', loan_id: saved?.id, next_due: ymdDaysFromNow(10), active: true });
+    expect(items[0]?.end_date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(String(items[0]?.end_date) > String(items[0]?.next_due)).toBe(true); // it ends at the last of the 12 payments
+
+    // the Recurring list shows it as a loan payment
+    await page.getByRole('tab', { name: 'Recurring' }).click();
+    await expect(page.getByRole('listitem').filter({ hasText: 'Link me' }).getByText('Loan payment')).toBeVisible();
+    await page.getByRole('tab', { name: 'Loans' }).click();
+
+    await card.getByRole('button', { name: /^Stop adding payments: / }).click();
+    await expect(page.getByText('Payments are no longer added to your expenses.')).toBeVisible();
+    expect(await dbRows(page, user.email, 'recurring_expenses')).toHaveLength(0);
+    await expect(card.getByRole('button', { name: /^Add payments to my expenses: / })).toBeVisible();
+  });
+
+  test('a payment already due is added to the expenses at once, and the loan still waits for the person to mark it paid', async ({ page }) => {
+    const user = await signInAs(page);
+    await seedRows(page, user.email, 'loans', [loan({ name: 'Due loan', first_payment_date: ymdDaysFromNow(0), term_months: 6, principal: 6000, rate: 0, instalment: 1000, paid_through: null })]);
+    await openTab(page, 'Loans');
+    const card = page.locator('[data-loan="Due loan"]');
+    await card.getByRole('button', { name: /^Add payments to my expenses: / }).click();
+    await expect.poll(async () => (await dbRows(page, user.email, 'expenses')).length).toBe(1);
+    const [expense] = (await dbRows(page, user.email, 'expenses')) as { amount: string }[];
+    expect(expense?.amount).toBe('1000.00');
+    // adding it to the expenses is not the same as paying it: the loan still asks for the person's confirmation
+    await expect(card.getByRole('button', { name: /^Mark next payment paid: / })).toBeVisible();
+    await expect(card.getByText('0 of 6 paid')).toBeVisible();
+  });
+
+  test('the loan section passes the accessibility scan with the new button and line', async ({ page }) => {
+    const user = await signInAs(page);
+    await seedRows(page, user.email, 'loans', [loan({ name: 'Scan me', first_payment_date: ymdDaysFromNow(5), term_months: 12, principal: 12000, rate: 0, instalment: 1000 })]);
+    await openTab(page, 'Loans');
+    await page.locator('[data-loan="Scan me"]').getByRole('button', { name: /^Add payments to my expenses: / }).click();
+    await expect(page.locator('[data-loan="Scan me"]').getByText('Each payment is added to your expenses')).toBeVisible();
+    const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
+    expect(results.violations.map((v) => `${v.impact}: ${v.id}: ${v.nodes.map((n) => n.target.join(' ')).join(' | ')}`)).toEqual([]);
+  });
+});

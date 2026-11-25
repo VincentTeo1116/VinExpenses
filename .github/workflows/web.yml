@@ -1,4 +1,6 @@
 # Checks the React app on every push and pull request. It never deploys anything and never receives a secret.
+# The slow browser tests are split into three parallel jobs, so the whole check takes about as long as one third of them.
+# "Deploy to Cloudflare" waits for this whole workflow, so every job below must pass before anything is deployed.
 name: Web app checks
 
 on:
@@ -45,10 +47,31 @@ jobs:
           VITE_SUPABASE_ANON_KEY: dummy-public-key-for-ci-only-000000
         run: npm run build
 
-      - name: Browser tests
-        run: |
-          npx playwright install --with-deps chromium
-          npm run test:e2e
-
       - name: Backend tests
         run: npm test
+
+  browser:
+    name: browser (part ${{ matrix.shard }} of 3)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false # one failing part must not hide what the others found
+      matrix:
+        shard: [1, 2, 3]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
+
+      - name: Install
+        run: npm ci
+
+      - name: Browser tests (this part)
+        run: |
+          npx playwright install --with-deps chromium
+          npm run build:e2e
+          npx playwright test --shard=${{ matrix.shard }}/3

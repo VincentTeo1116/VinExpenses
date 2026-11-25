@@ -41,7 +41,7 @@ const asInput = (f: Form): LoanInput => ({ amount: f.amount, rate: f.rate, termV
 export function LoansPanel() {
   const { t } = useI18n();
   const toast = useToast();
-  const { data: money } = useMoney();
+  const { data: money, actions: moneyActions } = useMoney();
   const finance = useFinanceData();
   const actions = useFinanceActions();
   const today = todayYmd();
@@ -156,6 +156,26 @@ export function LoansPanel() {
     } catch (error) {
       toast.show('error', error instanceof DataError && error.offline ? t('save.offline') : t('save.failed'));
     }
+  };
+  /**
+   * RC-03: the loan's monthly payment is added to the expenses on each due date, and the item ends after the last payment.
+   * The loan itself is NOT marked paid by it: the person still confirms each payment ("Mark next payment paid"), so a payment that
+   * did not really go through is never hidden.
+   */
+  const addRecurring = async (row: LoanSaved, instalment: number, firstDue: string, lastPayment: string) => {
+    await moneyActions.saveRecurring('expense', null, {
+      name: row.name,
+      amount: instalment.toFixed(2),
+      category: 'other',
+      payment: 'bank',
+      frequency: 'monthly',
+      start_date: firstDue,
+      next_due: firstDue,
+      end_date: lastPayment,
+      loan_id: row.id,
+      active: true,
+    });
+    await moneyActions.processRecurring(); // a payment that is already due is added at once
   };
   const confirmRemove = async () => {
     const row = removing;
@@ -370,6 +390,8 @@ export function LoansPanel() {
               const tone = progress.status === 'finished' ? 'good' : progress.overdue.length ? 'bad' : progress.status === 'active' ? 'warn' : undefined;
               const percent = Math.round((progress.paidCount / Math.max(1, progress.total)) * 100);
               const days = row.reminder_days?.length ? row.reminder_days : DEFAULT_LOAN_LEADS;
+              const linked = money.recurring.find((item) => item.loan_id === row.id) ?? null; // its payments are added to the expenses by a recurring item
+              const canLink = !linked && progress.nextDue !== null && (progress.status === 'active' || progress.status === 'upcoming');
               return (
                 <li key={row.id} className={styles.item} data-loan={row.name}>
                   <div className={styles.itemHead}>
@@ -389,10 +411,21 @@ export function LoansPanel() {
                   {progress.overdue.length > 0 ? <p className={styles.bad}>{t('ln.overdue', { n: progress.overdue.length, date: formatDate(progress.overdue[0] as string, money.dateFormat) })}</p> : null}
                   {progress.nextDue && progress.status !== 'closed' ? <p className={styles.small}>{t('ln.nextDue', { date: formatDate(progress.nextDue, money.dateFormat), amount: formatMoney(progress.nextAmount) })}</p> : null}
                   <p className={styles.small}>{row.reminders_on === false || progress.status === 'closed' ? t('fd.reminderOff') : t('fd.reminderOn', { days: days.map((d) => (d === 0 ? t('fd.onTheDay') : t('fd.dBefore', { n: d }))).join(', ') })}</p>
+                  {linked && progress.status !== 'closed' && progress.status !== 'finished' ? <p className={styles.small}>{t('ln.recurringOn')}</p> : null}
                   <div className={styles.itemActions}>
                     {progress.status !== 'closed' && progress.status !== 'finished' && progress.firstUnpaid ? (
                       <button type="button" className={styles.good} onClick={() => void run(() => actions.markPaidThrough(row.id, progress.firstUnpaid), t('ln.paidToast'))} aria-label={t('act.openFor', { action: t('act.markNext'), name: row.name })}>
                         {t('act.markNext')}
+                      </button>
+                    ) : null}
+                    {canLink ? (
+                      <button type="button" onClick={() => void run(() => addRecurring(row, progress.result.instalment, progress.nextDue as string, progress.result.lastPaymentDate), t('ln.recurringMade'))} aria-label={t('act.openFor', { action: t('ln.makeRecurring'), name: row.name })}>
+                        {t('ln.makeRecurring')}
+                      </button>
+                    ) : null}
+                    {linked && progress.status !== 'closed' && progress.status !== 'finished' ? (
+                      <button type="button" onClick={() => void run(() => moneyActions.deleteRecurring('expense', linked.id), t('ln.recurringStopped'))} aria-label={t('act.openFor', { action: t('ln.stopRecurring'), name: row.name })}>
+                        {t('ln.stopRecurring')}
                       </button>
                     ) : null}
                     {progress.paidCount > 0 && progress.status !== 'closed' ? (
