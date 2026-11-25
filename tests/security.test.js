@@ -243,6 +243,7 @@ test('privacy policy: names every outside service the code actually uses, and th
     const known = ['api.ocr.space', 'api.telegram.org', 't.me', 'telegram.org', 'web.telegram.org', 'webk.telegram.org', 'webz.telegram.org', 'nominatim.openstreetmap.org', 'overpass-api.de', 'photon.komoot.io', 'api.frankfurter.dev', 'www.googletagmanager.com', 'www.google-analytics.com',
         'generativelanguage.googleapis.com', 'smtp.gmail.com', 'www.openstreetmap.org', 'accounts.google.com', 'challenges.cloudflare.com',
         'myaccount.google.com', 'aistudio.google.com', // only links in setup notes
+        'vincent16.vercel.app', // only a link to the author's portfolio, see AuthorCredit.tsx
     ];
     const unknown = [...hosts].filter((h) => !known.includes(h) && !/supabase\.co$|github\.io$|workers\.dev$|pages\.dev$|example\.|^x$|^me\.|w3\.org$/.test(h));
     assert.deepEqual(unknown, [], 'an outside service is used but not covered by the privacy policy');

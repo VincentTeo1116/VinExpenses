@@ -1,0 +1,488 @@
+.wrap {
+  width: 100%;
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: 0 var(--s-5);
+}
+
+/* hero */
+.hero {
+  position: relative;
+  overflow: hidden;
+  padding: var(--s-6) 0 72px;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--brand) 13%, var(--bg)) 0%, color-mix(in srgb, var(--brand-end) 9%, var(--bg)) 100%);
+  border-bottom: 1px solid var(--border);
+}
+.blobs {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.blobA,
+.blobB {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(70px);
+  opacity: 0.45;
+}
+.blobA {
+  width: 360px;
+  height: 360px;
+  top: -150px;
+  right: 4%;
+  background: color-mix(in srgb, var(--brand) 55%, transparent);
+}
+.blobB {
+  width: 280px;
+  height: 280px;
+  bottom: -140px;
+  left: 2%;
+  background: color-mix(in srgb, var(--brand-end) 45%, transparent);
+}
+.hero .wrap {
+  position: relative;
+  display: grid;
+  justify-items: start;
+  gap: var(--s-4);
+}
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: 6px 14px 6px 10px;
+  border-radius: 999px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--primary);
+  font-size: var(--fs-sm);
+  font-weight: 750;
+}
+.eyebrow svg {
+  width: 18px;
+  height: 18px;
+}
+.h1 {
+  max-width: 16em;
+  font-size: clamp(2rem, 6vw, 3.4rem);
+  letter-spacing: -0.035em;
+  line-height: 1.08;
+  font-weight: 800;
+  background: linear-gradient(100deg, var(--text) 30%, var(--brand) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.answer {
+  max-width: 38em;
+  font-size: var(--fs-lg);
+  line-height: 1.55;
+}
+
+/* the calculator sits on top of the hero's edge */
+.tool {
+  position: relative;
+  margin-top: -44px;
+}
+.disclaimer {
+  margin-top: var(--s-4);
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+
+/* explanation cards */
+.sections {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--s-4);
+  margin-top: var(--s-8);
+}
+@media (min-width: 820px) {
+  .sections {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+.section {
+  position: relative;
+  display: grid;
+  align-content: start;
+  gap: var(--s-3);
+  padding: var(--s-6) var(--s-5) var(--s-5);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  line-height: 1.65;
+}
+.section p {
+  color: var(--muted);
+}
+.num {
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  font-weight: 800;
+  color: var(--on-brand);
+  background: linear-gradient(135deg, var(--brand), var(--brand-end));
+}
+.h2 {
+  font-size: var(--fs-xl);
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+}
+
+/* table of common cases */
+.tableWrap {
+  margin-top: var(--s-8);
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+.table caption {
+  /* stays in view while the table scrolls sideways, and wraps instead of running off the screen */
+  position: sticky;
+  left: 0;
+  max-width: calc(100vw - 2 * var(--s-5));
+  padding: var(--s-4) var(--s-5);
+  text-align: left;
+  font-weight: 750;
+}
+.table th,
+.table td {
+  padding: var(--s-3) var(--s-5);
+  text-align: right;
+  border-top: 1px solid var(--border);
+  white-space: nowrap;
+}
+.table thead th {
+  font-size: var(--fs-sm);
+  color: var(--muted);
+  background: var(--surface-2);
+}
+.table thead th:first-child,
+.table tbody th {
+  text-align: left;
+}
+.table tbody tr:hover {
+  background: color-mix(in srgb, var(--brand) 6%, var(--surface));
+}
+.tableNote {
+  margin-top: var(--s-3);
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+
+/* call to action */
+.cta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-5);
+  margin-top: var(--s-8);
+  padding: var(--s-6);
+  border-radius: var(--r-xl);
+  color: #fff;
+  background: linear-gradient(135deg, var(--brand), var(--brand-end));
+  box-shadow: 0 18px 44px color-mix(in srgb, var(--brand) 30%, transparent);
+}
+.cta > div {
+  flex: 1 1 320px;
+  display: grid;
+  gap: var(--s-2);
+}
+.ctaTitle {
+  font-size: var(--fs-xl);
+  letter-spacing: -0.02em;
+}
+.button {
+  display: inline-grid;
+  place-items: center;
+  min-height: 50px;
+  padding: 0 var(--s-6);
+  border-radius: var(--r-md);
+  font-weight: 800;
+  color: #3730a3; /* fixed dark indigo on white: the theme colour turns light in dark mode */
+  background: #fff;
+  text-decoration: none;
+  transition: transform 160ms var(--ease);
+}
+.button:hover {
+  transform: translateY(-2px);
+}
+
+/* the other guides */
+.more {
+  display: grid;
+  gap: var(--s-3);
+  margin-top: var(--s-8);
+}
+.moreTitle {
+  font-size: var(--fs-lg);
+}
+.moreCard {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: var(--s-4);
+  padding: var(--s-4) var(--s-5);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  text-decoration: none;
+  color: var(--text);
+  transition:
+    transform 200ms var(--ease),
+    border-color 200ms var(--ease);
+}
+.moreCard:hover {
+  transform: translateY(-3px);
+  border-color: color-mix(in srgb, var(--brand) 45%, var(--border));
+}
+.moreCard strong {
+  display: block;
+}
+.moreText {
+  display: block;
+  color: var(--muted);
+  font-size: var(--fs-md);
+}
+.moreIcon {
+  display: inline-grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border-radius: var(--r-md);
+  color: var(--primary);
+  background: var(--primary-soft);
+}
+.arrow {
+  font-size: 1.4rem;
+  color: var(--primary);
+  transition: transform 200ms var(--ease);
+}
+.moreCard:hover .arrow {
+  transform: translateX(4px);
+}
+
+/* the calculators: inputs on the left, the result on the right (stacked on a phone) */
+.bench {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--s-4);
+  padding: var(--s-4);
+  border-radius: var(--r-xl);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-lg);
+}
+@media (min-width: 860px) {
+  .bench {
+    grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+    gap: var(--s-6);
+    padding: var(--s-6);
+  }
+}
+.inputs {
+  display: grid;
+  align-content: start;
+  gap: var(--s-5);
+}
+.inputsTitle {
+  font-size: var(--fs-lg);
+}
+.field {
+  display: grid;
+  gap: var(--s-2);
+  font-weight: 650;
+}
+.field input,
+.field select {
+  min-height: 52px;
+  padding: 0 var(--s-4);
+  border-radius: var(--r-md);
+  border: 1.5px solid var(--border);
+  background: var(--bg);
+  font-weight: 650;
+  transition: border-color 160ms var(--ease);
+}
+.field input:focus-visible,
+.field select:focus-visible {
+  border-color: var(--brand);
+}
+.money {
+  position: relative;
+}
+.money > span {
+  position: absolute;
+  left: var(--s-4);
+  top: 50%;
+  transform: translateY(-50%);
+  font-weight: 700;
+  color: var(--muted);
+  pointer-events: none;
+}
+.money input {
+  width: 100%;
+  padding-left: 52px;
+  font-size: 1.15rem;
+  font-variant-numeric: tabular-nums;
+}
+.pair {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--s-2);
+}
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+}
+.chip {
+  min-height: 38px;
+  padding: 0 var(--s-4);
+  border-radius: 999px;
+  border: 1.5px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  font-size: var(--fs-md);
+  font-weight: 650;
+  transition:
+    background 160ms var(--ease),
+    border-color 160ms var(--ease),
+    color 160ms var(--ease);
+}
+.chip:hover {
+  border-color: var(--primary);
+}
+.chip[aria-pressed='true'] {
+  color: var(--on-brand);
+  border-color: var(--brand);
+  background: var(--brand);
+}
+
+/* the result card */
+.result {
+  display: grid;
+  align-content: start;
+  gap: var(--s-3);
+  padding: var(--s-6) var(--s-5);
+  border-radius: var(--r-lg);
+  color: #fff;
+  background: linear-gradient(135deg, var(--brand), var(--brand-end));
+  box-shadow: 0 16px 40px color-mix(in srgb, var(--brand) 30%, transparent);
+}
+@media (min-width: 860px) {
+  .result {
+    position: sticky;
+    top: 92px;
+    align-self: start;
+  }
+}
+.resultLabel {
+  font-weight: 650;
+  opacity: 0.95;
+}
+.big {
+  font-size: clamp(2.2rem, 7vw, 3.1rem);
+  letter-spacing: -0.035em;
+  line-height: 1.05;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.split {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 100%;
+  height: 12px;
+  border: 0;
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.3);
+}
+.split::-webkit-progress-bar {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 999px;
+}
+.split::-webkit-progress-value {
+  background: #fff;
+  border-radius: 999px;
+  transition: width 250ms var(--ease);
+}
+.split::-moz-progress-bar {
+  background: #fff;
+  border-radius: 999px;
+}
+.legend {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--s-3);
+  font-size: var(--fs-sm);
+  opacity: 0.95;
+}
+.facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s-3);
+  padding: var(--s-4);
+  border-radius: var(--r-md);
+  background: rgba(255, 255, 255, 0.14);
+}
+.facts dt {
+  font-size: var(--fs-sm);
+  opacity: 0.92;
+}
+.facts dd {
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.working {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: var(--fs-sm);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  opacity: 0.95;
+}
+.working b {
+  display: block;
+  margin-bottom: 2px;
+  font-family: inherit;
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  opacity: 0.8;
+}
+.hintLine {
+  opacity: 0.95;
+}
+.payouts {
+  font-size: var(--fs-sm);
+}
+.payouts summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+.payouts table {
+  width: 100%;
+  margin-top: var(--s-2);
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+.payouts th,
+.payouts td {
+  padding: 4px 0;
+  text-align: left;
+}
+.payouts td:last-child {
+  text-align: right;
+}

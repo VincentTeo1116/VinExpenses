@@ -522,3 +522,86 @@
     transform: none;
   }
 }
+
+/* the free calculators: two cards that lead to the guide pages */
+.calcGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--s-4);
+}
+@media (min-width: 760px) {
+  .calcGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+.calcCard {
+  position: relative;
+  display: grid;
+  align-content: start;
+  gap: var(--s-3);
+  height: 100%;
+  padding: var(--s-6);
+  border-radius: var(--r-xl);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  color: var(--text);
+  text-decoration: none;
+  overflow: hidden;
+  transition:
+    transform 220ms var(--ease),
+    box-shadow 220ms var(--ease),
+    border-color 220ms var(--ease);
+}
+.calcCard::before {
+  content: '';
+  position: absolute;
+  right: -70px;
+  top: -70px;
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--brand) 14%, transparent);
+  filter: blur(30px);
+  pointer-events: none;
+}
+.calcCard:hover {
+  transform: translateY(-6px);
+  box-shadow: var(--shadow-md);
+  border-color: color-mix(in srgb, var(--brand) 45%, var(--border));
+}
+.calcCard h3 {
+  font-size: 1.25rem;
+  letter-spacing: -0.015em;
+}
+.calcCard p {
+  color: var(--muted);
+}
+.sample {
+  display: grid;
+  gap: 2px;
+  padding: var(--s-4);
+  border-radius: var(--r-md);
+  background: var(--bg);
+  border: 1px dashed var(--border);
+}
+.sample small {
+  color: var(--muted);
+  font-size: var(--fs-sm);
+}
+.sample strong {
+  font-size: 1.35rem;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+.calcGo {
+  font-weight: 750;
+  color: var(--primary);
+}
+.calcGo span {
+  display: inline-block;
+  transition: transform 200ms var(--ease);
+}
+.calcCard:hover .calcGo span {
+  transform: translateX(5px);
+}

@@ -44,6 +44,7 @@ export function WelcomePage() {
       nav={
         <>
           <a href="#features">Features</a>
+          <a href="#calculators">Calculators</a>
           <a href="#try">Try it</a>
           <a href="#privacy">Your data</a>
         </>
@@ -140,6 +141,40 @@ export function WelcomePage() {
         </div>
       </section>
 
+      <section id="calculators" className={styles.section} aria-labelledby="calculators-title">
+        <div className={styles.wrap}>
+          <Reveal>
+            <h2 id="calculators-title" className={styles.h2}>
+              Free calculators, no sign-up
+            </h2>
+            <p className={styles.sub}>Work out a fixed deposit or a loan in seconds. Nothing is saved or sent, and you do not need an account.</p>
+          </Reveal>
+          <div className={styles.calcGrid}>
+            {[
+              { to: '/fd-calculator', icon: 'bank' as const, title: 'Fixed deposit calculator', text: 'See your interest and the total at maturity, and when each payment arrives.', sample: ['RM 10,000 at 3.5% for 12 months', 'RM 10,350.00'] },
+              { to: '/loan-calculator', icon: 'loan' as const, title: 'Loan calculator', text: 'See the monthly payment and total interest, and compare a flat rate with reducing balance.', sample: ['RM 300,000 at 4.2% for 25 years', 'RM 1,616.83 a month'] },
+            ].map((item, index) => (
+              <Reveal key={item.to} delay={((index + 1) as 1 | 2)}>
+                <Link to={item.to} className={styles.calcCard}>
+                  <span className={styles.icon}>
+                    <Icon name={item.icon} />
+                  </span>
+                  <h3>{item.title}</h3>
+                  <p>{item.text}</p>
+                  <span className={styles.sample}>
+                    <small>{item.sample[0]}</small>
+                    <strong>{item.sample[1]}</strong>
+                  </span>
+                  <span className={styles.calcGo}>
+                    Open the calculator <span aria-hidden="true">→</span>
+                  </span>
+                </Link>
+              </Reveal>
+            ))}
+          </div>
+        </div>
+      </section>
+
       <section id="try" className={`${styles.section} ${styles.band}`}>
         <div className={`${styles.wrap} ${styles.split}`}>
           <Reveal className={styles.phoneWrap}>
@@ -152,6 +187,9 @@ export function WelcomePage() {
             </Reveal>
             <Reveal delay={2}>
               <QuickCalc />
+              <p className={styles.note}>
+                Want more detail? Open the <Link to="/loan-calculator">full loan calculator</Link> or the <Link to="/fd-calculator">fixed deposit calculator</Link>.
+              </p>
             </Reveal>
             <Reveal delay={3}>
               <ul className={styles.ticks}>

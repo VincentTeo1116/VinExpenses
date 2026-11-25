@@ -159,12 +159,20 @@ describe('static host routing (PU-03)', () => {
 });
 
 describe('public pages (PU-02)', () => {
-  const sources = ['WelcomePage.tsx', 'PrivacyPage.tsx', 'TermsPage.tsx', 'LegalPage.tsx', 'PublicLayout.tsx', 'QuickCalc.tsx', 'motion.tsx'];
+  const sources = ['public/WelcomePage.tsx', 'public/PrivacyPage.tsx', 'public/TermsPage.tsx', 'public/LegalPage.tsx', 'public/PublicLayout.tsx', 'public/QuickCalc.tsx', 'public/motion.tsx', 'guides/GuidePage.tsx', 'guides/Calculators.tsx', 'public/AuthorCredit.tsx'];
   it('draw their text through React only: no raw HTML, no forms, no inline styles, no outside addresses', () => {
     for (const file of sources) {
-      const code = readFileSync(join(root, 'src/features/public', file), 'utf8');
+      const code = readFileSync(join(root, 'src/features', file), 'utf8');
       expect(code, file).not.toMatch(/dangerouslySetInnerHTML|innerHTML|<form|<iframe|style=\{/);
       expect(code, file).not.toMatch(/(src|href)=["'](https?:)?\/\//i);
+    }
+  });
+  it('the only outside address on a public page is the link to the author&apos;s portfolio, and it passes nothing on', () => {
+    const credit = readFileSync(join(root, 'src/features/public/AuthorCredit.tsx'), 'utf8');
+    expect(credit).toContain("PORTFOLIO_URL = 'https://vincent16.vercel.app'");
+    expect(credit).toMatch(/rel="noopener noreferrer"/);
+    for (const file of ['public/WelcomePage.tsx', 'public/PrivacyPage.tsx', 'public/TermsPage.tsx', 'public/LegalPage.tsx', 'public/PublicLayout.tsx', 'guides/GuidePage.tsx', 'guides/Calculators.tsx']) {
+      expect(readFileSync(join(root, 'src/features', file), 'utf8'), file).not.toMatch(/https?:\/\//);
     }
   });
   it('the static 404 page has no inline code and no outside requests', () => {

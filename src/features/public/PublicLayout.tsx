@@ -1,7 +1,8 @@
 // The frame around the public pages (welcome, privacy, terms): a header that settles as you scroll, and a footer.
 import { useEffect, useState, type ReactNode } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, NavLink } from 'react-router-dom';
 import { AnalyticsConsent } from '@/features/analytics/AnalyticsConsent';
+import { AuthorCredit } from './AuthorCredit';
 import styles from './PublicLayout.module.css';
 
 /** Sets the tab title and description for a public page (the page is drawn by the app, so these are set here). */
@@ -35,6 +36,12 @@ export function usePageMeta(title: string, description: string) {
   }, [title, description]);
 }
 
+const FOOTER_LINKS: { title: string; links: ({ label: string; to: string } | { label: string; href: string })[] }[] = [
+  { title: 'VinExpenses', links: [{ label: 'About', to: '/' }, { label: 'Open the app', to: '/app' }, { label: 'Contact', href: 'mailto:teovincentkq1611@gmail.com' }] },
+  { title: 'Calculators', links: [{ label: 'FD calculator', to: '/fd-calculator' }, { label: 'Loan calculator', to: '/loan-calculator' }] },
+  { title: 'Legal', links: [{ label: 'Privacy Policy', to: '/privacy' }, { label: 'Terms of Use', to: '/terms' }] },
+];
+
 export function PublicLayout({ children, nav }: { children: ReactNode; nav?: ReactNode }) {
   const [scrolled, setScrolled] = useState(false);
   useEffect(() => {
@@ -67,13 +74,42 @@ export function PublicLayout({ children, nav }: { children: ReactNode; nav?: Rea
       </main>
       <footer className={styles.foot}>
         <div className={styles.wrap}>
-          <span>© 2026 Vincent Teo · VinExpenses</span>
-          <nav aria-label="Legal">
-            <Link to="/">About</Link>
-            <Link to="/privacy">Privacy Policy</Link>
-            <Link to="/terms">Terms of Use</Link>
-            <a href="mailto:teovincentkq1611@gmail.com">Contact</a>
-          </nav>
+          <div className={styles.top}>
+            <div className={styles.about}>
+              <Link to="/" className={styles.footBrand}>
+                <img src="/icons/icon-192.png" alt="" width={36} height={36} />
+                <span>VinExpenses</span>
+              </Link>
+              <p className={styles.tagline}>A free expense tracker for Malaysia. No ads, and your records stay private.</p>
+              <AuthorCredit variant="card" />
+            </div>
+            <nav className={styles.cols} aria-label="Footer">
+              {FOOTER_LINKS.map((group) => (
+                <div key={group.title} className={styles.col}>
+                  <p className={styles.colTitle}>{group.title}</p>
+                  <ul>
+                    {group.links.map((item) => (
+                      <li key={item.label}>
+                        {'to' in item ? (
+                          <NavLink to={item.to} end className={styles.link}>
+                            {item.label}
+                          </NavLink>
+                        ) : (
+                          <a className={styles.link} href={item.href}>
+                            {item.label}
+                          </a>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </nav>
+          </div>
+          <div className={styles.bottom}>
+            <span>© 2026 VinExpenses</span>
+            <span>Calculators give estimates, not financial advice.</span>
+          </div>
         </div>
       </footer>
       <AnalyticsConsent />

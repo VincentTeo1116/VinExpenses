@@ -1,6 +1,6 @@
 // Search-engine files and tags, written at build time. The public pages (welcome, privacy, terms) may be found by search engines;
 // the app, the sign-in page, the Mini App and the email page may not (they also carry a no-index header, see headers.mts).
-export const PUBLIC_PATHS = ['/', '/privacy', '/terms'] as const;
+export const PUBLIC_PATHS = ['/', '/fd-calculator', '/loan-calculator', '/privacy', '/terms'] as const;
 export const PRIVATE_PATHS = ['/app/', '/auth', '/miniapp/', '/email-action.html'] as const;
 
 /** The site's address without a trailing slash, or '' when it is not set (or not a plain http(s) address). */
@@ -22,6 +22,8 @@ export function robotsTxt(siteUrl: string): string {
 /** How often each public page changes and how important it is (search engines treat these as hints only). */
 const PAGE_HINTS: Record<string, { changefreq: string; priority: string }> = {
   '/': { changefreq: 'weekly', priority: '1.0' },
+  '/fd-calculator': { changefreq: 'monthly', priority: '0.8' },
+  '/loan-calculator': { changefreq: 'monthly', priority: '0.8' },
   '/privacy': { changefreq: 'monthly', priority: '0.5' },
   '/terms': { changefreq: 'monthly', priority: '0.5' },
 };

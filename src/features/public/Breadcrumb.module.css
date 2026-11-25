@@ -1,0 +1,78 @@
+.nav {
+  max-width: 100%;
+}
+.list {
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: var(--s-1);
+  list-style: none;
+  min-width: 0;
+}
+.item {
+  display: flex;
+  min-width: 0;
+}
+.sep {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  color: var(--muted);
+}
+.link,
+.current {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 var(--s-3);
+  border-radius: 999px;
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  white-space: nowrap;
+}
+.link {
+  color: var(--text);
+  text-decoration: none;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  transition:
+    transform 140ms var(--ease),
+    background 160ms var(--ease),
+    border-color 160ms var(--ease),
+    color 160ms var(--ease);
+}
+.link svg {
+  flex: none;
+  color: var(--primary);
+}
+.link:hover {
+  color: var(--primary);
+  border-color: color-mix(in srgb, var(--brand) 50%, var(--border));
+  background: color-mix(in srgb, var(--brand) 8%, var(--surface));
+}
+.link:active {
+  transform: scale(0.96);
+}
+.current {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+  line-height: 36px;
+  color: var(--primary);
+  background: var(--primary-soft);
+  border: 1px solid transparent;
+}
+/* a phone: tap targets stay 44px tall, and a long page name is cut with an ellipsis instead of wrapping */
+@media (max-width: 560px) {
+  .link,
+  .current {
+    min-height: 44px;
+    line-height: 44px;
+  }
+  .link {
+    line-height: normal;
+  }
+}

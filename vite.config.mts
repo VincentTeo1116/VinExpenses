@@ -7,6 +7,8 @@ import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 import { buildCsp, headersFile, TELEGRAM_ORIGINS } from './scripts/headers.mts';
 import { cleanSiteUrl, robotsTxt, seoTags, sitemapXml } from './scripts/seo.mts';
+import { guidePage } from './scripts/guide-pages.mts';
+import { GUIDES } from './src/features/guides/content';
 import { APP_PATHS } from './src/app/paths';
 
 /**
@@ -61,7 +63,7 @@ function seoPlugin(siteUrl: string): Plugin {
 }
 
 /** A real copy of the page for every app address, so hosts without rewrite rules (Cloudflare Workers assets) still answer them. */
-function appPagesPlugin(): Plugin {
+function appPagesPlugin(siteUrl: string): Plugin {
   return {
     name: 'vinexpenses-app-pages',
     apply: 'build',
@@ -73,6 +75,8 @@ function appPagesPlugin(): Plugin {
         mkdirSync(dirname(file), { recursive: true });
         writeFileSync(file, shell);
       }
+      // the public guides get their own title, address and readable text in the HTML itself
+      for (const guide of GUIDES) writeFileSync(join(dir, `${guide.slug}.html`), guidePage(shell.toString('utf8'), guide, siteUrl));
     },
   };
 }
@@ -131,7 +135,7 @@ export default defineConfig(({ mode }) => {
       slimSupabasePlugin(),
       cspPlugin(env.VITE_SUPABASE_URL ?? '', turnstile, analytics),
       seoPlugin(cleanSiteUrl(env.VITE_SITE_URL)),
-      appPagesPlugin(),
+      appPagesPlugin(cleanSiteUrl(env.VITE_SITE_URL)),
       ocrAssetsPlugin(),
       headersPlugin(buildCsp(env.VITE_SUPABASE_URL ?? '', turnstile, false, [], true, analytics), buildCsp(env.VITE_SUPABASE_URL ?? '', false, false, TELEGRAM_ORIGINS)),
       VitePWA({

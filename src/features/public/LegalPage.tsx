@@ -2,6 +2,7 @@
 // a contents list that follows where you are, and sections that settle in as you reach them.
 import { useEffect, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
+import { AuthorCredit } from './AuthorCredit';
 import { PublicLayout, usePageMeta } from './PublicLayout';
 import { calm, Reveal } from './motion';
 import styles from './LegalPage.module.css';
@@ -76,6 +77,7 @@ export function LegalPage({ title, updated, intro, summary, sections, other, chi
           <p className={styles.updated}>{updated}</p>
           <h1 className={styles.h1}>{title}</h1>
           <p className={styles.intro}>{intro}</p>
+          <AuthorCredit lead="Written by" />
         </div>
       </div>
 

@@ -8,6 +8,8 @@ const PAGES = [
   { path: '/welcome', heading: 'Know where your money goes' },
   { path: '/privacy', heading: 'Privacy Policy' },
   { path: '/terms', heading: 'Terms of Use' },
+  { path: '/fd-calculator', heading: 'Fixed deposit calculator' },
+  { path: '/loan-calculator', heading: 'Loan calculator' },
 ];
 
 test('the public pages are served with the security headers and their own content', async ({ request, page }) => {
@@ -70,7 +72,7 @@ for (const width of WIDTHS) {
 
 test('search engines: the app and sign-in are sent with a no-index header, the public pages are not, and robots.txt agrees', async ({ request, page }) => {
   for (const path of ['/app', '/app/history', '/auth', '/email-action.html', '/email-action', '/miniapp/']) expect((await request.get(path)).headers()['x-robots-tag'], path).toMatch(/noindex/);
-  for (const path of ['/', '/privacy', '/terms']) expect((await request.get(path)).headers()['x-robots-tag'], path).toBeUndefined();
+  for (const path of ['/', '/privacy', '/terms', '/fd-calculator', '/loan-calculator']) expect((await request.get(path)).headers()['x-robots-tag'], path).toBeUndefined();
   const robots = await (await request.get('/robots.txt')).text();
   expect(robots).toContain('Disallow: /app/');
   expect(robots).toContain('Allow: /privacy$');
@@ -91,7 +93,7 @@ test('coming back from Google onto the front page goes on to sign-in (and so int
   await expect(page.getByRole('heading', { level: 1 })).toContainText('Know where your money goes');
 });
 
-test('the sitemap is plain, indented XML listing the three public pages, and the browser can show it formatted (AN-02)', async ({ request, page }) => {
+test('the sitemap is plain, indented XML listing the public pages, and the browser can show it formatted (AN-02)', async ({ request, page }) => {
   const res = await request.get('/sitemap.xml');
   expect(res.status()).toBe(200);
   expect(res.headers()['content-type']).toContain('xml');
@@ -99,7 +101,7 @@ test('the sitemap is plain, indented XML listing the three public pages, and the
   expect(res.headers()['content-security-policy']).toBeUndefined();
   const xml = await res.text();
   expect(xml).toMatch(/^<\?xml version="1.0" encoding="UTF-8"\?>\n<urlset xmlns="http:\/\/www.sitemaps.org\/schemas\/sitemap\/0.9">\n {2}<url>\n {4}<loc>/);
-  expect([...xml.matchAll(/<loc>(.*?)<\/loc>/g)].map((m) => new URL(m[1] as string).pathname)).toEqual(['/', '/privacy', '/terms']);
+  expect([...xml.matchAll(/<loc>(.*?)<\/loc>/g)].map((m) => new URL(m[1] as string).pathname)).toEqual(['/', '/fd-calculator', '/loan-calculator', '/privacy', '/terms']);
   const problems: string[] = [];
   page.on('console', (m) => { if (m.type() === 'error') problems.push(m.text()); });
   await page.goto('/sitemap.xml');

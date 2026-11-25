@@ -1,0 +1,38 @@
+.inline {
+  color: var(--muted);
+  font-size: var(--fs-md);
+}
+.inline a,
+.card a {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 12px 0; /* a tall enough target to tap */
+  font-weight: 700;
+  color: var(--primary);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--primary) 35%, transparent);
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 4px;
+  transition:
+    text-decoration-color 160ms var(--ease),
+    gap 160ms var(--ease);
+}
+.inline a:hover,
+.card a:hover {
+  gap: 7px;
+  text-decoration-color: var(--primary);
+}
+.card {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-3) var(--s-5);
+  border-radius: 999px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  color: var(--muted);
+  font-size: var(--fs-md);
+}
