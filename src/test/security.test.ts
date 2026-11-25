@@ -50,28 +50,32 @@ describe('Google Analytics in the policy (AN-01)', () => {
   const base = buildCsp('https://abcd.supabase.co', true);
   const withGa = buildCsp('https://abcd.supabase.co', true, false, [], true, true);
 
-  it('is absent from the normal policy, so the signed-in app never allows it', () => {
+  it('is absent unless a measurement ID is set at build time', () => {
     expect(base).not.toMatch(/google|gtag/i);
     expect(headersFile(base)).not.toMatch(/googletagmanager|google-analytics/);
   });
 
-  it('is added to scripts, connections and images only when asked, and nothing else loosens', () => {
-    expect(withGa).toContain("script-src 'self' https://challenges.cloudflare.com https://www.googletagmanager.com");
+  it('allows only Google\'s /gtag/ script folder, never the Tag Manager container script, and loosens nothing else', () => {
+    expect(withGa).toContain("script-src 'self' https://challenges.cloudflare.com https://www.googletagmanager.com/gtag/;");
+    const scriptSrc = withGa.split(';').map((d) => d.trim()).find((d) => d.startsWith('script-src ')) ?? '';
+    expect(scriptSrc).not.toMatch(/googletagmanager\.com( |$)/); // no whole-host permission for scripts, only the /gtag/ folder
     expect(withGa).toMatch(/connect-src [^;]*https:\/\/\*\.google-analytics\.com/);
     expect(withGa).toMatch(/img-src 'self' data: blob: https:\/\/www\.googletagmanager\.com/);
     expect(withGa).not.toMatch(/unsafe-inline|unsafe-eval/);
     expect(withGa).toContain("default-src 'none'");
   });
 
-  it('the headers give it to the four public pages only, and the stricter rule stays everywhere else', () => {
-    const file = headersFile(base, '', withGa);
-    const [everywhere, rest] = file.split(/^\/miniapp\/\*/m);
-    expect(everywhere).toContain(`Content-Security-Policy: ${base}`);
-    for (const page of ['/', '/index', '/index/', '/index.html', '/welcome', '/privacy', '/terms']) {
-      expect(everywhere).toMatch(new RegExp(`^${page}\\n  ! Content-Security-Policy\\n  Content-Security-Policy: .*googletagmanager`, 'm'));
+  it('is one policy for every page: the only exceptions are the sitemap file and the on-device reader folder, never a page', () => {
+    const file = headersFile(withGa, '');
+    expect(file).toContain(`Content-Security-Policy: ${withGa}`);
+    // the paths whose rule removes the general policy
+    const exempt: string[] = [];
+    let current = '';
+    for (const line of file.split('\n')) {
+      if (/^\//.test(line)) current = line.trim();
+      else if (/^\s+! Content-Security-Policy/.test(line)) exempt.push(current);
     }
-    for (const page of ['/app', '/auth']) expect(everywhere).not.toMatch(new RegExp(`^${page}\\n  ! Content-Security-Policy`, 'm'));
-    expect(rest ?? '').not.toMatch(/googletagmanager/);
+    expect(exempt).toEqual(['/sitemap.xml', '/ocr/*']); // the sitemap (so the XML viewer can style it) and the reader's own folder
   });
 });
 

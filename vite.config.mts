@@ -77,12 +77,12 @@ function appPagesPlugin(): Plugin {
   };
 }
 
-function headersPlugin(csp: string, miniCsp: string, analyticsCsp = ''): Plugin {
+function headersPlugin(csp: string, miniCsp: string): Plugin {
   return {
     name: 'vinexpenses-headers',
     apply: 'build',
     generateBundle() {
-      this.emitFile({ type: 'asset', fileName: '_headers', source: headersFile(csp, miniCsp, analyticsCsp) });
+      this.emitFile({ type: 'asset', fileName: '_headers', source: headersFile(csp, miniCsp) });
     },
   };
 }
@@ -133,7 +133,7 @@ export default defineConfig(({ mode }) => {
       seoPlugin(cleanSiteUrl(env.VITE_SITE_URL)),
       appPagesPlugin(),
       ocrAssetsPlugin(),
-      headersPlugin(buildCsp(env.VITE_SUPABASE_URL ?? '', turnstile, false, [], true), buildCsp(env.VITE_SUPABASE_URL ?? '', false, false, TELEGRAM_ORIGINS), analytics ? buildCsp(env.VITE_SUPABASE_URL ?? '', turnstile, false, [], true, true) : ''),
+      headersPlugin(buildCsp(env.VITE_SUPABASE_URL ?? '', turnstile, false, [], true, analytics), buildCsp(env.VITE_SUPABASE_URL ?? '', false, false, TELEGRAM_ORIGINS)),
       VitePWA({
         // The page registers the worker itself (no inline script), see src/app/pwa.ts
         injectRegister: false,

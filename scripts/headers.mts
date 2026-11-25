@@ -8,17 +8,15 @@ export const TELEGRAM_ORIGINS = ['https://web.telegram.org', 'https://webk.teleg
 /** The two public map services the browser asks for places near the person ("Find places near me"). Allowed for the website only, never for the Mini App. */
 export const MAP_ORIGINS = ['https://photon.komoot.io', 'https://overpass-api.de'];
 
-/** Google Analytics, for the public pages only (see src/features/analytics). The signed-in app's own headers never list these. */
-export const ANALYTICS_SCRIPT = ['https://www.googletagmanager.com'];
+/**
+ * Google Analytics (see src/features/analytics, which loads it on the public pages only, after a Yes). It is one policy for the whole site, because Cloudflare's
+ * header rules did not reliably swap the policy on the front page (it got two policies and the stricter one won). The script source is limited to Google's
+ * /gtag/ folder (gtag.js and its destination files), so the dangerous Tag Manager container script (gtm.js, which runs whatever its owner puts in it) is NOT allowed.
+ */
+export const ANALYTICS_SCRIPT = ['https://www.googletagmanager.com/gtag/'];
 export const ANALYTICS_CONNECT = ['https://www.googletagmanager.com', 'https://www.google-analytics.com', 'https://*.google-analytics.com', 'https://*.analytics.google.com'];
 export const ANALYTICS_IMG = ['https://www.googletagmanager.com', 'https://www.google-analytics.com', 'https://*.google-analytics.com'];
-/**
- * The pages that may load analytics (after a Yes). The front page is listed under every name Cloudflare may match it by: it answers "/" from the file
- * index.html, and live the stricter policy came back on "/" alone (two policy headers, so the stricter one won) until all of these were listed.
- */
-export const ANALYTICS_PAGES = ['/', '/index', '/index/', '/index.html', '/welcome', '/privacy', '/terms'];
-
-/** `maps` lets the page ask those map services directly (see MAP_ORIGINS). `analytics` adds Google Analytics (only the public pages get it in the headers). */
+/** `maps` lets the page ask those map services directly (see MAP_ORIGINS). `analytics` adds Google Analytics (the page code only loads it on the public pages). */
 export function buildCsp(supabaseUrl: string, turnstile: boolean, meta = false, ancestors: string[] = [], maps = false, analytics = false): string {
   let origin = '';
   try {
@@ -47,7 +45,7 @@ export function buildCsp(supabaseUrl: string, turnstile: boolean, meta = false, 
 }
 
 /** The security headers for Cloudflare Pages (served from a `_headers` file). Also used by the tests. */
-export function headersFile(csp: string, miniCsp = '', analyticsCsp = ''): string {
+export function headersFile(csp: string, miniCsp = ''): string {
   return `/*
   Content-Security-Policy: ${csp}
   X-Content-Type-Options: nosniff
@@ -60,14 +58,7 @@ export function headersFile(csp: string, miniCsp = '', analyticsCsp = ''): strin
 
 /assets/*
   Cache-Control: public, max-age=31536000, immutable
-${
-  analyticsCsp
-    ? `
-# Only the public pages may load Google Analytics (after a Yes). The app, sign-in and everything else keep the stricter policy above.
-${ANALYTICS_PAGES.map((page) => `${page}\n  ! Content-Security-Policy\n  Content-Security-Policy: ${analyticsCsp}`).join('\n')}
-`
-    : ''
-}
+
 # The sitemap is a plain data file. Without this rule the page policy blocks the browser's own XML viewer from styling it, and it looks like unformatted text.
 /sitemap.xml
   ! Content-Security-Policy
