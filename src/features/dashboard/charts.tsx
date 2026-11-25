@@ -1,7 +1,7 @@
 // Two small charts drawn as SVG (no chart library): nothing to download, nothing inline for the page policy to block,
 // and each one has its numbers in text right next to it, so the picture is never the only way to read them.
 // Pointing at (or pressing) a part shows its details, the way the previous version's charts did.
-import { useRef, useState, type PointerEvent } from 'react';
+import { useEffect, useRef, useState, type PointerEvent } from 'react';
 import styles from './charts.module.css';
 import { safeColor } from '@/features/money/taxonomy';
 import { useGrown } from '@/lib/motion';
@@ -18,6 +18,8 @@ export interface DonutSlice {
 }
 
 const R = 70;
+/** How long the amount in the middle is, so a long one can be drawn a little smaller and never touches the ring. */
+const lengthClass = (text: string) => (text.length <= 9 ? 'short' : text.length <= 11 ? 'mid' : 'long');
 const C = 2 * Math.PI * R;
 
 /**
@@ -30,6 +32,17 @@ export function Donut({ slices, centre, caption, label, onPick, highlight = null
   const [pointed, setPointed] = useState<string | null>(null);
   const lastPointer = useRef<string>('mouse');
   const shown = pointed ?? highlight;
+  // a touch that lands anywhere other than a slice or a row of the list (the empty corners of the chart, the card around it) goes back to the total
+  useEffect(() => {
+    if (!pointed) return;
+    const back = (event: Event) => {
+      const target = event.target as Element | null;
+      if (target && typeof target.closest === 'function' && (target.closest('[data-slice]') || target.closest('[data-category]'))) return;
+      setPointed(null);
+    };
+    document.addEventListener('pointerdown', back);
+    return () => document.removeEventListener('pointerdown', back);
+  }, [pointed]);
   const active = slices.find((slice) => slice.key === shown) ?? null;
   // where each slice starts, worked out up front so rendering stays free of side effects
   const starts = slices.map((_, i) => slices.slice(0, i).reduce((total, s) => total + (Math.max(0, s.percent) / 100) * C, 0));
@@ -77,7 +90,7 @@ export function Donut({ slices, centre, caption, label, onPick, highlight = null
         })}
       </svg>
       {/* the middle shows the total, or the slice being pointed at; a new key replays the little fade */}
-      <div className={styles.centre} key={active?.key ?? 'total'} data-testid="donut-centre">
+      <div className={styles.centre} key={active?.key ?? 'total'} data-testid="donut-centre" data-len={lengthClass(active ? active.amount : centre)}>
         {active ? (
           <>
             <strong>{active.amount}</strong>

@@ -442,6 +442,15 @@ function FeedbackPanel() {
   );
 }
 
+interface ScanStats {
+  total: number;
+  worked: number;
+  successPercent: number;
+  medianMs: number | null;
+  p90Ms: number | null;
+  failures: { reason: string; count: number }[];
+}
+
 function SystemPanel() {
   const { t, lang } = useI18n();
   const call = useAdminCall();
@@ -449,6 +458,8 @@ function SystemPanel() {
   const [checks, setChecks] = useState<Record<string, boolean> | null>(null);
   const [log, setLog] = useState<{ id: number; action: string; detail: string | null; created_at: string }[] | null>(null);
   const [problem, setProblem] = useState('');
+  const [scan, setScan] = useState<ScanStats | null>(null);
+  const [scanProblem, setScanProblem] = useState('');
   const [version, setVersion] = useState(0);
   const [testing, setTesting] = useState(false);
   const [testNote, setTestNote] = useState<{ text: string; bad: boolean } | null>(null);
@@ -460,6 +471,13 @@ function SystemPanel() {
       if (h.ok) setChecks(h.checks);
       else setProblem(h.message ?? t('admin.failed'));
       if (l.ok) setLog(l.items);
+    });
+    void call<ScanStats>('scan_stats').then((s) => {
+      if (cancelled) return;
+      if (s.ok) {
+        setScan(s);
+        setScanProblem('');
+      } else setScanProblem(s.message ?? t('admin.failed'));
     });
     return () => {
       cancelled = true;
@@ -507,6 +525,32 @@ function SystemPanel() {
           </Button>
         </div>
         {testNote ? <Notice kind={testNote.bad ? 'bad' : 'good'}>{testNote.text}</Notice> : null}
+      </section>
+      <section className={styles.card} aria-labelledby="sys-scan" data-testid="scan-stats">
+        <h2 id="sys-scan" className={styles.h2}>
+          {t('admin.scan.title')}
+        </h2>
+        {scanProblem ? <Notice kind="warn">{scanProblem}</Notice> : null}
+        {scan ? (
+          scan.total === 0 ? (
+            <p className={styles.muted}>{t('admin.scan.none')}</p>
+          ) : (
+            <>
+              <p>{t('admin.scan.summary', { total: String(scan.total), percent: String(scan.successPercent), median: scan.medianMs === null ? '-' : (scan.medianMs / 1000).toFixed(1), p90: scan.p90Ms === null ? '-' : (scan.p90Ms / 1000).toFixed(1) })}</p>
+              {scan.failures.length ? (
+                <ul className={styles.checks} aria-label={t('admin.scan.failures')}>
+                  {scan.failures.map((f) => (
+                    <li key={f.reason} data-ok={false}>
+                      {f.reason}: {f.count}
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </>
+          )
+        ) : scanProblem ? null : (
+          <p className={styles.muted}>{t('admin.loading')}</p>
+        )}
       </section>
       <section className={styles.card} aria-labelledby="sys-log">
         <h2 id="sys-log" className={styles.h2}>

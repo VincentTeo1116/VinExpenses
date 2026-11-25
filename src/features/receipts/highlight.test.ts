@@ -24,3 +24,24 @@ describe('toFractions', () => {
     expect(toFractions([{ x: 900, y: 10, w: 100, h: 10 }], 500, 500)).toEqual([]);
   });
 });
+
+import { findPhraseBox } from './highlight';
+describe('findPhraseBox', () => {
+  const line = [
+    { t: 'Lacher', x: 10, y: 20, w: 50, h: 12 },
+    { t: 'Patisserie', x: 64, y: 21, w: 70, h: 12 },
+    { t: 'Date:', x: 10, y: 60, w: 30, h: 12 },
+    { t: '26', x: 44, y: 60, w: 14, h: 12 },
+    { t: 'Aug', x: 62, y: 60, w: 20, h: 12 },
+    { t: '2026', x: 86, y: 60, w: 28, h: 12 },
+  ];
+  it('boxes the words of the line, in order', () => {
+    expect(findPhraseBox(line, 'Lacher Patisserie')).toEqual([{ x: 10, y: 20, w: 124, h: 13 }]);
+    expect(findPhraseBox(line, 'Date: 26 Aug 2026')).toEqual([{ x: 10, y: 60, w: 104, h: 12 }]);
+  });
+  it('still finds the line when one word was misread, and nothing when it is not there', () => {
+    expect(findPhraseBox(line, 'Date: 26 Aug 2O26')).toHaveLength(1);
+    expect(findPhraseBox(line, 'Totally different shop')).toEqual([]);
+    expect(findPhraseBox([], 'Lacher')).toEqual([]);
+  });
+});

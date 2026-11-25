@@ -1,6 +1,6 @@
 // DB-01 … DB-10: the Home screen. One big card for what was spent this month, three small tiles under it (income, balance,
 // budget left), then the details. Every number is built from the same records as History, so the two always agree.
-import { useMemo, useState } from 'react';
+import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/Button';
 import { EmptyState } from '@/components/EmptyState';
@@ -38,6 +38,26 @@ export function DashboardPage({ quiet = false }: { quiet?: boolean } = {}) {
   const { data, categoryOf, openAdd } = useMoney();
   const today = todayYmd();
   const [month, setMonth] = useState(monthKey(today));
+  // Choosing a month changes how tall the cards below the bars are. The page is then moved so the bars stay exactly where the finger was.
+  const anchor = useRef<{ key: string; top: number } | null>(null);
+  const pickMonth = (key: string) => {
+    const column = document.querySelector<HTMLElement>(`[data-month="${key}"]`);
+    anchor.current = column ? { key, top: column.getBoundingClientRect().top } : null;
+    setMonth(key);
+  };
+  useLayoutEffect(() => {
+    const held = anchor.current;
+    anchor.current = null;
+    if (!held) return;
+    const column = document.querySelector<HTMLElement>(`[data-month="${held.key}"]`);
+    if (!column) return;
+    const shift = column.getBoundingClientRect().top - held.top;
+    if (Math.abs(shift) < 1) return;
+    let scroller: HTMLElement | null = column.parentElement;
+    while (scroller && !/(auto|scroll)/.test(getComputedStyle(scroller).overflowY)) scroller = scroller.parentElement;
+    if (scroller && scroller.scrollHeight > scroller.clientHeight) scroller.scrollTop += shift;
+    else window.scrollBy(0, shift);
+  }, [month]);
   const [remOpen, setRemOpen] = useState(false); // the reminders start folded away, so Home is not pushed down
   const meta = (session?.user?.user_metadata ?? {}) as Record<string, unknown>;
   const name = (typeof meta.username === 'string' && meta.username) || session?.user?.email?.split('@')[0] || '';
@@ -446,7 +466,7 @@ export function DashboardPage({ quiet = false }: { quiet?: boolean } = {}) {
                     income: money(point.income),
                   }),
                 }))}
-                onPick={setMonth}
+                onPick={pickMonth}
                 spentWord={t('dash.legendSpent')}
                 incomeWord={t('dash.legendIncome')}
               />

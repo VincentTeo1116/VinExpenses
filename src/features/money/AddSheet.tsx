@@ -18,6 +18,7 @@ import { buildMerchantMemory, suggestCategory } from '@/features/entry/smartEntr
 import { scanReceipt, ScanError } from '@/features/receipts/scan';
 import { CameraSheet, cameraAvailable, isTouchDevice, ReceiptPreview, ScanChooser } from '@/features/receipts/ScanPopups';
 import type { OcrWord } from '@/features/receipts/highlight';
+import { formatRate, lookupRate, originalNote, toRinggit, withOriginal } from '@/features/receipts/fx';
 import { NearbyLocate, NearbyResults, useNearby } from './NearbyPicker';
 import type { Candidate } from '@/features/receipts/receiptParser';
 import { formatDate, isoToYmd, isYmd, todayYmd, ymdToNoonIso } from '@/lib/dates';
@@ -72,7 +73,8 @@ function AddBody({ request, onClose }: { request: AddRequest; onClose: () => voi
   const cameraInput = useRef<HTMLInputElement>(null);
   const [chooser, setChooser] = useState(false);
   const [cameraOpen, setCameraOpen] = useState(false);
-  const [preview, setPreview] = useState<{ src: string; words: OcrWord[]; amount: number } | null>(null);
+  const [fxAlert, setFxAlert] = useState<string | null>(null); // a receipt in another currency: what was done, and to check it
+  const [preview, setPreview] = useState<{ src: string; words: OcrWord[]; amount: number; merchantLine: string; dateLine: string } | null>(null);
   const categoryBox = useRef<HTMLDivElement>(null);
   const [scanInfo, setScanInfo] = useState(false);
 
@@ -96,10 +98,18 @@ function AddBody({ request, onClose }: { request: AddRequest; onClose: () => voi
   }, []);
 
   const schema = useMemo(() => buildSchema(t), [t]);
-  const { register, control, handleSubmit, formState, setValue, setError, clearErrors } = useForm<Values>({ resolver: zodResolver(schema), mode: 'onTouched', defaultValues: initial });
+  const { register, control, handleSubmit, formState, setValue, getValues, setError, clearErrors } = useForm<Values>({ resolver: zodResolver(schema), mode: 'onTouched', defaultValues: initial });
   const amountText = useWatch({ control, name: 'amount' });
   const merchantText = useWatch({ control, name: 'merchant' });
   const categoryValue = useWatch({ control, name: 'category' });
+  const dateValue = useWatch({ control, name: 'date' });
+  // a record dated after today is allowed, but the person is warned beside the date and asked once more when saving
+  const isFuture = isYmd(dateValue) && dateValue > todayYmd();
+  const [futureAsk, setFutureAsk] = useState(false);
+  const futureOk = useRef(false);
+  useEffect(() => {
+    futureOk.current = false; // a different date needs its own yes
+  }, [dateValue]);
   // a category chosen any way (a tap, a typed or nearby place, a scanned receipt) answers the "choose a category" message
   useEffect(() => {
     if (categoryValue) clearErrors('category');
@@ -117,6 +127,12 @@ function AddBody({ request, onClose }: { request: AddRequest; onClose: () => voi
     if (found && found.confidence !== 'low') setValue('category', found.key);
   };
   const nearby = useNearby(onNearby);
+  /** The note (remarks) helps pick the category too, with the same rules as the merchant: the person's own history first, then the built-in keywords. */
+  const onNoteChange = (event: ChangeEvent<HTMLInputElement>) => {
+    if (editing || categoryTouched) return;
+    const found = suggestCategory({ merchant: getValues('merchant'), text: event.target.value, memory, categories: lite });
+    if (found && found.confidence !== 'low') setValue('category', found.key);
+  };
   const onMerchantChange =(event: ChangeEvent<HTMLInputElement>) => {
     if (editing || categoryTouched) return;
     const found = suggestCategory({ merchant: event.target.value, memory, categories: lite });
@@ -132,23 +148,53 @@ function AddBody({ request, onClose }: { request: AddRequest; onClose: () => voi
   const onReceiptFile = async (file: File) => {
     if (!envResult.ok) return;
     setScanning(true);
+    // what was in the form when the scan began: a field the person changed while it was reading is theirs, and the scan leaves it alone
+    const startValues = { amount: getValues('amount'), merchant: getValues('merchant'), date: getValues('date') };
+    const untouched = (name: keyof typeof startValues) => getValues(name) === startValues[name];
     setCandidates({ list: [], unsure: false });
     setPreview(null);
-    const steps = { pdf: 'scan.step.pdf', scan: 'scan.step.scan', image: 'scan.step.image', text: 'scan.step.text' } as const;
+    setFxAlert(null);
+    const steps = { pdf: 'scan.step.pdf', scan: 'scan.step.scan', image: 'scan.step.image', text: 'scan.step.text', local: 'scan.step.local' } as const;
+    const context = { baseUrl: envResult.env.supabaseUrl, anonKey: envResult.env.supabaseAnonKey, accessToken: session?.access_token };
     setScanNote({ text: t('scan.reading'), bad: false });
     try {
-      const parsed = await scanReceipt(file, { baseUrl: envResult.env.supabaseUrl, anonKey: envResult.env.supabaseAnonKey, accessToken: session?.access_token }, (step) => setScanNote({ text: t(steps[step]), bad: false }), (src) => setPreview({ src, words: [], amount: 0 }));
-      setPreview((p) => (p ? { src: p.src, words: parsed.words, amount: parsed.amount } : p));
+      const parsed = await scanReceipt(file, context, (step) => setScanNote({ text: t(steps[step]), bad: false }), (src) => setPreview({ src, words: [], amount: 0, merchantLine: '', dateLine: '' }));
+      // A receipt whose only clear total is in another currency is turned into ringgit at the rate of the receipt's own day (today's rate if
+      // that day is unavailable). A bare "$" is never guessed. If no rate can be had, the person is asked for the ringgit amount.
+      const foreign = parsed.amount === 0 && parsed.foreignTotal ? parsed.foreignTotal : null;
+      let converted = 0;
+      let alertText: string | null = null;
+      if (foreign) {
+        const label = `${foreign.currency} ${foreign.amount.toFixed(2)}`;
+        if (!foreign.ambiguous) setScanNote({ text: t('scan.step.fx'), bad: false });
+        // the rate of the receipt's own day; a missing or future date cannot be trusted, so today's rate is used and the alert says so
+        const receiptDay = parsed.date && parsed.date <= todayYmd() ? parsed.date : '';
+        const quote = foreign.ambiguous ? null : await lookupRate(context, foreign.currency, receiptDay || todayYmd());
+        if (quote) {
+          converted = toRinggit(foreign.amount, quote.rate);
+          const original = originalNote(foreign.currency, foreign.amount, quote);
+          setValue('note', withOriginal(getValues('note'), original), { shouldDirty: true, shouldValidate: true });
+          const why = quote.fallback ? `${t('scan.fx.fallback')} ` : !receiptDay ? `${t('scan.fx.noDate')} ` : '';
+          alertText = `${t('scan.fx.converted', { orig: label, amount: formatMoney(converted), rate: formatRate(quote.rate), date: quote.date })} ${why}${t('scan.fx.check')}`;
+        } else {
+          alertText = t('scan.fx.manual', { orig: label });
+        }
+      } else if (parsed.amount > 0 && parsed.otherCurrencies.length) {
+        alertText = `${t('scan.fx.mixed', { currencies: parsed.otherCurrencies.join(', ') })} ${t('scan.fx.check')}`;
+      }
+      setFxAlert(alertText);
+      setPreview((p) => (p ? { src: p.src, words: parsed.words, amount: converted && foreign ? foreign.amount : parsed.amount, merchantLine: parsed.merchantEvidence, dateLine: parsed.dateEvidence } : p));
       const found: string[] = [];
-      if (parsed.amount > 0) {
-        setValue('amount', parsed.amount.toFixed(2), { shouldValidate: true });
+      const amountNow = converted || parsed.amount;
+      if (amountNow > 0 && untouched('amount')) {
+        setValue('amount', amountNow.toFixed(2), { shouldValidate: true });
         found.push(t('scan.found.amount'));
       }
-      if (parsed.merchant) {
+      if (parsed.merchant && untouched('merchant')) {
         setValue('merchant', parsed.merchant);
         found.push(t('scan.found.merchant'));
       }
-      if (parsed.date) {
+      if (parsed.date && untouched('date')) {
         setValue('date', parsed.date, { shouldValidate: true });
         found.push(t('scan.found.date'));
       }
@@ -161,11 +207,13 @@ function AddBody({ request, onClose }: { request: AddRequest; onClose: () => voi
       const unsure = parsed.amountConfidence !== 'high';
       setCandidates({ list: unsure || options.length > 1 ? options : [], unsure });
       let text: string;
-      if (parsed.amountConfidence === 'high') text = t('scan.filled', { found: found.join(', ') });
+      if (converted) text = t('scan.filled', { found: found.join(', ') });
+      else if (parsed.amountConfidence === 'high') text = t('scan.filled', { found: found.join(', ') });
       else if (parsed.amountConfidence === 'medium') text = t('scan.unsureTotal', { found: found.join(', '), amount: formatMoney(parsed.amount) });
       else text = `${found.length ? `${t('scan.filled', { found: found.join(', ') })} ` : ''}${t('scan.noTotal')} ${options.length ? t('scan.tapRight') : t('scan.enterManual')}`;
-      if (parsed.warnings.length) text += ` ${parsed.warnings.join(' ')}`;
-      setScanNote({ text, bad: parsed.amountConfidence === 'low' || parsed.amountConfidence === 'none' });
+      // the parser's own English warnings about other currencies are replaced by the clearer translated alert below the note
+      if (parsed.warnings.length && !alertText) text += ` ${parsed.warnings.join(' ')}`;
+      setScanNote({ text, bad: !converted && (parsed.amountConfidence === 'low' || parsed.amountConfidence === 'none') });
     } catch (error) {
       const known = error instanceof ScanError;
       const text = known ? (error.problem === 'service' && error.serverText ? error.serverText : t(`scan.e.${error.problem}` as MessageKey)) : t('scan.e.service');
@@ -178,6 +226,11 @@ function AddBody({ request, onClose }: { request: AddRequest; onClose: () => voi
   const save = (event: FormEvent<HTMLFormElement>) => {
     void handleSubmit(async (values) => {
       setProblem('');
+      // an existing future-dated record is only questioned again when its date was changed
+      if (isYmd(values.date) && values.date > todayYmd() && !futureOk.current && (!editing || values.date !== isoToYmd(editing.row.created_at))) {
+        setFutureAsk(true);
+        return;
+      }
       const createdAt = ymdToNoonIso(values.date);
       const amount = (toCents(values.amount) / 100).toFixed(2);
       setBusy(true);
@@ -265,7 +318,7 @@ function AddBody({ request, onClose }: { request: AddRequest; onClose: () => voi
       title={title}
       dismissible={!busy && !scanning}
       footer={
-        <Button id="add-form-submit" type="submit" form="add-form" block loading={busy}>
+        <Button id="add-form-submit" type="submit" form="add-form" block loading={busy} disabled={scanning}>
           {busy ? t('add.saving') : t('add.save')}
         </Button>
       }
@@ -299,7 +352,7 @@ function AddBody({ request, onClose }: { request: AddRequest; onClose: () => voi
                     <Icon name="info" size={20} />
                   </button>
                 </div>
-                {preview ? <ReceiptPreview src={preview.src} words={preview.words} amount={preview.amount} onClose={() => setPreview(null)} /> : null}
+                {preview ? <ReceiptPreview src={preview.src} words={preview.words} amount={preview.amount} merchantLine={preview.merchantLine} dateLine={preview.dateLine} onClose={() => setPreview(null)} /> : null}
                 <p id="scan-hint" className={styles.scanHint} hidden={!scanInfo}>
                   {t('scan.hint')}
                 </p>
@@ -328,6 +381,11 @@ function AddBody({ request, onClose }: { request: AddRequest; onClose: () => voi
                     void onReceiptFile(file);
                   }}
                 />
+                {fxAlert ? (
+                  <Notice kind="warn">
+                    <span data-testid="fx-alert">{fxAlert}</span>
+                  </Notice>
+                ) : null}
                 {scanNote ? (
                   <p className={`${styles.scanNote} ${scanNote.bad ? styles.scanBad : ''}`} role="status" data-testid="scan-note">
                     {scanNote.text}
@@ -390,13 +448,18 @@ function AddBody({ request, onClose }: { request: AddRequest; onClose: () => voi
             <Controller name="payment" control={control} render={({ field }) => <ChipGroup legend={t('add.payment')} options={activePayments.map((p) => ({ value: p.key, label: p.label, glyph: p.glyph, icon: p.key, color: p.color }))} value={field.value} onChange={field.onChange} />} />
             <Field label={t('add.merchant')} autoComplete="off" error={formState.errors.merchant?.message} hint={editing ? undefined : t('nearby.hint')} trailing={editing ? undefined : <NearbyLocate nearby={nearby} />} {...register('merchant', { onChange: onMerchantChange })} />
             {editing ? null : <NearbyResults nearby={nearby} />}
-            <Field label={t('add.note')} autoComplete="off" error={formState.errors.note?.message} {...register('note')} />
+            <Field label={t('add.note')} autoComplete="off" error={formState.errors.note?.message} {...register('note', { onChange: onNoteChange })} />
           </>
         ) : (
           <Controller name="source" control={control} render={({ field }) => <ChipGroup legend={t('add.source')} options={incomeOptions} value={field.value} onChange={field.onChange} />} />
         )}
 
         <Field label={t('add.date')} type="date" error={formState.errors.date?.message} {...register('date')} />
+        {isFuture ? (
+          <Notice kind="warn">
+            <span data-testid="future-hint">{t('add.future.hint')}</span>
+          </Notice>
+        ) : null}
 
         {repeat ? (
           <Notice kind="warn">
@@ -437,6 +500,24 @@ function AddBody({ request, onClose }: { request: AddRequest; onClose: () => voi
           </div>
         ) : null}
       </form>
+      <Sheet open={futureAsk} onClose={() => setFutureAsk(false)} title={t('add.future.title')} dismissible={false}>
+        <p>{t('add.future.body', { date: formatDate(dateValue, data.dateFormat) })}</p>
+        <div className={styles.actions}>
+          <Button
+            data-testid="future-yes"
+            onClick={() => {
+              futureOk.current = true;
+              setFutureAsk(false);
+              document.getElementById('add-form-submit')?.click();
+            }}
+          >
+            {t('add.future.yes')}
+          </Button>
+          <Button variant="outline" onClick={() => setFutureAsk(false)}>
+            {t('add.future.change')}
+          </Button>
+        </div>
+      </Sheet>
     </Sheet>
   );
 }

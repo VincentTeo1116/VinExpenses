@@ -7,7 +7,7 @@ const PORT = Number(process.argv[2] ?? 54321);
 const GOOD = 'Str0ng!Passw0rd';
 const HOUR = 3600_000;
 
-const state = { users: new Map(), codeLog: [], fails: new Map(), blocked: new Map(), manual: new Set(), mail: [], feedback: [], tokens: new Map(), refresh: new Map(), recovery: new Map(), tables: new Map(), ocr: new Map(), nearby: new Map(), telegram: new Map(), admins: new Set(), audit: [] };
+const state = { users: new Map(), codeLog: [], fails: new Map(), blocked: new Map(), manual: new Set(), mail: [], feedback: [], tokens: new Map(), refresh: new Map(), recovery: new Map(), tables: new Map(), ocr: new Map(), fx: new Map(), nearby: new Map(), telegram: new Map(), admins: new Set(), audit: [] };
 let counter = 0;
 
 const b64 = (value) => Buffer.from(JSON.stringify(value)).toString('base64url');
@@ -375,6 +375,18 @@ createServer(async (request, response) => {
     if (ocr.mode === 'unreadable') return send(request, response, 422, { error: 'I couldn’t read this receipt clearly. Try a sharper, well-lit photo or enter it manually.' });
     return send(request, response, 200, ocr.words?.length ? { text: ocr.text, words: ocr.words } : { text: ocr.text });
   }
+  // The exchange-rate lookup for a receipt in another currency: the test sets the rate, or that the service is down or only has today's rate
+  if (path === '/__test/fx') { state.fx.set(String(body.email).toLowerCase(), { rate: body.rate ?? 4, mode: body.mode ?? 'ok', last: null }); return send(request, response, 200, { ok: true }); }
+  if (path === '/__test/fx-last') return send(request, response, 200, state.fx.get(String(url.searchParams.get('email')).toLowerCase())?.last ?? {});
+  if (path === '/functions/v1/fx-rate' && request.method === 'POST') {
+    const who = userFor(request);
+    if (!who?.user) return send(request, response, 401, { error: 'Please sign in.' });
+    const fx = state.fx.get(String(who.user.email).toLowerCase()) ?? { rate: 4, mode: 'ok', last: null };
+    fx.last = { currency: body.currency, date: body.date };
+    if (fx.mode === 'down') return send(request, response, 502, { error: 'The exchange-rate service could not be reached. Enter the ringgit amount yourself.' });
+    const today = new Date().toISOString().slice(0, 10);
+    return send(request, response, 200, fx.mode === 'fallback' ? { rate: fx.rate, date: today, fallback: true } : { rate: fx.rate, date: body.date, fallback: false });
+  }
   // The nearby-places lookup: signed-in only; the test sets the list (or that the map service is down)
   if (path === '/__test/nearby') { state.nearby.set(String(body.email).toLowerCase(), { places: body.places ?? [], mode: body.mode ?? 'ok', calls: 0, limit: body.limit ?? 200, last: null }); return send(request, response, 200, { ok: true }); }
   if (path === '/__test/nearby-last') return send(request, response, 200, state.nearby.get(String(url.searchParams.get('email')).toLowerCase()) ?? {});
@@ -535,6 +547,7 @@ createServer(async (request, response) => {
         audit(body.resolved === false ? 'reopen_feedback' : 'resolve_feedback', `feedback ${f.id}`);
         return send(request, response, 200, { ok: true });
       }
+      case 'scan_stats': return send(request, response, 200, { ok: true, total: 8, worked: 6, successPercent: 75, medianMs: 1200, p90Ms: 3100, failures: [{ reason: 'busy', count: 2 }], byEngine: [{ engine: 'ocr.space', total: 8, ok: 6 }] });
       case 'health': return send(request, response, 200, { ok: true, checks: { 'Email (Gmail SMTP)': true, 'Telegram bot': true, 'Scheduled jobs secret': false, 'Allowed website list': true, 'Database is up to date': true }, openFeedback: state.feedback.filter((f) => f.status === 'open').length });
       case 'log': return send(request, response, 200, { ok: true, items: state.audit.slice(0, 50) });
       default: return send(request, response, 400, { error: 'Unknown action.' });

@@ -51,6 +51,13 @@ export function headersFile(csp: string, miniCsp = ''): string {
 /assets/*
   Cache-Control: public, max-age=31536000, immutable
 
+# The on-device receipt reader runs in its own worker, which needs WebAssembly. Only these files get that permission (not the page), and they may only
+# fetch from this site.
+/ocr/*
+  ! Content-Security-Policy
+  Content-Security-Policy: default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; connect-src 'self'
+  Cache-Control: public, max-age=86400
+
 # The app and its sign-in are private: search engines must not list them (the welcome, privacy and terms pages may be listed)
 /app
   X-Robots-Tag: noindex, nofollow

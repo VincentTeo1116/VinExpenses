@@ -12,7 +12,8 @@ const opts = { skip: built ? false : 'no build found (run npm run build:e2e)' };
 
 test('no secret-shaped value is in any published file', opts, () => {
     const SECRET = /service_role["']?\s*[:=]\s*["']ey|SUPABASE_SERVICE_ROLE_KEY\s*[:=]|sk_live_|-----BEGIN (RSA |EC )?PRIVATE KEY|\b\d{8,10}:[A-Za-z0-9_-]{35}\b|AIza[0-9A-Za-z_-]{35}/;
-    for (const file of walk(dist).filter((f) => /\.(js|mjs|html|css|json|webmanifest|txt)$/.test(f))) {
+    // the on-device reader's own files (/ocr: third-party WebAssembly packed as text) are not our code; the /ocr policy is checked in the headers test below
+    for (const file of walk(dist).filter((f) => /\.(js|mjs|html|css|json|webmanifest|txt)$/.test(f) && !path.relative(dist, f).split(path.sep).join('/').startsWith('ocr/'))) {
         assert.ok(!SECRET.test(fs.readFileSync(file, 'utf8')), `${path.relative(dist, file)} looks like it contains a secret`);
     }
 });
@@ -37,7 +38,11 @@ test('the headers file forbids framing everywhere except the Mini App, which onl
     for (const needed of ["frame-ancestors 'none'", 'X-Frame-Options: DENY', 'Strict-Transport-Security', 'X-Content-Type-Options: nosniff', 'Referrer-Policy', 'Permissions-Policy', "default-src 'none'"]) {
         assert.ok(everywhere.includes(needed), `the general rule is missing ${needed}`);
     }
-    assert.ok(!/unsafe-inline|unsafe-eval/.test(headers), 'the policy allows unsafe code');
+    // the one exception: the on-device reader's own folder may run WebAssembly ('wasm-unsafe-eval') and nothing else, and may only fetch from this site
+    const ocrRule = /^\/ocr\/\*\r?\n(?:[ \t].*\r?\n)*/m.exec(headers);
+    assert.ok(ocrRule, 'the /ocr rule is missing');
+    assert.ok(/script-src 'self' 'wasm-unsafe-eval'; connect-src 'self'/.test(ocrRule[0]) && !/'unsafe-(inline|eval)'|https?:/.test(ocrRule[0]), 'the /ocr policy is wider than it should be');
+    assert.ok(!/unsafe-inline|unsafe-eval/.test(headers.replace(ocrRule[0], '')), 'the policy allows unsafe code');
     assert.ok(/frame-ancestors https:\/\/web\.telegram\.org/.test(rest), 'the Mini App rule lists Telegram');
     assert.ok(!/frame-ancestors[^;\n]*\*/.test(headers), 'no wildcard framing');
 });

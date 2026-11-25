@@ -2,6 +2,7 @@
 
 import { env, json, preflight, projectAccess, requireUser, takeQuota } from "../_shared/guard.ts";
 import { q, rest } from "../_shared/db.ts";
+import { summariseScans } from "../_shared/scan-log.ts";
 import { audit, isAdmin } from "../_shared/admin.ts";
 import { LIMITS, periods } from "../_shared/auth-rules.ts";
 import { loadEmailSetup } from "../_shared/email-setup.ts";
@@ -242,6 +243,14 @@ async function health(): Promise<Reply> {
   };
 }
 
+/** Receipt-scan reliability over the last 7 days: counts, success rate and timing. Never any receipt content. */
+async function scanStats(now: Date): Promise<Reply> {
+  const since = new Date(now.getTime() - 7 * 24 * 3600 * 1000).toISOString();
+  const response = await rest(`scan_events?select=engine,ok,reason,ms&at=gte.${q(since)}&order=at.desc&limit=5000`);
+  if (!response.ok) return { ok: false, message: "Scan statistics are not set up yet: run the scan_events part of supabase-schema.sql in Supabase." };
+  return { ok: true, ...summariseScans((await response.json()) as never[]) };
+}
+
 async function log(): Promise<Reply> {
   const response = await rest("admin_audit_log?select=id,admin_id,action,detail,created_at&order=created_at.desc&limit=50");
   return response.ok ? { ok: true, items: await response.json() } : { ok: false, message: "The log could not be loaded." };
@@ -282,6 +291,7 @@ export async function handle(request: Request, now = new Date(), connector: Conn
       case "feedback_list": reply = await feedbackList(body); break;
       case "feedback_resolve": reply = await feedbackResolve(body, auth.userId, now); break;
       case "health": reply = await health(); break;
+      case "scan_stats": reply = await scanStats(now); break;
       case "log": reply = await log(); break;
       default: return json(request, { error: "Bad request." }, 400);
     }

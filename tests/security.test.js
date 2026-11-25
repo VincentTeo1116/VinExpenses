@@ -232,7 +232,7 @@ test('Plan reminders: the function is scheduler-only and never trusts the browse
 // Public pages Section: landing, privacy, terms
 test('privacy policy: names every outside service the code actually uses, and the app has the policy and the terms', () => {
     const policy = read('src/features/public/PrivacyPage.tsx');
-    for (const provider of ['Supabase', 'Cloudflare', 'GitHub Pages', 'Google', 'OCR.space', 'Telegram', 'OpenStreetMap', 'Photon', 'Gmail']) {
+    for (const provider of ['Supabase', 'Cloudflare', 'GitHub Pages', 'Google', 'OCR.space', 'Telegram', 'OpenStreetMap', 'Photon', 'Gmail', 'Frankfurter']) {
         assert.ok(policy.includes(provider), `the privacy policy does not mention ${provider}`);
     }
     // if the server functions or the page start calling a new outside service, this list (and the policy) must be updated
@@ -240,7 +240,7 @@ test('privacy policy: names every outside service the code actually uses, and th
     for (const file of [...walk('supabase/functions'), ...walk('src')].filter((f) => /\.(ts|tsx)$/.test(f) && !/\.test\.tsx?$/.test(f))) {
         for (const m of fs.readFileSync(file, 'utf8').matchAll(/https:\/\/([a-z0-9.-]+\.[a-z]{2,})/g)) hosts.add(m[1]);
     }
-    const known = ['api.ocr.space', 'api.telegram.org', 't.me', 'telegram.org', 'web.telegram.org', 'webk.telegram.org', 'webz.telegram.org', 'nominatim.openstreetmap.org', 'overpass-api.de', 'photon.komoot.io',
+    const known = ['api.ocr.space', 'api.telegram.org', 't.me', 'telegram.org', 'web.telegram.org', 'webk.telegram.org', 'webz.telegram.org', 'nominatim.openstreetmap.org', 'overpass-api.de', 'photon.komoot.io', 'api.frankfurter.dev',
         'generativelanguage.googleapis.com', 'smtp.gmail.com', 'www.openstreetmap.org', 'accounts.google.com', 'challenges.cloudflare.com',
         'myaccount.google.com', 'aistudio.google.com', // only links in setup notes
     ];

@@ -66,6 +66,12 @@ Tests: `src/**/*.test.ts(x)` (unit/component, Vitest) · `e2e/*.spec.ts` (browse
 | RX-02 total scoring | Verified | `receiptParser.ts` | `ports-parity.test.js` (every fixture, plus thousands of random lines) and the original `receipt-parser.test.js` |
 | RX-03 AI helper | **Not built** | | optional (Should) |
 | RX-04 nearby place | Partly | `NearbyPicker`, `nearby-place` (list answer), `_shared/nearby.ts` | `nearby.spec.ts`, `tests/nearby.test.js`; **the real OpenStreetMap/Overpass service and a phone GPS were not used** |
+| RX-05 foreign-currency receipt | Partly | `fx.ts`, `_shared/fx.ts`, `fx-rate`, `AddSheet` | `fx.spec.ts`, `tests/telegram-parts.test.js` (rate by day, fallback to today, refusals); **the real Frankfurter service was not used** |
+| RX-06 backup reader on the device | Partly | `localOcr.ts`, `scan.ts`, `ocrAssetsPlugin` (own /ocr policy) | `fx.spec.ts` (a drawn receipt is read with the online reader down); **a real phone was not used** |
+| RX-07 mark total, shop and date on the photo | Verified | `highlight.ts`, `ScanPopups` | `highlight.test.ts`, `fx.spec.ts` |
+| MN-01 scan statistics | Partly | `scan-log.ts`, `receipt-ocr`, Admin system tab | `tests/telegram-parts.test.js`, `admin.spec.ts`; **the scan_events table must be created in Supabase (see supabase-schema.sql)** |
+| TX-06 future-dated record warning | Verified | `AddSheet` | `polish.spec.ts` |
+| ON-01 first-time guided tour | Verified | `Tour.tsx`, `tourStore.ts` | `tour.spec.ts` |
 | CT-01 categorisation order and brand lists | Verified | `smartEntry.ts`, `knownMerchants.ts` | `ports-parity.test.js` (every brand in every list), `entry.spec.ts` |
 | CS-01 CSV export and import | Verified | `csv.ts`, `plan.ts`, `DataCard` | `ports-parity.test.js`, `plan.test.ts`, `entry.spec.ts` |
 

@@ -255,3 +255,53 @@ test('receipt parser (shared copy) reads a real receipt fixture the way the app 
     assert.equal(parsed.hints.category, 'food');
     assert.match(parsed.merchant, /Sarawak/);
 });
+
+// FX-01: ringgit rates for a foreign receipt, by the receipt's own day, with today's rate as the marked fallback
+test('fx: asks for the receipt day, falls back to today and says so, and refuses unknown currencies and dates', async () => {
+    const { ringgitRate, validYmd } = await shared('fx');
+    const urls = [];
+    const answer = (map) => async (url) => {
+        urls.push(String(url));
+        const hit = Object.entries(map).find(([part]) => String(url).includes(part));
+        return hit ? new Response(JSON.stringify(hit[1]), { status: 200 }) : new Response('{}', { status: 404 });
+    };
+    const today = new Date('2026-11-25T00:00:00Z');
+    const day = await ringgitRate('usd', '2026-10-12', answer({ '/2026-10-12?': { date: '2026-10-12', rates: { MYR: 4.2 } } }), today);
+    assert.deepEqual(day, { ok: true, rate: 4.2, date: '2026-10-12', fallback: false });
+    assert.match(urls[0], /\/v1\/2026-10-12\?base=USD&symbols=MYR/);
+    // a weekend: the service names the earlier business day it used
+    const weekend = await ringgitRate('USD', '2026-10-11', answer({ '/2026-10-11?': { date: '2026-10-09', rates: { MYR: 4.19 } } }), today);
+    assert.equal(weekend.date, '2026-10-09');
+    // the day is not there: today's rate, marked as a fallback
+    const fell = await ringgitRate('EUR', '2026-10-12', answer({ '/latest?': { date: '2026-11-24', rates: { MYR: 4.9 } } }), today);
+    assert.deepEqual(fell, { ok: true, rate: 4.9, date: '2026-11-24', fallback: true });
+    // no usable date: straight to today's rate
+    assert.equal((await ringgitRate('EUR', 'garbage', answer({ '/latest?': { date: '2026-11-24', rates: { MYR: 4.9 } } }), today)).fallback, true);
+    // refusals
+    assert.deepEqual(await ringgitRate('XYZ', '2026-10-12', answer({}), today), { ok: false, reason: 'bad_request' });
+    assert.deepEqual(await ringgitRate('USD', '2026-10-12', answer({}), today), { ok: false, reason: 'service' });
+    assert.deepEqual(await ringgitRate('USD', '2026-10-12', answer({ '/2026-10-12?': { date: '2026-10-12', rates: { MYR: -3 } } }), today), { ok: false, reason: 'service' });
+    assert.equal(validYmd('2026-02-30', today), false);
+    assert.equal(validYmd('2027-01-01', today), false, 'a date well in the future is not looked up');
+    assert.equal(validYmd('1990-01-01', today), false);
+});
+
+// MON-01: scan statistics hold only counts and timings, and the summary is right
+test('scan log: summarises success rate, timing and failure reasons, and keeps nothing but those', async () => {
+    const { summariseScans, recordScan } = await shared('scan-log');
+    const rows = [
+        { engine: 'ocr.space', ok: true, ms: 900 }, { engine: 'ocr.space', ok: true, ms: 1100 }, { engine: 'ocr.space', ok: true, ms: 3000 },
+        { engine: 'ocr.space', ok: false, reason: 'busy', ms: 2000 }, { engine: 'ocr.space', ok: false, reason: 'busy' }, { engine: 'ocr.space', ok: false, reason: 'unreadable' },
+    ];
+    const s = summariseScans(rows);
+    assert.equal(s.total, 6);
+    assert.equal(s.worked, 3);
+    assert.equal(s.successPercent, 50);
+    assert.equal(s.medianMs, 1100);
+    assert.deepEqual(s.failures, [{ reason: 'busy', count: 2 }, { reason: 'unreadable', count: 1 }]);
+    assert.deepEqual(summariseScans([]), { total: 0, worked: 0, successPercent: 0, medianMs: null, p90Ms: null, failures: [], byEngine: [] });
+    // recording never throws, even with no server settings at all
+    await assert.doesNotReject(recordScan({ engine: 'ocr.space', ok: true, ms: 5 }));
+    const code = require('node:fs').readFileSync(require('node:path').join(__dirname, '../supabase/functions/_shared/scan-log.ts'), 'utf8');
+    assert.ok(!/imageData|\.text|amount|user_id|userId/.test(code.replace(/\/\/.*$/gm, '')), 'no receipt content or person is recorded');
+});

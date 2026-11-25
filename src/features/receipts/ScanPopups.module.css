@@ -35,8 +35,43 @@
   stroke-width: 2.5px;
   animation: markIn 0.4s var(--ease) both;
 }
+.markShop {
+  fill: color-mix(in srgb, var(--primary) 22%, transparent);
+  stroke: var(--primary);
+  stroke-width: 2.5px;
+  animation: markIn 0.4s var(--ease) both;
+}
+.markDate {
+  fill: color-mix(in srgb, var(--warning) 28%, transparent);
+  stroke: var(--warning);
+  stroke-width: 2.5px;
+  animation: markIn 0.4s var(--ease) both;
+}
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-3);
+}
+.keyTotal,
+.keyShop,
+.keyDate {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.keyTotal::before,
+.keyShop::before,
+.keyDate::before {
+  content: '';
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+}
+.keyTotal::before { background: var(--success); }
+.keyShop::before { background: var(--primary); }
+.keyDate::before { background: var(--warning); }
 @keyframes markIn { from { opacity: 0; } to { opacity: 1; } }
-@media (prefers-reduced-motion: reduce) { .mark { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .mark, .markShop, .markDate { animation: none; } }
 .caption { display: flex; align-items: center; justify-content: space-between; gap: var(--s-2); padding: var(--s-2) var(--s-3); color: var(--muted); font-size: var(--fs-sm); }
 .dismiss { display: grid; place-items: center; min-width: 32px; min-height: 32px; border-radius: var(--r-sm); color: var(--muted); }
 .dismiss:hover { color: var(--text); background: var(--surface); }

@@ -5,7 +5,7 @@ import { Button } from '@/components/Button';
 import { Icon } from '@/components/Icon';
 import { Sheet } from '@/components/Sheet';
 import { useI18n } from '@/lib/i18n';
-import { findAmountBoxes, toFractions, type OcrWord } from './highlight';
+import { findAmountBoxes, findPhraseBox, toFractions, type OcrWord } from './highlight';
 import styles from './ScanPopups.module.css';
 
 export const cameraAvailable = (): boolean => typeof navigator !== 'undefined' && !!navigator.mediaDevices && typeof navigator.mediaDevices.getUserMedia === 'function';
@@ -40,7 +40,7 @@ export function ScanChooser({ open, onClose, onCamera, onFile }: { open: boolean
 export function CameraSheet({ open, onClose, onCapture, onFallback }: { open: boolean; onClose: () => void; onCapture: (file: File) => void; onFallback: () => void }) {
   const { t } = useI18n();
   const video = useRef<HTMLVideoElement>(null);
-  const [state, setState] = useState<'starting' | 'live' | 'blocked' | 'none'>('starting');
+  const [state, setState] = useState<'starting' | 'live' | 'blocked' | 'none' | 'busy'>('starting');
 
   useEffect(() => {
     if (!open) return;
@@ -62,7 +62,11 @@ export function CameraSheet({ open, onClose, onCapture, onFallback }: { open: bo
           void video.current.play().catch(() => undefined);
         }
       })
-      .catch((error: { name?: string }) => setState(error && (error.name === 'NotFoundError' || error.name === 'OverconstrainedError') ? 'none' : 'blocked'));
+      .catch((error: { name?: string }) => {
+        const name = error?.name;
+        // not allowed -> blocked; no camera -> none; a camera another app is holding (or that failed to start) -> busy
+        setState(name === 'NotFoundError' || name === 'OverconstrainedError' ? 'none' : name === 'NotReadableError' || name === 'AbortError' ? 'busy' : 'blocked');
+      });
     return () => {
       cancelled = true;
       stream?.getTracks().forEach((track) => track.stop()); // the camera light goes off as soon as the pop-up closes
@@ -87,9 +91,9 @@ export function CameraSheet({ open, onClose, onCapture, onFallback }: { open: bo
 
   return (
     <Sheet open={open} onClose={onClose} title={t('scan.takePhoto')} size="wide">
-      {state === 'blocked' || state === 'none' ? (
+      {state === 'blocked' || state === 'none' || state === 'busy' ? (
         <div className={styles.cameraProblem} role="alert">
-          <p>{t(state === 'blocked' ? 'scan.camera.blocked' : 'scan.camera.none')}</p>
+          <p>{t(state === 'blocked' ? 'scan.camera.blocked' : state === 'busy' ? 'scan.camera.busy' : 'scan.camera.none')}</p>
           <Button variant="outline" block onClick={onFallback}>
             {t('scan.chooseFile')}
           </Button>
@@ -111,10 +115,13 @@ export function CameraSheet({ open, onClose, onCapture, onFallback }: { open: bo
 }
 
 /** The photo that was read, with the total marked, so a wrong pick is obvious at a glance. */
-export function ReceiptPreview({ src, words, amount, onClose }: { src: string; words: OcrWord[]; amount: number; onClose: () => void }) {
+export function ReceiptPreview({ src, words, amount, merchantLine = '', dateLine = '', onClose }: { src: string; words: OcrWord[]; amount: number; merchantLine?: string; dateLine?: string; onClose: () => void }) {
   const { t } = useI18n();
   const [size, setSize] = useState<{ w: number; h: number } | null>(null);
-  const boxes = size ? toFractions(findAmountBoxes(words, amount), size.w, size.h) : [];
+  const totalBoxes = size ? toFractions(findAmountBoxes(words, amount), size.w, size.h) : [];
+  const shopBoxes = size ? toFractions(findPhraseBox(words, merchantLine), size.w, size.h) : [];
+  const dateBoxes = size ? toFractions(findPhraseBox(words, dateLine), size.w, size.h) : [];
+  const boxes = [...totalBoxes.map((b) => ({ ...b, kind: styles.mark })), ...shopBoxes.map((b) => ({ ...b, kind: styles.markShop })), ...dateBoxes.map((b) => ({ ...b, kind: styles.markDate }))];
   return (
     <figure className={styles.preview} data-testid="receipt-preview">
       <div className={styles.imageWrap}>
@@ -133,14 +140,19 @@ export function ReceiptPreview({ src, words, amount, onClose }: { src: string; w
           {boxes.length ? (
             <svg className={styles.marks} viewBox="0 0 1 1" preserveAspectRatio="none" aria-hidden="true">
               {boxes.map((b, i) => (
-                <rect key={i} className={styles.mark} data-testid="receipt-mark" x={b.x} y={b.y} width={b.w} height={b.h} rx={0.004} vectorEffect="non-scaling-stroke" />
+                <rect key={i} className={b.kind} data-testid="receipt-mark" x={b.x} y={b.y} width={b.w} height={b.h} rx={0.004} vectorEffect="non-scaling-stroke" />
               ))}
             </svg>
           ) : null}
         </div>
       </div>
       <figcaption className={styles.caption}>
-        <span>{boxes.length ? t('scan.preview.marked') : t('scan.preview.plain')}</span>
+        <span className={styles.legend}>
+          {boxes.length === 0 ? t('scan.preview.plain') : null}
+          {totalBoxes.length ? <span className={styles.keyTotal}>{t('scan.preview.total')}</span> : null}
+          {shopBoxes.length ? <span className={styles.keyShop}>{t('scan.preview.shop')}</span> : null}
+          {dateBoxes.length ? <span className={styles.keyDate}>{t('scan.preview.date')}</span> : null}
+        </span>
         <button type="button" className={styles.dismiss} onClick={onClose} aria-label={t('scan.preview.hide')}>
           <Icon name="x" size={18} />
         </button>

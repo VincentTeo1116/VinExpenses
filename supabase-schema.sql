@@ -918,3 +918,16 @@ begin
   end loop;
 end
 $mfa$;
+
+-- Scan statistics for the administrator (MON-01). Only the engine, whether it worked, the kind of failure and the time it took:
+-- never a receipt image, its text, an amount or who scanned it. No policies on purpose: only the server (service key) can read or write it.
+create table if not exists public.scan_events (
+  id bigserial primary key,
+  at timestamptz not null default now(),
+  engine text not null,
+  ok boolean not null,
+  reason text,
+  ms integer
+);
+create index if not exists scan_events_at_idx on public.scan_events (at desc);
+alter table public.scan_events enable row level security;

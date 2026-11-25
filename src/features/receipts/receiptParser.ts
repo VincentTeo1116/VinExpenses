@@ -163,7 +163,7 @@ interface Total {
   confidence: Confidence;
   currency: string | null;
   candidates: Candidate[];
-  foreignTotal?: { amount: number; currency: string };
+  foreignTotal?: { amount: number; currency: string; ambiguous?: boolean };
 }
 interface Group {
   value: number;
@@ -174,6 +174,8 @@ interface Group {
   best: Token | null;
   agreeing: number;
   labels: string[];
+  /** Some amount in this group was written with a bare "$" (US, Singapore or Hong Kong dollars: not safe to guess). */
+  bare: boolean;
 }
 
 function pickTotal(lines: string[]): Total {
@@ -209,9 +211,10 @@ function pickTotal(lines: string[]): Total {
     const id = `${cents}:${t.currency || ''}`;
     let g = groups.get(id);
     if (!g) {
-      g = { value: cents / 100, cents, currency: t.currency || null, score: -99, raw: -99, best: null, agreeing: 0, labels: [] };
+      g = { value: cents / 100, cents, currency: t.currency || null, score: -99, raw: -99, best: null, agreeing: 0, labels: [], bare: false };
       groups.set(id, g);
     }
+    if (/^\$/.test(t.raw)) g.bare = true;
     if (raw > g.raw) g.raw = raw; // label score before the foreign-currency penalty
     if (score > g.score) {
       g.score = score;
@@ -257,7 +260,8 @@ function pickTotal(lines: string[]): Total {
     // The only clear "total" is in another currency (USD, RMB...): say so instead of staying silent
     const foreignTotal = [...groups.values()].filter((g) => g.currency && g.currency !== 'MYR').sort((a, b) => b.raw - a.raw)[0];
     if (foreignTotal && foreignTotal.raw >= 6) {
-      result.foreignTotal = { amount: foreignTotal.value, currency: foreignTotal.currency as string };
+      // a bare "$" could be US, Singapore or Hong Kong dollars: it is reported, but never converted without asking
+      result.foreignTotal = { amount: foreignTotal.value, currency: foreignTotal.currency as string, ambiguous: foreignTotal.bare };
       result.candidates.unshift({ amount: foreignTotal.value, label: foreignTotal.best && foreignTotal.best.label ? foreignTotal.best.label.slice(0, 40) : '', score: foreignTotal.raw, currency: foreignTotal.currency, verified: false });
     }
     return result;
@@ -403,8 +407,15 @@ export interface ParsedReceipt {
   date: string;
   template: string;
   hints: { category?: string; payment?: string };
+  /** Every currency other than ringgit that shows on an amount (USD, SGD...), so the person can be told the receipt is mixed. */
+  otherCurrencies: string[];
+  /** When the only clear total is in another currency: what it is, so the app can convert it at the receipt day's rate. */
+  foreignTotal?: { amount: number; currency: string; ambiguous: boolean };
   /** The receipt line the amount came from, when it was filled in. */
   amountEvidence: string;
+  /** The receipt lines the merchant and the date were read from, so the app can mark them on the photo. Empty when not found. */
+  merchantEvidence: string;
+  dateEvidence: string;
   warnings: string[];
 }
 
@@ -463,7 +474,15 @@ export function parseReceiptText(text: unknown, options: { now?: Date } = {}): P
   if (total.currency && total.currency !== 'MYR' && total.amount) warnings.push(`The amount looks like ${total.currency}, not RM. Check it.`);
   if (total.foreignTotal) warnings.push(`This receipt is in ${total.foreignTotal.currency} (${total.foreignTotal.amount.toFixed(2)}), not RM. Enter the ringgit amount you actually paid.`);
   const filled = total.confidence === 'high' || total.confidence === 'medium';
+  const dateFound = parseDate(lines, options.now);
+  const alnum = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+  const merchantKey = alnum(merchant).slice(0, 10);
+  const merchantEvidence = merchantKey.length >= 3 ? (lines.slice(0, 20).find((line) => alnum(line).includes(merchantKey)) ?? '') : '';
+  const dateEvidence = dateFound ? (lines.find((line) => findDatesInLine(line, options.now || new Date()).some((hit) => hit.iso === dateFound)) ?? '') : '';
+  const otherCurrencies = [...new Set(lines.flatMap((line) => findAmountsInLine(line)).map((a) => a.currency).filter((c): c is string => !!c && c !== 'MYR'))];
   return {
+    otherCurrencies,
+    ...(total.foreignTotal ? { foreignTotal: { amount: total.foreignTotal.amount, currency: total.foreignTotal.currency, ambiguous: Boolean(total.foreignTotal.ambiguous) } } : {}),
     merchant: tidyMerchant(merchant),
     amount: filled ? total.amount : 0,
     amountEvidence: filled ? (total.evidence || '').slice(0, 80) : '',
@@ -471,7 +490,9 @@ export function parseReceiptText(text: unknown, options: { now?: Date } = {}): P
     amountConfidence: total.confidence,
     amountCandidates: total.candidates,
     currency: total.currency,
-    date: parseDate(lines, options.now),
+    date: dateFound,
+    merchantEvidence,
+    dateEvidence,
     template: template.id,
     hints: { ...(template.category ? { category: template.category } : {}), ...paymentHint(normalized) },
     warnings,

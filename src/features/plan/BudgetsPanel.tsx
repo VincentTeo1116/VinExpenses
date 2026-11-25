@@ -1,6 +1,8 @@
 // BU-01: a monthly limit overall and per category, with progress for this month (amber from 80%, red when over).
 import { useMemo, useState, type FormEvent } from 'react';
 import { Button } from '@/components/Button';
+import { CatIcon } from '@/components/CatIcon';
+import { Icon } from '@/components/Icon';
 import { Notice } from '@/components/Notice';
 import { useToast } from '@/components/Toast';
 import { useI18n } from '@/lib/i18n';
@@ -17,7 +19,7 @@ export function BudgetsPanel() {
   const toast = useToast();
   const { data, actions, categories } = useMoney();
   const month = monthKey(todayYmd());
-  const rows = useMemo(() => [{ key: 'all', label: t('bud.overall'), glyph: '🎯' }, ...categories.filter((item) => item.active || budgetFor(data.budgets, item.key) > 0).map((item) => ({ key: item.key, label: item.label, glyph: item.glyph }))], [categories, data.budgets, t]);
+  const rows = useMemo(() => [{ key: 'all', label: t('bud.overall'), glyph: '', color: '' }, ...categories.filter((item) => item.active || budgetFor(data.budgets, item.key) > 0).map((item) => ({ key: item.key, label: item.label, glyph: item.glyph, color: item.color }))], [categories, data.budgets, t]);
   const thisMonth = useMemo(() => inMonth(data.expenses, month), [data.expenses, month]);
 
   const initial = useMemo(() => Object.fromEntries(rows.map((row) => [row.key, budgetFor(data.budgets, row.key) > 0 ? String(budgetFor(data.budgets, row.key) / 100) : ''])), [rows, data.budgets]);
@@ -73,9 +75,14 @@ export function BudgetsPanel() {
             return (
               <li key={row.key} className={styles.row} data-budget={row.key}>
                 <div className={styles.head}>
-                  <span className={styles.glyph} aria-hidden="true">
-                    {row.glyph}
-                  </span>
+                  {/* the same drawn icons as the Add pop-up's category chips, never an emoji */}
+                  {row.key === 'all' ? (
+                    <span className={styles.glyph} aria-hidden="true">
+                      <Icon name="target" size={22} />
+                    </span>
+                  ) : (
+                    <CatIcon name={row.key} color={row.color} glyph={row.glyph} size={36} />
+                  )}
                   <label htmlFor={id} className={styles.label}>
                     {row.label}
                   </label>

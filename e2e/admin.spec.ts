@@ -191,6 +191,11 @@ test.describe('messages (AD-04) and system (AD-05)', () => {
     await page.getByRole('button', { name: 'Send a test email' }).click();
     await expect(page.getByText(`Test email delivered to ${me.email}`)).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Recent admin actions' })).toBeVisible();
+    // scan reliability: counts and timings only
+    const scan = page.getByTestId('scan-stats');
+    await expect(scan).toContainText('8 scans, 75% worked');
+    await expect(scan).toContainText('Typical time 1.2 s');
+    await expect(scan.getByRole('list', { name: 'Why scans failed' })).toContainText('busy: 2');
   });
 });
 

@@ -1,5 +1,6 @@
 import { consumeQuota, dailyLimit, json, preflight, requireUser } from "../_shared/guard.ts";
 import { MAX_IMAGE_BYTES, runOcr } from "../_shared/ocr.ts";
+import { recordScan } from "../_shared/scan-log.ts";
 
 Deno.serve(async (request: Request) => {
   const early = preflight(request);
@@ -27,7 +28,10 @@ Deno.serve(async (request: Request) => {
     }
     const bytes = Uint8Array.from(atob(encoded), (character) => character.charCodeAt(0));
 
+    const startedAt = performance.now();
     const result = await runOcr(apiKey, bytes);
+    // only the outcome and the time are recorded (see scan-log.ts)
+    await recordScan({ engine: "ocr.space", ok: result.ok, reason: result.ok ? null : result.reason, ms: performance.now() - startedAt });
     if (result.ok) {
       // Do not log or persist receipt images or OCR text.
       return json(request, result.words ? { text: result.text, words: result.words } : { text: result.text });

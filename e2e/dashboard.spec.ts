@@ -147,3 +147,47 @@ test.describe('dashboard (DB-01 … DB-10)', () => {
     });
   }
 });
+
+test.describe('donut and month bars (DB-05, DB-06)', () => {
+  test('the total in the middle of the ring is large and bold', async ({ page }) => {
+    const user = await signInAs(page);
+    await seedRows(page, user.email, 'expenses', [row('75.00', 'food', 'A'), row('25.00', 'car', 'B')]);
+    await openHome(page);
+    const size = await page.getByTestId('donut-centre').locator('strong').evaluate((el) => parseFloat(getComputedStyle(el).fontSize));
+    expect(size).toBeGreaterThanOrEqual(22);
+  });
+
+  test.describe('on a touch screen', () => {
+    test.use({ hasTouch: true });
+    test('a tap on a slice shows it; a tap outside the ring goes back to the total', async ({ page }) => {
+      const user = await signInAs(page);
+      await seedRows(page, user.email, 'expenses', [row('75.00', 'food', 'A'), row('25.00', 'car', 'B')]);
+      await openHome(page);
+      const centre = page.getByTestId('donut-centre');
+      await expect(centre).toContainText('RM 100.00');
+      const box = (await page.getByTestId('donut-centre').boundingBox())!;
+      // food is 75% of the ring, starting at the top and going clockwise, so the right-hand side of the ring is food
+      await page.touchscreen.tap(box.x + box.width / 2 + (70 / 200) * box.width, box.y + box.height / 2);
+      await expect(centre).toContainText('RM 75.00');
+      await page.touchscreen.tap(box.x + 3, box.y + 3); // an empty corner of the chart, outside the ring
+      await expect(centre).toContainText('RM 100.00');
+      await expect(page).toHaveURL(/\/app\/?$/); // and it did not open History
+    });
+  });
+
+  test('choosing a month keeps the bars where they were on screen, even though the cards below change height', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 800 });
+    const user = await signInAs(page);
+    const many = ['food', 'car', 'utilities', 'shopping', 'health', 'travel'].map((category, i) => row(`${10 + i}.00`, category, `M${i}`, 35));
+    await seedRows(page, user.email, 'expenses', [row('40.00', 'food', 'Now'), ...many]);
+    await openHome(page);
+    const target = page.locator('[data-month]').nth(4); // last month's column
+    await target.scrollIntoViewIfNeeded();
+    const before = (await target.boundingBox())!.y;
+    await target.click();
+    await expect(page.getByTestId('spent')).not.toHaveText('RM 40.00');
+    await page.waitForTimeout(300);
+    const after = (await target.boundingBox())!.y;
+    expect(Math.abs(after - before)).toBeLessThan(2);
+  });
+});

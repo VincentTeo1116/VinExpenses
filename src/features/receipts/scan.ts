@@ -3,6 +3,7 @@
 import type * as PdfJs from 'pdfjs-dist';
 import { ApiError, callFunction } from '@/lib/api';
 import type { OcrWord } from './highlight';
+import { readOnDevice } from './localOcr';
 import { parseBest, pdfContentOrderToText, pdfItemsToText, type ParsedReceipt } from './receiptParser';
 
 export type ScanProblem = 'pdfTooBig' | 'pdfPassword' | 'pdfBad' | 'pdfSlow' | 'pdfLoad' | 'ocrSlow' | 'noText' | 'offlinePhoto' | 'badType' | 'imageOpen' | 'noCompress' | 'tooLarge' | 'prepSlow' | 'service';
@@ -11,11 +12,14 @@ export class ScanError extends Error {
   readonly problem: ScanProblem;
   /** Words from the server (daily limit reached, service not set up) shown as they are. */
   readonly serverText: string;
-  constructor(problem: ScanProblem, serverText = '') {
+  /** The online reader could not help for a passing reason (busy, down, over its allowance, no connection): the backup reader may try. */
+  readonly transient: boolean;
+  constructor(problem: ScanProblem, serverText = '', transient = false) {
     super(problem);
     this.name = 'ScanError';
     this.problem = problem;
     this.serverText = serverText;
+    this.transient = transient;
   }
 }
 
@@ -27,7 +31,7 @@ export const isPdf = (file: File): boolean => file.type === 'application/pdf' ||
 function withTimeout<T>(promise: Promise<T>, ms: number, problem: ScanProblem): Promise<T> {
   let timer: ReturnType<typeof setTimeout> | undefined;
   const limit = new Promise<never>((_, reject) => {
-    timer = setTimeout(() => reject(new ScanError(problem)), ms);
+    timer = setTimeout(() => reject(new ScanError(problem, '', problem === 'ocrSlow')), ms);
   });
   return Promise.race([promise, limit]).finally(() => clearTimeout(timer));
 }
@@ -202,16 +206,16 @@ export interface OcrContext {
 }
 
 async function ocr(imageData: string, context: OcrContext): Promise<{ text: string; words: OcrWord[] }> {
-  if (!navigator.onLine) throw new ScanError('offlinePhoto');
+  if (!navigator.onLine) throw new ScanError('offlinePhoto', '', true);
   try {
     const reply = await callFunction<{ text?: string; words?: OcrWord[]; error?: string }>('receipt-ocr', { imageData }, { ...context, timeoutMs: 45_000 });
     if (reply.error) throw new ScanError('service', reply.error);
     return { text: reply.text ?? '', words: Array.isArray(reply.words) ? reply.words : [] };
   } catch (error) {
     if (error instanceof ApiError) {
-      if (error.code === 'offline') throw new ScanError('offlinePhoto');
-      if (error.code === 'timeout') throw new ScanError('ocrSlow');
-      throw new ScanError('service', error.message);
+      if (error.code === 'offline') throw new ScanError('offlinePhoto', '', true);
+      if (error.code === 'timeout') throw new ScanError('ocrSlow', '', true);
+      throw new ScanError('service', error.message, error.code === 'server' || error.code === 'rate_limited' || error.code === 'not_configured');
     }
     throw error;
   }
@@ -221,27 +225,45 @@ export interface Scanned extends ParsedReceipt {
   text: string;
   /** Where each word sits on the image that was read (photos and scans only). */
   words: OcrWord[];
-  source: 'pdf-text' | 'ocr';
+  source: 'pdf-text' | 'ocr' | 'ocr-device';
   /** Where the time went, in milliseconds: getting the file ready, the OCR call, and everything together. Stays on the device. */
   timings: { prepMs: number; ocrMs: number; totalMs: number };
 }
 
 /** Reads a receipt file and works out merchant, amount and date. Throws a ScanError with what went wrong. */
-export async function scanReceipt(file: File, context: OcrContext, onStep?: (step: 'pdf' | 'scan' | 'image' | 'text') => void, onPreview?: (image: string) => void): Promise<Scanned> {
+export async function scanReceipt(file: File, context: OcrContext, onStep?: (step: 'pdf' | 'scan' | 'image' | 'text' | 'local') => void, onPreview?: (image: string) => void): Promise<Scanned> {
   let texts: string[] = [];
   let source: Scanned['source'] = 'ocr';
   const started = performance.now();
   let ocrMs = 0;
   let prepMs = 0;
   let words: OcrWord[] = [];
+  let readOnThisDevice = false;
   const timedOcr = async (imageData: string): Promise<string> => {
     prepMs = performance.now() - started;
     onPreview?.(imageData); // the photo stays on screen even if reading it fails, so the person can copy from it
     const t = performance.now();
     try {
-      const reply = await withTimeout(ocr(imageData, context), 45_000, 'ocrSlow');
-      words = reply.words;
-      return reply.text;
+      try {
+        const reply = await withTimeout(ocr(imageData, context), 45_000, 'ocrSlow');
+        words = reply.words;
+        return reply.text;
+      } catch (error) {
+        // The online reader could not help (busy, down, over its daily allowance, or no connection): read the photo on this device instead.
+        // A photo it simply could not make out ('noText') is not retried: the backup is not better at that.
+        if (!(error instanceof ScanError) || !error.transient) throw error;
+        onStep?.('local');
+        try {
+          const local = await withTimeout(readOnDevice(imageData, 90_000), 100_000, 'ocrSlow');
+          // nothing readable on the device either: say why the online reader was not used (busy, limit, offline) rather than a vague "no text"
+          if (!local.text.trim()) throw error;
+          words = local.words;
+          readOnThisDevice = true;
+          return local.text;
+        } catch {
+          throw error; // the backup failed too: say what went wrong with the online one
+        }
+      }
     } finally {
       ocrMs = performance.now() - t;
     }
@@ -268,5 +290,5 @@ export async function scanReceipt(file: File, context: OcrContext, onStep?: (ste
   if (!prepMs) prepMs = totalMs;
   const timings = { prepMs: Math.round(prepMs), ocrMs: Math.round(ocrMs), totalMs: Math.round(totalMs) };
   if (import.meta.env.DEV) console.debug('[scan] timings (ms)', timings);
-  return { ...best, source, timings, words };
+  return { ...best, source: readOnThisDevice ? 'ocr-device' : source, timings, words };
 }

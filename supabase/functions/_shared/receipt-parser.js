@@ -166,9 +166,10 @@
             const score = raw + (foreign ? FOREIGN_PENALTY : 0);
             let g = groups.get(cents + ':' + (t.currency || ''));
             if (!g) {
-                g = { value: cents / 100, cents, currency: t.currency || null, score: -99, raw: -99, best: null, agreeing: 0, labels: [] };
+                g = { value: cents / 100, cents, currency: t.currency || null, score: -99, raw: -99, best: null, agreeing: 0, labels: [], bare: false };
                 groups.set(cents + ':' + (t.currency || ''), g);
             }
+            if (/^\$/.test(t.raw)) g.bare = true;
             if (raw > g.raw) g.raw = raw;                       // label score before the foreign-currency penalty
             if (score > g.score) { g.score = score; g.best = t; }
             if (score >= 9) g.agreeing++;
@@ -209,7 +210,8 @@
             // The only clear "total" is in another currency (USD, RMB...): say so instead of staying silent
             const foreignTotal = [...groups.values()].filter(g => g.currency && g.currency !== 'MYR').sort((a, b) => b.raw - a.raw)[0];
             if (foreignTotal && foreignTotal.raw >= 6) {
-                result.foreignTotal = { amount: foreignTotal.value, currency: foreignTotal.currency };
+                // a bare "$" could be US, Singapore or Hong Kong dollars: it is reported, but never converted without asking
+                result.foreignTotal = { amount: foreignTotal.value, currency: foreignTotal.currency, ambiguous: foreignTotal.bare };
                 result.candidates.unshift({ amount: foreignTotal.value, label: foreignTotal.best && foreignTotal.best.label ? foreignTotal.best.label.slice(0, 40) : '', score: foreignTotal.raw, currency: foreignTotal.currency, verified: false });
             }
             return result;
@@ -389,7 +391,15 @@
         if (total.currency && total.currency !== 'MYR' && total.amount) warnings.push(`The amount looks like ${total.currency}, not RM. Check it.`);
         if (total.foreignTotal) warnings.push(`This receipt is in ${total.foreignTotal.currency} (${total.foreignTotal.amount.toFixed(2)}), not RM. Enter the ringgit amount you actually paid.`);
         const filled = total.confidence === 'high' || total.confidence === 'medium';
+        const dateFound = parseDate(lines, options.now);
+        const alnum = s => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+        const merchantKey = alnum(merchant).slice(0, 10);
+        const merchantEvidence = merchantKey.length >= 3 ? (lines.slice(0, 20).find(line => alnum(line).includes(merchantKey)) || '') : '';
+        const dateEvidence = dateFound ? (lines.find(line => findDatesInLine(line, options.now || new Date()).some(hit => hit.iso === dateFound)) || '') : '';
+        const otherCurrencies = [...new Set(lines.flatMap(line => findAmountsInLine(line)).map(a => a.currency).filter(c => !!c && c !== 'MYR'))];
         return {
+            otherCurrencies,
+            ...(total.foreignTotal ? { foreignTotal: { amount: total.foreignTotal.amount, currency: total.foreignTotal.currency, ambiguous: Boolean(total.foreignTotal.ambiguous) } } : {}),
             merchant: tidyMerchant(merchant),
             amount: filled ? total.amount : 0,
             amountEvidence: filled ? (total.evidence || '').slice(0, 80) : '',
@@ -397,7 +407,9 @@
             amountConfidence: total.confidence,
             amountCandidates: total.candidates,
             currency: total.currency,
-            date: parseDate(lines, options.now),
+            date: dateFound,
+            merchantEvidence,
+            dateEvidence,
             template: template.id,
             hints: Object.assign({}, template.category ? { category: template.category } : {}, paymentHint(normalized)),
             warnings

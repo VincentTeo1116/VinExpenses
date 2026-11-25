@@ -1,5 +1,5 @@
 /// <reference types="vitest/config" />
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, URL } from 'node:url';
 import { defineConfig, loadEnv, type Plugin } from 'vite';
@@ -85,6 +85,39 @@ function headersPlugin(csp: string, miniCsp: string): Plugin {
   };
 }
 
+/**
+ * The on-device receipt reader (Tesseract, English only) is served from this site's own /ocr folder, never from another host. Its files are
+ * copied from node_modules when the site is built (and served from there while developing). They are large, so they are NOT part of the offline
+ * cache: they are downloaded only when someone's photo cannot be read online (see src/features/receipts/localOcr.ts).
+ */
+const OCR_FILES: [string, string][] = [
+  ['tesseract.js/dist/worker.min.js', 'worker.min.js'],
+  // the core that tesseract.js itself depends on (it picks the best of these three for the phone)
+  ['tesseract.js/node_modules/tesseract.js-core/tesseract-core-relaxedsimd-lstm.wasm.js', 'tesseract-core-relaxedsimd-lstm.wasm.js'],
+  ['tesseract.js/node_modules/tesseract.js-core/tesseract-core-simd-lstm.wasm.js', 'tesseract-core-simd-lstm.wasm.js'],
+  ['tesseract.js/node_modules/tesseract.js-core/tesseract-core-lstm.wasm.js', 'tesseract-core-lstm.wasm.js'],
+  ['@tesseract.js-data/eng/4.0.0_best_int/eng.traineddata.gz', 'eng.traineddata.gz'],
+];
+function ocrAssetsPlugin(): Plugin {
+  const source = (name: string) => resolve('node_modules', name);
+  return {
+    name: 'vinexpenses-local-ocr',
+    configureServer(server) {
+      server.middlewares.use('/ocr', (request, response, next) => {
+        const file = OCR_FILES.find(([, served]) => request.url?.split('?')[0] === `/${served}`);
+        if (!file || !existsSync(source(file[0]))) return next();
+        response.setHeader('Content-Type', file[1].endsWith('.gz') ? 'application/gzip' : 'text/javascript');
+        response.end(readFileSync(source(file[0])));
+      });
+    },
+    generateBundle() {
+      for (const [from, to] of OCR_FILES) {
+        if (existsSync(source(from))) this.emitFile({ type: 'asset', fileName: `ocr/${to}`, source: readFileSync(source(from)) });
+      }
+    },
+  };
+}
+
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), 'VITE_');
   const turnstile = Boolean(env.VITE_TURNSTILE_SITE_KEY);
@@ -95,6 +128,7 @@ export default defineConfig(({ mode }) => {
       cspPlugin(env.VITE_SUPABASE_URL ?? '', turnstile),
       seoPlugin(cleanSiteUrl(env.VITE_SITE_URL)),
       appPagesPlugin(),
+      ocrAssetsPlugin(),
       headersPlugin(buildCsp(env.VITE_SUPABASE_URL ?? '', turnstile, false, [], true), buildCsp(env.VITE_SUPABASE_URL ?? '', false, false, TELEGRAM_ORIGINS)),
       VitePWA({
         // The page registers the worker itself (no inline script), see src/app/pwa.ts
@@ -118,6 +152,7 @@ export default defineConfig(({ mode }) => {
         workbox: {
           // Only the app shell is cached. Calls to Supabase and the functions are never stored.
           globPatterns: ['**/*.{js,css,html,woff2,png,svg,webmanifest}'],
+          globIgnores: ['ocr/**'], // the on-device reader is several MB: fetched only when needed, never pre-cached
           navigateFallback: '/index.html',
           navigateFallbackAllowlist: [/^\/app(\/|$)/, /^\/auth(\/|$)/],
           cleanupOutdatedCaches: true,

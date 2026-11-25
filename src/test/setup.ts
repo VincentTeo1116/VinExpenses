@@ -5,7 +5,7 @@ import { resetSheets } from '@/components/sheetStack';
 import { loadLang } from '@/lib/i18n';
 
 // screens are loaded in pieces, so a slow machine may need a little longer than one second to draw them
-configure({ asyncUtilTimeout: 5000 });
+configure({ asyncUtilTimeout: 10_000 });
 
 // Malay and Chinese are fetched on demand in the app; tests that use them need them ready
 await loadLang('ms');

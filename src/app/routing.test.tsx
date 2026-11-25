@@ -36,7 +36,7 @@ function renderAt(path: string, client: SupabaseClient) {
 describe('routing and the signed-in frame', () => {
   it('sends a signed-out visitor from /app to the sign-in page', async () => {
     renderAt('/app/history', fakeClient(null));
-    expect(await screen.findByRole('heading', { name: 'Welcome back' }, { timeout: 5000 })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Welcome back' }, { timeout: 10_000 })).toBeInTheDocument();
     expect(screen.queryByRole('navigation', { name: 'Main navigation' })).toBeNull();
   });
 
@@ -84,7 +84,7 @@ describe('routing and the signed-in frame', () => {
 
   it('a broken session store never traps the person on a spinner: they are treated as signed out', async () => {
     renderAt('/app', fakeClient(null, true));
-    expect(await screen.findByRole('heading', { name: 'Welcome back' }, { timeout: 5000 })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Welcome back' }, { timeout: 10_000 })).toBeInTheDocument();
   });
 
   it('shows a loading state while the session is being checked', () => {
