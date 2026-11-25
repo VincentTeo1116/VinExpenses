@@ -16,6 +16,8 @@ import { envResult } from '@/lib/env';
 import { useI18n, type MessageKey } from '@/lib/i18n';
 import { buildMerchantMemory, suggestCategory } from '@/features/entry/smartEntry';
 import { scanReceipt, ScanError } from '@/features/receipts/scan';
+import { CameraSheet, cameraAvailable, isTouchDevice, ReceiptPreview, ScanChooser } from '@/features/receipts/ScanPopups';
+import type { OcrWord } from '@/features/receipts/highlight';
 import { NearbyLocate, NearbyResults, useNearby } from './NearbyPicker';
 import type { Candidate } from '@/features/receipts/receiptParser';
 import { formatDate, isoToYmd, isYmd, todayYmd, ymdToNoonIso } from '@/lib/dates';
@@ -69,8 +71,8 @@ function AddBody({ request, onClose }: { request: AddRequest; onClose: () => voi
   const fileInput = useRef<HTMLInputElement>(null);
   const cameraInput = useRef<HTMLInputElement>(null);
   const [chooser, setChooser] = useState(false);
-  // Phones and tablets get the Take a photo / Choose a file choice; a computer goes straight to the file picker.
-  const hasCamera = typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches;
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const [preview, setPreview] = useState<{ src: string; words: OcrWord[]; amount: number } | null>(null);
   const categoryBox = useRef<HTMLDivElement>(null);
   const [scanInfo, setScanInfo] = useState(false);
 
@@ -122,16 +124,21 @@ function AddBody({ request, onClose }: { request: AddRequest; onClose: () => voi
   };
 
   /** Reads the chosen receipt and fills the form, leaving a category the person already chose alone. */
-  const onReceipt = async (event: ChangeEvent<HTMLInputElement>) => {
+  const onReceipt = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     event.target.value = '';
-    if (!file || !envResult.ok) return;
+    if (file) void onReceiptFile(file);
+  };
+  const onReceiptFile = async (file: File) => {
+    if (!envResult.ok) return;
     setScanning(true);
     setCandidates({ list: [], unsure: false });
+    setPreview(null);
     const steps = { pdf: 'scan.step.pdf', scan: 'scan.step.scan', image: 'scan.step.image', text: 'scan.step.text' } as const;
     setScanNote({ text: t('scan.reading'), bad: false });
     try {
-      const parsed = await scanReceipt(file, { baseUrl: envResult.env.supabaseUrl, anonKey: envResult.env.supabaseAnonKey, accessToken: session?.access_token }, (step) => setScanNote({ text: t(steps[step]), bad: false }));
+      const parsed = await scanReceipt(file, { baseUrl: envResult.env.supabaseUrl, anonKey: envResult.env.supabaseAnonKey, accessToken: session?.access_token }, (step) => setScanNote({ text: t(steps[step]), bad: false }), (src) => setPreview({ src, words: [], amount: 0 }));
+      setPreview((p) => (p ? { src: p.src, words: parsed.words, amount: parsed.amount } : p));
       const found: string[] = [];
       if (parsed.amount > 0) {
         setValue('amount', parsed.amount.toFixed(2), { shouldValidate: true });
@@ -251,8 +258,19 @@ function AddBody({ request, onClose }: { request: AddRequest; onClose: () => voi
   const currentAmount = amountText ? formatMoney(toCents(amountText) / 100) : '';
 
   return (
-    <Sheet ref={sheetRef} open onClose={onClose} title={title} dismissible={!busy && !scanning}>
-      <form onSubmit={save} noValidate className={styles.form} data-kind={kind}>
+    <Sheet
+      ref={sheetRef}
+      open
+      onClose={onClose}
+      title={title}
+      dismissible={!busy && !scanning}
+      footer={
+        <Button id="add-form-submit" type="submit" form="add-form" block loading={busy}>
+          {busy ? t('add.saving') : t('add.save')}
+        </Button>
+      }
+    >
+      <form id="add-form" onSubmit={save} noValidate className={styles.form} data-kind={kind}>
         <div className={styles.hero} data-kind={kind}>
           {editing ? null : (
             <div className={styles.kind} role="group" aria-label={t('add.kind')}>
@@ -270,10 +288,10 @@ function AddBody({ request, onClose }: { request: AddRequest; onClose: () => voi
           <>
             {editing ? null : (
               <div className={styles.scan}>
-                <input ref={fileInput} type="file" accept="image/jpeg,image/png,image/webp,application/pdf" className={styles.fileInput} tabIndex={-1} aria-hidden="true" data-testid="receipt-file" onChange={(event) => void onReceipt(event)} />
+                <input ref={fileInput} type="file" accept="image/jpeg,image/png,image/webp,application/pdf" className={styles.fileInput} tabIndex={-1} aria-hidden="true" data-testid="receipt-file" onChange={onReceipt} />
                 <div className={styles.scanRow}>
-                  <input ref={cameraInput} type="file" accept="image/*" capture="environment" className={styles.fileInput} tabIndex={-1} aria-hidden="true" data-testid="receipt-camera" onChange={(event) => void onReceipt(event)} />
-                  <Button variant="outline" block loading={scanning} aria-expanded={hasCamera ? chooser : undefined} onClick={() => (hasCamera ? setChooser((open) => !open) : fileInput.current?.click())}>
+                  <input ref={cameraInput} type="file" accept="image/*" capture="environment" className={styles.fileInput} tabIndex={-1} aria-hidden="true" data-testid="receipt-camera" onChange={onReceipt} />
+                  <Button variant="outline" block loading={scanning} onClick={() => setChooser(true)} data-tour="scan">
                     {scanning ? t('scan.reading') : t('scan.button')}
                   </Button>
                   {/* how scanning treats the file, one tap away instead of three lines on every visit */}
@@ -281,21 +299,35 @@ function AddBody({ request, onClose }: { request: AddRequest; onClose: () => voi
                     <Icon name="info" size={20} />
                   </button>
                 </div>
-                {chooser && hasCamera ? (
-                  <div className={styles.chooser} role="group" aria-label={t('scan.button')}>
-                    <button type="button" className={styles.chooseBtn} onClick={() => { setChooser(false); cameraInput.current?.click(); }}>
-                      <Icon name="camera" size={22} />
-                      <span><b>{t('scan.takePhoto')}</b><small>{t('scan.takePhotoHint')}</small></span>
-                    </button>
-                    <button type="button" className={styles.chooseBtn} onClick={() => { setChooser(false); fileInput.current?.click(); }}>
-                      <Icon name="receipt" size={22} />
-                      <span><b>{t('scan.chooseFile')}</b><small>{t('scan.chooseFileHint')}</small></span>
-                    </button>
-                  </div>
-                ) : null}
+                {preview ? <ReceiptPreview src={preview.src} words={preview.words} amount={preview.amount} onClose={() => setPreview(null)} /> : null}
                 <p id="scan-hint" className={styles.scanHint} hidden={!scanInfo}>
                   {t('scan.hint')}
                 </p>
+                <ScanChooser
+                  open={chooser}
+                  onClose={() => setChooser(false)}
+                  onFile={() => {
+                    fileInput.current?.click();
+                    setChooser(false);
+                  }}
+                  onCamera={() => {
+                    if (isTouchDevice() || !cameraAvailable()) cameraInput.current?.click();
+                    else setCameraOpen(true);
+                    setChooser(false);
+                  }}
+                />
+                <CameraSheet
+                  open={cameraOpen}
+                  onClose={() => setCameraOpen(false)}
+                  onFallback={() => {
+                    setCameraOpen(false);
+                    fileInput.current?.click();
+                  }}
+                  onCapture={(file) => {
+                    setCameraOpen(false);
+                    void onReceiptFile(file);
+                  }}
+                />
                 {scanNote ? (
                   <p className={`${styles.scanNote} ${scanNote.bad ? styles.scanBad : ''}`} role="status" data-testid="scan-note">
                     {scanNote.text}
@@ -394,12 +426,6 @@ function AddBody({ request, onClose }: { request: AddRequest; onClose: () => voi
         ) : null}
         {problem ? <Notice kind="bad">{problem}</Notice> : null}
 
-        {/* a direct child of the form, so it can stay pinned to the bottom of the pop-up while the form scrolls */}
-        <div className={styles.saveBar}>
-          <Button id="add-form-submit" type="submit" block loading={busy}>
-            {busy ? t('add.saving') : t('add.save')}
-          </Button>
-        </div>
         {editing ? (
           <div className={styles.more}>
             <Button variant="outline" block disabled={busy} onClick={() => { sheetRef.current?.close(() => openAdd({ copy: editing })); }}>

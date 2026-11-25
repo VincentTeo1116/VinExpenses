@@ -188,7 +188,7 @@ export function DashboardPage({ quiet = false }: { quiet?: boolean } = {}) {
         <>
           <div className={styles.overview}>
             <div className={styles.top}>
-              <section className={styles.hero} aria-label={t('dash.spentIn', { month: monthName })} data-testid="hero">
+              <section className={styles.hero} aria-label={t('dash.spentIn', { month: monthName })} data-testid="hero" data-tour="summary">
                 <div className={styles.heroTop}>
                   <span className={styles.heroLabel}>
                     {t('dash.spentIn', {

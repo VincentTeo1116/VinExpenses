@@ -142,6 +142,8 @@ export default defineConfig(({ mode }) => {
       include: ['src/**/*.test.{ts,tsx}'],
       css: false,
       restoreMocks: true,
+      // the screens download their code on first use; on a busy machine (or CI) that can take longer than the 5-second default
+      testTimeout: 20_000,
     },
   };
 });

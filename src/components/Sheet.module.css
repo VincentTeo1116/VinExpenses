@@ -117,6 +117,16 @@
   min-width: 0;
   max-width: 100%;
 }
+/* Save and other main actions: attached to the bottom edge of the pop-up, with a thin line above them */
+.footer {
+  flex: none;
+  padding: var(--s-3) var(--s-4) calc(var(--s-4) + var(--safe-bottom));
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+}
+.hasFooter .body {
+  padding-bottom: var(--s-4);
+}
 /* while dragging, the pop-up follows the finger exactly */
 .dragging {
   transition: none !important;
@@ -149,6 +159,12 @@
   }
   .body {
     padding: var(--s-1) var(--s-6) var(--s-6);
+  }
+  .footer {
+    padding: var(--s-3) var(--s-6) var(--s-5);
+  }
+  .hasFooter .body {
+    padding-bottom: var(--s-4);
   }
 }
 

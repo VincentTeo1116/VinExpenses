@@ -1,6 +1,8 @@
 // AC-06: the date format, and renaming, hiding or adding categories and payment methods.
 import type { ReactNode } from 'react';
 import { useId, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { startTour } from '@/features/tour/tourStore';
 import { Button } from '@/components/Button';
 import { Notice } from '@/components/Notice';
 import { Sheet } from '@/components/Sheet';
@@ -18,6 +20,7 @@ type Kind = 'category' | 'payment';
 export function PreferencesCard({ before, children }: { before?: ReactNode; children?: ReactNode } = {}) {
   const { t } = useI18n();
   const toast = useToast();
+  const navigate = useNavigate();
   const { data, actions } = useMoney();
   const [open, setOpen] = useState<Kind | null>(null);
   const [problem, setProblem] = useState('');
@@ -59,6 +62,19 @@ export function PreferencesCard({ before, children }: { before?: ReactNode; chil
         </Button>
         <Button variant="outline" onClick={() => setOpen('payment')}>
           {t('acct.payments')}
+        </Button>
+      </div>
+      <p className={styles.sub}>{t('tour.replaySub')}</p>
+      <div className={styles.buttons}>
+        <Button
+          variant="outline"
+          data-testid="tour-replay"
+          onClick={() => {
+            navigate('/app');
+            setTimeout(startTour, 400);
+          }}
+        >
+          {t('tour.replay')}
         </Button>
       </div>
       {open ? <TaxonomySheet kind={open} onClose={() => setOpen(null)} /> : null}

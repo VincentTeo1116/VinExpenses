@@ -362,7 +362,7 @@ createServer(async (request, response) => {
   }
   // The receipt reader: signed-in only, a daily allowance, and the test sets what the "photo" says (or that the service is down)
   // (kept per person, so tests running side by side do not disturb each other)
-  if (path === '/__test/ocr') { state.ocr.set(String(body.email).toLowerCase(), { text: body.text ?? '', mode: body.mode ?? 'ok', calls: 0, limit: body.limit ?? 30 }); return send(request, response, 200, { ok: true }); }
+  if (path === '/__test/ocr') { state.ocr.set(String(body.email).toLowerCase(), { text: body.text ?? '', words: body.words ?? [], mode: body.mode ?? 'ok', calls: 0, limit: body.limit ?? 30 }); return send(request, response, 200, { ok: true }); }
   if (path === '/__test/ocr-calls') return send(request, response, 200, { calls: state.ocr.get(String(url.searchParams.get('email')).toLowerCase())?.calls ?? 0 });
   if (path === '/functions/v1/receipt-ocr' && request.method === 'POST') {
     const who = userFor(request);
@@ -373,7 +373,7 @@ createServer(async (request, response) => {
     ocr.calls += 1;
     if (ocr.calls > ocr.limit) return send(request, response, 429, { error: 'You have reached the limit for today for receipt scans. Please enter it manually.' });
     if (ocr.mode === 'unreadable') return send(request, response, 422, { error: 'I couldn’t read this receipt clearly. Try a sharper, well-lit photo or enter it manually.' });
-    return send(request, response, 200, { text: ocr.text });
+    return send(request, response, 200, ocr.words?.length ? { text: ocr.text, words: ocr.words } : { text: ocr.text });
   }
   // The nearby-places lookup: signed-in only; the test sets the list (or that the map service is down)
   if (path === '/__test/nearby') { state.nearby.set(String(body.email).toLowerCase(), { places: body.places ?? [], mode: body.mode ?? 'ok', calls: 0, limit: body.limit ?? 200, last: null }); return send(request, response, 200, { ok: true }); }

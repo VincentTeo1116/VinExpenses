@@ -18,5 +18,6 @@ export default defineConfig({
     // a local stand-in for Supabase (Auth, auth-gate, feedback); see scripts/fake-backend.mjs
     { command: 'node scripts/fake-backend.mjs 54321', url: 'http://127.0.0.1:54321/__test/health', reuseExistingServer: false, timeout: 30_000 },
   ],
-  projects: [{ name: 'chromium', use: { browserName: 'chromium' } }],
+  // a pretend camera, so the live camera view can be tested without a real one
+  projects: [{ name: 'chromium', use: { browserName: 'chromium', launchOptions: { args: ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream'] } } }],
 });

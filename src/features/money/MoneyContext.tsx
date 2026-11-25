@@ -25,6 +25,7 @@ interface MoneyValue {
   categoryOf: (key: string) => TaxonomyItem;
   paymentOf: (key: string) => TaxonomyItem;
   openAdd: (request?: AddRequest) => void;
+  closeAdd: () => void;
 }
 
 const MoneyContext = createContext<MoneyValue | null>(null);
@@ -39,6 +40,7 @@ export function MoneyProvider({ children }: { children: ReactNode }) {
   const categories = useMemo(() => mergeCategories(data.categoryRows, t), [data.categoryRows, t]);
   const payments = useMemo(() => mergePayments(data.paymentRows, t), [data.paymentRows, t]);
   const openAdd = useCallback((next: AddRequest = {}) => setRequest(next), []);
+  const closeAdd = useCallback(() => setRequest(null), []);
 
   const value = useMemo<MoneyValue>(() => {
     const unknown = (key: string): TaxonomyItem => ({ key, label: key, color: '#6b7280', glyph: '🏷️', active: false, builtin: false, renamed: false });
@@ -52,8 +54,9 @@ export function MoneyProvider({ children }: { children: ReactNode }) {
       categoryOf: (key) => categories.find((item) => item.key === key) ?? unknown(key),
       paymentOf: (key) => payments.find((item) => item.key === key) ?? unknown(key),
       openAdd,
+      closeAdd,
     };
-  }, [data, actions, categories, payments, openAdd]);
+  }, [data, actions, categories, payments, openAdd, closeAdd]);
 
   // Adding must also work offline, so the add sheet's code is fetched quietly soon after the app has loaded
   // (it is not part of the first download), and is then kept by the browser and the offline cache.

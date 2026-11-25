@@ -1,0 +1,83 @@
+.layer {
+  position: fixed;
+  inset: 0;
+  z-index: calc(var(--z-toast) - 100);
+}
+.dim {
+  position: absolute;
+  inset: 0;
+  display: block;
+}
+.shade {
+  fill: rgba(8, 12, 28, 0.62);
+}
+.hole,
+.ring {
+  transition: all 0.28s var(--ease);
+}
+.ring {
+  fill: none;
+  stroke: var(--primary);
+  stroke-width: 3px;
+}
+.card {
+  position: absolute;
+  box-sizing: border-box;
+  padding: var(--s-4);
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--glass-edge);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-lg);
+  display: grid;
+  gap: var(--s-2);
+  animation: tourIn 0.25s var(--ease) both;
+}
+@keyframes tourIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .card { animation: none; }
+  .hole, .ring { transition: none; }
+}
+.count {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+}
+.title {
+  margin: 0;
+  font-size: var(--fs-lg);
+}
+.body {
+  margin: 0;
+  color: var(--text);
+  font-size: var(--fs-md);
+  line-height: 1.45;
+}
+.dots {
+  display: flex;
+  gap: 6px;
+}
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--border);
+}
+.dotOn {
+  background: var(--primary);
+  width: 22px;
+  border-radius: 4px;
+}
+.actions {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  margin-top: var(--s-2);
+}
+.spacer {
+  flex: 1 1 auto;
+}

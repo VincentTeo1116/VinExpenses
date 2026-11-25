@@ -33,7 +33,7 @@ function makePdf(lines: string[]): Buffer {
 
 const RECEIPT_LINES = ['KOPITIAM LEE SDN BHD', 'Date: 12/10/2026 13:05', 'Nasi lemak ayam 8.50', 'Teh tarik 3.00', 'Service charge 1.15', 'Grand Total RM 12.65'];
 
-async function setOcr(page: Page, email: string, body: { text?: string; mode?: 'ok' | 'off' | 'unreadable'; limit?: number }) {
+async function setOcr(page: Page, email: string, body: { text?: string; words?: { t: string; x: number; y: number; w: number; h: number }[]; mode?: 'ok' | 'off' | 'unreadable'; limit?: number }) {
   await page.request.post(`${BACKEND}/__test/ocr`, { data: { email, ...body } });
 }
 async function ocrCalls(page: Page, email: string): Promise<number> {
@@ -98,6 +98,42 @@ test.describe('category suggestions (TX-02, CT-01)', () => {
 });
 
 test.describe('receipt scanning (RX-01, RX-02)', () => {
+  test('Scan a receipt opens a pop-up with Take a photo and Choose a photo or PDF; choosing a file opens the file picker', async ({ page }) => {
+    await signInAs(page);
+    await openAdd(page);
+    await page.getByRole('button', { name: 'Scan a receipt' }).click();
+    const choices = page.getByRole('dialog', { name: 'Scan a receipt' });
+    await expect(choices.getByTestId('scan-take-photo')).toBeVisible();
+    const chooser = page.waitForEvent('filechooser');
+    await choices.getByTestId('scan-choose-file').click();
+    expect((await chooser).isMultiple()).toBe(false);
+  });
+
+  test('Take a photo on a computer opens the live camera; Capture reads the picture and the total is marked on it', async ({ browser }) => {
+    const context = await browser.newContext({ permissions: ['camera'] });
+    const page = await context.newPage();
+    const user = await signInAs(page);
+    await setOcr(page, user.email, { text: 'SHOP\nTOTAL 12.65\n', words: [{ t: '12.65', x: 0, y: 0, w: 1, h: 1 }] });
+    await openAdd(page);
+    await page.getByRole('button', { name: 'Scan a receipt' }).click();
+    await page.getByTestId('scan-take-photo').click();
+    await expect(page.getByTestId('camera-video')).toBeVisible();
+    await expect(page.getByTestId('camera-capture')).toBeEnabled({ timeout: 25_000 });
+    await page.getByTestId('camera-capture').click();
+    await expect(page.getByLabel('Amount (RM)')).toHaveValue('12.65', { timeout: 15_000 });
+    await expect(page.getByTestId('receipt-preview')).toBeVisible();
+    await context.close();
+  });
+
+  test('when the reader is busy the person is told so, and the photo stays on screen to copy from', async ({ page }) => {
+    const user = await signInAs(page);
+    await setOcr(page, user.email, { text: '', mode: 'unreadable' });
+    await openAdd(page);
+    await page.getByTestId('receipt-file').setInputFiles({ name: 'photo.png', mimeType: 'image/png', buffer: PNG });
+    await expect(page.getByTestId('scan-note')).toContainText(/read this receipt|enter it manually/i, { timeout: 15_000 });
+    await expect(page.getByTestId('receipt-preview')).toBeVisible();
+  });
+
   test('a PDF with text is read on the device: fills the form and never calls the reader service', async ({ page }) => {
     const problems = watchProblems(page);
     const user = await signInAs(page);

@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react';
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { I18nProvider } from '@/lib/i18n';
 import { ToastProvider } from '@/components/Toast';
 import { envResult } from '@/lib/env';
@@ -29,13 +29,15 @@ const AccountPage = lazy(() => import('@/features/account/AccountPage').then((m)
 const fromSignIn = () => /[?&#](code|access_token|error_description)=/.test(`${window.location.search}${window.location.hash}`);
 
 /** Account: a page of its own on a computer; on a phone or tablet a pop-up over the Home screen. */
-function AccountRoute() {
+/** Home and Account share one element, so opening or closing the Account pop-up never rebuilds Home. On a computer Account is its own page. */
+function HomeRoute() {
   const desktop = useMediaQuery(DESKTOP);
-  if (desktop) return <AccountPage />;
+  const onAccount = /\/account\/?$/.test(useLocation().pathname);
+  if (desktop) return onAccount ? <AccountPage /> : <DashboardPage />;
   return (
     <>
-      <DashboardPage quiet />
-      <AccountPage />
+      <DashboardPage quiet={onAccount} />
+      {onAccount ? <AccountPage /> : null}
     </>
   );
 }
@@ -56,12 +58,12 @@ export function AppRoutes() {
       <Route path="/auth/setup" element={<SetupPage />} />
       <Route path="/app" element={<ProtectedRoute />}>
         <Route element={<AppFrame />}>
-          <Route index element={<DashboardPage />} />
+          <Route index element={<HomeRoute />} />
           <Route path="history" element={<HistoryPage />} />
           <Route path="plan" element={<PlanPage />} />
           <Route
             path="account"
-            element={<AccountRoute />}
+            element={<HomeRoute />}
           />
           <Route path="admin" element={<AdminPage />} />
           <Route path="report" element={<ReportPage />} />

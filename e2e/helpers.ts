@@ -18,13 +18,15 @@ export interface TestUser {
  * sign-in function, and the session is placed where supabase-js keeps it. Their records are then really loaded from the stand-in.
  * (supabase-js keeps its session under sb-<first part of the host>-auth-token.)
  */
-export async function signInAs(page: Page, options: { name?: string; factor?: boolean } = {}): Promise<TestUser> {
+export async function signInAs(page: Page, options: { name?: string; factor?: boolean; tour?: boolean } = {}): Promise<TestUser> {
   counter += 1;
   const email = `tester.${Date.now().toString(36)}${counter}${Math.floor(Math.random() * 1e5)}@example.com`;
   const seeded = (await (await page.request.post(`${BACKEND}/__test/seed`, { data: { email, name: options.name ?? 'Tester', factor: options.factor } })).json()) as { id: string };
   const reply = (await (await page.request.post(`${BACKEND}/functions/v1/auth-gate`, { headers: { origin: 'http://127.0.0.1:4173' }, data: { action: 'signin', email, password: 'Str0ng!Passw0rd', device: `d${String(counter).padStart(19, '0')}` } })).json()) as { session: Record<string, unknown> };
   const stored = JSON.stringify({ ...reply.session, expires_at: Math.floor(Date.now() / 1000) + 3000, token_type: 'bearer', expires_in: 3000 });
   await page.addInitScript((value) => localStorage.setItem('sb-127-auth-token', value), stored);
+  // the first-time guided tour would sit on top of every test; only the tour's own tests ask for it
+  if (!options.tour) await page.addInitScript(() => localStorage.setItem('et_tour_seen', '1'));
   return { email, id: seeded.id, session: stored };
 }
 

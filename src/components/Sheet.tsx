@@ -20,6 +20,8 @@ interface SheetProps {
   size?: 'narrow' | 'wide';
   /** A dialog that must be answered (a confirmation) is not closed by a tap outside it, nor by dragging. */
   dismissible?: boolean;
+  /** Actions that stay at the bottom of the pop-up while the content scrolls (Save): one piece with the pop-up, never floating. */
+  footer?: ReactNode;
 }
 
 const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
@@ -36,7 +38,7 @@ function springBack(dialog: HTMLElement, from: number) {
   dialog.style.transform = '';
 }
 
-export function Sheet({ open, onClose, title, children, size = 'narrow', dismissible = true, ref }: SheetProps) {
+export function Sheet({ open, onClose, title, children, size = 'narrow', dismissible = true, footer, ref }: SheetProps) {
   const id = useId();
   const { t } = useI18n();
   const stack = useSheetStack();
@@ -232,7 +234,7 @@ export function Sheet({ open, onClose, title, children, size = 'narrow', dismiss
   return createPortal(
     // eslint-disable-next-line jsx-a11y/no-static-element-interactions -- the overlay only handles a tap outside and Esc
     <div className={styles.overlay} onKeyDown={onKeyDown} inert={!isTop} onMouseDown={(event) => { if (dismissible && isTop && event.target === event.currentTarget) requestClose(); }}>
-      <div ref={dialogRef} className={`${styles.sheet} ${size === 'wide' ? styles.wide : ''} ${dragging ? styles.dragging : ''}`} role="dialog" aria-modal="true" aria-labelledby={`${id}-title`} tabIndex={-1} data-sheet>
+      <div ref={dialogRef} className={`${styles.sheet} ${size === 'wide' ? styles.wide : ''} ${dragging ? styles.dragging : ''} ${footer ? styles.hasFooter : ''}`} role="dialog" aria-modal="true" aria-labelledby={`${id}-title`} tabIndex={-1} data-sheet>
         {/* the bar and the title are the drag handle on a phone; it is an extra, so it is hidden from screen readers */}
         <div className={styles.handle} onPointerDown={onDragStart} onPointerMove={onDragMove} onPointerUp={onDragEnd} onPointerCancel={onDragEnd} data-handle>
           <div className={styles.grabber} aria-hidden="true" />
@@ -248,6 +250,7 @@ export function Sheet({ open, onClose, title, children, size = 'narrow', dismiss
           </div>
         </div>
         <div ref={bodyRef} className={styles.body} inert={closing}>{children}</div>
+        {footer ? <div className={styles.footer} inert={closing}>{footer}</div> : null}
       </div>
     </div>,
     document.body,

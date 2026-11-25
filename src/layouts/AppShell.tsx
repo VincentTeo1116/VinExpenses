@@ -1,5 +1,5 @@
 // The frame around every signed-in screen: a sticky sidebar from 1024px up, a tab bar with a big + button below that.
-import { useEffect } from 'react';
+import { Suspense, useEffect } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { Icon, type IconName } from '@/components/Icon';
 import { useMoney } from '@/features/money/MoneyContext';
@@ -9,6 +9,8 @@ import { ErrorBoundary } from '@/app/ErrorBoundary';
 import { useI18n, type MessageKey } from '@/lib/i18n';
 import { useAdminStatus } from '@/features/admin/useAdmin';
 import { applyTheme, readTheme } from '@/features/account/theme';
+import { DESKTOP, useMediaQuery } from '@/lib/useMediaQuery';
+import { TourHost } from '@/features/tour/Tour';
 import styles from './AppShell.module.css';
 
 interface NavItem {
@@ -24,6 +26,9 @@ const NAV: NavItem[] = [
   { to: '/app/plan', icon: 'plan', label: 'nav.plan' },
   { to: '/app/account', icon: 'user', label: 'nav.account' },
 ];
+
+/** The names the guided tour uses to find the menu buttons. */
+const tourName = (to: string) => (to === '/app/history' ? 'history' : to === '/app/plan' ? 'plan' : undefined);
 
 // the sidebar keeps Account in the user card at its bottom instead
 const SIDE = NAV.filter((item) => item.to !== '/app/account');
@@ -54,6 +59,9 @@ export function AppShell() {
     return () => applyTheme('blue');
   }, [userId]);
   const path = location.pathname.replace(/\/+$/, '') || '/app';
+  // On a phone or tablet Account is a pop-up over Home, so Home keeps its own screen (no rebuild, no replayed animations) when it opens and closes
+  const desktop = useMediaQuery(DESKTOP);
+  const screenKey = !desktop && path === '/app/account' ? '/app' : path;
 
   // Each screen sets its own tab title, and the page is announced to screen readers by moving focus to the content
   useEffect(() => {
@@ -63,7 +71,7 @@ export function AppShell() {
 
   const half = Math.ceil(NAV.length / 2);
   const link = (item: NavItem) => (
-    <NavLink key={item.to} to={item.to} end={item.end} state={{ from: path }} className={({ isActive }) => `${styles.tab} ${isActive ? styles.active : ''}`}>
+    <NavLink key={item.to} to={item.to} end={item.end} state={{ from: path }} data-tour={tourName(item.to)} className={({ isActive }) => `${styles.tab} ${isActive ? styles.active : ''}`}>
       <Icon name={item.icon} size={22} />
       <span>{t(item.label)}</span>
     </NavLink>
@@ -80,7 +88,7 @@ export function AppShell() {
           <img src="/icons/icon-192.png" alt="" width={36} height={36} />
           <span>{t('app.name')}</span>
         </div>
-        <button type="button" className={styles.newBtn} onClick={() => openAdd()}>
+        <button type="button" className={styles.newBtn} onClick={() => openAdd()} data-tour="add">
           <Icon name="plus" size={20} />
           <span>{t('nav.add')}</span>
           <kbd className={styles.key} aria-hidden="true">
@@ -89,7 +97,7 @@ export function AppShell() {
         </button>
         <nav aria-label={t('nav.main')} className={styles.sideNav}>
           {(isAdmin ? [...SIDE, ADMIN_ITEM] : SIDE).map((item) => (
-            <NavLink key={item.to} to={item.to} end={item.end} className={({ isActive }) => `${styles.sideLink} ${isActive ? styles.active : ''}`}>
+            <NavLink key={item.to} to={item.to} end={item.end} data-tour={tourName(item.to)} className={({ isActive }) => `${styles.sideLink} ${isActive ? styles.active : ''}`}>
               <Icon name={item.icon} size={20} />
               <span>{t(item.label)}</span>
             </NavLink>
@@ -111,16 +119,21 @@ export function AppShell() {
         <OfflineBanner />
         <main id="main" tabIndex={-1} className={styles.main}>
           <ErrorBoundary resetKey={path}>
-            <div key={path} className={styles.screen}>
-              <Outlet />
+            <div key={screenKey} className={styles.screen}>
+              {/* a page that is still downloading shows nothing in its own place; the menus around it stay put */}
+              <Suspense fallback={null}>
+                <Outlet />
+              </Suspense>
             </div>
           </ErrorBoundary>
         </main>
       </div>
 
+      <TourHost />
+
       <nav aria-label={t('nav.main')} className={styles.tabbar}>
         {NAV.slice(0, half).map(link)}
-        <button type="button" className={styles.fab} onClick={() => openAdd()} aria-label={t('nav.add')}>
+        <button type="button" className={styles.fab} onClick={() => openAdd()} aria-label={t('nav.add')} data-tour="add">
           <Icon name="plus" size={26} />
         </button>
         {NAV.slice(half).map(link)}

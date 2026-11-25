@@ -1,0 +1,42 @@
+.choices { display: grid; gap: var(--s-3); }
+.choice {
+  display: flex; align-items: center; gap: var(--s-3);
+  min-height: calc(var(--tap) + 12px); padding: var(--s-3) var(--s-4);
+  border-radius: var(--r-md); border: 1.5px solid var(--border);
+  background: var(--surface); color: var(--text); text-align: left;
+  transition: border-color 0.15s, background 0.15s, transform 0.12s;
+}
+.choice:hover { border-color: var(--primary); background: var(--primary-soft); }
+.choice:active { transform: scale(0.985); }
+.choice b { display: block; font-size: var(--fs-md); }
+.choice small { display: block; color: var(--muted); font-size: var(--fs-sm); }
+
+.camera { display: grid; gap: var(--s-3); }
+.viewport { position: relative; border-radius: var(--r-lg); overflow: hidden; background: #000; aspect-ratio: 4 / 3; }
+.video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.frame {
+  position: absolute; inset: 8% 18%;
+  border: 2.5px solid rgba(255, 255, 255, 0.9); border-radius: var(--r-md);
+  box-shadow: 0 0 0 999px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+}
+.cameraHint { margin: 0; color: var(--muted); font-size: var(--fs-sm); text-align: center; }
+.cameraProblem { display: grid; gap: var(--s-3); }
+.cameraProblem p { margin: 0; }
+
+.preview { margin: var(--s-3) 0 0; border: 1.5px solid var(--border); border-radius: var(--r-md); background: var(--surface-2); overflow: hidden; }
+.imageWrap { overflow: hidden; }
+.stage { position: relative; }
+.image { display: block; width: 100%; height: auto; }
+.marks { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.mark {
+  fill: color-mix(in srgb, var(--success) 25%, transparent);
+  stroke: var(--success);
+  stroke-width: 2.5px;
+  animation: markIn 0.4s var(--ease) both;
+}
+@keyframes markIn { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .mark { animation: none; } }
+.caption { display: flex; align-items: center; justify-content: space-between; gap: var(--s-2); padding: var(--s-2) var(--s-3); color: var(--muted); font-size: var(--fs-sm); }
+.dismiss { display: grid; place-items: center; min-width: 32px; min-height: 32px; border-radius: var(--r-sm); color: var(--muted); }
+.dismiss:hover { color: var(--text); background: var(--surface); }

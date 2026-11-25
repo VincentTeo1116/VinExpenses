@@ -30,10 +30,11 @@ Deno.serve(async (request: Request) => {
     const result = await runOcr(apiKey, bytes);
     if (result.ok) {
       // Do not log or persist receipt images or OCR text.
-      return json(request, { text: result.text });
+      return json(request, result.words ? { text: result.text, words: result.words } : { text: result.text });
     }
     if (result.reason === "too_large") return json(request, { error: "Receipt image must be 1 MB or smaller." }, 413);
     if (result.reason === "bad_type") return json(request, { error: "Choose a JPG, PNG, WebP or PDF receipt." }, 400);
+    if (result.reason === "busy") return json(request, { error: "The reading service is busy right now. Try again in a minute, or type the receipt in." }, 503);
     if (result.reason === "unreadable") {
       return json(request, { error: "I couldn’t read this receipt clearly. Try a sharper, well-lit photo or enter it manually." }, 422);
     }
