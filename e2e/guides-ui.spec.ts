@@ -126,3 +126,27 @@ test('the welcome page shows "coming soon" badges for both stores, and they are 
     await expect(group.getByRole('link')).toHaveCount(0);
   }
 });
+
+for (const width of [1024, 1280, 1440, 1920]) {
+  test(`on a ${width}px screen the store badges end on the same line as the demo picture`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto('/');
+    const image = await page.locator('img[alt^="The VinExpenses home screen"]').first().boundingBox();
+    const badges = await page.getByTestId('store-badges').first().boundingBox();
+    expect(Math.abs((badges?.y ?? 0) + (badges?.height ?? 0) - ((image?.y ?? 0) + (image?.height ?? 0))), 'bottom edges, in px (the picture floats a few px)').toBeLessThanOrEqual(12);
+  });
+}
+
+test('on a phone the two store badges sit side by side inside the screen', async ({ page }) => {
+  for (const width of [320, 390]) {
+    await page.setViewportSize({ width, height: 800 });
+    await page.goto('/');
+    await expect(page.getByTestId('store-badges').first().getByRole('listitem')).toHaveCount(2);
+    const [a, b] = await page.getByTestId('store-badges').first().getByRole('listitem').all();
+    const first = await a?.boundingBox();
+    const second = await b?.boundingBox();
+    expect(Math.abs((first?.y ?? 0) - (second?.y ?? 99)), `one row at ${width}`).toBeLessThanOrEqual(1);
+    expect((second?.x ?? 0) + (second?.width ?? 0), `inside the screen at ${width}`).toBeLessThanOrEqual(width);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);
+  }
+});
