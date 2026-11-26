@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { PublicLayout, usePageMeta } from './PublicLayout';
 import { Counter, Reveal } from './motion';
 import { QuickCalc } from './QuickCalc';
+import { StoreBadges } from './StoreBadges';
 import styles from './WelcomePage.module.css';
 
 const ICONS: Record<string, string> = {
@@ -71,6 +72,7 @@ export function WelcomePage() {
               </a>
             </div>
             <p className={styles.note}>Works in your browser on phone and computer. Add it to your home screen to use it like an app.</p>
+            <StoreBadges />
           </div>
           <div className={styles.stage}>
             <picture>
@@ -270,6 +272,7 @@ export function WelcomePage() {
               Open the app
             </Link>
           </div>
+          <StoreBadges center />
           <p className={styles.note}>
             By creating an account you agree to the <Link to="/terms">Terms of Use</Link> and the <Link to="/privacy">Privacy Policy</Link>.
           </p>

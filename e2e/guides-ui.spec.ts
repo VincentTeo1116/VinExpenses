@@ -114,3 +114,15 @@ test('with reduced motion the footer links do not slide', async ({ browser }) =>
   expect(await link.evaluate((el) => getComputedStyle(el).transform)).toBe('none');
   await context.close();
 });
+
+test('the welcome page shows "coming soon" badges for both stores, and they are not links', async ({ page }) => {
+  await page.goto('/');
+  const badges = page.getByTestId('store-badges');
+  await expect(badges).toHaveCount(2); // one near the top, one at the end
+  for (const group of await badges.all()) {
+    await expect(group.getByText('Google Play')).toBeVisible();
+    await expect(group.getByText('App Store')).toBeVisible();
+    await expect(group.getByText('Coming soon')).toHaveCount(2);
+    await expect(group.getByRole('link')).toHaveCount(0);
+  }
+});

@@ -46,6 +46,7 @@ test('the policy names no host or service the app does not use, and loads nothin
 
 for (const scheme of ['light', 'dark'] as const) {
   test(`the public pages pass the accessibility scan (${scheme})`, async ({ browser }) => {
+    test.setTimeout(180_000); // six pages in one test, and the machine is shared with other tests
     const context = await browser.newContext({ colorScheme: scheme, viewport: { width: 390, height: 800 } });
     const page = await context.newPage();
     for (const item of PAGES) {

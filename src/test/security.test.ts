@@ -159,7 +159,7 @@ describe('static host routing (PU-03)', () => {
 });
 
 describe('public pages (PU-02)', () => {
-  const sources = ['public/WelcomePage.tsx', 'public/PrivacyPage.tsx', 'public/TermsPage.tsx', 'public/LegalPage.tsx', 'public/PublicLayout.tsx', 'public/QuickCalc.tsx', 'public/motion.tsx', 'guides/GuidePage.tsx', 'guides/Calculators.tsx', 'public/AuthorCredit.tsx'];
+  const sources = ['public/WelcomePage.tsx', 'public/PrivacyPage.tsx', 'public/TermsPage.tsx', 'public/LegalPage.tsx', 'public/PublicLayout.tsx', 'public/QuickCalc.tsx', 'public/motion.tsx', 'guides/GuidePage.tsx', 'guides/Calculators.tsx', 'public/AuthorCredit.tsx', 'public/StoreBadges.tsx'];
   it('draw their text through React only: no raw HTML, no forms, no inline styles, no outside addresses', () => {
     for (const file of sources) {
       const code = readFileSync(join(root, 'src/features', file), 'utf8');

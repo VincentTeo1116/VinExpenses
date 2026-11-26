@@ -1,0 +1,67 @@
+.wrap {
+  display: grid;
+  gap: var(--s-3);
+  margin-top: var(--s-5);
+}
+.center {
+  justify-items: center;
+}
+.label {
+  font-size: var(--fs-sm);
+  font-weight: 750;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text); /* the muted colour is too faint on the tinted hero */
+}
+.list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-3);
+  list-style: none;
+}
+.center .list {
+  justify-content: center;
+}
+.badge {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-3);
+  min-width: 190px;
+  padding: 10px var(--s-5) 10px var(--s-4);
+  border-radius: 14px;
+  color: #fff;
+  background: linear-gradient(135deg, #0f172a, #1e1b4b);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.25);
+  cursor: default;
+  user-select: none;
+}
+.badge svg {
+  flex: none;
+}
+.text {
+  display: grid;
+  line-height: 1.15;
+}
+.text small {
+  font-size: 0.72rem;
+  color: #cbd5e1;
+}
+.text strong {
+  font-size: 1.15rem;
+  letter-spacing: -0.01em;
+}
+.soon {
+  position: absolute;
+  top: -9px;
+  right: 10px;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #1e1b4b;
+  background: #fde68a;
+}
