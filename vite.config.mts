@@ -7,8 +7,8 @@ import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 import { buildCsp, headersFile, TELEGRAM_ORIGINS } from './scripts/headers.mts';
 import { cleanSiteUrl, robotsTxt, seoTags, sitemapXml } from './scripts/seo.mts';
-import { guidePage } from './scripts/guide-pages.mts';
-import { GUIDES } from './src/features/guides/content';
+import { guidePages } from './scripts/guide-pages.mts';
+import { ALL_SLUGS } from './src/features/guides/registry';
 import { APP_PATHS } from './src/app/paths';
 
 /**
@@ -52,7 +52,7 @@ function seoPlugin(siteUrl: string): Plugin {
   return {
     name: 'vinexpenses-seo',
     apply: 'build',
-    transformIndexHtml: { order: 'pre', handler: (html) => html.replace('<!-- SEO -->', seoTags(siteUrl)) },
+    transformIndexHtml: { order: 'pre', handler: (html) => html.replace('<!-- SEO -->', seoTags(siteUrl, existsSync(resolve('public/share/en/welcome.jpg')) ? '/share/en/welcome.jpg' : undefined)) },
     generateBundle() {
       this.emitFile({ type: 'asset', fileName: 'robots.txt', source: robotsTxt(siteUrl) });
       if (siteUrl) {
@@ -75,8 +75,12 @@ function appPagesPlugin(siteUrl: string): Plugin {
         mkdirSync(dirname(file), { recursive: true });
         writeFileSync(file, shell);
       }
-      // the public guides get their own title, address and readable text in the HTML itself
-      for (const guide of GUIDES) writeFileSync(join(dir, `${guide.slug}.html`), guidePage(shell.toString('utf8'), guide, siteUrl));
+      // the public guides, in every language, get their own title, address, language tags, share image and readable text in the HTML itself
+      const shareImage = (lang: string, slug: string) => (existsSync(resolve('public/share', lang, `${slug}.jpg`)) ? `/share/${lang}/${slug}.jpg` : undefined);
+      for (const page of guidePages(shell.toString('utf8'), siteUrl, resolve('src/content/articles'), shareImage)) {
+        mkdirSync(dirname(join(dir, page.file)), { recursive: true });
+        writeFileSync(join(dir, page.file), page.html);
+      }
     },
   };
 }
@@ -160,7 +164,8 @@ export default defineConfig(({ mode }) => {
         workbox: {
           // Only the app shell is cached. Calls to Supabase and the functions are never stored.
           globPatterns: ['**/*.{js,css,html,woff2,png,svg,webmanifest}'],
-          globIgnores: ['ocr/**'], // the on-device reader is several MB: fetched only when needed, never pre-cached
+          // the on-device reader is several MB: fetched only when needed, never pre-cached; the public guide pages are read online, not from the app's offline copy
+          globIgnores: ['ocr/**', 'ms/**', 'zh/**', ...ALL_SLUGS.map((slug) => `${slug}.html`)],
           navigateFallback: '/index.html',
           navigateFallbackAllowlist: [/^\/app(\/|$)/, /^\/auth(\/|$)/],
           cleanupOutdatedCaches: true,

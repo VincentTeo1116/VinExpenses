@@ -77,7 +77,7 @@ export function LegalPage({ title, updated, intro, summary, sections, other, chi
           <p className={styles.updated}>{updated}</p>
           <h1 className={styles.h1}>{title}</h1>
           <p className={styles.intro}>{intro}</p>
-          <AuthorCredit lead="Written by" />
+          <AuthorCredit kind="writtenBy" />
         </div>
       </div>
 

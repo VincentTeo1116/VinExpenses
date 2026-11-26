@@ -150,3 +150,68 @@ test('on a phone the two store badges sit side by side inside the screen', async
     expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);
   }
 });
+
+test('a footer link that wraps onto two lines is underlined under each line, not across the middle', async ({ browser }) => {
+  const context = await browser.newContext({ viewport: { width: 1024, height: 800 }, reducedMotion: 'no-preference' });
+  const page = await context.newPage();
+  await page.goto('/ms/fd-calculator');
+  const link = page.getByRole('navigation', { name: 'Pautan bawah' }).getByRole('link', { name: 'Kadar rata vs baki berkurangan' });
+  await link.scrollIntoViewIfNeeded();
+  const box = await link.boundingBox();
+  expect(box?.height ?? 0, 'the label really wraps').toBeGreaterThan(80);
+  await link.hover();
+  const text = link.locator('span');
+  await expect.poll(() => text.evaluate((el) => getComputedStyle(el).backgroundSize)).toBe('100% 2px');
+  expect(await text.evaluate((el) => getComputedStyle(el).boxDecorationBreak)).toBe('clone'); // one line under every line of the label
+  expect(await link.evaluate((el) => getComputedStyle(el, '::after').content), 'no line drawn from the bottom of the whole box').toMatch(/^(none|normal)$/);
+  expect(await text.evaluate((el) => getComputedStyle(el).display)).toBe('inline'); // an inline label can wrap, and its background follows each line
+  await context.close();
+});
+
+test('a link followed from the bottom of a page opens the next public page at its top (articles, calculators, languages)', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 700 });
+  const bottom = async () => page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+  const top = async () => expect.poll(() => page.evaluate(() => Math.round(window.scrollY))).toBe(0);
+
+  // an article, then the calculator it points to (a link in the text)
+  await page.goto('/sst-vs-service-charge');
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+  const inText = page.getByRole('main').getByRole('link', { name: 'bill calculator' }).first();
+  await inText.scrollIntoViewIfNeeded();
+  expect(await page.evaluate(() => Math.round(window.scrollY)), 'the page really is scrolled down').toBeGreaterThan(200);
+  await inText.click();
+  await expect(page).toHaveURL(/\/bill-calculator$/);
+  await top();
+
+  // a footer link at the very bottom of a long article
+  await page.goto('/flat-rate-vs-reducing-balance');
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+  await bottom();
+  await page.getByRole('navigation', { name: 'Footer' }).getByRole('link', { name: 'Reading a receipt' }).click();
+  await expect(page).toHaveURL(/\/how-to-read-a-malaysian-receipt$/);
+  await top();
+
+  // the "more guides" cards from the bottom, then the Privacy Policy
+  await bottom();
+  await page.getByRole('navigation', { name: 'More guides' }).getByRole('link').first().click();
+  await top();
+  await bottom();
+  await page.getByRole('navigation', { name: 'Footer' }).getByRole('link', { name: 'Privacy Policy' }).click();
+  await expect(page).toHaveURL(/\/privacy$/);
+  await top();
+
+  // and in Malay
+  await page.goto('/ms/sst-vs-service-charge');
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+  await bottom();
+  await page.getByRole('navigation', { name: 'Pautan bawah' }).getByRole('link', { name: 'Kalkulator bil' }).click();
+  await expect(page).toHaveURL(/\/ms\/bill-calculator$/);
+  await top();
+});
+
+test('a link to a #section still scrolls to that section instead of the top', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 700 });
+  await page.goto('/privacy');
+  await page.getByRole('navigation', { name: 'Sections' }).getByRole('link', { name: /Who else receives/ }).click();
+  await expect.poll(() => page.evaluate(() => Math.round(window.scrollY))).toBeGreaterThan(200);
+});

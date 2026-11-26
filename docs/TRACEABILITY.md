@@ -98,6 +98,7 @@ Tests: `src/**/*.test.ts(x)` (unit/component, Vitest) · `e2e/*.spec.ts` (browse
 | PU-01 contact form | Verified | `ContactSheet`, `LazyContactSheet` | `auth.spec.ts` |
 | PU-02 welcome, privacy, terms | Verified | `features/public/*` (React, with motion that respects reduced-motion) | `public.spec.ts`, `public-motion.spec.ts`, `security.test.ts` |
 | SE-01 public guide pages (FD and loan calculators) | Verified | `features/guides/*`, `scripts/guide-pages.mts` (text written into the built HTML), `seo.mts` | `guides.spec.ts`, `public.spec.ts`, `seo.test.js`, `security.test.ts` |
+| GD-01 to GD-03 guides in English, Malay and Chinese (4 articles, FD, loan and bill calculators, language links, share pictures) | Verified | `features/guides/*`, `src/content/articles/*`, `scripts/guide-pages.mts`, `scripts/seo.mts`, `public/share/*` | `guides.test.ts`, `bill.test.ts`, `guide-languages.spec.ts`, `seo.test.js` |
 | CP-01 to CP-05 notification capture (rules engine, review inbox, Android bridge) | Partly: the web side is verified, the Android plugin is not built yet | `features/capture/*`, `rules.json` (no app is read until real samples are added) | `capture.test.ts`, `capture.spec.ts` |
 | PU-03 404 page | Verified | `public/404.*`, `vite.config.mts` (appPagesPlugin) | `notfound.spec.ts`, `security.test.ts` |
 | PU-04 email action page | Verified | `email-action.html`, `src/email-action/main.ts` | `emailaction.spec.ts` |

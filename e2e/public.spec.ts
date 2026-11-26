@@ -1,6 +1,7 @@
 // PU-02: the welcome page, Privacy Policy and Terms of Use: served, readable, accessible, and linked from the sign-in page.
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
+import { GUIDE_PATHS } from '../src/features/guides/registry';
 import { HEIGHTS, WIDTHS } from './helpers';
 
 const PAGES = [
@@ -10,6 +11,8 @@ const PAGES = [
   { path: '/terms', heading: 'Terms of Use' },
   { path: '/fd-calculator', heading: 'Fixed deposit calculator' },
   { path: '/loan-calculator', heading: 'Loan calculator' },
+  { path: '/bill-calculator', heading: 'Bill calculator' },
+  { path: '/sst-vs-service-charge', heading: 'SST vs service charge' },
 ];
 
 test('the public pages are served with the security headers and their own content', async ({ request, page }) => {
@@ -73,7 +76,7 @@ for (const width of WIDTHS) {
 
 test('search engines: the app and sign-in are sent with a no-index header, the public pages are not, and robots.txt agrees', async ({ request, page }) => {
   for (const path of ['/app', '/app/history', '/auth', '/email-action.html', '/email-action', '/miniapp/']) expect((await request.get(path)).headers()['x-robots-tag'], path).toMatch(/noindex/);
-  for (const path of ['/', '/privacy', '/terms', '/fd-calculator', '/loan-calculator']) expect((await request.get(path)).headers()['x-robots-tag'], path).toBeUndefined();
+  for (const path of ['/', '/privacy', '/terms', ...GUIDE_PATHS]) expect((await request.get(path)).headers()['x-robots-tag'], path).toBeUndefined();
   const robots = await (await request.get('/robots.txt')).text();
   expect(robots).toContain('Disallow: /app/');
   expect(robots).toContain('Allow: /privacy$');
@@ -102,7 +105,7 @@ test('the sitemap is plain, indented XML listing the public pages, and the brows
   expect(res.headers()['content-security-policy']).toBeUndefined();
   const xml = await res.text();
   expect(xml).toMatch(/^<\?xml version="1.0" encoding="UTF-8"\?>\n<urlset xmlns="http:\/\/www.sitemaps.org\/schemas\/sitemap\/0.9">\n {2}<url>\n {4}<loc>/);
-  expect([...xml.matchAll(/<loc>(.*?)<\/loc>/g)].map((m) => new URL(m[1] as string).pathname)).toEqual(['/', '/fd-calculator', '/loan-calculator', '/privacy', '/terms']);
+  expect([...xml.matchAll(/<loc>(.*?)<\/loc>/g)].map((m) => new URL(m[1] as string).pathname)).toEqual(['/', ...GUIDE_PATHS, '/privacy', '/terms']);
   const problems: string[] = [];
   page.on('console', (m) => { if (m.type() === 'error') problems.push(m.text()); });
   await page.goto('/sitemap.xml');

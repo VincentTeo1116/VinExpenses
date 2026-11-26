@@ -6,6 +6,7 @@ const path = require('node:path');
 const { pathToFileURL } = require('node:url');
 
 const load = () => import(pathToFileURL(path.join(__dirname, '..', 'scripts', 'seo.mts')).href);
+const registry = () => import(pathToFileURL(path.join(__dirname, '..', 'src', 'features', 'guides', 'registry.ts')).href);
 const dist = path.join(__dirname, '..', 'dist-e2e');
 const built = fs.existsSync(path.join(dist, 'index.html'));
 
@@ -19,15 +20,22 @@ test('only a plain web address is accepted as the site address', async () => {
 test('robots.txt allows the public pages, keeps the private ones out, and names the sitemap only when the address is known', async () => {
     const { robotsTxt } = await load();
     const withSite = robotsTxt('https://vin.pages.dev');
-    for (const line of ['Allow: /$', 'Allow: /privacy$', 'Allow: /terms$', 'Allow: /fd-calculator$', 'Allow: /loan-calculator$', 'Disallow: /app/', 'Disallow: /auth', 'Disallow: /miniapp/', 'Disallow: /email-action.html', 'Sitemap: https://vin.pages.dev/sitemap.xml']) assert.ok(withSite.includes(line), line);
+    for (const line of ['Allow: /$', 'Allow: /privacy$', 'Allow: /terms$', 'Allow: /fd-calculator$', 'Allow: /loan-calculator$', 'Allow: /bill-calculator$', 'Allow: /ms/fd-calculator$', 'Allow: /zh/how-to-read-a-malaysian-receipt$', 'Disallow: /app/', 'Disallow: /auth', 'Disallow: /miniapp/', 'Disallow: /email-action.html', 'Sitemap: https://vin.pages.dev/sitemap.xml']) assert.ok(withSite.includes(line), line);
     assert.ok(!robotsTxt('').includes('Sitemap:'));
 });
 
-test('the sitemap lists exactly the public pages', async () => {
+test('the sitemap lists exactly the public pages: the welcome page, every guide in every language, privacy and terms', async () => {
     const { sitemapXml } = await load();
+    const { GUIDE_PATHS } = await registry();
     const xml = sitemapXml('https://vin.pages.dev', '2026-11-24');
-    assert.deepEqual([...xml.matchAll(/<loc>(.*?)<\/loc>/g)].map((m) => m[1]), ['https://vin.pages.dev/', 'https://vin.pages.dev/fd-calculator', 'https://vin.pages.dev/loan-calculator', 'https://vin.pages.dev/privacy', 'https://vin.pages.dev/terms']);
+    assert.deepEqual([...xml.matchAll(/<loc>(.*?)<\/loc>/g)].map((m) => m[1]), ['https://vin.pages.dev/', ...GUIDE_PATHS.map((p) => `https://vin.pages.dev${p}`), 'https://vin.pages.dev/privacy', 'https://vin.pages.dev/terms']);
+    assert.equal(GUIDE_PATHS.length, 21);
     assert.ok(!/\/app|\/auth/.test(xml));
+});
+
+test('the sitemap lists addresses only (no language alternates), so the browser can still show it formatted; the language links live in each page\'s own head', async () => {
+    const { sitemapXml } = await load();
+    assert.ok(!sitemapXml('https://vin.pages.dev', '2026-11-24').includes('xhtml'));
 });
 
 test('the sitemap is readable, indented XML with a change hint for each public page', async () => {
@@ -35,7 +43,7 @@ test('the sitemap is readable, indented XML with a change hint for each public p
     const xml = sitemapXml('https://vin.pages.dev', '2026-11-24');
     assert.ok(xml.startsWith('<?xml version="1.0" encoding="UTF-8"?>' + String.fromCharCode(10) + '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' + String.fromCharCode(10) + '  <url>' + String.fromCharCode(10)));
     assert.ok(xml.includes(['  <url>', '    <loc>https://vin.pages.dev/</loc>', '    <lastmod>2026-11-24</lastmod>', '    <changefreq>weekly</changefreq>', '    <priority>1.0</priority>', '  </url>'].join(String.fromCharCode(10))));
-    assert.equal([...xml.matchAll(/<url>/g)].length, 5);
+    assert.equal([...xml.matchAll(/<url>/g)].length, 24);
     assert.ok(!xml.includes('xml-stylesheet'), 'XSLT is gone from browsers, so no stylesheet is linked');
 });
 

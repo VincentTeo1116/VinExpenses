@@ -1,6 +1,8 @@
 // Search-engine files and tags, written at build time. The public pages (welcome, privacy, terms) may be found by search engines;
 // the app, the sign-in page, the Mini App and the email page may not (they also carry a no-index header, see headers.mts).
-export const PUBLIC_PATHS = ['/', '/fd-calculator', '/loan-calculator', '/privacy', '/terms'] as const;
+import { ALL_SLUGS, ARTICLES, GUIDE_PATHS, LANGS, pathFor } from '../src/features/guides/registry.ts';
+
+export const PUBLIC_PATHS: readonly string[] = ['/', ...GUIDE_PATHS, '/privacy', '/terms'];
 export const PRIVATE_PATHS = ['/app/', '/auth', '/miniapp/', '/email-action.html'] as const;
 
 /** The site's address without a trailing slash, or '' when it is not set (or not a plain http(s) address). */
@@ -22,11 +24,12 @@ export function robotsTxt(siteUrl: string): string {
 /** How often each public page changes and how important it is (search engines treat these as hints only). */
 const PAGE_HINTS: Record<string, { changefreq: string; priority: string }> = {
   '/': { changefreq: 'weekly', priority: '1.0' },
-  '/fd-calculator': { changefreq: 'monthly', priority: '0.8' },
-  '/loan-calculator': { changefreq: 'monthly', priority: '0.8' },
   '/privacy': { changefreq: 'monthly', priority: '0.5' },
   '/terms': { changefreq: 'monthly', priority: '0.5' },
 };
+for (const lang of LANGS) {
+  for (const slug of ALL_SLUGS) PAGE_HINTS[pathFor(lang, slug)] = { changefreq: 'monthly', priority: (ARTICLES as readonly string[]).includes(slug) ? '0.7' : '0.8' };
+}
 
 /** The sitemap: valid, indented XML. A person who opens it in a browser sees it in the browser's own XML viewer (the headers let that viewer style itself). */
 export function sitemapXml(siteUrl: string, today: string): string {
@@ -40,7 +43,7 @@ export function sitemapXml(siteUrl: string, today: string): string {
 const escape = (text: string) => text.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
 
 /** Tags for the page shell. Social apps read these without running any script, so they are written into the HTML itself. */
-export function seoTags(siteUrl: string): string {
+export function seoTags(siteUrl: string, image = '/landing/dashboard-light.webp'): string {
   const title = 'VinExpenses: track spending, budgets, deposits and loans';
   const description = 'A free expense tracker for Malaysia: scan receipts, set budgets, plan fixed deposits and loans, and get reminders. No ads, and your records stay private.';
   const tags = [
@@ -51,7 +54,7 @@ export function seoTags(siteUrl: string): string {
     `<meta name="twitter:card" content="summary_large_image" />`,
   ];
   if (siteUrl) {
-    tags.push(`<meta property="og:url" content="${siteUrl}/" />`, `<meta property="og:image" content="${siteUrl}/landing/dashboard-light.webp" />`, `<link rel="canonical" href="${siteUrl}/" />`);
+    tags.push(`<meta property="og:url" content="${siteUrl}/" />`, `<meta property="og:image" content="${siteUrl}${image}" />`, `<link rel="canonical" href="${siteUrl}/" />`);
   }
   return tags.join('\n    ');
 }

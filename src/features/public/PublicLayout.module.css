@@ -152,9 +152,9 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--s-6) var(--s-5);
 }
-@media (min-width: 640px) {
+@media (min-width: 900px) {
   .cols {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
 .col ul {
@@ -171,34 +171,26 @@
   color: var(--text);
 }
 .link {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  min-height: var(--tap);
-  padding: 0 var(--s-2);
+  display: inline-block;
+  padding: 11px var(--s-2);
   margin-left: calc(var(--s-2) * -1);
   border-radius: var(--r-sm);
   color: var(--muted);
   font-weight: 600;
+  line-height: 1.5;
   text-decoration: none;
   transition:
     color 160ms var(--ease),
     background 160ms var(--ease),
     transform 160ms var(--ease);
 }
-/* a line that grows from the left on hover and keyboard focus */
-.link::after {
-  content: '';
-  position: absolute;
-  left: var(--s-2);
-  right: var(--s-2);
-  bottom: 9px;
-  height: 2px;
-  border-radius: 2px;
-  background: var(--brand);
-  transform: scaleX(0);
-  transform-origin: left;
-  transition: transform 220ms var(--ease);
+/* the line is the background of the text itself, so a label that wraps gets one under every line, not one across the middle of the box */
+.text {
+  padding-bottom: 2px;
+  background: linear-gradient(var(--brand), var(--brand)) no-repeat 0 100% / 0 2px;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  transition: background-size 220ms var(--ease);
 }
 .link:hover,
 .link:focus-visible {
@@ -206,9 +198,9 @@
   background: color-mix(in srgb, var(--brand) 7%, transparent);
   transform: translateX(3px);
 }
-.link:hover::after,
-.link:focus-visible::after {
-  transform: scaleX(1);
+.link:hover .text,
+.link:focus-visible .text {
+  background-size: 100% 2px;
 }
 .link:active {
   transform: translateX(3px) scale(0.97);
@@ -219,8 +211,8 @@
   color: var(--primary);
   font-weight: 800;
 }
-.link[aria-current='page']::after {
-  transform: scaleX(1);
+.link[aria-current='page'] .text {
+  background-size: 100% 2px;
 }
 .bottom {
   display: flex;
@@ -234,7 +226,7 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .link,
-  .link::after,
+  .text,
   .footBrand img {
     transition: none;
   }

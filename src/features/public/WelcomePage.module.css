@@ -539,6 +539,11 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+@media (min-width: 1000px) {
+  .calcGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
 .calcCard {
   position: relative;
   display: grid;
@@ -609,4 +614,41 @@
 }
 .calcCard:hover .calcGo span {
   transform: translateX(5px);
+}
+
+.guideRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-3) var(--s-5);
+  margin-top: var(--s-6);
+}
+.guideRow h3 {
+  font-size: var(--fs-md);
+}
+.guideRow ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  list-style: none;
+}
+.guideRow a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  padding: 0 var(--s-4);
+  border-radius: 999px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-weight: 650;
+  text-decoration: none;
+  transition: border-color 160ms var(--ease), color 160ms var(--ease), transform 140ms var(--ease);
+}
+.guideRow a:hover {
+  color: var(--primary);
+  border-color: color-mix(in srgb, var(--brand) 50%, var(--border));
+}
+.guideRow a:active {
+  transform: scale(0.96);
 }

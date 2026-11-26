@@ -4,6 +4,8 @@ import { PublicLayout, usePageMeta } from './PublicLayout';
 import { Counter, Reveal } from './motion';
 import { QuickCalc } from './QuickCalc';
 import { StoreBadges } from './StoreBadges';
+import { ARTICLES } from '@/features/guides/registry';
+import { UI } from '@/features/guides/text';
 import styles from './WelcomePage.module.css';
 
 const ICONS: Record<string, string> = {
@@ -155,8 +157,9 @@ export function WelcomePage() {
             {[
               { to: '/fd-calculator', icon: 'bank' as const, title: 'Fixed deposit calculator', text: 'See your interest and the total at maturity, and when each payment arrives.', sample: ['RM 10,000 at 3.5% for 12 months', 'RM 10,350.00'] },
               { to: '/loan-calculator', icon: 'loan' as const, title: 'Loan calculator', text: 'See the monthly payment and total interest, and compare a flat rate with reducing balance.', sample: ['RM 300,000 at 4.2% for 25 years', 'RM 1,616.83 a month'] },
+              { to: '/bill-calculator', icon: 'report' as const, title: 'Bill calculator', text: 'Add the 10% service charge and 6% SST to a restaurant bill, round to 5 sen and split it.', sample: ['RM 21.00 meal with service charge and SST', 'RM 24.35'] },
             ].map((item, index) => (
-              <Reveal key={item.to} delay={((index + 1) as 1 | 2)}>
+              <Reveal key={item.to} delay={((index + 1) as 1 | 2 | 3)}>
                 <Link to={item.to} className={styles.calcCard}>
                   <span className={styles.icon}>
                     <Icon name={item.icon} />
@@ -173,6 +176,16 @@ export function WelcomePage() {
                 </Link>
               </Reveal>
             ))}
+          </div>
+          <div className={styles.guideRow}>
+            <h3>Short guides</h3>
+            <ul>
+              {ARTICLES.map((slug) => (
+                <li key={slug}>
+                  <Link to={`/${slug}`}>{UI.en.names[slug]}</Link>
+                </li>
+              ))}
+            </ul>
           </div>
         </div>
       </section>

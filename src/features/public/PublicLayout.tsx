@@ -1,14 +1,18 @@
 // The frame around the public pages (welcome, privacy, terms): a header that settles as you scroll, and a footer.
 import { useEffect, useState, type ReactNode } from 'react';
 import { Link, NavLink } from 'react-router-dom';
+import { ARTICLES, CALCULATORS, HTML_LANG, pathFor, type PageLang } from '@/features/guides/registry';
+import { useUi, usePageLang } from '@/features/guides/useUi';
 import { AnalyticsConsent } from '@/features/analytics/AnalyticsConsent';
 import { AuthorCredit } from './AuthorCredit';
 import styles from './PublicLayout.module.css';
 
 /** Sets the tab title and description for a public page (the page is drawn by the app, so these are set here). */
-export function usePageMeta(title: string, description: string) {
+export function usePageMeta(title: string, description: string, lang: PageLang = 'en') {
   useEffect(() => {
     const before = document.title;
+    const beforeLang = document.documentElement.lang;
+    document.documentElement.lang = HTML_LANG[lang];
     document.title = title;
     const tag = document.querySelector('meta[name="description"]');
     const oldDescription = tag?.getAttribute('content') ?? '';
@@ -28,22 +32,25 @@ export function usePageMeta(title: string, description: string) {
     og?.setAttribute('content', title);
     return () => {
       document.title = before;
+      document.documentElement.lang = beforeLang;
       tag?.setAttribute('content', oldDescription);
       og?.setAttribute('content', oldOg);
       if (made) canonical.remove();
       else canonical.href = oldCanonical;
     };
-  }, [title, description]);
+  }, [title, description, lang]);
 }
-
-const FOOTER_LINKS: { title: string; links: ({ label: string; to: string } | { label: string; href: string })[] }[] = [
-  { title: 'VinExpenses', links: [{ label: 'About', to: '/' }, { label: 'Open the app', to: '/app' }, { label: 'Contact', href: 'mailto:teovincentkq1611@gmail.com' }] },
-  { title: 'Calculators', links: [{ label: 'FD calculator', to: '/fd-calculator' }, { label: 'Loan calculator', to: '/loan-calculator' }] },
-  { title: 'Legal', links: [{ label: 'Privacy Policy', to: '/privacy' }, { label: 'Terms of Use', to: '/terms' }] },
-];
 
 export function PublicLayout({ children, nav }: { children: ReactNode; nav?: ReactNode }) {
   const [scrolled, setScrolled] = useState(false);
+  const lang = usePageLang();
+  const ui = useUi();
+  const groups: { title: string; links: ({ label: string; to: string } | { label: string; href: string })[] }[] = [
+    { title: ui.footer.brand, links: [{ label: ui.footer.about, to: '/' }, { label: ui.openApp, to: '/app' }, { label: ui.footer.contact, href: 'mailto:teovincentkq1611@gmail.com' }] },
+    { title: ui.footer.calculators, links: CALCULATORS.map((slug) => ({ label: ui.names[slug] ?? slug, to: pathFor(lang, slug) })) },
+    { title: ui.footer.guides, links: ARTICLES.map((slug) => ({ label: ui.names[slug] ?? slug, to: pathFor(lang, slug) })) },
+    { title: ui.footer.legal, links: [{ label: ui.footer.privacy, to: '/privacy' }, { label: ui.footer.terms, to: '/terms' }] },
+  ];
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);
     onScroll();
@@ -53,7 +60,7 @@ export function PublicLayout({ children, nav }: { children: ReactNode; nav?: Rea
   return (
     <div className={styles.page}>
       <a href="#main" className="skip-link">
-        Skip to content
+        {ui.skip}
       </a>
       <header className={`${styles.head} ${scrolled ? styles.scrolled : ''}`}>
         <div className={styles.wrap}>
@@ -61,10 +68,10 @@ export function PublicLayout({ children, nav }: { children: ReactNode; nav?: Rea
             <img src="/icons/icon-192.png" alt="" width={34} height={34} />
             <span>VinExpenses</span>
           </Link>
-          <nav className={styles.nav} aria-label="Site">
+          <nav className={styles.nav} aria-label={ui.site}>
             {nav}
             <Link className={styles.cta} to="/app">
-              Open the app
+              {ui.openApp}
             </Link>
           </nav>
         </div>
@@ -80,11 +87,11 @@ export function PublicLayout({ children, nav }: { children: ReactNode; nav?: Rea
                 <img src="/icons/icon-192.png" alt="" width={36} height={36} />
                 <span>VinExpenses</span>
               </Link>
-              <p className={styles.tagline}>A free expense tracker for Malaysia. No ads, and your records stay private.</p>
+              <p className={styles.tagline}>{ui.footer.tagline}</p>
               <AuthorCredit variant="card" />
             </div>
-            <nav className={styles.cols} aria-label="Footer">
-              {FOOTER_LINKS.map((group) => (
+            <nav className={styles.cols} aria-label={ui.footer.aria}>
+              {groups.map((group) => (
                 <div key={group.title} className={styles.col}>
                   <p className={styles.colTitle}>{group.title}</p>
                   <ul>
@@ -92,11 +99,11 @@ export function PublicLayout({ children, nav }: { children: ReactNode; nav?: Rea
                       <li key={item.label}>
                         {'to' in item ? (
                           <NavLink to={item.to} end className={styles.link}>
-                            {item.label}
+                            <span className={styles.text}>{item.label}</span>
                           </NavLink>
                         ) : (
                           <a className={styles.link} href={item.href}>
-                            {item.label}
+                            <span className={styles.text}>{item.label}</span>
                           </a>
                         )}
                       </li>
@@ -108,7 +115,7 @@ export function PublicLayout({ children, nav }: { children: ReactNode; nav?: Rea
           </div>
           <div className={styles.bottom}>
             <span>© 2026 VinExpenses</span>
-            <span>Calculators give estimates, not financial advice.</span>
+            <span>{ui.footer.note}</span>
           </div>
         </div>
       </footer>

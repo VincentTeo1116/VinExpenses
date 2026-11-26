@@ -7,6 +7,8 @@ import { AuthProvider } from './AuthProvider';
 import { ProtectedRoute } from './ProtectedRoute';
 import { ErrorBoundary } from './ErrorBoundary';
 import { NotFound } from '@/pages/NotFound';
+import { ScrollToTop } from './ScrollToTop';
+import { ALL_SLUGS, LANGS, pathFor } from '@/features/guides/registry';
 import { ConfigError } from '@/pages/ConfigError';
 import { DESKTOP, useMediaQuery } from '@/lib/useMediaQuery';
 
@@ -20,8 +22,7 @@ const HistoryPage = lazy(() => import('@/features/history/HistoryPage').then((m)
 const PlanPage = lazy(() => import('@/features/plan/PlanPage').then((m) => ({ default: m.PlanPage })));
 const ReportPage = lazy(() => import('@/features/report/ReportPage').then((m) => ({ default: m.ReportPage })));
 const WelcomePage = lazy(() => import('@/features/public/WelcomePage').then((m) => ({ default: m.WelcomePage })));
-const FdCalculatorPage = lazy(() => import('@/features/guides/Calculators').then((m) => ({ default: m.FdCalculatorPage })));
-const LoanCalculatorPage = lazy(() => import('@/features/guides/Calculators').then((m) => ({ default: m.LoanCalculatorPage })));
+const GuideRoute = lazy(() => import('@/features/guides/GuideRoute').then((m) => ({ default: m.GuideRoute })));
 const PrivacyPage = lazy(() => import('@/features/public/PrivacyPage').then((m) => ({ default: m.PrivacyPage })));
 const TermsPage = lazy(() => import('@/features/public/TermsPage').then((m) => ({ default: m.TermsPage })));
 const AdminPage = lazy(() => import('@/features/admin/AdminPage').then((m) => ({ default: m.AdminPage })));
@@ -51,8 +52,8 @@ export function AppRoutes() {
       {/* back from Google on the front page: carry the one-time code on to the sign-in screen, which finishes and opens the app */}
       <Route path="/" element={ARRIVED_FROM_SIGN_IN && fromSignIn() ? <Navigate to={{ pathname: '/auth', search: window.location.search, hash: window.location.hash }} replace /> : <WelcomePage />} />
       <Route path="/welcome" element={<WelcomePage />} />
-      <Route path="/fd-calculator" element={<FdCalculatorPage />} />
-      <Route path="/loan-calculator" element={<LoanCalculatorPage />} />
+      {/* the public guides: calculators and articles, in English at the root and in Malay and Chinese under /ms and /zh */}
+      {LANGS.flatMap((lang) => ALL_SLUGS.map((slug) => <Route key={pathFor(lang, slug)} path={pathFor(lang, slug)} element={<GuideRoute lang={lang} slug={slug} />} />))}
       <Route path="/privacy" element={<PrivacyPage />} />
       <Route path="/terms" element={<TermsPage />} />
       <Route path="/welcome.html" element={<Navigate to="/welcome" replace />} />
@@ -86,6 +87,7 @@ export function App() {
           {envResult.ok ? (
             <AuthProvider>
               <BrowserRouter>
+                <ScrollToTop />
                 <Suspense fallback={null}>
                   <AppRoutes />
                 </Suspense>

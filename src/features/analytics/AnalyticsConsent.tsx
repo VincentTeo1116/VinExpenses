@@ -1,11 +1,13 @@
 // AN-01: asks once whether visits to the public pages may be counted, and (only after a Yes) loads analytics and reports each page view.
 import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { useUi } from '@/features/guides/useUi';
 import { doNotTrack, GA_ID, loadAnalytics, readChoice, saveChoice, trackPage, type Choice } from './analytics';
 import styles from './AnalyticsConsent.module.css';
 
 export function AnalyticsConsent() {
   const { pathname } = useLocation();
+  const words = useUi().consent;
   const [choice, setChoice] = useState<Choice>(() => (!GA_ID || doNotTrack() ? 'no' : readChoice()));
 
   useEffect(() => {
@@ -21,16 +23,16 @@ export function AnalyticsConsent() {
     setChoice(value);
   };
   return (
-    <section className={styles.bar} aria-label="Analytics choice" data-testid="analytics-consent">
+    <section className={styles.bar} aria-label={words.aria} data-testid="analytics-consent">
       <p className={styles.text}>
-        May I count visits to these public pages with Google Analytics? It is never used inside the app, and there are no ads. <Link to="/privacy#share">Details</Link>
+        {words.text} <Link to="/privacy#share">{words.details}</Link>
       </p>
       <div className={styles.actions}>
         <button type="button" className={styles.yes} onClick={() => answer('yes')}>
-          Yes, that is fine
+          {words.yes}
         </button>
         <button type="button" className={styles.no} onClick={() => answer('no')}>
-          No thanks
+          {words.no}
         </button>
       </div>
     </section>
