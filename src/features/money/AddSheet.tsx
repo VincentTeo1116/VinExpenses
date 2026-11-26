@@ -85,12 +85,12 @@ function AddBody({ request, onClose }: { request: AddRequest; onClose: () => voi
     const income = row && source?.kind === 'income' ? (row as Income) : null;
     const copying = Boolean(request.copy);
     return {
-      amount: row ? toCents(row.amount) / 100 + '' : '',
+      amount: row ? toCents(row.amount) / 100 + '' : request.prefill ? request.prefill.amount.toFixed(2) : '',
       category: expense?.category ?? '', // a new expense starts with no category: the person (or the place they type) chooses it
       payment: expense?.payment ?? first(activePayments),
       source: income?.source ?? 'Salary',
-      date: row && !copying ? isoToYmd(row.created_at) : todayYmd(),
-      merchant: expense?.merchant ?? '',
+      date: row && !copying ? isoToYmd(row.created_at) : request.prefill?.date ?? todayYmd(),
+      merchant: expense?.merchant ?? request.prefill?.merchant ?? '',
       note: expense?.note ?? '',
     };
     // the starting values are taken once, when the sheet opens
@@ -259,6 +259,7 @@ function AddBody({ request, onClose }: { request: AddRequest; onClose: () => voi
           } else {
             const result = await actions.addTransaction('expense', row);
             toast.show('success', result === 'queued' ? t('add.savedOffline') : t('add.saved'));
+            request.onSaved?.();
             if (result === 'saved') {
               const cents = toCents(amount);
               const lines: [string, number, number, number][] = [

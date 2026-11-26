@@ -22,6 +22,7 @@ import { gate } from '@/features/auth/gate';
 import { replyText } from '@/features/auth/replyText';
 import { changePasswordSchema, disableMfaSchema } from '@/features/auth/schemas';
 import { PreferencesCard } from './PreferencesCard';
+import { CaptureSettingsCard } from '@/features/capture/CaptureInbox';
 import { DataCard } from '@/features/csv/DataCard';
 import { useAdminStatus } from '@/features/admin/useAdmin';
 import { DeleteAccountCard, ReminderSettingsCard, ReportCard, TelegramCard } from './NotifyCards';
@@ -147,6 +148,8 @@ export function AccountPage() {
         </PreferencesCard>
 
         <SecurityCard />
+
+        <CaptureSettingsCard />
 
         <section className={styles.card} aria-labelledby="acc-pass">
           <div>

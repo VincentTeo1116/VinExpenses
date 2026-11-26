@@ -17,6 +17,7 @@ import { budgetFor, dueWording } from '@/features/money/calc';
 import { useMoney } from '@/features/money/MoneyContext';
 import type { Expense, Income } from '@/features/money/types';
 import { ReminderList, ReminderPopup, useReminderList } from '@/features/finance/Reminders';
+import { CaptureBanner } from '@/features/capture/CaptureInbox';
 import { Donut, TrendBars } from './charts';
 import { categoryBreakdown, compareWithLastMonth, forecastMonth, frequentMerchants, headline, insights, safeToSpend, shiftMonth, spendingPatterns, trend } from './summary';
 import styles from './DashboardPage.module.css';
@@ -167,6 +168,7 @@ export function DashboardPage({ quiet = false }: { quiet?: boolean } = {}) {
       ) : null}
       {quiet ? null : <ReminderPopup />}
       {data.pendingCount > 0 ? <Notice kind="info">{t('money.pendingBanner', { n: data.pendingCount })}</Notice> : null}
+      <CaptureBanner />
 
       {reminders.list.length > 0 ? (
         <section className={styles.remBar} aria-labelledby="dash-rem" data-open={remOpen} data-testid="reminder-bar">

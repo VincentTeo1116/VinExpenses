@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "note": "Shared by the Android code and the web code. An app is read only when verified is true and it has a spend pattern; package names marked unverified are guesses.",
+  "guards": {
+    "otp": [
+      "\\b(otp|tac|one[- ]?time|verification code|security code|kod pengesahan|kod tac)\\b",
+      "(验证码|校验码|动态密码)",
+      "\\b(code|kod)\\b[^\\n]{0,20}\\b\\d{4,8}\\b",
+      "\\b\\d{4,8}\\b[^\\n]{0,25}\\b(is your|adalah)\\b"
+    ],
+    "security": [
+      "\\b(log ?in|sign ?in|logged in|new device|password|kata laluan|pin|biometric|suspicious|unusual activity|verify your|sahkan)\\b",
+      "(登录|登入|密码|可疑)"
+    ],
+    "promo": [
+      "\\b(promo|promotion|voucher|cashback up to|discount|enjoy|get rm|win rm|offer|tawaran|diskaun|hadiah)\\b",
+      "\\d\\s?% off",
+      "(优惠|折扣|红包)"
+    ]
+  },
+  "notSpend": [
+    { "reason": "refund", "patterns": ["\\b(refund|refunded|reversal|reversed|dikembalikan)\\b", "退款"] },
+    { "reason": "topup", "patterns": ["\\b(top[- ]?up|reload|added to your wallet|tambah nilai)\\b", "充值"] },
+    { "reason": "transfer", "patterns": ["\\b(transfer(red)? to your|between your|own account|duitnow received|pindahan)\\b"] },
+    { "reason": "income", "patterns": ["\\b(you('ve| have)? received|received from|credited|salary|gaji|diterima)\\b", "(收到|入账)"] }
+  ],
+  "apps": [
+    { "id": "tng", "label": "Touch 'n Go eWallet", "packages": ["my.com.tngdigital.ewallet"], "verified": false, "spend": [] },
+    { "id": "grab", "label": "Grab", "packages": ["com.grabtaxi.passenger"], "verified": false, "spend": [] },
+    { "id": "samsung-pay", "label": "Samsung Pay", "packages": ["com.samsung.android.spay"], "verified": false, "spend": [] },
+    { "id": "mae", "label": "Maybank MAE", "packages": ["com.maybank2u.life"], "verified": false, "spend": [] }
+  ]
+}
