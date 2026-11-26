@@ -225,3 +225,17 @@
   display: block;
   color: var(--muted);
 }
+
+.splitLink {
+  justify-self: start;
+  min-height: var(--tap);
+  padding: 0 var(--s-2);
+  border-radius: var(--r-sm);
+  color: var(--primary);
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.splitLink:hover {
+  background: color-mix(in srgb, var(--brand) 8%, transparent);
+}

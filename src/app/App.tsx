@@ -19,6 +19,7 @@ const AuthPage = lazy(() => import('@/features/auth/AuthPage').then((m) => ({ de
 const SetupPage = lazy(() => import('@/features/auth/SetupPage').then((m) => ({ default: m.SetupPage })));
 const DashboardPage = lazy(() => import('@/features/dashboard/DashboardPage').then((m) => ({ default: m.DashboardPage })));
 const HistoryPage = lazy(() => import('@/features/history/HistoryPage').then((m) => ({ default: m.HistoryPage })));
+const SplitPage = lazy(() => import('@/features/split/SplitPage').then((m) => ({ default: m.SplitPage })));
 const PlanPage = lazy(() => import('@/features/plan/PlanPage').then((m) => ({ default: m.PlanPage })));
 const ReportPage = lazy(() => import('@/features/report/ReportPage').then((m) => ({ default: m.ReportPage })));
 const WelcomePage = lazy(() => import('@/features/public/WelcomePage').then((m) => ({ default: m.WelcomePage })));
@@ -66,6 +67,7 @@ export function AppRoutes() {
           <Route index element={<HomeRoute />} />
           <Route path="history" element={<HistoryPage />} />
           <Route path="plan" element={<PlanPage />} />
+          <Route path="split" element={<SplitPage />} />
           <Route
             path="account"
             element={<HomeRoute />}

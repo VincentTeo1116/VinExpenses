@@ -13,7 +13,7 @@ interface AddRequest {
   /** A record to start from (the Duplicate button): its values, dated today. */
   copy?: { kind: Kind; row: Expense | Income };
   /** Values to start from (a payment detected on the phone), and what to do once the record is saved. */
-  prefill?: { amount: number; merchant: string; date: string };
+  prefill?: { amount: number; merchant: string; date: string; note?: string };
   onSaved?: () => void;
 }
 

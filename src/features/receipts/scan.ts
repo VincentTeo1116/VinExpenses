@@ -4,6 +4,7 @@ import type * as PdfJs from 'pdfjs-dist';
 import { ApiError, callFunction } from '@/lib/api';
 import type { OcrWord } from './highlight';
 import { readOnDevice } from './localOcr';
+import { prepare } from './photoPrep';
 import { parseBest, pdfContentOrderToText, pdfItemsToText, type ParsedReceipt } from './receiptParser';
 
 export type ScanProblem = 'pdfTooBig' | 'pdfPassword' | 'pdfBad' | 'pdfSlow' | 'pdfLoad' | 'ocrSlow' | 'noText' | 'offlinePhoto' | 'badType' | 'imageOpen' | 'noCompress' | 'tooLarge' | 'prepSlow' | 'service';
@@ -137,6 +138,26 @@ async function compressImage(file: File): Promise<string> {
   }
 }
 
+/** A photo straightened and sharpened for reading: for receipts with many small lines (the split page). */
+async function prepareImage(file: File): Promise<string> {
+  if (!/^image\/(jpeg|png|webp)$/i.test(file.type)) throw new ScanError('badType');
+  const objectUrl = URL.createObjectURL(file);
+  try {
+    const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = () => reject(new ScanError('imageOpen'));
+      img.src = objectUrl;
+    });
+    const scale = Math.min(1, 1600 / Math.max(image.width, image.height)); // the lab found 1200 to 1600 px reads as well as larger and is faster
+    const { canvas, ctx } = whiteCanvas(image.width * scale, image.height * scale);
+    ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+    return await canvasToJpeg(trimMargins(prepare(canvas)));
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
+}
+
 type PdfLib = typeof PdfJs;
 let pdfJs: Promise<PdfLib> | null = null;
 /** pdf.js is only downloaded when someone picks a PDF. It comes from this site, never from elsewhere. */
@@ -231,7 +252,7 @@ export interface Scanned extends ParsedReceipt {
 }
 
 /** Reads a receipt file and works out merchant, amount and date. Throws a ScanError with what went wrong. */
-export async function scanReceipt(file: File, context: OcrContext, onStep?: (step: 'pdf' | 'scan' | 'image' | 'text' | 'local') => void, onPreview?: (image: string) => void): Promise<Scanned> {
+export async function scanReceipt(file: File, context: OcrContext, onStep?: (step: 'pdf' | 'scan' | 'image' | 'text' | 'local') => void, onPreview?: (image: string) => void, options: { prepare?: boolean } = {}): Promise<Scanned> {
   let texts: string[] = [];
   let source: Scanned['source'] = 'ocr';
   const started = performance.now();
@@ -280,7 +301,7 @@ export async function scanReceipt(file: File, context: OcrContext, onStep?: (ste
     }
   } else {
     onStep?.('image');
-    const imageData = await withTimeout(compressImage(file), 30_000, 'prepSlow');
+    const imageData = await withTimeout(options.prepare ? prepareImage(file) : compressImage(file), 30_000, 'prepSlow');
     onStep?.('text');
     texts = [await timedOcr(imageData)];
   }

@@ -2,4 +2,4 @@
 // so the static host needs no rewrite rules; anything else is a real 404.
 import { GUIDE_PATHS } from '../features/guides/registry';
 
-export const APP_PATHS: readonly string[] = ['/welcome', '/welcome.html', '/privacy', '/privacy.html', '/terms', '/terms.html', '/app', '/app/history', '/app/plan', '/app/account', '/app/admin', '/app/report', '/auth', '/auth/setup', ...GUIDE_PATHS];
+export const APP_PATHS: readonly string[] = ['/welcome', '/welcome.html', '/privacy', '/privacy.html', '/terms', '/terms.html', '/app', '/app/history', '/app/plan', '/app/split', '/app/account', '/app/admin', '/app/report', '/auth', '/auth/setup', ...GUIDE_PATHS];

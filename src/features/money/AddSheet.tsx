@@ -1,6 +1,7 @@
 // TX-01 … TX-05: one sheet to add or change an expense or an income: amount first, then what it was for, then when.
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import { Controller, useForm, useWatch } from 'react-hook-form';
+import { useNavigate } from 'react-router-dom';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Button } from '@/components/Button';
@@ -16,6 +17,7 @@ import { envResult } from '@/lib/env';
 import { useI18n, type MessageKey } from '@/lib/i18n';
 import { buildMerchantMemory, suggestCategory } from '@/features/entry/smartEntry';
 import { scanReceipt, ScanError } from '@/features/receipts/scan';
+import { placedWords, rememberScan } from '@/features/split/lastScan';
 import { CameraSheet, cameraAvailable, isTouchDevice, ReceiptPreview, ScanChooser } from '@/features/receipts/ScanPopups';
 import type { OcrWord } from '@/features/receipts/highlight';
 import { formatRate, lookupRate, originalNote, toRinggit, withOriginal } from '@/features/receipts/fx';
@@ -54,6 +56,7 @@ export function AddSheet({ request, onClose }: { request: AddRequest | null; onC
 function AddBody({ request, onClose }: { request: AddRequest; onClose: () => void }) {
   const { t } = useI18n();
   const toast = useToast();
+  const navigate = useNavigate();
   const { data, actions, activeCategories, activePayments, categoryOf, paymentOf, openAdd } = useMoney();
   const editing = request.edit;
   const source = request.edit ?? request.copy;
@@ -91,7 +94,7 @@ function AddBody({ request, onClose }: { request: AddRequest; onClose: () => voi
       source: income?.source ?? 'Salary',
       date: row && !copying ? isoToYmd(row.created_at) : request.prefill?.date ?? todayYmd(),
       merchant: expense?.merchant ?? request.prefill?.merchant ?? '',
-      note: expense?.note ?? '',
+      note: expense?.note ?? request.prefill?.note ?? '',
     };
     // the starting values are taken once, when the sheet opens
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -158,7 +161,11 @@ function AddBody({ request, onClose }: { request: AddRequest; onClose: () => voi
     const context = { baseUrl: envResult.env.supabaseUrl, anonKey: envResult.env.supabaseAnonKey, accessToken: session?.access_token };
     setScanNote({ text: t('scan.reading'), bad: false });
     try {
-      const parsed = await scanReceipt(file, context, (step) => setScanNote({ text: t(steps[step]), bad: false }), (src) => setPreview({ src, words: [], amount: 0, merchantLine: '', dateLine: '' }));
+      let shown = '';
+      const parsed = await scanReceipt(file, context, (step) => setScanNote({ text: t(steps[step]), bad: false }), (src) => {
+        shown = src;
+        setPreview({ src, words: [], amount: 0, merchantLine: '', dateLine: '' });
+      });
       // A receipt whose only clear total is in another currency is turned into ringgit at the rate of the receipt's own day (today's rate if
       // that day is unavailable). A bare "$" is never guessed. If no rate can be had, the person is asked for the ringgit amount.
       const foreign = parsed.amount === 0 && parsed.foreignTotal ? parsed.foreignTotal : null;
@@ -183,6 +190,7 @@ function AddBody({ request, onClose }: { request: AddRequest; onClose: () => voi
         alertText = `${t('scan.fx.mixed', { currencies: parsed.otherCurrencies.join(', ') })} ${t('scan.fx.check')}`;
       }
       setFxAlert(alertText);
+      rememberScan({ text: parsed.text, words: placedWords(parsed.words), merchant: parsed.merchant, date: parsed.date, image: shown || undefined });
       setPreview((p) => (p ? { src: p.src, words: parsed.words, amount: converted && foreign ? foreign.amount : parsed.amount, merchantLine: parsed.merchantEvidence, dateLine: parsed.dateEvidence } : p));
       const found: string[] = [];
       const amountNow = converted || parsed.amount;
@@ -357,6 +365,9 @@ function AddBody({ request, onClose }: { request: AddRequest; onClose: () => voi
                 <p id="scan-hint" className={styles.scanHint} hidden={!scanInfo}>
                   {t('scan.hint')}
                 </p>
+                <button type="button" className={styles.splitLink} data-testid="split-link" onClick={() => sheetRef.current?.close(() => navigate('/app/split'))}>
+                  {t('split.link')}
+                </button>
                 <ScanChooser
                   open={chooser}
                   onClose={() => setChooser(false)}
