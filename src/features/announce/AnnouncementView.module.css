@@ -1,6 +1,6 @@
 .view {
   display: grid;
-  gap: var(--s-4);
+  gap: var(--s-3);
 }
 .kicker {
   font-size: var(--fs-sm);
@@ -13,11 +13,17 @@
   font-size: var(--fs-xl);
   line-height: 1.25;
 }
+/* the message sits on its own soft panel, so the confetti behind the pop-up never touches the words */
 .body {
   display: grid;
   gap: var(--s-3);
   line-height: 1.6;
   overflow-wrap: anywhere;
+  padding: var(--s-4);
+  border-radius: var(--r-lg);
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+  backdrop-filter: blur(6px);
 }
 .body h3 {
   font-size: var(--fs-lg);
@@ -56,15 +62,15 @@
   align-items: center;
   justify-content: center;
   gap: var(--s-3);
-  height: 76px;
+  height: 60px;
 }
 .badge {
   display: grid;
   place-items: center;
-  width: 68px;
-  height: 68px;
+  width: 56px;
+  height: 56px;
   border-radius: 50%;
-  font-size: 38px;
+  font-size: 32px;
   background: color-mix(in srgb, var(--brand) 14%, var(--surface));
   box-shadow: 0 8px 22px color-mix(in srgb, var(--brand) 26%, transparent);
   animation: pop 0.6s cubic-bezier(0.2, 1.4, 0.4, 1) both;
