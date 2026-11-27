@@ -72,6 +72,7 @@ export function AnnouncementHost() {
     <Sheet
       open
       top
+      festive
       dismissible
       size="narrow"
       title={text.title}

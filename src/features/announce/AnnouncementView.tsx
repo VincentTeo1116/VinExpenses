@@ -66,6 +66,11 @@ export function AnnouncementView({ title, body, tick, onTick, tickDisabled, onLi
   const { t } = useI18n();
   return (
     <div className={styles.view}>
+      <div className={styles.hero} aria-hidden="true">
+        <span className={styles.badge}>{'\u{1F389}'}</span>
+        <span className={styles.spark1}>{'\u2728'}</span>
+        <span className={styles.spark2}>{'\u{1F973}'}</span>
+      </div>
       <p className={styles.kicker}>{t('ann.label')}</p>
       {title ? <h3 className={styles.title}>{title}</h3> : null}
       <AnnouncementBody text={body} onLink={onLink} />

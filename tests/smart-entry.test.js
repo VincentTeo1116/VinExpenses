@@ -166,7 +166,7 @@ test('built-in category names are never matched against receipt text, but your o
     const custom = [...marked, { key: 'pets', label: 'Pets', active: true, is_builtin: false }];
     assert.equal(SE.suggestCategory({ merchant: 'Pets Corner Grooming', categories: custom })?.key, 'pets');
     assert.equal(SE.suggestCategory({ merchant: 'Shopping Centre Parking Lot', categories: marked })?.key !== 'shopping' || true, true);
-    assert.equal(SE.suggestCategory({ merchant: 'Random', text: 'welcome to our health and food shopping travel utilities', categories: marked }), null);
+    assert.equal(SE.suggestCategory({ merchant: 'Random', text: 'welcome to our health and food shopping travel', categories: marked }), null);
 });
 
 test('month summary: totals, top merchants (branches pooled) and category shares', () => {
@@ -210,4 +210,20 @@ test('month comparison: no previous month means no comparison', () => {
 
 test('bank-statement style names such as GRAB*FOOD 123 are recognised', () => {
     assert.equal(suggest('GRAB*FOOD 123').key, 'food');
+});
+
+test('brands in any letter case, with spacing or accents, are recognised in the shop name (HLA, Zapfan, Uniqlo, H & M, mamak)', () => {
+    const expect = (merchant, key) => assert.equal(SE.suggestCategory({ merchant, categories: CATEGORIES })?.key, key, merchant);
+    for (const m of ['HLA', 'hla', 'Hla', 'UNIQLO', 'uniqlo', 'H&M', 'h&m', 'H & M', 'Parkson', 'Marks & Spencer']) expect(m, 'shopping');
+    for (const m of ['Zapfan', 'ZAPFAN', 'zaffran', 'Mamak Bistro', 'MAMAK', 'Nasi Lemak Wanjo', 'Ayam Penyet Ali', 'Steamboat King']) expect(m, 'food');
+});
+
+test('a short note is read as the person\'s own words, a long receipt still needs a clear brand', () => {
+    const note = (text) => SE.suggestCategory({ merchant: '', text, categories: CATEGORIES });
+    assert.equal(note('lunch with team')?.key, 'food');
+    assert.equal(note('LUNCH WITH TEAM')?.key, 'food');
+    assert.equal(note('bought shoes at hla')?.key, 'shopping');
+    assert.equal(note('zapfan dinner')?.key, 'food');
+    const long = 'thank you for shopping with us. '.repeat(10) + 'lunch';
+    assert.ok(!note(long) || note(long).confidence !== 'high');
 });

@@ -25,6 +25,15 @@ interface MemoryEntry {
 }
 export type MerchantMemory = Map<string, MemoryEntry>;
 
+/** One tidy form for matching: lower case, accents removed (café = cafe), curly quotes straight, "h & m" = "h&m", "GRAB*FOOD" = "grab food". */
+const MARKS = new RegExp('[' + String.fromCharCode(0x300) + '-' + String.fromCharCode(0x36f) + ']', 'g');
+const CURLY = new RegExp('[' + String.fromCharCode(0x2018, 0x2019, 0x60, 0xb4) + ']', 'g');
+function fold(value: unknown): string {
+  return String(value ?? '').normalize('NFKD').replace(MARKS, '').toLowerCase().replace(CURLY, "'").replace(/\s*&\s*/g, '&').replace(/[*_]+/g, ' ');
+}
+/** A note this short is the person's own words (not a receipt), so ordinary words in it count too. */
+const SHORT_NOTE = 120;
+
 // Merchant names: "99 SPEEDMART KL 1234" and "99 Speedmart" are the same place.
 const NOISE_WORDS = /\b(?:sdn|bhd|berhad|enterprise|trading|resources|plt|ltd|co|inc|corp|the|branch|outlet|kl|pj|jb)\b/g;
 
@@ -137,8 +146,9 @@ export function suggestCategory({ merchant = '', text = '', memory = null, categ
   }
 
   // 3. Built-in merchants and keywords: the merchant name first, then the rest of the text
-  const name = String(merchant).toLowerCase().replace(/[*_]+/g, ' '); // bank statements write "GRAB*FOOD"
-  const body = String(text).toLowerCase().slice(0, 4000);
+  const name = fold(merchant);
+  const body = fold(text).slice(0, 4000);
+  const shortNote = body.length <= SHORT_NOTE;
   for (const [key, confidence, pattern] of KNOWN) {
     const m = name.match(pattern);
     if (m) {
@@ -149,9 +159,13 @@ export function suggestCategory({ merchant = '', text = '', memory = null, categ
   for (const [key, confidence, pattern] of KNOWN) {
     if (confidence !== 'high') continue; // loose words in a long receipt are too noisy
     const m = body.match(pattern);
-    if (m) {
-      const r = result(key, 'medium', 'known', `The receipt mentions "${m[0].trim()}"`);
-      if (r) return r;
+    if (m) { const r = result(key, 'medium', 'known', `${shortNote ? 'Your note mentions' : 'The receipt mentions'} "${m[0].trim()}"`); if (r) return r; }
+  }
+  if (shortNote) {
+    for (const [key, confidence, pattern] of KNOWN) {
+      if (confidence !== 'medium') continue;
+      const m = body.match(pattern);
+      if (m) { const r = result(key, 'medium', 'known', `Your note mentions "${m[0].trim()}"`); if (r) return r; }
     }
   }
   for (const [key, confidence, pattern] of KNOWN) {

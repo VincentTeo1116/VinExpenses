@@ -86,6 +86,22 @@ test.describe('category suggestions (TX-02, CT-01)', () => {
     await expect(category(page, 'Beverages')).toBeChecked();
   });
 
+  test('shops are recognised in any letter case, and the note works the same way as the place', async ({ page }) => {
+    await signInAs(page);
+    await openAdd(page);
+    const where = page.getByLabel('Where (optional)');
+    for (const [typed, expected] of [['HLA', 'Shopping'], ['uniqlo', 'Shopping'], ['H & M', 'Shopping'], ['ZAPFAN', 'Food'], ['Mamak Bistro', 'Food']] as const) {
+      await where.fill(typed);
+      await expect(category(page, expected), typed).toBeChecked();
+    }
+    await where.fill('');
+    await page.getByLabel('Note (optional)').fill('Lunch with the team');
+    await expect(category(page, 'Food')).toBeChecked();
+    await expect(page.getByTestId('suggestion')).toContainText('Your note mentions "lunch"');
+    await page.getByLabel('Note (optional)').fill('new shoes at hla');
+    await expect(category(page, 'Shopping')).toBeChecked();
+  });
+
   test('an unknown place suggests nothing and leaves the category alone', async ({ page }) => {
     await signInAs(page);
     await openAdd(page);

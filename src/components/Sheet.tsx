@@ -24,6 +24,8 @@ interface SheetProps {
   footer?: ReactNode;
   /** Sits above every other layer (the announcement). */
   top?: boolean;
+  /** A light, playful background (confetti and soft colour) for celebratory pop-ups such as the announcement. */
+  festive?: boolean;
 }
 
 const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
@@ -40,7 +42,7 @@ function springBack(dialog: HTMLElement, from: number) {
   dialog.style.transform = '';
 }
 
-export function Sheet({ open, onClose, title, children, size = 'narrow', dismissible = true, footer, top = false, ref }: SheetProps) {
+export function Sheet({ open, onClose, title, children, size = 'narrow', dismissible = true, footer, top = false, festive = false, ref }: SheetProps) {
   const id = useId();
   const { t } = useI18n();
   const stack = useSheetStack();
@@ -236,7 +238,7 @@ export function Sheet({ open, onClose, title, children, size = 'narrow', dismiss
   return createPortal(
     // eslint-disable-next-line jsx-a11y/no-static-element-interactions -- the overlay only handles a tap outside and Esc
     <div className={`${styles.overlay} ${top ? styles.top : ''}`} onKeyDown={onKeyDown} inert={!isTop} onMouseDown={(event) => { if (dismissible && isTop && event.target === event.currentTarget) requestClose(); }}>
-      <div ref={dialogRef} className={`${styles.sheet} ${size === 'wide' ? styles.wide : ''} ${dragging ? styles.dragging : ''} ${footer ? styles.hasFooter : ''}`} role="dialog" aria-modal="true" aria-labelledby={`${id}-title`} tabIndex={-1} data-sheet>
+      <div ref={dialogRef} className={`${styles.sheet} ${size === 'wide' ? styles.wide : ''} ${dragging ? styles.dragging : ''} ${footer ? styles.hasFooter : ''} ${festive ? styles.festive : ''}`} role="dialog" aria-modal="true" aria-labelledby={`${id}-title`} tabIndex={-1} data-sheet>
         {/* the bar and the title are the drag handle on a phone; it is an extra, so it is hidden from screen readers */}
         <div className={styles.handle} onPointerDown={onDragStart} onPointerMove={onDragMove} onPointerUp={onDragEnd} onPointerCancel={onDragEnd} data-handle>
           <div className={styles.grabber} aria-hidden="true" />

@@ -232,3 +232,40 @@
 .top {
   z-index: var(--z-announce);
 }
+
+/* a playful pop-up: soft colour washes and faint confetti behind the content, never behind the text strongly enough to hurt reading */
+.festive {
+  background:
+    radial-gradient(circle at 12% 8%, color-mix(in srgb, var(--brand) 16%, transparent) 0, transparent 38%),
+    radial-gradient(circle at 92% 14%, color-mix(in srgb, #f59e0b 16%, transparent) 0, transparent 34%),
+    radial-gradient(circle at 80% 96%, color-mix(in srgb, #ec4899 12%, transparent) 0, transparent 40%),
+    radial-gradient(circle, color-mix(in srgb, var(--brand) 14%, transparent) 2px, transparent 2.5px) 0 0 / 26px 26px,
+    var(--surface);
+  position: relative;
+}
+.festive::before,
+.festive::after {
+  position: absolute;
+  z-index: 0;
+  font-size: 44px;
+  line-height: 1;
+  opacity: 0.16;
+  pointer-events: none;
+  user-select: none;
+}
+.festive::before {
+  content: '\1F388';
+  top: 54px;
+  right: 58px;
+  transform: rotate(14deg);
+}
+.festive::after {
+  content: '\2728';
+  bottom: 84px;
+  left: 14px;
+  transform: rotate(-12deg);
+}
+.festive > * {
+  position: relative;
+  z-index: 1;
+}

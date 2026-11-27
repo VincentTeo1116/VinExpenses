@@ -56,6 +56,15 @@
         return { entry: pooled, key };
     }
 
+    // One tidy form for matching: lower case, accents removed (café = cafe), curly quotes straight, "h & m" = "h&m", "GRAB*FOOD" = "grab food".
+    const MARKS = new RegExp('[' + String.fromCharCode(0x300) + '-' + String.fromCharCode(0x36f) + ']', 'g');
+    const CURLY = new RegExp('[' + String.fromCharCode(0x2018, 0x2019, 0x60, 0xb4) + ']', 'g');
+    function fold(value) {
+        return String(value == null ? '' : value).normalize('NFKD').replace(MARKS, '').toLowerCase().replace(CURLY, "'").replace(/\s*&\s*/g, '&').replace(/[*_]+/g, ' ');
+    }
+    // A note this short is the person's own words (not a receipt), so ordinary words in it count too.
+    const SHORT_NOTE = 120;
+
     // Built-in Malaysian merchants: [category, confidence, pattern].
     const KNOWN = [
         // fuel and car
@@ -95,7 +104,12 @@
         ['utilities', 'high', /\b(?:sp\s*group|sp\s*services|singtel|starhub|circles\.?life|myrepublic|viewqwest|redone|tune\s*talk|friendi|hotlink|xox\s*mobile|buzzme|speakout|yoodo|boost\s*mobile|indihome|telkomsel|xl\s*axiata|indosat|smartfren|true\s*move|true\s*online|dtac|3bb|metropolitan\s*electricity|provincial\s*electricity|sesb|sesco|sarawak\s*energy|ranhill|jompay|touch\s*n\s*go\s*reload|boost\s*reload|tmnet)\b/],
         ['health', 'high', /\b(?:unity\s*pharmacy|health\s*lane|alpro|raffles\s*(?:hospital|medical)|parkway\s*(?:hospital|shenton)|polyclinic|bumrungrad|samitivej|bangkok\s*hospital|siloam|mitra\s*keluarga|healthway|qualitas|pathlab|bio-?ex|innoquest|klinik\s*(?:kesihatan|desa)|prudential|great\s*eastern|allianz|etiqa|takaful|manulife|zurich|tune\s*protect|msig|generali|fwd\s*(?:takaful|insurance)|ntuc\s*income|anytime\s*fitness|celebrity\s*fitness|fitness\s*first|true\s*fitness|snap\s*fitness|jetts|pure\s*yoga)\b/],
         ['entertain', 'high', /\b(?:golden\s*screen|mmcineplexes|shaw\s*theatres|golden\s*village|cathay\s*cineplexes|major\s*cineplex|sf\s*cinema|ticketmaster|bookmyshow|eventbrite|disneyland|universal\s*studios|legoland|zoo\s*negara|kidzania|resorts\s*world|astro\s*(?:go|njoi)|iqiyi|wetv|prime\s*video|amazon\s*prime|crunchyroll|bilibili|twitch|roblox|garena|mobile\s*legends|moonton|riot\s*games|valorant|epic\s*games|ubisoft|google\s*play|app\s*store|itunes|razer\s*gold|unipin|codashop|steam\s*wallet|audible|webtoon|joox|deezer|youtube\s*music|patreon)\b/],
-        ['work', 'high', /\b(?:pgeon|citylink|nationwide\s*express|abx\s*express|jnt\s*express|ninjavan|shopee\s*express|lazada\s*express|sf\s*express|kerry\s*thailand|thailand\s*post|singpost|sing\s*post|pos\s*indonesia|sicepat|anteraja|aramex|gogox|gogovan|deliveree|microsoft\s*365|office\s*365|google\s*workspace|gsuite|dropbox|github|gitlab|digitalocean|amazon\s*web\s*services|google\s*cloud|cloudflare|namecheap|godaddy|hostinger|vercel|netlify|heroku|openai|anthropic|chatgpt|jetbrains|atlassian|mailchimp|quickbooks|autocount|sql\s*account|wework|regus|servcorp|jobstreet|linkedin|lhdn|e-?filing|company\s*secretar(?:y|ial))\b/]
+        ['work', 'high', /\b(?:pgeon|citylink|nationwide\s*express|abx\s*express|jnt\s*express|ninjavan|shopee\s*express|lazada\s*express|sf\s*express|kerry\s*thailand|thailand\s*post|singpost|sing\s*post|pos\s*indonesia|sicepat|anteraja|aramex|gogox|gogovan|deliveree|microsoft\s*365|office\s*365|google\s*workspace|gsuite|dropbox|github|gitlab|digitalocean|amazon\s*web\s*services|google\s*cloud|cloudflare|namecheap|godaddy|hostinger|vercel|netlify|heroku|openai|anthropic|chatgpt|jetbrains|atlassian|mailchimp|quickbooks|autocount|sql\s*account|wework|regus|servcorp|jobstreet|linkedin|lhdn|e-?filing|company\s*secretar(?:y|ial))\b/],
+        ['shopping', 'high', /\b(?:hla|parkson|metrojaya|jusco|sogo|fahrenheit\s*88|marks\s*&\s*spencer|m&s|bershka|pull\s*&\s*bear|stradivarius|massimo\s*dutti|g2000|giordano|bonia|hush\s*puppies|crocs|levi'?s?|lacoste|tommy\s*hilfiger|calvin\s*klein|the\s*north\s*face|timberland|under\s*armour|converse|reebok|asics|mizuno|bata|owndays|mothercare|toys\s*r\s*us|sasa|beautyfeel|naturepedia|hero\s*market|lulu|speedmart|99\s*mart|mynews|aeon\s*big|tf\s*value\s*mart|pacific\s*hypermarket|mr\.?\s*dollar|eco-?shop|h\s*&\s*m)\b/],
+        ['food', 'high', /\b(?:zapfan|zaffran|zafran|zaaffran|nasi\s*lemak|ayam\s*penyet|penyet|kampung\s*boy|pelita|village\s*park|mcd|chicken\s*rice|steamboat|hot\s*pot|hotpot|tomyam|tom\s*yam|bbq|yakiniku|gyu-?kaku|sukiya|sushi\s*mentai|tgi\s*fridays?|chili'?s|outback|madam\s*kwan'?s?|nasi\s*ayam|pan\s*mee|wantan\s*mee|kuey\s*teow|curry\s*mee|yong\s*tau\s*foo|banana\s*leaf|kedai\s*kopi|gerai|bufet|buffet|inside\s*scoop|haagen[- ]?dazs|cold\s*stone|ben\s*&\s*jerry'?s?)\b/],
+        ['beverages', 'high', /\b(?:teh\s*tarik|chagee|caffe\s*bene|san\s*francisco\s*coffee|bask\s*robbins?)\b/],
+        ['food', 'medium', /\b(?:ayam|penyet|tomyam|steamboat|bbq|grill|pizza|burger|sushi|ramen|buffet|bufet|gerai|deli|eatery|diner|food\s*stall|bar\s*&\s*grill)\b/],
+        ['shopping', 'medium', /\b(?:fashion|apparel|clothing|clothes|garment|footwear|shoes?|handbags?|mini\s*mart|bookstore|book\s*store|florist|gifts?|toys?|furniture|electronics?|gadgets?|outlet)\b/]
     ];
 
     const BUILTIN_KEYS = ['food', 'beverages', 'travel', 'entertain', 'work', 'shopping', 'utilities', 'car', 'health', 'other'];
@@ -152,16 +166,24 @@
         }
 
         // 3. Built-in Malaysian merchants and keywords: the merchant name first, then the rest of the text
-        const name = String(merchant).toLowerCase().replace(/[*_]+/g, ' '); // bank statements write "GRAB*FOOD"
-        const body = String(text).toLowerCase().slice(0, 4000);
+        const name = fold(merchant);
+        const body = fold(text).slice(0, 4000);
+        const shortNote = body.length <= SHORT_NOTE;
         for (const [key, confidence, pattern] of KNOWN) {
             const m = name.match(pattern);
             if (m) { const r = result(key, confidence, 'known', `"${m[0].trim()}" is usually ${categoryLabel(categories, key)}`); if (r) return r; }
         }
         for (const [key, confidence, pattern] of KNOWN) {
-            if (confidence !== 'high') continue;                       // loose words in a long receipt are too noisy
+          if (confidence !== 'high') continue; // loose words in a long receipt are too noisy
+          const m = body.match(pattern);
+          if (m) { const r = result(key, 'medium', 'known', `${shortNote ? 'Your note mentions' : 'The receipt mentions'} "${m[0].trim()}"`); if (r) return r; }
+        }
+        if (shortNote) {
+          for (const [key, confidence, pattern] of KNOWN) {
+            if (confidence !== 'medium') continue;
             const m = body.match(pattern);
-            if (m) { const r = result(key, 'medium', 'known', `The receipt mentions "${m[0].trim()}"`); if (r) return r; }
+            if (m) { const r = result(key, 'medium', 'known', `Your note mentions "${m[0].trim()}"`); if (r) return r; }
+          }
         }
         for (const [key, confidence, pattern] of KNOWN) {
             if (confidence !== 'medium') continue;

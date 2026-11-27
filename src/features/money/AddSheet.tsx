@@ -106,6 +106,7 @@ function AddBody({ request, onClose }: { request: AddRequest; onClose: () => voi
   const { register, control, handleSubmit, formState, setValue, getValues, setError, clearErrors } = useForm<Values>({ resolver: zodResolver(schema), mode: 'onTouched', defaultValues: initial });
   const amountText = useWatch({ control, name: 'amount' });
   const merchantText = useWatch({ control, name: 'merchant' });
+  const noteText = useWatch({ control, name: 'note' });
   const categoryValue = useWatch({ control, name: 'category' });
   const dateValue = useWatch({ control, name: 'date' });
   // a record dated after today is allowed, but the person is warned beside the date and asked once more when saving
@@ -123,12 +124,15 @@ function AddBody({ request, onClose }: { request: AddRequest; onClose: () => voi
   // TX-02: a category suggestion with its reason, from the person's own history first, then the built-in merchant lists
   const memory = useMemo(() => buildMerchantMemory(data.expenses), [data.expenses]);
   const lite = useMemo(() => activeCategories.map((c) => ({ key: c.key, label: c.label, active: true, is_builtin: c.builtin })), [activeCategories]);
-  const suggestion = useMemo(() => (kind === 'expense' && merchantText.trim().length >= 2 ? suggestCategory({ merchant: merchantText, memory, categories: lite }) : null), [kind, merchantText, memory, lite]);
+  const suggestion = useMemo(
+    () => (kind === 'expense' && (merchantText.trim().length >= 2 || (noteText ?? '').trim().length >= 3) ? suggestCategory({ merchant: merchantText, text: noteText ?? '', memory, categories: lite }) : null),
+    [kind, merchantText, noteText, memory, lite],
+  );
   /** A place chosen from the nearby list fills the merchant and suggests a category, like typing it would. */
   const onNearby = (name: string) => {
     setValue('merchant', name, { shouldDirty: true, shouldValidate: true });
     if (editing || categoryTouched) return;
-    const found = suggestCategory({ merchant: name, memory, categories: lite });
+    const found = suggestCategory({ merchant: name, text: getValues('note') ?? '', memory, categories: lite });
     if (found && found.confidence !== 'low') setValue('category', found.key);
   };
   const nearby = useNearby(onNearby);
@@ -140,7 +144,7 @@ function AddBody({ request, onClose }: { request: AddRequest; onClose: () => voi
   };
   const onMerchantChange =(event: ChangeEvent<HTMLInputElement>) => {
     if (editing || categoryTouched) return;
-    const found = suggestCategory({ merchant: event.target.value, memory, categories: lite });
+    const found = suggestCategory({ merchant: event.target.value, text: getValues('note') ?? '', memory, categories: lite }); // the note still counts when the shop is not a known name
     if (found && found.confidence !== 'low') setValue('category', found.key);
   };
 
