@@ -1,7 +1,7 @@
 // Sends anyone who opens the OLD Cloudflare address (vinexpenses.<account>.workers.dev) to the same page on manaduit.com.
 // Plain JavaScript with no inline code, like the rest of the site. It only acts on that one old host, so the new address, local testing and
 // any preview address are never touched, and the destination is fixed below, so it can never send anybody to another website.
-(function (root) {
+(function () {
   'use strict';
 
   var TARGET = 'https://manaduit.com';
@@ -19,4 +19,4 @@
     var to = destination(location.hostname, location.pathname, location.search, location.hash);
     if (to) location.replace(to);
   }
-})(this);
+})();
