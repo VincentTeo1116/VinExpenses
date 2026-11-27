@@ -893,7 +893,6 @@ export const enDash = {
   'split.row.whole': 'Whole receipt',
   'split.row.others': 'Everyone else',
   'split.noneTicked': 'Tick the items that are yours to see your total.',
-  'split.use': 'Use {amount} in my expense',
   'split.note': 'My share of a {total} receipt ({n} of {count} items)',
   'split.mismatch': 'Working it out gives {found} for the whole receipt, but the receipt says {expected}.',
   'split.how': 'How it is worked out',
@@ -928,5 +927,9 @@ export const enDash = {
   'split.card.hide': 'Hide this card',
   'split.card.hidden': 'Hidden. You can still find it in the + menu.',
   'split.beta': 'Beta: we read most receipts, but please check each row. The status below tells you whether the bill adds up.',
+  'split.bar.hint': 'Tick the items that are yours',
+  'split.bar.share': 'Your share',
+  'split.bar.items': '{n} of {count} items',
+  'split.bar.add': 'Add',
   'split.privacy': 'The photo is read by the receipt reader and is not kept. Nothing from this page is saved until you add the expense.',
 } as const;

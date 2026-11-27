@@ -325,3 +325,77 @@
   justify-items: start;
   margin-top: var(--s-3);
 }
+
+/* the share bar: always on screen (above the tab bar on a phone) so adding your share never needs a long scroll */
+.shareBar {
+  position: sticky;
+  bottom: calc(var(--tabbar-h) + var(--safe-bottom) + var(--s-5));
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  padding: var(--s-3) var(--s-4);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-md);
+}
+.shareText {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.shareLabel,
+.shareCount {
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+.shareAmount {
+  font-size: var(--fs-xl);
+  line-height: 1.1;
+}
+.shareHint {
+  color: var(--muted);
+  font-weight: 650;
+}
+@media (min-width: 768px) {
+  .shareBar {
+    bottom: var(--s-4);
+  }
+}
+
+/* the bar belongs to the whole page, so it is on screen from the top; on a wide screen it sits under the table, not under the photo */
+.barCentre {
+  width: 100%;
+  max-width: 920px;
+  margin-inline: auto;
+}
+@media (min-width: 1000px) {
+  .barRight {
+    margin-inline-start: auto;
+    width: calc((100% - var(--s-5)) * 0.6222);
+  }
+}
+
+
+/* the amount is always on one line; if the bar is too narrow the small words beside it wrap, never the amount */
+.shareText {
+  flex: 1 1 auto;
+}
+.shareAmount {
+  white-space: nowrap;
+}
+.shareBar > button {
+  flex: 0 0 auto;
+  min-width: 84px;
+}
+
+/* amounts in the share card never break ("RM" over "1.22"); the words beside them wrap instead */
+.rows dt {
+  min-width: 0;
+}
+.rows dd {
+  flex: none;
+  white-space: nowrap;
+}

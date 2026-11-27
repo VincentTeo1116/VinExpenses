@@ -367,7 +367,7 @@ function AddBody({ request, onClose }: { request: AddRequest; onClose: () => voi
                 <p id="scan-hint" className={styles.scanHint} hidden={!scanInfo}>
                   {t('scan.hint')}
                 </p>
-                <SplitCard variant="sheet" onOpen={() => sheetRef.current?.close(() => navigate('/app/split'))} />
+                {request.prefill ? null : <SplitCard variant="sheet" onOpen={() => sheetRef.current?.close(() => navigate('/app/split'))} />}
                 <ScanChooser
                   open={chooser}
                   onClose={() => setChooser(false)}

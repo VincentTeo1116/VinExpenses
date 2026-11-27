@@ -345,3 +345,91 @@ test.describe('the four areas on the photo', () => {
     await expect(page.getByTestId('split-area-items')).toHaveCount(0);
   });
 });
+
+test.describe('adding my share to my expenses (SP-17)', () => {
+  for (const [name, width, height] of [['a phone', 390, 800], ['a small phone', 320, 640], ['a computer', 1280, 900]] as const) {
+    test(`on ${name} the share bar stays on screen, says what to do, and opens the add form with the amount and the shop`, async ({ page }) => {
+      await page.setViewportSize({ width, height });
+      const user = await open(page, GOOD);
+      await scan(page);
+      await expect(page.getByTestId('split-line')).toHaveCount(3);
+      const bar = page.getByTestId('split-bar');
+      const inView = async () => {
+        const b = await bar.boundingBox();
+        return Boolean(b) && (b?.y ?? -1) >= 0 && (b?.y ?? 0) + (b?.height ?? 0) <= height;
+      };
+      await expect(bar).toContainText('Tick the items that are yours');
+      await expect(page.getByTestId('split-use')).toBeDisabled();
+      expect(await inView(), 'the bar is on screen before anything is ticked').toBe(true);
+      await page.getByLabel('Mine: Nasi lemak ayam').check();
+      await expect(page.getByTestId('split-bar-amount')).toHaveText('RM 9.74');
+      await expect(bar).toContainText('1 of 3 items');
+      await expect(page.getByTestId('split-use'), 'the button just says Add').toHaveText('Add');
+      const amountBox = (await page.getByTestId('split-bar-amount').boundingBox())!;
+      expect(amountBox.height, 'the amount is on one line').toBeLessThan(32);
+      await page.evaluate(() => window.scrollTo(0, 0));
+      expect(await inView(), 'and it stays on screen at the top of the page').toBe(true);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth), 'no sideways scroll').toBeLessThanOrEqual(0);
+      await page.getByTestId('split-use').click();
+      await expect(page.getByLabel('Amount (RM)')).toHaveValue('9.74');
+      await expect(page.getByLabel('Where (optional)')).toHaveValue('Kedai Sedap');
+      await expect(page.getByTestId('split-link'), 'no "split a receipt" card inside the form when you came from a split').toHaveCount(0);
+      await page.getByRole('button', { name: 'Save', exact: true }).click();
+      await expect(page.getByText('Choose a category.')).toBeVisible();
+      await page.getByRole('radio', { name: 'Food', exact: true }).check();
+      await page.getByRole('button', { name: 'Save', exact: true }).click();
+      await expect(page.getByText('Saved').first()).toBeVisible();
+      const rows = await dbRows(page, user.email, 'expenses');
+      expect(rows).toHaveLength(1);
+      expect(rows[0]).toMatchObject({ amount: '9.74', category: 'food', merchant: 'Kedai Sedap' });
+    });
+  }
+
+  test('the share bar passes the accessibility scan with something ticked, in light and dark', async ({ browser }) => {
+    test.setTimeout(90_000);
+    for (const scheme of ['light', 'dark'] as const) {
+      const context = await browser.newContext({ colorScheme: scheme, viewport: { width: 390, height: 800 } });
+      const page = await context.newPage();
+      await open(page, GOOD);
+      await scan(page);
+      await page.getByLabel('Mine: Nasi lemak ayam').check();
+      await expect(page.getByTestId('split-bar-amount')).toBeVisible();
+      const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa']).analyze();
+      expect(results.violations.map((v) => `${v.impact}: ${v.id}: ${v.nodes.map((n) => n.target.join(' ')).join(' | ')}`), scheme).toEqual([]);
+      await context.close();
+    }
+  });
+});
+
+test.describe('the "working it out gives" alert is readable on every colour theme (SP-18)', () => {
+  const channels = (c: string) => (c.match(/[\d.]+/g) ?? []).map(Number);
+  const luminance = ([r, g, b]: number[]) => {
+    const f = (v: number) => (v / 255 <= 0.03928 ? v / 255 / 12.92 : ((v / 255 + 0.055) / 1.055) ** 2.4);
+    return 0.2126 * f(r as number) + 0.7152 * f(g as number) + 0.0722 * f(b as number);
+  };
+  for (const scheme of ['light', 'dark'] as const) {
+    for (const theme of ['blue', 'pink', 'orange', 'green']) {
+      test(`${theme} ${scheme}: opaque panel, text at least 4.5 to 1 against it`, async ({ browser }) => {
+        const context = await browser.newContext({ colorScheme: scheme, viewport: { width: 390, height: 800 } });
+        const page = await context.newPage();
+        const user = await signInAs(page);
+        await page.addInitScript(([id, name]) => localStorage.setItem(`vinexpenses.theme.${id}`, name as string), [user.id, theme]);
+        await page.request.post(`${BACKEND}/__test/ocr`, { data: { email: user.email, text: MISREAD } });
+        await page.goto('/app/split');
+        await page.getByTestId('split-file').setInputFiles({ name: 'receipt.png', mimeType: 'image/png', buffer: PNG });
+        await expect(page.getByTestId('split-line').first()).toBeVisible();
+        const notice = page.getByTestId('split-summary').getByRole('alert').filter({ hasText: 'Working it out gives' });
+        await expect(notice).toBeVisible();
+        const seen = await notice.evaluate((el) => ({ text: getComputedStyle(el).color, back: getComputedStyle(el).backgroundColor }));
+        const back = channels(seen.back);
+        expect(back.length < 4 || back[3] === 1, `the panel is opaque (${seen.back})`).toBe(true);
+        expect(await notice.evaluate((el) => getComputedStyle(el).borderLeftWidth), 'no thick coloured edge on the left').toBe('1px');
+        const a = luminance(channels(seen.text));
+        const b = luminance(back);
+        const ratio = (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+        expect(ratio, `contrast ${ratio.toFixed(1)} (${seen.text} on ${seen.back})`).toBeGreaterThanOrEqual(4.5);
+        await context.close();
+      });
+    }
+  }
+});

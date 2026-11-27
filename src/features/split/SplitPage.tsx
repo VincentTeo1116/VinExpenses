@@ -193,188 +193,207 @@ export function SplitPage() {
             {scanned && !photo && !empty ? <p className={styles.hint}>{t('split.photo.none')}</p> : null}
             {empty ? <p className={styles.empty}>{t('split.empty')}</p> : null}
             {empty ? null : (
-        <>
-          <section className={`${styles.status} ${styles[result.status]}`} aria-live="polite" data-testid="split-status" data-status={result.status}>
-            <strong>{t(statusKey)}</strong>
-            {result.status === 'verified' ? <p>{t('split.status.verifiedHelp')}</p> : null}
-            {result.status === 'unverified' ? <p>{t('split.status.unverifiedHelp')}</p> : null}
-            {photo && result.status !== 'verified' ? (
-              <div className={styles.again}>
-                <Button variant="outline" data-testid="split-again" loading={busy === 'split.againBusy'} disabled={busy != null} onClick={readAgain}>
-                  {busy === 'split.againBusy' ? t('split.againBusy') : t('split.again')}
-                </Button>
-                <p className={styles.hint}>{t('split.againHelp')}</p>
-              </div>
-            ) : null}
-            {again ? <p className={styles.hint} data-testid="split-again-result">{t(`split.again.${again}` as MessageKey)}</p> : null}
-            {said.length > 0 ? (
-              <ul>
-                {said.map((s) => (
-                  <li key={s.id}>{t(s.key, s.params)}</li>
-                ))}
-              </ul>
-            ) : null}
-            {suggestion && suggested ? (
-              <div className={styles.fix} data-testid="split-fix">
-                <span>{t('split.fix', { to: money(suggestion.to), name: suggested.name, from: money(suggestion.from) })}</span>
-                <Button variant="outline" onClick={applyFix}>
-                  {t('split.fix.apply', { to: money(suggestion.to) })}
-                </Button>
-              </div>
-            ) : null}
-          </section>
-
-          <section aria-labelledby="split-items">
-            <div className={styles.head}>
-              <h2 id="split-items" className={styles.h2}>
-                {t('split.items')}
-              </h2>
-              <div className={styles.tick}>
-                <button type="button" onClick={() => tickAll(true)}>
-                  {t('split.selectAll')}
-                </button>
-                <button type="button" onClick={() => tickAll(false)}>
-                  {t('split.selectNone')}
-                </button>
-              </div>
+      <>
+        <section className={`${styles.status} ${styles[result.status]}`} aria-live="polite" data-testid="split-status" data-status={result.status}>
+          <strong>{t(statusKey)}</strong>
+          {result.status === 'verified' ? <p>{t('split.status.verifiedHelp')}</p> : null}
+          {result.status === 'unverified' ? <p>{t('split.status.unverifiedHelp')}</p> : null}
+          {photo && result.status !== 'verified' ? (
+            <div className={styles.again}>
+              <Button variant="outline" data-testid="split-again" loading={busy === 'split.againBusy'} disabled={busy != null} onClick={readAgain}>
+                {busy === 'split.againBusy' ? t('split.againBusy') : t('split.again')}
+              </Button>
+              <p className={styles.hint}>{t('split.againHelp')}</p>
             </div>
-            <div className={styles.cols} aria-hidden="true">
-              <span>{t('split.mine')}</span>
-              <span>{t('split.qty')}</span>
-              <span>{t('split.name')}</span>
-              <span>{t('split.price')}</span>
-              <span>{t('split.discount')}</span>
-              <span>{t('split.net')}</span>
-              <span />
-            </div>
-            <ul className={styles.lines}>
-              {draft.lines.map((line, i) => {
-                const parsed = bill.lines[i];
-                const net = parsed ? lineNet(parsed) : 0;
-                const label = line.name || String(i + 1);
-                return (
-                  <li key={line.id} className={`${styles.line} ${failing.has(line.id) ? styles.bad : ''}`} data-testid="split-line" data-active={line.id === activeId} onFocus={() => setActiveId(line.id)}>
-                    <label className={styles.mine}>
-                      <input type="checkbox" checked={line.mine} onChange={(e) => setLine(line.id, { mine: e.target.checked })} aria-label={`${t('split.mine')}: ${label}`} />
-                    </label>
-                    <label className={styles.qty}>
-                      <span className={styles.cap}>{t('split.qty')}</span>
-                      <input className={styles.input} inputMode="numeric" autoComplete="off" aria-label={`${t('split.qty')}: ${label}`} value={line.qty} onChange={(e) => setLine(line.id, { qty: numberText(e.target.value).replace('.', '') })} />
-                    </label>
-                    <label className={styles.name}>
-                      <span className={styles.cap}>{t('split.name')}</span>
-                      <input className={styles.input} autoComplete="off" aria-label={`${t('split.name')} ${i + 1}`} value={line.name} onChange={(e) => setLine(line.id, { name: e.target.value })} />
-                    </label>
-                    <label className={styles.price}>
-                      <span className={styles.cap}>{t('split.price')}</span>
-                      {numberInput(line.gross, (v) => setLine(line.id, { gross: v }), `${t('split.price')}: ${label}`)}
-                    </label>
-                    <label className={styles.disc}>
-                      <span className={styles.cap}>{t('split.discount')}</span>
-                      {numberInput(line.discount, (v) => setLine(line.id, { discount: v }), `${t('split.discount')}: ${label}`)}
-                    </label>
-                    <span className={styles.net} data-testid="split-net">
-                      <span className={styles.cap}>{t('split.net')}</span>
-                      {money(net)}
-                    </span>
-                    <button type="button" className={styles.remove} aria-label={t('split.remove', { name: label })} onClick={() => setDraft((d) => ({ ...d, lines: d.lines.filter((l) => l.id !== line.id) }))}>
-                      <Icon name="x" size={18} />
-                    </button>
-                  </li>
-                );
-              })}
+          ) : null}
+          {again ? <p className={styles.hint} data-testid="split-again-result">{t(`split.again.${again}` as MessageKey)}</p> : null}
+          {said.length > 0 ? (
+            <ul>
+              {said.map((s) => (
+                <li key={s.id}>{t(s.key, s.params)}</li>
+              ))}
             </ul>
-            <Button variant="outline" onClick={() => setDraft((d) => ({ ...d, lines: [...d.lines, blankLine()] }))}>
-              {t('split.addLine')}
-            </Button>
-          </section>
-
-          <section className={styles.charges} aria-labelledby="split-charges">
-            <h2 id="split-charges" className={styles.h2}>
-              {t('split.charges')}
-            </h2>
-            <div className={styles.grid}>
-              {field('split.subtotal', 'subtotal')}
-              {field('split.billDiscount', 'billDiscount')}
-              {field('split.servicePercent', 'servicePercent')}
-              {field('split.serviceAmount', 'serviceAmount')}
-              {field('split.sstPercent', 'sstPercent')}
-              {field('split.sstAmount', 'sstAmount')}
-              {field('split.rounding', 'rounding', true)}
-              {field('split.total', 'total')}
+          ) : null}
+          {suggestion && suggested ? (
+            <div className={styles.fix} data-testid="split-fix">
+              <span>{t('split.fix', { to: money(suggestion.to), name: suggested.name, from: money(suggestion.from) })}</span>
+              <Button variant="outline" onClick={applyFix}>
+                {t('split.fix.apply', { to: money(suggestion.to) })}
+              </Button>
             </div>
-          </section>
+          ) : null}
+        </section>
 
-          <section className={styles.summary} aria-labelledby="split-summary" data-testid="split-summary">
-            <h2 id="split-summary" className={styles.h2}>
-              {t('split.summary')}
+        <section aria-labelledby="split-items">
+          <div className={styles.head}>
+            <h2 id="split-items" className={styles.h2}>
+              {t('split.items')}
             </h2>
-            {picked.size === 0 ? (
-              <p>{t('split.noneTicked')}</p>
-            ) : (
-              <dl className={styles.rows}>
+            <div className={styles.tick}>
+              <button type="button" onClick={() => tickAll(true)}>
+                {t('split.selectAll')}
+              </button>
+              <button type="button" onClick={() => tickAll(false)}>
+                {t('split.selectNone')}
+              </button>
+            </div>
+          </div>
+          <div className={styles.cols} aria-hidden="true">
+            <span>{t('split.mine')}</span>
+            <span>{t('split.qty')}</span>
+            <span>{t('split.name')}</span>
+            <span>{t('split.price')}</span>
+            <span>{t('split.discount')}</span>
+            <span>{t('split.net')}</span>
+            <span />
+          </div>
+          <ul className={styles.lines}>
+            {draft.lines.map((line, i) => {
+              const parsed = bill.lines[i];
+              const net = parsed ? lineNet(parsed) : 0;
+              const label = line.name || String(i + 1);
+              return (
+                <li key={line.id} className={`${styles.line} ${failing.has(line.id) ? styles.bad : ''}`} data-testid="split-line" data-active={line.id === activeId} onFocus={() => setActiveId(line.id)}>
+                  <label className={styles.mine}>
+                    <input type="checkbox" checked={line.mine} onChange={(e) => setLine(line.id, { mine: e.target.checked })} aria-label={`${t('split.mine')}: ${label}`} />
+                  </label>
+                  <label className={styles.qty}>
+                    <span className={styles.cap}>{t('split.qty')}</span>
+                    <input className={styles.input} inputMode="numeric" autoComplete="off" aria-label={`${t('split.qty')}: ${label}`} value={line.qty} onChange={(e) => setLine(line.id, { qty: numberText(e.target.value).replace('.', '') })} />
+                  </label>
+                  <label className={styles.name}>
+                    <span className={styles.cap}>{t('split.name')}</span>
+                    <input className={styles.input} autoComplete="off" aria-label={`${t('split.name')} ${i + 1}`} value={line.name} onChange={(e) => setLine(line.id, { name: e.target.value })} />
+                  </label>
+                  <label className={styles.price}>
+                    <span className={styles.cap}>{t('split.price')}</span>
+                    {numberInput(line.gross, (v) => setLine(line.id, { gross: v }), `${t('split.price')}: ${label}`)}
+                  </label>
+                  <label className={styles.disc}>
+                    <span className={styles.cap}>{t('split.discount')}</span>
+                    {numberInput(line.discount, (v) => setLine(line.id, { discount: v }), `${t('split.discount')}: ${label}`)}
+                  </label>
+                  <span className={styles.net} data-testid="split-net">
+                    <span className={styles.cap}>{t('split.net')}</span>
+                    {money(net)}
+                  </span>
+                  <button type="button" className={styles.remove} aria-label={t('split.remove', { name: label })} onClick={() => setDraft((d) => ({ ...d, lines: d.lines.filter((l) => l.id !== line.id) }))}>
+                    <Icon name="x" size={18} />
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+          <Button variant="outline" onClick={() => setDraft((d) => ({ ...d, lines: [...d.lines, blankLine()] }))}>
+            {t('split.addLine')}
+          </Button>
+        </section>
+
+        <section className={styles.charges} aria-labelledby="split-charges">
+          <h2 id="split-charges" className={styles.h2}>
+            {t('split.charges')}
+          </h2>
+          <div className={styles.grid}>
+            {field('split.subtotal', 'subtotal')}
+            {field('split.billDiscount', 'billDiscount')}
+            {field('split.servicePercent', 'servicePercent')}
+            {field('split.serviceAmount', 'serviceAmount')}
+            {field('split.sstPercent', 'sstPercent')}
+            {field('split.sstAmount', 'sstAmount')}
+            {field('split.rounding', 'rounding', true)}
+            {field('split.total', 'total')}
+          </div>
+        </section>
+
+        <section className={styles.summary} aria-labelledby="split-summary" data-testid="split-summary">
+          <h2 id="split-summary" className={styles.h2}>
+            {t('split.summary')}
+          </h2>
+          {picked.size === 0 ? (
+            <p>{t('split.noneTicked')}</p>
+          ) : (
+            <dl className={styles.rows}>
+              <div>
+                <dt>{t('split.row.items')}</dt>
+                <dd>{money(mine.grossCents)}</dd>
+              </div>
+              {mine.itemDiscountCents > 0 ? (
                 <div>
-                  <dt>{t('split.row.items')}</dt>
-                  <dd>{money(mine.grossCents)}</dd>
+                  <dt>{t('split.row.itemDiscounts')}</dt>
+                  <dd>− {money(mine.itemDiscountCents)}</dd>
                 </div>
-                {mine.itemDiscountCents > 0 ? (
-                  <div>
-                    <dt>{t('split.row.itemDiscounts')}</dt>
-                    <dd>− {money(mine.itemDiscountCents)}</dd>
-                  </div>
-                ) : null}
-                {mine.billDiscountCents > 0 ? (
-                  <div>
-                    <dt>{t('split.row.billDiscount')}</dt>
-                    <dd>− {money(mine.billDiscountCents)}</dd>
-                  </div>
-                ) : null}
-                {mine.serviceCents > 0 ? (
-                  <div>
-                    <dt>{t('split.row.service')}</dt>
-                    <dd>{money(mine.serviceCents)}</dd>
-                  </div>
-                ) : null}
-                {mine.sstCents > 0 ? (
-                  <div>
-                    <dt>{t('split.row.sst')}</dt>
-                    <dd>{money(mine.sstCents)}</dd>
-                  </div>
-                ) : null}
-                {mine.roundingCents !== 0 ? (
-                  <div>
-                    <dt>{t('split.row.rounding')}</dt>
-                    <dd>
-                      {mine.roundingCents < 0 ? '−' : '+'} {money(Math.abs(mine.roundingCents))}
-                    </dd>
-                  </div>
-                ) : null}
-                <div className={styles.final}>
-                  <dt>{t('split.row.mine')}</dt>
-                  <dd data-testid="split-mine">{money(mine.totalCents)}</dd>
+              ) : null}
+              {mine.billDiscountCents > 0 ? (
+                <div>
+                  <dt>{t('split.row.billDiscount')}</dt>
+                  <dd>− {money(mine.billDiscountCents)}</dd>
                 </div>
-                <div className={styles.dim}>
-                  <dt>{t('split.row.others')}</dt>
-                  <dd data-testid="split-others">{money(share.others.totalCents)}</dd>
+              ) : null}
+              {mine.serviceCents > 0 ? (
+                <div>
+                  <dt>{t('split.row.service')}</dt>
+                  <dd>{money(mine.serviceCents)}</dd>
                 </div>
-                <div className={styles.dim}>
-                  <dt>{t('split.row.whole')}</dt>
-                  <dd data-testid="split-whole">{money(share.whole.totalCents)}</dd>
+              ) : null}
+              {mine.sstCents > 0 ? (
+                <div>
+                  <dt>{t('split.row.sst')}</dt>
+                  <dd>{money(mine.sstCents)}</dd>
                 </div>
-              </dl>
-            )}
-            {mismatch ? <Notice kind="warn">{t('split.mismatch', mismatch)}</Notice> : null}
-            <Button block disabled={picked.size === 0 || mine.totalCents <= 0} onClick={use} data-testid="split-use">
-              {t('split.use', { amount: money(mine.totalCents) })}
-            </Button>
-            <details className={styles.how}>
-              <summary>{t('split.how')}</summary>
-              <p>{t('split.howText')}</p>
-            </details>
-          </section>
-        </>
+              ) : null}
+              {mine.roundingCents !== 0 ? (
+                <div>
+                  <dt>{t('split.row.rounding')}</dt>
+                  <dd>
+                    {mine.roundingCents < 0 ? '−' : '+'} {money(Math.abs(mine.roundingCents))}
+                  </dd>
+                </div>
+              ) : null}
+              <div className={styles.final}>
+                <dt>{t('split.row.mine')}</dt>
+                <dd data-testid="split-mine">{money(mine.totalCents)}</dd>
+              </div>
+              <div className={styles.dim}>
+                <dt>{t('split.row.others')}</dt>
+                <dd data-testid="split-others">{money(share.others.totalCents)}</dd>
+              </div>
+              <div className={styles.dim}>
+                <dt>{t('split.row.whole')}</dt>
+                <dd data-testid="split-whole">{money(share.whole.totalCents)}</dd>
+              </div>
+            </dl>
+          )}
+          {mismatch ? <Notice kind="solid">{t('split.mismatch', mismatch)}</Notice> : null}
+          <details className={styles.how}>
+            <summary>{t('split.how')}</summary>
+            <p>{t('split.howText')}</p>
+          </details>
+        </section>
+
+      </>
+          )}
+        </div>
+      </div>
+    )}
+
+    {empty ? null : (
+        <div className={`${styles.shareBar} ${photo ? styles.barRight : styles.barCentre}`} role="region" aria-label={t('split.summary')} data-testid="split-bar">
+          <div className={styles.shareText}>
+            {picked.size === 0 ? (
+              <span className={styles.shareHint}>{t('split.bar.hint')}</span>
+            ) : (
+              <>
+                <span className={styles.shareLabel}>{t('split.bar.share')}</span>
+                <strong className={styles.shareAmount} data-testid="split-bar-amount">
+                  {money(mine.totalCents)}
+                </strong>
+                <span className={styles.shareCount}>{t('split.bar.items', { n: String(picked.size), count: String(bill.lines.length) })}</span>
+              </>
             )}
           </div>
+          <Button disabled={picked.size === 0 || mine.totalCents <= 0} onClick={use} data-testid="split-use">
+            {t('split.bar.add')}
+          </Button>
         </div>
       )}
     </div>

@@ -40,3 +40,12 @@
 .warn svg {
   color: var(--warning);
 }
+.solid {
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+}
+.solid svg {
+  color: var(--warning);
+}
