@@ -1,6 +1,6 @@
 // AD-01 … AD-07: manage accounts, read messages, check the service. It only ever asks the `admin` server function, which checks
 // the role again on every call; this page never reads anyone's expenses, income, budgets or reports.
-import { useCallback, useEffect, useId, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { Button } from '@/components/Button';
 import { EmptyState } from '@/components/EmptyState';
 import { Field, SelectField } from '@/components/Field';
@@ -10,6 +10,8 @@ import { useToast } from '@/components/Toast';
 import { ApiError } from '@/lib/api';
 import { useI18n, type Lang, type MessageKey } from '@/lib/i18n';
 import { useServer } from '@/features/account/useServer';
+import { AnnouncementPanel } from './AnnouncementPanel';
+import { useAdminCall } from './useAdminCall';
 import { useAdminStatus } from './useAdmin';
 import styles from './AdminPage.module.css';
 
@@ -48,7 +50,7 @@ interface Feedback {
   status: 'open' | 'resolved';
   created_at: string;
 }
-type Tab = 'users' | 'feedback' | 'system';
+type Tab = 'users' | 'feedback' | 'announce' | 'system';
 type Action = 'send_reset' | 'block' | 'unblock' | 'clear_codes' | 'reset_authenticator' | 'resend_report' | 'enable' | 'disable';
 
 const actionsFor = (u: AdminUser): Action[] => {
@@ -64,28 +66,12 @@ const actionsFor = (u: AdminUser): Action[] => {
 };
 const DANGEROUS: Action[] = ['block', 'disable', 'reset_authenticator'];
 
-/** One call to the admin function. A refusal comes back as words, never as an exception to the screen. */
-function useAdminCall() {
-  const server = useServer();
-  const { t } = useI18n();
-  return useCallback(
-    async <T extends object>(action: string, payload: Record<string, unknown> = {}): Promise<T & { ok: boolean; message?: string; forbidden?: boolean }> => {
-      try {
-        return (await server<T>('admin', { action, ...payload })) as T & { ok: boolean };
-      } catch (error) {
-        return { ok: false, forbidden: error instanceof ApiError && error.code === 'forbidden', message: error instanceof ApiError ? error.message : t('admin.failed') } as unknown as T & { ok: boolean; forbidden?: boolean };
-      }
-    },
-    [server, t],
-  );
-}
-
 export function AdminPage() {
   const { t } = useI18n();
   const base = useId();
   const { isAdmin, known } = useAdminStatus();
   const [tab, setTab] = useState<Tab>('users');
-  const tabs: Tab[] = ['users', 'feedback', 'system'];
+  const tabs: Tab[] = ['users', 'feedback', 'announce', 'system'];
 
   if (known && !isAdmin) return <Notice kind="warn">{t('admin.notAllowed')}</Notice>;
   return (
@@ -116,7 +102,7 @@ export function AdminPage() {
         ))}
       </div>
       <div role="tabpanel" id={`${base}-panel`} aria-labelledby={`${base}-${tab}`} className={styles.panel}>
-        {tab === 'users' ? <UsersPanel /> : tab === 'feedback' ? <FeedbackPanel /> : <SystemPanel />}
+        {tab === 'users' ? <UsersPanel /> : tab === 'feedback' ? <FeedbackPanel /> : tab === 'announce' ? <AnnouncementPanel /> : <SystemPanel />}
       </div>
     </div>
   );

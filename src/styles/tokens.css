@@ -69,6 +69,7 @@
   --z-tabbar: 40;
   --z-sheet: 1000;
   --z-toast: 3000;
+  --z-announce: 5000; /* the announcement pop-up: above toasts, the tour and every other pop-up */
 }
 
 @media (prefers-color-scheme: dark) {

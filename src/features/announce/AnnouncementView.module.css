@@ -1,0 +1,51 @@
+.view {
+  display: grid;
+  gap: var(--s-4);
+}
+.kicker {
+  font-size: var(--fs-sm);
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--primary);
+}
+.title {
+  font-size: var(--fs-xl);
+  line-height: 1.25;
+}
+.body {
+  display: grid;
+  gap: var(--s-3);
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.body h3 {
+  font-size: var(--fs-lg);
+}
+.body ul,
+.body ol {
+  display: grid;
+  gap: var(--s-1);
+  padding-inline-start: 1.25em;
+}
+.body a {
+  font-weight: 650;
+}
+.tick {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-3);
+  padding: var(--s-3) var(--s-4);
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  line-height: 1.4;
+}
+.tick input {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  margin-top: 1px;
+  accent-color: var(--brand);
+}

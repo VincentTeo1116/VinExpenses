@@ -227,3 +227,8 @@
     animation: none;
   }
 }
+
+/* the announcement pop-up is above every other layer */
+.top {
+  z-index: var(--z-announce);
+}

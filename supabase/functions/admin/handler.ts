@@ -256,6 +256,84 @@ async function log(): Promise<Reply> {
   return response.ok ? { ok: true, items: await response.json() } : { ok: false, message: "The log could not be loaded." };
 }
 
+// Announcements: one live "what's new" message. English is required; Malay and Chinese are optional and fall back to English.
+const ANN_COLUMNS = "id,title_en,body_en,title_ms,body_ms,title_zh,body_zh,status,published_at,created_at";
+const ANN_TITLE_MAX = 80;
+const ANN_BODY_MAX = 1500;
+
+/** Text from the form: line breaks kept, other control characters dropped, trimmed. */
+function annText(value: unknown): string {
+  if (typeof value !== "string") return "";
+  return [...value.replace(/\r\n/g, "\n")].filter((ch) => { const c = ch.charCodeAt(0); return c === 10 || (c >= 32 && c !== 127); }).join("").trim();
+}
+
+/** The six text fields of an announcement, or why they cannot be used. A language is kept only when both its title and its message are written. */
+function annFields(body: Body, forPublish: boolean): { ok: true; fields: Record<string, string | null> } | { ok: false; message: string } {
+  const pick = (name: string) => ({ title: annText(body["title" + name]), body: annText(body["body" + name]) });
+  const en = pick("En");
+  const ms = pick("Ms");
+  const zh = pick("Zh");
+  for (const [label, t] of [["English", en], ["Malay", ms], ["Chinese", zh]] as const) {
+    if (t.title.length > ANN_TITLE_MAX) return { ok: false, message: label + " title is too long (at most " + ANN_TITLE_MAX + " characters)." };
+    if (t.body.length > ANN_BODY_MAX) return { ok: false, message: label + " message is too long (at most " + ANN_BODY_MAX + " characters)." };
+  }
+  if (forPublish && (!en.title || !en.body)) return { ok: false, message: "The English title and message are required." };
+  const both = (t: { title: string; body: string }) => (t.title && t.body ? t : null);
+  return {
+    ok: true,
+    fields: {
+      title_en: en.title || "(untitled)", body_en: en.body || "(empty)",
+      title_ms: both(ms)?.title ?? null, body_ms: both(ms)?.body ?? null,
+      title_zh: both(zh)?.title ?? null, body_zh: both(zh)?.body ?? null,
+    },
+  };
+}
+
+async function announcementState(): Promise<Reply> {
+  const live = await rest("announcements?select=" + ANN_COLUMNS + "&status=eq.published&limit=1");
+  const draft = await rest("announcements?select=" + ANN_COLUMNS + "&status=eq.draft&order=created_at.desc&limit=1");
+  if (!live.ok || !draft.ok) return { ok: false, message: "Announcements are not set up yet: run the announcements part of supabase-schema.sql in Supabase." };
+  const published = ((await live.json()) as Reply[])[0] ?? null;
+  let reads = 0;
+  if (published) {
+    const seen = await rest("announcement_reads?select=user_id&announcement_id=eq." + q(String(published.id)) + "&limit=100000");
+    if (seen.ok) reads = ((await seen.json()) as unknown[]).length;
+  }
+  return { ok: true, published, draft: ((await draft.json()) as Reply[])[0] ?? null, reads };
+}
+
+async function announcementSave(body: Body, adminId: string): Promise<Reply> {
+  const parsed = annFields(body, false);
+  if (!parsed.ok) return parsed;
+  const existing = await rest("announcements?select=id&status=eq.draft&limit=1");
+  if (!existing.ok) return { ok: false, message: "Announcements are not set up yet: run the announcements part of supabase-schema.sql in Supabase." };
+  const found = ((await existing.json()) as { id: string }[])[0];
+  const response = found
+    ? await rest("announcements?id=eq." + q(found.id), { method: "PATCH", headers: { Prefer: "return=minimal" }, body: JSON.stringify(parsed.fields) })
+    : await rest("announcements", { method: "POST", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ ...parsed.fields, status: "draft", created_by: adminId }) });
+  if (!response.ok) return { ok: false, message: "The draft could not be saved." };
+  await audit(adminId, "save_announcement_draft", null, String(parsed.fields.title_en));
+  return { ok: true, message: "Draft saved." };
+}
+
+async function announcementPublish(body: Body, adminId: string, now: Date): Promise<Reply> {
+  const parsed = annFields(body, true);
+  if (!parsed.ok) return parsed;
+  await audit(adminId, "publish_announcement", null, String(parsed.fields.title_en));
+  const retired = await rest("announcements?status=eq.published", { method: "PATCH", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ status: "retired", retired_at: now.toISOString() }) });
+  if (!retired.ok) return { ok: false, message: "The announcement could not be published." };
+  const made = await rest("announcements", { method: "POST", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ ...parsed.fields, status: "published", created_by: adminId, published_at: now.toISOString() }) });
+  if (!made.ok) return { ok: false, message: "The announcement could not be published." };
+  await rest("announcements?status=eq.draft", { method: "DELETE", headers: { Prefer: "return=minimal" } });
+  return { ok: true, message: "Published. People who open or refresh the app from now on will see it." };
+}
+
+async function announcementRetire(adminId: string, now: Date): Promise<Reply> {
+  await audit(adminId, "retire_announcement", null);
+  const response = await rest("announcements?status=eq.published", { method: "PATCH", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ status: "retired", retired_at: now.toISOString() }) });
+  return response.ok ? { ok: true, message: "The announcement was switched off." } : { ok: false, message: "The announcement could not be switched off." };
+}
+
 // The Door Section
 export async function handle(request: Request, now = new Date(), connector: Connector = denoConnector, tg?: TelegramClient): Promise<Response> {
   const early = preflight(request);
@@ -293,6 +371,10 @@ export async function handle(request: Request, now = new Date(), connector: Conn
       case "health": reply = await health(); break;
       case "scan_stats": reply = await scanStats(now); break;
       case "log": reply = await log(); break;
+      case "announcement_state": reply = await announcementState(); break;
+      case "announcement_save": reply = await announcementSave(body, auth.userId); break;
+      case "announcement_publish": reply = await announcementPublish(body, auth.userId, now); break;
+      case "announcement_retire": reply = await announcementRetire(auth.userId, now); break;
       default: return json(request, { error: "Bad request." }, 400);
     }
     return json(request, reply);

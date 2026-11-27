@@ -234,6 +234,9 @@ const TABLES = {
     defaults: { lender: null, fees: 0, reminders_on: true, reminder_days: [3, 0], status: 'open', paid_through: null },
   },
   user_preferences: { check: (r) => ['dmy_short', 'dmy', 'ymd'].includes(r.date_format ?? 'dmy_short'), unique: ['user_id'], defaults: { date_format: 'dmy_short' } },
+  // global in the real database (everyone reads the published one); here also limited to the people named in `audience`, so one test's announcement never reaches another test's users
+  announcements: { global: true, check: () => false },
+  announcement_reads: { check: (r) => Boolean(r.announcement_id), unique: ['user_id', 'announcement_id'] },
 };
 const dataStore = new Map(Object.keys(TABLES).map((name) => [name, []]));
 
@@ -261,9 +264,13 @@ function rest(request, response, url, table, body) {
   const who = userFor(request);
   if (!who?.user) return send(request, response, 401, { code: 'PGRST301', message: 'JWT expired or invalid' });
   const me = who.user.id;
+  if (meta.global && request.method !== 'GET') return send(request, response, 403, { code: '42501', message: 'permission denied for table ' + table });
   const rows = dataStore.get(table);
   const filters = [...url.searchParams.entries()].filter(([k]) => !['select', 'order', 'limit', 'offset', 'on_conflict', 'columns'].includes(k));
-  const mine = () => rows.filter((row) => row.user_id === me && filters.every(([k, v]) => matchFilter(row, k, v)));
+  const mine = () =>
+    meta.global
+      ? rows.filter((row) => row.status === 'published' && (row.audience ?? []).includes(who.user.email) && filters.every(([k, v]) => matchFilter(row, k, v)))
+      : rows.filter((row) => row.user_id === me && filters.every(([k, v]) => matchFilter(row, k, v)));
   const prefer = String(request.headers.prefer ?? '');
   const wantRows = /return=representation/.test(prefer);
   const single = /vnd\.pgrst\.object/.test(String(request.headers.accept ?? ''));
@@ -452,6 +459,13 @@ createServer(async (request, response) => {
     for (const [token, entry] of state.refresh) if (entry.email === who.user.email) state.refresh.delete(token);
     return send(request, response, 200, { deleted: true });
   }
+  if (path === '/__test/announcement') {
+    const list = dataStore.get('announcements');
+    for (const row of list) if (row.status === 'published' && (row.audience ?? []).some((e) => (body.audience ?? []).includes(e))) row.status = 'retired';
+    const row = { id: body.id ?? uid(), title_en: body.titleEn, body_en: body.bodyEn, title_ms: body.titleMs ?? null, body_ms: body.bodyMs ?? null, title_zh: body.titleZh ?? null, body_zh: body.bodyZh ?? null, status: body.status ?? 'published', audience: (body.audience ?? []).map((e) => String(e).toLowerCase()), created_at: new Date().toISOString(), published_at: new Date().toISOString() };
+    list.push(row);
+    return send(request, response, 200, { ok: true, id: row.id });
+  }
   if (path === '/__test/make-admin') { state.admins.add(String(body.email).toLowerCase()); return send(request, response, 200, { ok: true }); }
   if (path === '/functions/v1/admin-email-test' && request.method === 'POST') {
     const who = userFor(request);
@@ -549,6 +563,44 @@ createServer(async (request, response) => {
       }
       case 'scan_stats': return send(request, response, 200, { ok: true, total: 8, worked: 6, successPercent: 75, medianMs: 1200, p90Ms: 3100, failures: [{ reason: 'busy', count: 2 }], byEngine: [{ engine: 'ocr.space', total: 8, ok: 6 }] });
       case 'health': return send(request, response, 200, { ok: true, checks: { 'Email (Gmail SMTP)': true, 'Telegram bot': true, 'Scheduled jobs secret': false, 'Allowed website list': true, 'Database is up to date': true }, openFeedback: state.feedback.filter((f) => f.status === 'open').length });
+      case 'announcement_state': case 'announcement_save': case 'announcement_publish': case 'announcement_retire': {
+        // the same rules as the real function, but an announcement belongs to the administrator who made it (test isolation only)
+        const list = dataStore.get('announcements');
+        const mineRows = list.filter((r) => (r.audience ?? []).includes(me.email));
+        const live = mineRows.find((r) => r.status === 'published') ?? null;
+        const draft = mineRows.find((r) => r.status === 'draft') ?? null;
+        if (body.action === 'announcement_state') {
+          const reads = live ? dataStore.get('announcement_reads').filter((r) => r.announcement_id === live.id).length : 0;
+          return send(request, response, 200, { ok: true, published: live, draft, reads });
+        }
+        if (body.action === 'announcement_retire') {
+          if (live) live.status = 'retired';
+          audit('retire_announcement', '');
+          return send(request, response, 200, { ok: true, message: 'The announcement was switched off.' });
+        }
+        const clean = (v) => (typeof v === 'string' ? [...v.split('\r\n').join('\n')].filter((ch) => { const c = ch.charCodeAt(0); return c === 10 || (c >= 32 && c !== 127); }).join('').trim() : '');
+        const part = (name) => ({ title: clean(body['title' + name]), body: clean(body['body' + name]) });
+        const en = part('En'), ms = part('Ms'), zh = part('Zh');
+        for (const [label, x] of [['English', en], ['Malay', ms], ['Chinese', zh]]) {
+          if (x.title.length > 80) return send(request, response, 200, { ok: false, message: label + ' title is too long (at most 80 characters).' });
+          if (x.body.length > 1500) return send(request, response, 200, { ok: false, message: label + ' message is too long (at most 1500 characters).' });
+        }
+        const publish = body.action === 'announcement_publish';
+        if (publish && (!en.title || !en.body)) return send(request, response, 200, { ok: false, message: 'The English title and message are required.' });
+        const both = (x) => (x.title && x.body ? x : null);
+        const fields = { title_en: en.title || '(untitled)', body_en: en.body || '(empty)', title_ms: both(ms)?.title ?? null, body_ms: both(ms)?.body ?? null, title_zh: both(zh)?.title ?? null, body_zh: both(zh)?.body ?? null };
+        if (!publish) {
+          if (draft) Object.assign(draft, fields);
+          else list.push({ id: uid(), ...fields, status: 'draft', audience: [me.email], created_at: new Date().toISOString(), published_at: null });
+          audit('save_announcement_draft', fields.title_en);
+          return send(request, response, 200, { ok: true, message: 'Draft saved.' });
+        }
+        if (live) live.status = 'retired';
+        if (draft) list.splice(list.indexOf(draft), 1);
+        list.push({ id: uid(), ...fields, status: 'published', audience: [me.email], created_at: new Date().toISOString(), published_at: new Date().toISOString() });
+        audit('publish_announcement', fields.title_en);
+        return send(request, response, 200, { ok: true, message: 'Published. People who open or refresh the app from now on will see it.' });
+      }
       case 'log': return send(request, response, 200, { ok: true, items: state.audit.slice(0, 50) });
       default: return send(request, response, 400, { error: 'Unknown action.' });
     }

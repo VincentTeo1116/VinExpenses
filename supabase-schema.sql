@@ -931,3 +931,40 @@ create table if not exists public.scan_events (
 );
 create index if not exists scan_events_at_idx on public.scan_events (at desc);
 alter table public.scan_events enable row level security;
+
+
+-- ============================================================================
+-- Announcements ("what's new"): the administrator writes one, signed-in people read the live one.
+-- Written only by the `admin` function (service role); a person can read the published one and keep their own "read" marks.
+-- ============================================================================
+create table if not exists public.announcements (
+  id uuid primary key default gen_random_uuid(),
+  title_en text not null check (char_length(title_en) between 1 and 80),
+  body_en text not null check (char_length(body_en) between 1 and 1500),
+  title_ms text check (title_ms is null or char_length(title_ms) <= 80),
+  body_ms text check (body_ms is null or char_length(body_ms) <= 1500),
+  title_zh text check (title_zh is null or char_length(title_zh) <= 80),
+  body_zh text check (body_zh is null or char_length(body_zh) <= 1500),
+  status text not null default 'draft' check (status in ('draft', 'published', 'retired')),
+  created_by uuid references auth.users (id) on delete set null,
+  created_at timestamptz not null default now(),
+  published_at timestamptz,
+  retired_at timestamptz
+);
+-- at most one announcement is live at a time
+create unique index if not exists announcements_one_published on public.announcements ((status)) where status = 'published';
+alter table public.announcements enable row level security;
+drop policy if exists "Signed-in people read the published announcement" on public.announcements;
+create policy "Signed-in people read the published announcement" on public.announcements
+  for select to authenticated using (status = 'published');
+
+create table if not exists public.announcement_reads (
+  user_id uuid not null references auth.users (id) on delete cascade,
+  announcement_id uuid not null references public.announcements (id) on delete cascade,
+  read_at timestamptz not null default now(),
+  primary key (user_id, announcement_id)
+);
+alter table public.announcement_reads enable row level security;
+drop policy if exists "People manage their own announcement reads" on public.announcement_reads;
+create policy "People manage their own announcement reads" on public.announcement_reads
+  for all to authenticated using (auth.uid() = user_id) with check (auth.uid() = user_id);

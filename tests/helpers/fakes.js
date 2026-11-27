@@ -263,7 +263,7 @@ function fakeSupabase() {
         users: new Map(),            // token -> {id,email,email_confirmed_at}
         monthly_report_preferences: [],
         expenses: [], incomes: [], user_categories: [],
-        app_admins: [],
+        app_admins: [], announcements: [], announcement_reads: [],
         telegram_links: [], telegram_link_codes: [], telegram_seen: [], telegram_pending: [], user_payment_methods: [], budgets: [],
         fixed_deposits: [], loans: [], reminder_log: [], user_preferences: [], recurring_expenses: [],
         auth_code_requests: [], auth_lockouts: [], mfa_recovery_codes: [], admin_audit_log: [], feedback: [],
@@ -355,7 +355,7 @@ function fakeSupabase() {
             const inserted = [];
             for (const item of Array.isArray(body) ? body : [body]) {
                 const row = { ...item };
-                if (table === 'expenses' || table === 'incomes') { row.id = row.id || crypto.randomUUID(); row.created_at = row.created_at || db.now(); }
+                if (table === 'expenses' || table === 'incomes' || table === 'announcements') { row.id = row.id || crypto.randomUUID(); row.created_at = row.created_at || db.now(); }
                 if (table === 'reminder_log') { row.id = rows.length + 1; row.sent_at = row.sent_at ?? null; }
                 if (['auth_code_requests', 'mfa_recovery_codes', 'admin_audit_log', 'feedback'].includes(table)) {
                     db.sequence = (db.sequence || 0) + 1;

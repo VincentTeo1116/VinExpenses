@@ -7,6 +7,7 @@ import { useAuth } from '@/app/AuthProvider';
 import { Button } from '@/components/Button';
 import { useMoney } from '@/features/money/MoneyContext';
 import { useI18n, type MessageKey } from '@/lib/i18n';
+import { useAnnouncementBusy } from '@/features/announce/announceStore';
 import { isNewAccount, rememberOnThisDevice, seenOnThisDevice, startTour, stopTour, useTourActive } from './tourStore';
 import styles from './Tour.module.css';
 
@@ -52,15 +53,16 @@ export function TourHost() {
   const userId = session?.user?.id;
   const eligible = Boolean(userId) && meta.tour_seen !== true && !seenOnThisDevice() && isNewAccount(session?.user?.created_at);
   const onHome = location.pathname.replace(/\/+$/, '') === '/app';
+  const announcing = useAnnouncementBusy(); // the announcement comes first; the tour starts when it is closed
 
   // a brand-new account is welcomed once, on Home, when nothing else is open
   useEffect(() => {
-    if (!eligible || !onHome) return;
+    if (!eligible || !onHome || announcing) return;
     const timer = setTimeout(() => {
       if (!document.querySelector('[role="dialog"]')) startTour();
     }, 1200);
     return () => clearTimeout(timer);
-  }, [eligible, onHome]);
+  }, [eligible, onHome, announcing]);
 
   const finish = useCallback(async () => {
     stopTour();

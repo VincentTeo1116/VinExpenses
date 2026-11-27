@@ -12,6 +12,7 @@ import { useAdminStatus } from '@/features/admin/useAdmin';
 import { applyTheme, readTheme } from '@/features/account/theme';
 import { DESKTOP, useMediaQuery } from '@/lib/useMediaQuery';
 import { TourHost } from '@/features/tour/Tour';
+import { AnnouncementHost } from '@/features/announce/AnnouncementHost';
 import { useTabIndicator } from './useTabIndicator';
 import styles from './AppShell.module.css';
 
@@ -140,6 +141,7 @@ export function AppShell() {
         </main>
       </div>
 
+      <AnnouncementHost />
       <TourHost />
 
       <nav ref={barRef} aria-label={t('nav.main')} className={styles.tabbar}>
