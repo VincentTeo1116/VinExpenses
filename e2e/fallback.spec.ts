@@ -50,7 +50,7 @@ test('storage being unavailable for writes does not break the language switch fo
 
 test('the manifest and service worker are served and valid', async ({ request }) => {
   const manifest = await (await request.get('/manifest.webmanifest')).json();
-  expect(manifest.name).toBe('VinExpenses');
+  expect(manifest.name).toBe('ManaDuit');
   expect(manifest.display).toBe('standalone');
   expect(manifest.icons.length).toBeGreaterThanOrEqual(2);
   const sw = await request.get('/sw.js');

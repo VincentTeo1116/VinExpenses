@@ -73,7 +73,7 @@ async function byTelegram(userId: string, link: Link, period: ReportPeriod, tool
   const names = new Map((categories as { category_key: string; label: string }[]).map((c) => [c.category_key, c.label] as const));
   const view = await buildView({ userId, lang, now: tools.now, view: "m", offset, labels: (key) => names.get(key) ?? key });
   const site = cleanSiteUrl(env("SITE_URL"));
-  const title = `<b>Your VinExpenses report for ${period.label}</b>\n\n`;
+  const title = `<b>Your ManaDuit report for ${period.label}</b>\n\n`;
   if (view.kind === "photo" && view.png) {
     const sent = await tools.tg.sendPhotoChecked(chatId, view.png, (title + view.text).slice(0, 1000), { buttons: pagerButtons(lang, "m", offset, { details: true, siteUrl: site }) });
     if (sent !== "failed") return sent;

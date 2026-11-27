@@ -1,7 +1,7 @@
 {
   "name": "vinexpenses",
   "private": true,
-  "description": "VinExpenses: React web app (src/) and its Supabase backend (supabase/).",
+  "description": "ManaDuit: React web app (src/) and its Supabase backend (supabase/).",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",

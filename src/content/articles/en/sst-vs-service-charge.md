@@ -1,5 +1,5 @@
 ---
-title: SST vs Service Charge: Why Your Restaurant Bill Is Higher | VinExpenses
+title: SST vs Service Charge: Why Your Restaurant Bill Is Higher | ManaDuit
 description: The menu says RM21. The bill says RM24.35. What the 10% service charge, the 6% SST and the 5-sen rounding are, and how to check your own bill.
 short: SST vs service charge
 checked: 2026-11-26
@@ -61,7 +61,7 @@ So RM24.36 becomes RM24.35. A total ending in 0 or 5 stays as it is. The notice 
 3. Take 6% of the subtotal (not including the service charge). Does it match the SST?
 4. Add everything. The total should be within 2 sen of the amount you paid.
 
-You can also type the numbers into the [bill calculator](/bill-calculator). A scanning app can do the arithmetic for you too. VinExpenses reads the total, shop and date from a photo of the receipt and shows you where it found each one, so you can check before saving.
+You can also type the numbers into the [bill calculator](/bill-calculator). A scanning app can do the arithmetic for you too. ManaDuit reads the total, shop and date from a photo of the receipt and shows you where it found each one, so you can check before saving.
 
 *General information, not tax advice.*
 

@@ -54,7 +54,7 @@ export function DataCard() {
     const entries: Entry[] = [...data.expenses.map((row) => ({ kind: 'expense' as const, row })), ...data.incomes.map((row) => ({ kind: 'income' as const, row }))].filter((e) => !e.row.id.startsWith('queued-'));
     if (!entries.length) return toast.show('info', t('data.nothingExport'));
     entries.sort((a, b) => b.row.created_at.localeCompare(a.row.created_at));
-    downloadCsv(entriesToCsv(entries, { category: (k) => categoryOf(k).label, payment: (k) => paymentOf(k).label }), `vinexpenses-all-${todayYmd()}.csv`);
+    downloadCsv(entriesToCsv(entries, { category: (k) => categoryOf(k).label, payment: (k) => paymentOf(k).label }), `manaduit-all-${todayYmd()}.csv`);
     toast.show('success', t('data.exported', { n: entries.length }));
   };
 

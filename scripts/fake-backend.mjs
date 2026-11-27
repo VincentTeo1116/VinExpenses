@@ -17,7 +17,7 @@ function seed(input) {
   const email = String(input.email).toLowerCase();
   const user = {
     id: uid(), email, password: input.password ?? GOOD, name: input.name ?? '', confirmed: input.confirmed !== false, provider: input.google ? 'google' : 'email',
-    disabled: Boolean(input.disabled), factors: input.factor ? [{ id: `f-${uid()}`, status: 'verified', factor_type: 'totp', friendly_name: 'VinExpenses' }] : [], codes: {}, created_at: new Date().toISOString(),
+    disabled: Boolean(input.disabled), factors: input.factor ? [{ id: `f-${uid()}`, status: 'verified', factor_type: 'totp', friendly_name: 'ManaDuit' }] : [], codes: {}, created_at: new Date().toISOString(),
   };
   state.users.set(email, user);
   return user;
@@ -611,7 +611,7 @@ createServer(async (request, response) => {
     const token = String(body.token ?? '');
     if (token.startsWith('down')) return send(request, response, 503, { ok: false, message: 'This service is not set up yet.' });
     if (!token.startsWith('good')) return send(request, response, 200, { ok: false, message: 'This link is invalid or has expired. Request a new one from the app.' });
-    return send(request, response, 200, body.action === 'confirm' ? { ok: true, message: 'Thank you. This address is confirmed and monthly reports can be sent to it.' } : { ok: true, message: 'You are unsubscribed. No more VinExpenses reports will be sent to this address.' });
+    return send(request, response, 200, body.action === 'confirm' ? { ok: true, message: 'Thank you. This address is confirmed and monthly reports can be sent to it.' } : { ok: true, message: 'You are unsubscribed. No more ManaDuit reports will be sent to this address.' });
   }
   if (path === '/__test/email-action-calls') return send(request, response, 200, { calls: state.emailActionCalls ?? 0 });
   if (path === '/functions/v1/feedback' && request.method === 'POST') return send(request, response, 200, feedback(body, request));
@@ -644,7 +644,7 @@ createServer(async (request, response) => {
   if (path === '/auth/v1/factors' && request.method === 'POST') {
     const who = userFor(request);
     if (!who?.user) return send(request, response, 401, { msg: 'invalid JWT' });
-    const factor = { id: `f-${uid()}`, status: 'unverified', factor_type: 'totp', friendly_name: body.friendly_name ?? 'VinExpenses' };
+    const factor = { id: `f-${uid()}`, status: 'unverified', factor_type: 'totp', friendly_name: body.friendly_name ?? 'ManaDuit' };
     who.user.factors.push(factor);
     const svg = encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 8 8"><rect width="8" height="8" fill="#fff"/><path d="M0 0h3v3H0zM5 0h3v3H5zM0 5h3v3H0zM4 4h1v1H4zM6 5h2v1H6zM5 7h1v1H5z" fill="#000"/></svg>');
     return send(request, response, 200, { id: factor.id, type: 'totp', friendly_name: factor.friendly_name, totp: { qr_code: `data:image/svg+xml;utf-8,${svg}`, secret: 'JBSWY3DPEHPK3PXP', uri: 'otpauth://totp/VinExpenses' } });

@@ -178,7 +178,7 @@ async function sendReset(body: Body, adminId: string, connector: Connector): Pro
   const html = template.html.replaceAll("{{ .Token }}", code).replaceAll("{{ .Email }}", escapeHtml(email));
   const sent = await sendEmail(setup.mail, {
     to: email, subject: template.subject, html,
-    text: `Your VinExpenses password-reset code is ${code}. It works once and expires in ${LIMITS.codeMinutes} minutes. Open the app, choose "Forgot password?" and then "I already have a code".`,
+    text: `Your ManaDuit password-reset code is ${code}. It works once and expires in ${LIMITS.codeMinutes} minutes. Open the app, choose "Forgot password?" and then "I already have a code".`,
   }, connector);
   return sent.ok ? { ok: true, message: `A password-reset code was emailed to ${email}.` } : { ok: false, message: "The reset email could not be sent. Check the email service below." };
 }

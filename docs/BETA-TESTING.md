@@ -1,6 +1,6 @@
 # Beta testing guide
 
-For inviting the first testers of VinExpenses (https://vinexpenses.tkqvincent2.workers.dev). It has three parts: what you (the owner) should check
+For inviting the first testers of ManaDuit (https://vinexpenses.tkqvincent2.workers.dev). It has three parts: what you (the owner) should check
 before sending the first invite, what to send and ask testers, and what to watch while the beta runs.
 
 Status when this was written (25 Nov 2026): the code is deployed, and the automated tests pass. What has **not** been checked is listed in

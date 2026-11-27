@@ -41,7 +41,7 @@ test('an unsubscribe link works the same way', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Unsubscribe' })).toBeVisible();
   await page.getByRole('button', { name: 'Unsubscribe' }).click();
   await expect(page.getByRole('heading', { name: 'Unsubscribed' })).toBeVisible();
-  await expect(page.getByText('No more VinExpenses reports')).toBeVisible();
+  await expect(page.getByText('No more ManaDuit reports')).toBeVisible();
 });
 
 test('a link that is incomplete or made up is refused without asking the server', async ({ page }) => {

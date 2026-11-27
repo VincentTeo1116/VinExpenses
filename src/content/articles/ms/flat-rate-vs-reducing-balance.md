@@ -1,5 +1,5 @@
 ---
-title: Kadar Rata vs Baki Berkurangan: Apa Beza Sebenar? | VinExpenses
+title: Kadar Rata vs Baki Berkurangan: Apa Beza Sebenar? | ManaDuit
 description: Kadar rata 3% bukan pinjaman 3%. Lihat beza kadar rata dan baki berkurangan dalam ringgit, dan cara bandingkan dua tawaran pinjaman dengan adil.
 short: Kadar rata vs baki berkurangan
 checked: 2026-11-26
@@ -54,4 +54,4 @@ Anda boleh cuba sendiri dalam [kalkulator pinjaman](/ms/loan-calculator). Tukar 
 
 *Ini anggaran untuk tujuan penerangan, bukan nasihat kewangan. Tawaran dan angka daripada bank anda yang menjadi rujukan sebenar.*
 
-**Sumber:** contoh dikira menggunakan formula yang sama dengan kalkulator pinjaman VinExpenses. Perubahan undang-undang: Paultan (16 Mac 2026), The Star (31 Mei 2026).
+**Sumber:** contoh dikira menggunakan formula yang sama dengan kalkulator pinjaman ManaDuit. Perubahan undang-undang: Paultan (16 Mac 2026), The Star (31 Mei 2026).

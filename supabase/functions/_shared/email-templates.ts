@@ -40,7 +40,7 @@ export interface LayoutParts {
   footer: string;
 }
 
-/** The shared look of every VinExpenses email. All arguments must already be escaped where they hold user data. */
+/** The shared look of every ManaDuit email. All arguments must already be escaped where they hold user data. */
 export function emailLayout(parts: LayoutParts): string {
   const button = parts.button
     ? `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:26px 0 6px"><tr><td align="center" bgcolor="${BRAND}" style="border-radius:12px"><a href="${parts.button.href}" style="display:inline-block;padding:14px 26px;font-family:${FONT};font-size:16px;font-weight:700;color:#ffffff;text-decoration:none;border-radius:12px">${escapeHtml(parts.button.label)}</a></td></tr></table>`
@@ -50,7 +50,7 @@ export function emailLayout(parts: LayoutParts): string {
     `<div style="display:none;max-height:0;overflow:hidden;opacity:0;color:${SOFT};font-size:1px;line-height:1px">${escapeHtml(parts.preheader)}</div>` +
     `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="${SOFT}" style="background:${SOFT}"><tr><td align="center" style="padding:28px 12px">` +
     `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:600px">` +
-    `<tr><td style="padding:0 8px 16px;font-family:${FONT};font-size:19px;font-weight:800;letter-spacing:-0.02em;color:${INK}"><span style="display:inline-block;width:12px;height:12px;border-radius:4px;background:${BRAND};margin-right:8px"></span>VinExpenses</td></tr>` +
+    `<tr><td style="padding:0 8px 16px;font-family:${FONT};font-size:19px;font-weight:800;letter-spacing:-0.02em;color:${INK}"><span style="display:inline-block;width:12px;height:12px;border-radius:4px;background:${BRAND};margin-right:8px"></span>ManaDuit</td></tr>` +
     `<tr><td bgcolor="#ffffff" style="background:#ffffff;border:1px solid ${LINE};border-radius:18px;padding:32px 28px;font-family:${FONT};font-size:16px;line-height:1.6;color:${INK}">` +
     `<p style="margin:0 0 8px;font-size:12px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:${BRAND}">${escapeHtml(parts.eyebrow)}</p>` +
     `<h1 style="margin:0 0 16px;font-size:24px;line-height:1.25;letter-spacing:-0.02em;color:${INK}">${escapeHtml(parts.title)}</h1>` +
@@ -71,18 +71,18 @@ function safeLink(url: string): string {
 export function confirmEmail(confirmUrl: string, address: string): Rendered {
   const link = safeLink(confirmUrl);
   return {
-    subject: "Confirm your VinExpenses report email",
+    subject: "Confirm your ManaDuit report email",
     html: emailLayout({
       preheader: "One tap to start receiving your monthly spending report.",
       eyebrow: "Monthly report",
       title: "Confirm this email address",
-      body: paragraph(`Someone (hopefully you) asked to receive VinExpenses monthly spending reports at <strong>${escapeHtml(address)}</strong>.`) +
+      body: paragraph(`Someone (hopefully you) asked to receive ManaDuit monthly spending reports at <strong>${escapeHtml(address)}</strong>.`) +
         paragraph("Press the button to confirm. The link works for 48 hours."),
       button: { label: "Confirm email address", href: link },
       afterButton: `Button not working? Copy this link into your browser:<br><span style="word-break:break-all;color:${BRAND}">${link}</span>`,
       footer: "If you did not ask for this, ignore this email: nothing will be sent to you and nothing was changed.",
     }),
-    text: `Confirm this email address\n\nSomeone (hopefully you) asked to receive VinExpenses monthly spending reports at ${address}.\n\nOpen this link to confirm (valid for 48 hours):\n${confirmUrl}\n\nIf you did not ask for this, ignore this email: nothing will be sent to you.`,
+    text: `Confirm this email address\n\nSomeone (hopefully you) asked to receive ManaDuit monthly spending reports at ${address}.\n\nOpen this link to confirm (valid for 48 hours):\n${confirmUrl}\n\nIf you did not ask for this, ignore this email: nothing will be sent to you.`,
   };
 }
 
@@ -94,7 +94,7 @@ export interface ReportData {
   incomeCount: number;
   categories: { name: string; amount: number }[];
   unsubscribeUrl: string;
-  /** Where the website lives (https). When given, the email ends with an "Open VinExpenses" button. */
+  /** Where the website lives (https). When given, the email ends with an "Open ManaDuit" button. */
   appUrl?: string;
 }
 
@@ -132,17 +132,17 @@ export function reportEmail(data: ReportData): Rendered {
 
   const app = data.appUrl ? safeLink(data.appUrl) : "";
   return {
-    subject: `Your VinExpenses report for ${data.label}`,
+    subject: `Your ManaDuit report for ${data.label}`,
     html: emailLayout({
       preheader: `Income ${ringgit(data.incomeTotal)}, expenses ${ringgit(data.expenseTotal)}, net ${ringgit(net)}.`,
       eyebrow: "Monthly report",
       title: data.label,
       body,
-      button: app ? { label: "Open VinExpenses", href: app } : undefined,
-      footer: `You receive this because you turned on monthly reports in your VinExpenses account and confirmed this address. <a href="${link}" style="color:${MUTED}">Unsubscribe</a>.`,
+      button: app ? { label: "Open ManaDuit", href: app } : undefined,
+      footer: `You receive this because you turned on monthly reports in your ManaDuit account and confirmed this address. <a href="${link}" style="color:${MUTED}">Unsubscribe</a>.`,
     }),
     text: [
-      `VinExpenses report for ${data.label}`,
+      `ManaDuit report for ${data.label}`,
       "",
       `Income:   ${ringgit(data.incomeTotal)} (${data.incomeCount} records)`,
       `Expenses: ${ringgit(data.expenseTotal)} (${data.expenseCount} records)`,
@@ -151,7 +151,7 @@ export function reportEmail(data: ReportData): Rendered {
       "Spending by category:",
       ...(data.categories.length ? data.categories.map((c) => `  ${c.name}: ${ringgit(c.amount)}`) : ["  No expenses recorded this month."]),
       "",
-      ...(data.appUrl ? [`Open VinExpenses: ${data.appUrl}`, ""] : []),
+      ...(data.appUrl ? [`Open ManaDuit: ${data.appUrl}`, ""] : []),
       `Unsubscribe: ${data.unsubscribeUrl}`,
     ].join("\n"),
   };
@@ -160,7 +160,7 @@ export function reportEmail(data: ReportData): Rendered {
 export function adminTestEmail(whenIso: string, checks: Record<string, boolean>): Rendered {
   const items = Object.entries(checks);
   return {
-    subject: "VinExpenses email service test",
+    subject: "ManaDuit email service test",
     html: emailLayout({
       preheader: "A test message from your own email service.",
       eyebrow: "Administrator",
@@ -170,7 +170,7 @@ export function adminTestEmail(whenIso: string, checks: Record<string, boolean>)
           `<tr><td style="padding:9px 0;border-bottom:1px solid ${LINE};font-size:15px">${escapeHtml(name)}</td><td align="right" style="padding:9px 0;border-bottom:1px solid ${LINE};font-size:14px;font-weight:700;color:${ok ? "#059669" : "#dc2626"}">${ok ? "OK" : "Needs attention"}</td></tr>`).join("")}</table>`,
       footer: "Only the administrator can trigger this message, and it is only ever sent to the administrator's own address.",
     }),
-    text: `The VinExpenses email service works.\nSent through Gmail SMTP at ${whenIso}.\n\n${items.map(([name, ok]) => `${name}: ${ok ? "OK" : "needs attention"}`).join("\n")}`,
+    text: `The ManaDuit email service works.\nSent through Gmail SMTP at ${whenIso}.\n\n${items.map(([name, ok]) => `${name}: ${ok ? "OK" : "needs attention"}`).join("\n")}`,
   };
 }
 
@@ -191,19 +191,19 @@ const notYou = (what: string) => `If you did not ${what}, you can ignore this em
 export function authTemplates(): AuthTemplate[] {
   return [
     {
-      key: "confirmation", file: "confirm-signup.html", subject: "Your VinExpenses verification code",
+      key: "confirmation", file: "confirm-signup.html", subject: "Your ManaDuit verification code",
       html: emailLayout({
-        preheader: "Your 6-digit code to finish creating your VinExpenses account.",
+        preheader: "Your 6-digit code to finish creating your ManaDuit account.",
         eyebrow: "Welcome", title: "Verify your email address",
-        body: paragraph("Thanks for signing up for VinExpenses. Enter this code in the app to confirm that <strong>{{ .Email }}</strong> is yours:") +
+        body: paragraph("Thanks for signing up for ManaDuit. Enter this code in the app to confirm that <strong>{{ .Email }}</strong> is yours:") +
           codeBlock + paragraph("The code works once and expires in 5 minutes."),
-        footer: notYou("create a VinExpenses account"),
+        footer: notYou("create a ManaDuit account"),
       }),
     },
     {
-      key: "recovery", file: "reset-password.html", subject: "Your VinExpenses password-reset code",
+      key: "recovery", file: "reset-password.html", subject: "Your ManaDuit password-reset code",
       html: emailLayout({
-        preheader: "Your 6-digit code to choose a new VinExpenses password.",
+        preheader: "Your 6-digit code to choose a new ManaDuit password.",
         eyebrow: "Account security", title: "Reset your password",
         body: paragraph("We received a request to reset the password for <strong>{{ .Email }}</strong>. Enter this code in the app:") +
           codeBlock + paragraph("The code works once and expires in 5 minutes."),
@@ -211,42 +211,42 @@ export function authTemplates(): AuthTemplate[] {
       }),
     },
     {
-      key: "magic_link", file: "magic-link.html", subject: "Your VinExpenses sign-in link",
+      key: "magic_link", file: "magic-link.html", subject: "Your ManaDuit sign-in link",
       html: emailLayout({
-        preheader: "Sign in to VinExpenses with one tap.",
-        eyebrow: "Sign in", title: "Sign in to VinExpenses",
+        preheader: "Sign in to ManaDuit with one tap.",
+        eyebrow: "Sign in", title: "Sign in to ManaDuit",
         body: paragraph("Press the button to sign in as <strong>{{ .Email }}</strong>. The link can be used once and expires soon."),
         button: { label: "Sign in", href: URL_PLACEHOLDER }, afterButton: writtenOut,
         footer: notYou("ask to sign in"),
       }),
     },
     {
-      key: "email_change", file: "change-email.html", subject: "Confirm your new VinExpenses email address",
+      key: "email_change", file: "change-email.html", subject: "Confirm your new ManaDuit email address",
       html: emailLayout({
-        preheader: "Confirm the new email address for your VinExpenses account.",
+        preheader: "Confirm the new email address for your ManaDuit account.",
         eyebrow: "Account security", title: "Confirm your new email address",
-        body: paragraph("You asked to change your VinExpenses email from <strong>{{ .Email }}</strong> to <strong>{{ .NewEmail }}</strong>.") +
+        body: paragraph("You asked to change your ManaDuit email from <strong>{{ .Email }}</strong> to <strong>{{ .NewEmail }}</strong>.") +
           paragraph("Press the button to confirm the change."),
         button: { label: "Confirm new email", href: URL_PLACEHOLDER }, afterButton: writtenOut,
         footer: notYou("ask to change your email address") + " If this was not you, change your password now.",
       }),
     },
     {
-      key: "invite", file: "invite.html", subject: "You have been invited to VinExpenses",
+      key: "invite", file: "invite.html", subject: "You have been invited to ManaDuit",
       html: emailLayout({
-        preheader: "Accept your invitation to VinExpenses.",
+        preheader: "Accept your invitation to ManaDuit.",
         eyebrow: "Invitation", title: "You have been invited",
-        body: paragraph("You have been invited to create a VinExpenses account, a free tracker for spending, budgets, fixed deposits and loans."),
+        body: paragraph("You have been invited to create a ManaDuit account, a free tracker for spending, budgets, fixed deposits and loans."),
         button: { label: "Accept the invitation", href: URL_PLACEHOLDER }, afterButton: writtenOut,
         footer: "If you were not expecting this invitation, you can ignore this email.",
       }),
     },
     {
-      key: "reauthentication", file: "reauthentication.html", subject: "Your VinExpenses confirmation code",
+      key: "reauthentication", file: "reauthentication.html", subject: "Your ManaDuit confirmation code",
       html: emailLayout({
-        preheader: "Your confirmation code for VinExpenses.",
+        preheader: "Your confirmation code for ManaDuit.",
         eyebrow: "Account security", title: "Confirm it is you",
-        body: paragraph("Enter this code in VinExpenses to continue:") +
+        body: paragraph("Enter this code in ManaDuit to continue:") +
           `<p style="margin:6px 0 14px;padding:16px;background:${SOFT};border-radius:12px;text-align:center;font-size:30px;font-weight:800;letter-spacing:0.3em;color:${INK}">{{ .Token }}</p>` +
           paragraph("The code expires soon."),
         footer: notYou("ask for this code") + " If this was not you, change your password now.",

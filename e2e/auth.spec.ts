@@ -356,7 +356,7 @@ test.describe('authenticator (AU-11 … AU-13, AC-03)', () => {
     const dialog = page.getByRole('dialog', { name: 'Set up two-step verification' });
     await expect(dialog.getByRole('img', { name: 'QR code to scan with your authenticator app' })).toBeVisible();
     await expect(dialog.getByText('JBSW Y3DP EHPK 3PXP')).toBeVisible();
-    await expect(dialog.getByText(/named “VinExpenses”/)).toBeVisible();
+    await expect(dialog.getByText(/named “ManaDuit”/)).toBeVisible();
     await dialog.getByLabel('Then enter the 6 digits it shows').fill('000000');
     await dialog.getByRole('button', { name: 'Turn on' }).click();
     await expect(dialog.getByText('That code is not right. Codes change every 30 seconds, so wait for a new one.')).toBeVisible();

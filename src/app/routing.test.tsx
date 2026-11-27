@@ -53,7 +53,7 @@ describe('routing and the signed-in frame', () => {
     await screen.findByRole('heading', { level: 1, name: /^Hello,/ });
     await user.click(screen.getAllByRole('link', { name: 'Plan' })[0] as HTMLElement);
     expect(await screen.findByRole('heading', { level: 1, name: 'Plan' })).toBeInTheDocument();
-    await waitFor(() => expect(document.title).toBe('Plan · VinExpenses'));
+    await waitFor(() => expect(document.title).toBe('Plan · ManaDuit'));
   });
 
   it('the + button opens the add sheet above the page, and Esc closes it', async () => {

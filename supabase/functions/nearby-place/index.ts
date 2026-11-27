@@ -2,7 +2,7 @@ import { dailyLimit, json, preflight, requireUser, takeQuota } from "../_shared/
 import { mergePlaces, nearestPlaces, type Place, placesFromPhoton, validCoordinates } from "../_shared/nearby.ts";
 
 const DEFAULT_REVERSE_ENDPOINT = "https://nominatim.openstreetmap.org/reverse";
-const USER_AGENT = "VinExpenses/1.0 (personal expense tracker; nearby merchant suggestion)";
+const USER_AGENT = "ManaDuit/1.0 (personal expense tracker; nearby merchant suggestion)";
 const LOOKUP_MS = 6000;
 
 // The nearest named shops, restaurants and amenities within `radius` metres (the person picks one).
@@ -63,7 +63,7 @@ async function overpassNearest(lat: number, lon: number): Promise<string> {
   try {
     const response = await fetch(endpoint, {
       method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded", "User-Agent": "VinExpenses/1.0 (personal expense tracker; nearby merchant suggestion)" },
+      headers: { "Content-Type": "application/x-www-form-urlencoded", "User-Agent": "ManaDuit/1.0 (personal expense tracker; nearby merchant suggestion)" },
       body: new URLSearchParams({ data: query }),
       signal: AbortSignal.timeout(9000),
     });
@@ -136,7 +136,7 @@ Deno.serve(async (request: Request) => {
       namedetails: "1",
     }).toString();
     const response = await fetch(url, {
-      headers: { Accept: "application/json", "User-Agent": "VinExpenses/1.0 (personal expense tracker; nearby merchant suggestion)", "Accept-Language": "en" },
+      headers: { Accept: "application/json", "User-Agent": "ManaDuit/1.0 (personal expense tracker; nearby merchant suggestion)", "Accept-Language": "en" },
     });
     if (!response.ok) {
       // Nominatim often blocks cloud servers, so fall back to Overpass.

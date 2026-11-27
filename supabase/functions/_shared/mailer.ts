@@ -59,7 +59,7 @@ export function loadMailConfig(get: (name: string) => string | undefined): MailC
   if (!/^(?:[a-z0-9-]+\.)+[a-z]{2,}$/.test(host) || host.length > 253) return "SMTP_HOST is not a valid server name.";
   const port = Number(get("SMTP_PORT") || 465);
   if (port !== 465) return "SMTP_PORT must be 465: Supabase blocks ports 25 and 587, and 465 is encrypted from the start.";
-  const fromName = singleLine(get("EMAIL_FROM_NAME") || "VinExpenses", 60).replace(/["<>\\]/g, "") || "VinExpenses";
+  const fromName = singleLine(get("EMAIL_FROM_NAME") || "ManaDuit", 60).replace(/["<>\\]/g, "") || "ManaDuit";
   return { host, port, user, pass, fromName };
 }
 

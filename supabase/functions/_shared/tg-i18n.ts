@@ -9,18 +9,18 @@ type Dict = Record<string, string>;
 
 const en: Dict = {
   help:
-    "<b>🤖 VinExpenses bot</b>\n\n" +
+    "<b>🤖 ManaDuit bot</b>\n\n" +
     "✍️ <b>Add an expense</b>\n<code>lunch 12.50</code>\n<code>grab rm8.90 ewallet</code>\n<code>yesterday petrol 50</code> · <code>3/11 coffee 6</code>\n" +
     "💰 Income: <code>+3000 salary</code>\n📸 Or send a photo of a receipt.\n\n" +
     "📊 /today · /month · /top · 📱 /app\n🧾 /recent  edit or delete\n↩️ /undo  remove the last one\n🌐 /language · 🔔 /digest · 🔌 /unlink",
-  welcome: "👋 <b>Hi!</b> To connect, open <b>VinExpenses → Account → Connect Telegram</b> and tap the button there.",
-  not_connected: "🔌 This chat isn't connected yet. Open <b>VinExpenses → Account → Connect Telegram</b>.",
-  connected_ok: "✅ <b>Connected!</b> Expenses you add here go straight to your VinExpenses account.",
+  welcome: "👋 <b>Hi!</b> To connect, open <b>ManaDuit → Account → Connect Telegram</b> and tap the button there.",
+  not_connected: "🔌 This chat isn't connected yet. Open <b>ManaDuit → Account → Connect Telegram</b>.",
+  connected_ok: "✅ <b>Connected!</b> Expenses you add here go straight to your ManaDuit account.",
   already_connected: "✅ You're connected.",
   link_limit: "⛔ Too many attempts today. Create a new code in the app tomorrow.",
-  link_bad: "🤔 That code doesn't look right. Open VinExpenses → Account → Connect Telegram to get a new one.",
+  link_bad: "🤔 That code doesn't look right. Open ManaDuit → Account → Connect Telegram to get a new one.",
   link_invalid: "⌛ That code is invalid or has expired. Create a new one in the app.",
-  link_other: "⚠️ This Telegram chat is already connected to another VinExpenses account. Send /unlink first, then try again.",
+  link_other: "⚠️ This Telegram chat is already connected to another ManaDuit account. Send /unlink first, then try again.",
   unlinked: "🔌 Disconnected. Your expenses stay in the app. Reconnect any time from Account.",
   no_amount: "🤷 I couldn't find an amount. Try <code>lunch 12.50</code>.\n\n/help",
   too_long: "✂️ That message is too long. Keep it short, like <code>lunch 12.50</code>.",
@@ -107,18 +107,18 @@ const en: Dict = {
 
 const ms: Dict = {
   help:
-    "<b>🤖 Bot VinExpenses</b>\n\n" +
+    "<b>🤖 Bot ManaDuit</b>\n\n" +
     "✍️ <b>Tambah perbelanjaan</b>\n<code>makan tengah hari 12.50</code>\n<code>grab rm8.90 ewallet</code>\n<code>semalam minyak 50</code> · <code>3/11 kopi 6</code>\n" +
     "💰 Pendapatan: <code>+3000 gaji</code>\n📸 Atau hantar foto resit.\n\n" +
     "📊 /today · /month · /top · 📱 /app\n🧾 /recent  ubah atau padam\n↩️ /undo  buang yang terakhir\n🌐 /language · 🔔 /digest · 🔌 /unlink",
-  welcome: "👋 <b>Hai!</b> Untuk menyambung, buka <b>VinExpenses → Akaun → Connect Telegram</b> dan tekan butang di sana.",
-  not_connected: "🔌 Sembang ini belum disambungkan. Buka <b>VinExpenses → Akaun → Connect Telegram</b>.",
-  connected_ok: "✅ <b>Berjaya disambung!</b> Perbelanjaan yang anda tambah di sini terus masuk ke akaun VinExpenses anda.",
+  welcome: "👋 <b>Hai!</b> Untuk menyambung, buka <b>ManaDuit → Akaun → Connect Telegram</b> dan tekan butang di sana.",
+  not_connected: "🔌 Sembang ini belum disambungkan. Buka <b>ManaDuit → Akaun → Connect Telegram</b>.",
+  connected_ok: "✅ <b>Berjaya disambung!</b> Perbelanjaan yang anda tambah di sini terus masuk ke akaun ManaDuit anda.",
   already_connected: "✅ Anda sudah disambungkan.",
   link_limit: "⛔ Terlalu banyak percubaan hari ini. Cipta kod baharu dalam aplikasi esok.",
-  link_bad: "🤔 Kod itu tidak betul. Buka VinExpenses → Akaun → Connect Telegram untuk kod baharu.",
+  link_bad: "🤔 Kod itu tidak betul. Buka ManaDuit → Akaun → Connect Telegram untuk kod baharu.",
   link_invalid: "⌛ Kod itu tidak sah atau sudah tamat tempoh. Cipta yang baharu dalam aplikasi.",
-  link_other: "⚠️ Sembang Telegram ini sudah disambungkan ke akaun VinExpenses lain. Hantar /unlink dahulu, kemudian cuba lagi.",
+  link_other: "⚠️ Sembang Telegram ini sudah disambungkan ke akaun ManaDuit lain. Hantar /unlink dahulu, kemudian cuba lagi.",
   unlinked: "🔌 Sambungan diputuskan. Perbelanjaan anda kekal dalam aplikasi. Sambung semula bila-bila masa dari Akaun.",
   no_amount: "🤷 Saya tidak jumpa jumlah. Cuba <code>makan 12.50</code>.\n\n/help",
   too_long: "✂️ Mesej terlalu panjang. Ringkaskan, contohnya <code>makan 12.50</code>.",
@@ -205,18 +205,18 @@ const ms: Dict = {
 
 const zh: Dict = {
   help:
-    "<b>🤖 VinExpenses 机器人</b>\n\n" +
+    "<b>🤖 ManaDuit 机器人</b>\n\n" +
     "✍️ <b>记一笔支出</b>\n<code>午餐 12.50</code>\n<code>grab rm8.90 ewallet</code>\n<code>昨天 加油 50</code> · <code>3/11 咖啡 6</code>\n" +
     "💰 收入：<code>+3000 工资</code>\n📸 也可以直接发收据照片。\n\n" +
     "📊 /today · /month · /top · 📱 /app\n🧾 /recent  修改或删除\n↩️ /undo  撤销上一笔\n🌐 /language · 🔔 /digest · 🔌 /unlink",
-  welcome: "👋 <b>你好！</b>要连接账户，请打开 <b>VinExpenses → 账户 → Connect Telegram</b>，然后点击那里的按钮。",
-  not_connected: "🔌 此聊天尚未连接。请打开 <b>VinExpenses → 账户 → Connect Telegram</b>。",
-  connected_ok: "✅ <b>已连接！</b>你在这里记录的支出会直接进入你的 VinExpenses 账户。",
+  welcome: "👋 <b>你好！</b>要连接账户，请打开 <b>ManaDuit → 账户 → Connect Telegram</b>，然后点击那里的按钮。",
+  not_connected: "🔌 此聊天尚未连接。请打开 <b>ManaDuit → 账户 → Connect Telegram</b>。",
+  connected_ok: "✅ <b>已连接！</b>你在这里记录的支出会直接进入你的 ManaDuit 账户。",
   already_connected: "✅ 你已经连接了。",
   link_limit: "⛔ 今天尝试次数过多。请明天在应用里重新生成代码。",
-  link_bad: "🤔 这个代码不对。请打开 VinExpenses → 账户 → Connect Telegram 获取新代码。",
+  link_bad: "🤔 这个代码不对。请打开 ManaDuit → 账户 → Connect Telegram 获取新代码。",
   link_invalid: "⌛ 这个代码无效或已过期。请在应用里生成新的。",
-  link_other: "⚠️ 此 Telegram 聊天已连接到另一个 VinExpenses 账户。请先发送 /unlink，再重试。",
+  link_other: "⚠️ 此 Telegram 聊天已连接到另一个 ManaDuit 账户。请先发送 /unlink，再重试。",
   unlinked: "🔌 已断开连接。你的支出仍保留在应用中。可随时在账户里重新连接。",
   no_amount: "🤷 我没找到金额。试试 <code>午餐 12.50</code>。\n\n/help",
   too_long: "✂️ 消息太长了。请简短一点，例如 <code>午餐 12.50</code>。",
@@ -317,7 +317,7 @@ Object.assign(en, {
   btn_repeat: "🔁 Repeat last: {what}",
   btn_more: "➕ More",
   btn_edit: "✏️ Edit",
-  btn_open: "🔗 Open VinExpenses",
+  btn_open: "🔗 Open ManaDuit",
   btn_dashboard: "📱 Dashboard",
   app_intro: "📱 <b>Your dashboard</b>\nCharts, budgets, history, and add or edit expenses, all inside Telegram.",
   app_unavailable: "📱 The dashboard isn't set up yet. Ask the owner to set SITE_URL for the bot.",
@@ -330,7 +330,7 @@ Object.assign(en, {
   btn_digest_off: "🔕 Turn off weekly summary",
   btn_unlink: "🔌 Disconnect",
   btn_yes_unlink: "Yes, disconnect",
-  unlink_confirm: "🔌 Disconnect this chat from your VinExpenses account?\nYour expenses stay in the app.",
+  unlink_confirm: "🔌 Disconnect this chat from your ManaDuit account?\nYour expenses stay in the app.",
   toast_undone: "Undone ✓", toast_moved: "Moved to {cat} ✓", toast_same: "Already in {cat}", toast_deleted: "Deleted ✓",
   toast_saved: "Saved ✓", toast_unavailable: "Not available yet",
 });
@@ -348,7 +348,7 @@ Object.assign(ms, {
   btn_repeat: "🔁 Ulang yang terakhir: {what}",
   btn_more: "➕ Lagi",
   btn_edit: "✏️ Ubah",
-  btn_open: "🔗 Buka VinExpenses",
+  btn_open: "🔗 Buka ManaDuit",
   btn_dashboard: "📱 Papan pemuka",
   app_intro: "📱 <b>Papan pemuka anda</b>\nCarta, bajet, sejarah, tambah atau ubah perbelanjaan, semuanya dalam Telegram.",
   app_unavailable: "📱 Papan pemuka belum disediakan. Minta pemilik tetapkan SITE_URL untuk bot.",
@@ -361,7 +361,7 @@ Object.assign(ms, {
   btn_digest_off: "🔕 Matikan ringkasan mingguan",
   btn_unlink: "🔌 Putuskan sambungan",
   btn_yes_unlink: "Ya, putuskan",
-  unlink_confirm: "🔌 Putuskan sambungan sembang ini daripada akaun VinExpenses anda?\nPerbelanjaan anda kekal dalam aplikasi.",
+  unlink_confirm: "🔌 Putuskan sambungan sembang ini daripada akaun ManaDuit anda?\nPerbelanjaan anda kekal dalam aplikasi.",
   toast_undone: "Dibuat asal ✓", toast_moved: "Dialih ke {cat} ✓", toast_same: "Sudah dalam {cat}", toast_deleted: "Dipadam ✓",
   toast_saved: "Disimpan ✓", toast_unavailable: "Belum tersedia",
 });
@@ -379,7 +379,7 @@ Object.assign(zh, {
   btn_repeat: "🔁 重复上一笔：{what}",
   btn_more: "➕ 更多",
   btn_edit: "✏️ 编辑",
-  btn_open: "🔗 打开 VinExpenses",
+  btn_open: "🔗 打开 ManaDuit",
   btn_dashboard: "📱 仪表板",
   app_intro: "📱 <b>你的仪表板</b>\n图表、预算、历史记录，还能记账和修改，全在 Telegram 里。",
   app_unavailable: "📱 仪表板尚未设置。请让管理员为机器人设置 SITE_URL。",
@@ -392,7 +392,7 @@ Object.assign(zh, {
   btn_digest_off: "🔕 关闭每周摘要",
   btn_unlink: "🔌 断开连接",
   btn_yes_unlink: "是，断开",
-  unlink_confirm: "🔌 要断开此聊天与你的 VinExpenses 账户的连接吗？\n你的支出仍保留在应用中。",
+  unlink_confirm: "🔌 要断开此聊天与你的 ManaDuit 账户的连接吗？\n你的支出仍保留在应用中。",
   toast_undone: "已撤销 ✓", toast_moved: "已移到 {cat} ✓", toast_same: "已经是 {cat}", toast_deleted: "已删除 ✓",
   toast_saved: "已保存 ✓", toast_unavailable: "暂不可用",
 });
@@ -469,7 +469,7 @@ Object.assign(en, {
   days_title: "📅 <b>{month}</b> · daily spending",
   days_average: "📊 Average <b>{amount}</b> a day · {active} of {total} days with spending",
   budgets_view_title: "🎯 <b>Budgets</b> · {month}",
-  budgets_none: "🎯 No budgets yet. Set one in VinExpenses → Budget and it will appear here with a progress bar.",
+  budgets_none: "🎯 No budgets yet. Set one in ManaDuit → Budget and it will appear here with a progress bar.",
   budget_left: "{amount} left", budget_over_by: "{amount} over",
   hl_over: "🔴 {name} is over budget ({pct})",
   hl_near: "🟡 {name} is at {pct} of its budget",
@@ -482,7 +482,7 @@ Object.assign(ms, {
   days_title: "📅 <b>{month}</b> · perbelanjaan harian",
   days_average: "📊 Purata <b>{amount}</b> sehari · {active} daripada {total} hari berbelanja",
   budgets_view_title: "🎯 <b>Bajet</b> · {month}",
-  budgets_none: "🎯 Belum ada bajet. Tetapkan dalam VinExpenses → Bajet dan ia akan dipaparkan di sini dengan bar kemajuan.",
+  budgets_none: "🎯 Belum ada bajet. Tetapkan dalam ManaDuit → Bajet dan ia akan dipaparkan di sini dengan bar kemajuan.",
   budget_left: "{amount} berbaki", budget_over_by: "{amount} melebihi",
   hl_over: "🔴 {name} melebihi bajet ({pct})",
   hl_near: "🟡 {name} mencecah {pct} daripada bajetnya",
@@ -495,7 +495,7 @@ Object.assign(zh, {
   days_title: "📅 <b>{month}</b> · 每日支出",
   days_average: "📊 日均 <b>{amount}</b> · {total} 天中有 {active} 天有支出",
   budgets_view_title: "🎯 <b>预算</b> · {month}",
-  budgets_none: "🎯 还没有预算。在 VinExpenses → 预算 中设置后，会连同进度条显示在这里。",
+  budgets_none: "🎯 还没有预算。在 ManaDuit → 预算 中设置后，会连同进度条显示在这里。",
   budget_left: "剩余 {amount}", budget_over_by: "超出 {amount}",
   hl_over: "🔴 {name}已超出预算（{pct}）",
   hl_near: "🟡 {name}已用预算的 {pct}",

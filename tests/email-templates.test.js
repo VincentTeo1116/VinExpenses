@@ -21,22 +21,22 @@ function assertEmailSafe(html, name) {
     }
     assert.match(html, /^<!doctype html><html lang="en">/);
     assert.match(html, /role="presentation"/, `${name}: table layout`);
-    assert.match(html, /VinExpenses/);
+    assert.match(html, /ManaDuit/);
 }
 
 test('monthly report: totals, a line of plain English, category shares with bars, and an app button', async () => {
     const { reportEmail } = await templates();
     const mail = reportEmail(report({ appUrl: 'https://site.example/VinExpenses' }));
     assertEmailSafe(mail.html, 'report');
-    assert.equal(mail.subject, 'Your VinExpenses report for October 2026');
+    assert.equal(mail.subject, 'Your ManaDuit report for October 2026');
     assert.match(mail.html, /RM\s?5,200\.00/);
     assert.match(mail.html, /You kept <strong>RM\s?3,200\.00<\/strong>/);
     assert.match(mail.html, /Food<\/td>.*RM\s?1,500\.00.*· 75%/s);
     assert.match(mail.html, /width="75%"/, 'the bar is as wide as the share');
     assert.match(mail.html, /width="25%"/);
-    assert.match(mail.html, /href="https:\/\/site\.example\/VinExpenses"[^>]*>Open VinExpenses</);
+    assert.match(mail.html, /href="https:\/\/site\.example\/VinExpenses"[^>]*>Open ManaDuit</);
     assert.match(mail.html, /Unsubscribe<\/a>/);
-    assert.match(mail.text, /Open VinExpenses: https:\/\/site\.example\/VinExpenses/);
+    assert.match(mail.text, /Open ManaDuit: https:\/\/site\.example\/VinExpenses/);
     assert.match(mail.text, /Unsubscribe: https:\/\/site\.example/);
 });
 
@@ -44,7 +44,7 @@ test('monthly report: overspending, an empty month, many categories and hostile 
     const { reportEmail } = await templates();
     const over = reportEmail(report({ incomeTotal: 1000 }));
     assert.match(over.html, /You spent <strong>RM\s?1,000\.00<\/strong> more than came in/);
-    assert.ok(!/Open VinExpenses/.test(over.html), 'no button without an app address');
+    assert.ok(!/Open ManaDuit/.test(over.html), 'no button without an app address');
 
     const empty = reportEmail(report({ expenseTotal: 0, expenseCount: 0, categories: [] }));
     assert.match(empty.html, /No expenses recorded this month/);
@@ -84,7 +84,7 @@ test('sign-in emails: six templates, each with what Supabase needs, safe, and sa
     assert.deepEqual(list.map((t) => t.key).sort(), ['confirmation', 'email_change', 'invite', 'magic_link', 'reauthentication', 'recovery']);
     for (const t of list) {
         assertEmailSafe(t.html, t.key);
-        assert.ok(t.subject.includes('VinExpenses') && t.subject.length < 70, t.key);
+        assert.ok(t.subject.includes('ManaDuit') && t.subject.length < 70, t.key);
         if (['reauthentication', 'confirmation', 'recovery'].includes(t.key)) {
             // these carry a 6-digit code to type into the app, never a link
             assert.match(t.html, /\{\{ \.Token \}\}/);

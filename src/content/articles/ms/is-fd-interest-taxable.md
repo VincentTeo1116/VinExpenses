@@ -1,5 +1,5 @@
 ---
-title: Adakah Faedah Deposit Tetap Dikenakan Cukai di Malaysia? | VinExpenses
+title: Adakah Faedah Deposit Tetap Dikenakan Cukai di Malaysia? | ManaDuit
 description: Bagi kebanyakan orang yang ada FD di bank Malaysia, tidak. Apa yang dikecualikan, siapa yang tidak termasuk, dan apa yang saya boleh dan tidak boleh sahkan.
 short: Faedah FD dan cukai
 checked: 2026-11-26

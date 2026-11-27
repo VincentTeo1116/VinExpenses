@@ -41,7 +41,7 @@ const FEATURES: { icon: keyof typeof ICONS; title: string; text: string }[] = [
 ];
 
 export function WelcomePage() {
-  usePageMeta('VinExpenses: track spending, budgets, deposits and loans', 'VinExpenses is a free expense tracker for Malaysia: scan receipts, set budgets, plan fixed deposits and loans, and get reminders. No ads, no tracking.');
+  usePageMeta('ManaDuit: track spending, budgets, deposits and loans', 'ManaDuit (formerly VinExpenses) is a free expense tracker for Malaysia: scan receipts, set budgets, plan fixed deposits and loans, and get reminders. No ads, no tracking.');
   return (
     <PublicLayout
       nav={
@@ -64,7 +64,7 @@ export function WelcomePage() {
             <h1 className={styles.h1}>
               Know where your money goes, <span className={styles.shimmer}>in ringgit and sen.</span>
             </h1>
-            <p className={styles.lead}>VinExpenses tracks your spending and income, reads your receipts, keeps your budgets honest, and reminds you before a fixed deposit matures or a loan payment is due.</p>
+            <p className={styles.lead}>ManaDuit tracks your spending and income, reads your receipts, keeps your budgets honest, and reminds you before a fixed deposit matures or a loan payment is due.</p>
             <div className={styles.actions}>
               <Link className={styles.primary} to="/app">
                 Open the app
@@ -79,7 +79,7 @@ export function WelcomePage() {
           <div className={styles.stage}>
             <picture>
               <source media="(prefers-color-scheme: dark)" srcSet="/landing/dashboard-dark.webp" />
-              <img className={styles.shot} src="/landing/dashboard-light.webp" width={1280} height={800} alt="The VinExpenses home screen: this month's spending with a budget bar, income, balance and what is safe to spend today." fetchPriority="high" />
+              <img className={styles.shot} src="/landing/dashboard-light.webp" width={1280} height={800} alt="The ManaDuit home screen: this month's spending with a budget bar, income, balance and what is safe to spend today." fetchPriority="high" />
             </picture>
             <div className={`${styles.chip} ${styles.chip1}`} aria-hidden="true">
               <span className={styles.chipDot} /> Lunch <b>−RM 12.50</b>
@@ -273,6 +273,33 @@ export function WelcomePage() {
           <p className={styles.note}>
             The details, including the services that help run the app, are in the <Link to="/privacy">Privacy Policy</Link>.
           </p>
+        </div>
+      </section>
+
+      <section id="name" className={styles.section} aria-labelledby="name-title">
+        <div className={styles.wrap}>
+          <Reveal>
+            <div className={styles.story}>
+              <div className={styles.storyArt} aria-hidden="true">
+                <img src="/icons/icon-512.png" alt="" width={132} height={132} />
+              </div>
+              <div className={styles.storyText}>
+                <h2 id="name-title" className={styles.h2}>
+                  Why “ManaDuit”?
+                </h2>
+                <p>
+                  In Malay, <strong>mana duit</strong> means “where is the money?”. It is the question we all ask a few days after payday.
+                </p>
+                <p>ManaDuit answers it. Every ringgit you spend is recorded, sorted and shown on one screen, so “where did it go?” becomes “I know”.</p>
+                <ul className={styles.asks} aria-label="The same question in three languages">
+                  <li lang="ms">Duit pergi mana?</li>
+                  <li lang="en">Where did the money go?</li>
+                  <li lang="zh">钱去哪了？</li>
+                </ul>
+                <p className={styles.note}>ManaDuit was called VinExpenses before. It is the same app and the same account, with a new name.</p>
+              </div>
+            </div>
+          </Reveal>
         </div>
       </section>
 

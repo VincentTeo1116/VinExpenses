@@ -56,7 +56,7 @@ test('only a plain https address is accepted as the place to send people', () =>
     for (const good of [TARGET, `${TARGET}/`, 'https://example.com', 'https://my-app.pages.dev', 'https://localhost.test:8443']) assert.ok(validTarget(good), good);
     for (const bad of ['', undefined, 'http://example.com', 'javascript:alert(1)', 'https://example.com/path', 'https://user@example.com', 'https://example.com?x=1', '//example.com', 'https://exa mple.com', 'https://example.com"onload="x']) assert.ok(!validTarget(bad), String(bad));
     assert.throws(() => build({ target: 'http://example.com', base: BASE, out: path.join(os.tmpdir(), 'never') }), /https/);
-    assert.ok(validBase('/') && validBase('/VinExpenses/') && !validBase('VinExpenses') && !validBase('/a b/') && !validBase('//x/') && !validBase('/"/'));
+    assert.ok(validBase('/') && validBase('/VinExpenses/') && !validBase('ManaDuit') && !validBase('/a b/') && !validBase('//x/') && !validBase('/"/'));
 });
 
 test('the replacement service worker clears every cache, removes itself and reloads the open pages', () => {

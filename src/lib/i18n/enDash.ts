@@ -834,7 +834,7 @@ export const enDash = {
   'cap.dismiss': 'Dismiss',
   'cap.noShop': 'Shop not read',
   'cap.settings.title': 'Smart capture (Android)',
-  'cap.settings.sub': 'Lets VinExpenses notice payment notifications from chosen apps, such as your e-wallet and banks, and offer to record them. Only the amount, shop and date are kept, on this phone, until you add them. One-time codes, login alerts and adverts are ignored, and the notification text is never stored or sent.',
+  'cap.settings.sub': 'Lets ManaDuit notice payment notifications from chosen apps, such as your e-wallet and banks, and offer to record them. Only the amount, shop and date are kept, on this phone, until you add them. One-time codes, login alerts and adverts are ignored, and the notification text is never stored or sent.',
   'cap.status.on': 'On: payment notifications can be read.',
   'cap.status.off': 'Off: allow notification access to turn it on.',
   'cap.open': 'Open notification access settings',

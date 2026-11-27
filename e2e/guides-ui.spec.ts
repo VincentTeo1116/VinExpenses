@@ -14,7 +14,7 @@ const SIZES = [
 test('the breadcrumb is a trail: home is a link, the current page is not', async ({ page }) => {
   await page.goto('/loan-calculator');
   const trail = page.getByRole('navigation', { name: 'Breadcrumb' });
-  const home = trail.getByRole('link', { name: 'VinExpenses' });
+  const home = trail.getByRole('link', { name: 'ManaDuit' });
   await expect(home).toHaveAttribute('href', '/');
   await expect(trail.getByText('Loan calculator')).toHaveAttribute('aria-current', 'page');
   await expect(trail.getByRole('link')).toHaveCount(1);
@@ -131,7 +131,7 @@ for (const width of [1024, 1280, 1440, 1920]) {
   test(`on a ${width}px screen the store badges end on the same line as the demo picture`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
     await page.goto('/');
-    const image = await page.locator('img[alt^="The VinExpenses home screen"]').first().boundingBox();
+    const image = await page.locator('img[alt^="The ManaDuit home screen"]').first().boundingBox();
     const badges = await page.getByTestId('store-badges').first().boundingBox();
     expect(Math.abs((badges?.y ?? 0) + (badges?.height ?? 0) - ((image?.y ?? 0) + (image?.height ?? 0))), 'bottom edges, in px (the picture floats a few px)').toBeLessThanOrEqual(12);
   });

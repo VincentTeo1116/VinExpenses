@@ -10,7 +10,7 @@ export function PrivacyPage() {
       title="Privacy Policy"
       updated="Effective 24 November 2026"
       intro={
-        <>VinExpenses ("the app") is a free personal expense tracker run by Vincent Teo, an individual in Malaysia ("I", "me"). This policy explains what personal data the app handles, why, who else receives it, and what you can do about it. It is written to follow Malaysia's Personal Data Protection Act 2010 (PDPA).</>
+        <>ManaDuit (formerly VinExpenses; "the app") is a free personal expense tracker run by Vincent Teo, an individual in Malaysia ("I", "me"). This policy explains what personal data the app handles, why, who else receives it, and what you can do about it. It is written to follow Malaysia's Personal Data Protection Act 2010 (PDPA).</>
       }
       summary={[
         <>The app stores what you type into it (your account email and your money records) so it can show them back to you. Nothing else is collected about you.</>,

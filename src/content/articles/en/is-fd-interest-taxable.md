@@ -1,5 +1,5 @@
 ---
-title: Is Fixed Deposit Interest Taxable in Malaysia? | VinExpenses
+title: Is Fixed Deposit Interest Taxable in Malaysia? | ManaDuit
 description: For most people with an FD at a Malaysian bank, no. What is exempt, who it does not cover, and what I could and could not confirm.
 short: Is FD interest taxable?
 checked: 2026-11-26

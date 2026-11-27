@@ -81,7 +81,7 @@ export function ReportPage() {
   const print = () => {
     if (typeof window.print !== 'function') return toast.show('error', t('report.printNo'));
     const title = document.title;
-    document.title = `VinExpenses-${month}-report`; // becomes the default file name when saving as a PDF
+    document.title = `ManaDuit-${month}-report`; // becomes the default file name when saving as a PDF
     window.print();
     document.title = title;
   };
@@ -122,7 +122,7 @@ export function ReportPage() {
         <h1 id="report-title" className={styles.h1}>
           {t('report.title')}
         </h1>
-        <p className={styles.sub}>{monthLong} · VinExpenses</p>
+        <p className={styles.sub}>{monthLong} · ManaDuit</p>
       </header>
 
       <p className={styles.line} data-testid="report-line">

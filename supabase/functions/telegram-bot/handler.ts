@@ -84,7 +84,7 @@ const klDayStart = (instant: Date) => klWindow("day", instant);
 /** Text for places that do NOT understand HTML (button labels, pop-up toasts): no tags, no &amp; leftovers. */
 const plainText = (text: string) => stripTags(text);
 
-/** A "🔗 Open VinExpenses" button, only when the website address is configured. */
+/** A "🔗 Open ManaDuit" button, only when the website address is configured. */
 function siteRow(lang: Lang): InlineButton[][] {
   const site = cleanSiteUrl(env("SITE_URL"));
   return site ? [[{ text: tr(lang, "btn_dashboard"), web_app: { url: miniAppUrl(site) } }], [{ text: tr(lang, "btn_open"), url: site }]] : [];

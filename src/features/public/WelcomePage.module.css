@@ -652,3 +652,61 @@
 .guideRow a:active {
   transform: scale(0.96);
 }
+
+/* why the name: a friendly card with the icon, the story and the same question in three languages */
+.story {
+  display: grid;
+  gap: var(--s-6);
+  align-items: center;
+  padding: var(--s-6);
+  border-radius: var(--r-xl);
+  border: 1px solid var(--border);
+  background:
+    radial-gradient(circle at 8% 10%, color-mix(in srgb, var(--brand) 14%, transparent) 0, transparent 40%),
+    radial-gradient(circle at 96% 92%, color-mix(in srgb, #f59e0b 14%, transparent) 0, transparent 40%),
+    radial-gradient(circle, color-mix(in srgb, var(--brand) 12%, transparent) 2px, transparent 2.5px) 0 0 / 26px 26px,
+    var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+@media (min-width: 760px) {
+  .story {
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: var(--s-8, 48px);
+    padding: var(--s-8, 48px);
+  }
+}
+.storyArt img {
+  display: block;
+  margin-inline: auto;
+  border-radius: 30px;
+  box-shadow: var(--shadow-md);
+}
+.storyText {
+  display: grid;
+  gap: var(--s-3);
+  min-width: 0;
+}
+.storyText p {
+  color: var(--muted);
+  font-size: var(--fs-md);
+  line-height: 1.65;
+  max-width: 40em;
+}
+.storyText strong {
+  color: var(--text);
+}
+.asks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.asks li {
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--primary-soft);
+  color: var(--primary);
+  font-weight: 650;
+}

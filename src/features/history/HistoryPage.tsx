@@ -64,7 +64,7 @@ export function HistoryPage() {
   const exportShown = () => {
     const entries = rows.filter((entry) => !entry.row.id.startsWith('queued-'));
     if (!entries.length) return;
-    downloadCsv(entriesToCsv(entries, { category: (key) => categoryOf(key).label, payment: (key) => paymentOf(key).label }), `vinexpenses-${month || 'all'}-transactions.csv`);
+    downloadCsv(entriesToCsv(entries, { category: (key) => categoryOf(key).label, payment: (key) => paymentOf(key).label }), `manaduit-${month || 'all'}-transactions.csv`);
     toast.show('success', t('data.exported', { n: entries.length }));
   };
 

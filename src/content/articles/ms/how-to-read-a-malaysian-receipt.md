@@ -1,5 +1,5 @@
 ---
-title: Cara Baca Resit di Malaysia, Baris demi Baris | VinExpenses
+title: Cara Baca Resit di Malaysia, Baris demi Baris | ManaDuit
 description: Jumlah kecil, caj perkhidmatan, SST, penggenapan dan jumlah. Maksud setiap baris pada resit Malaysia, dan lima semakan pantas.
 short: Baca resit
 checked: 2026-11-26
@@ -53,7 +53,7 @@ Simpan gambar resit yang mungkin anda perlukan nanti: barang berwaranti, apa-apa
 
 ## Di mana aplikasi boleh bantu
 
-Menaip setiap resit ialah sebab orang berhenti. VinExpenses boleh membaca jumlah, kedai dan tarikh daripada gambar atau PDF resit, dan ia menandakan di mana ia jumpa setiap satu pada gambar. Anda sentiasa menyemak jumlah sebelum simpan. Ia masih versi beta, jadi tolong tengok apa yang diisinya.
+Menaip setiap resit ialah sebab orang berhenti. ManaDuit boleh membaca jumlah, kedai dan tarikh daripada gambar atau PDF resit, dan ia menandakan di mana ia jumpa setiap satu pada gambar. Anda sentiasa menyemak jumlah sebelum simpan. Ia masih versi beta, jadi tolong tengok apa yang diisinya.
 
 *Maklumat am. Resit berbeza dari kedai ke kedai.*
 

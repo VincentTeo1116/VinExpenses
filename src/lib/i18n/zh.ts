@@ -1,7 +1,7 @@
 import type { MessageKey } from './en';
 
 export const zh: Record<MessageKey, string> = {
-  'app.name': 'VinExpenses',
+  'app.name': 'ManaDuit',
   'app.tagline': '清楚知道每一令吉花在哪里。',
 
   'nav.home': '首页',
@@ -31,7 +31,7 @@ export const zh: Record<MessageKey, string> = {
   'state.offline': '你目前处于离线状态。你所做的更改会保存在此设备上，并在重新联网后发送。',
   'state.updateReady': '新版本已准备好。',
   'state.updateNow': '立即更新',
-  'state.installed': 'VinExpenses 现在可以离线使用。',
+  'state.installed': 'ManaDuit 现在可以离线使用。',
 
   'error.title': '出了点问题',
   'error.body': '无法显示此页面。你的数据是安全的，请重试。',
@@ -50,7 +50,7 @@ export const zh: Record<MessageKey, string> = {
   'notfound.back': '返回',
   'notfound.home': '前往应用',
 
-  'frame.blocked': '为了你的安全，VinExpenses 不会在其他网站内打开。',
+  'frame.blocked': '为了你的安全，ManaDuit 不会在其他网站内打开。',
 
   'screen.home.title': '首页',
   'screen.history.title': '记录',
@@ -58,7 +58,7 @@ export const zh: Record<MessageKey, string> = {
   'screen.account.title': '账户',
   'screen.admin.title': '管理',
   'screen.soon.title': '{screen}正在重建中',
-  'screen.soon.body': '此页面将在重建的后续步骤中推出。目前你现有的 VinExpenses 仍可正常使用。',
+  'screen.soon.body': '此页面将在重建的后续步骤中推出。目前你现有的 ManaDuit 仍可正常使用。',
 
   'add.title': '添加交易',
   'add.soon': '添加支出和收入的功能将在下一步推出。',
@@ -202,7 +202,7 @@ export const zh: Record<MessageKey, string> = {
   'setup.sameName': '请选择不同的密码。',
 
   'mfaSetup.title': '设置两步验证',
-  'mfaSetup.scan': '用验证器应用（如 Google Authenticator、Microsoft Authenticator 或 Authy）扫描此二维码。账户名称将显示为“VinExpenses”。',
+  'mfaSetup.scan': '用验证器应用（如 Google Authenticator、Microsoft Authenticator 或 Authy）扫描此二维码。账户名称将显示为“ManaDuit”。',
   'mfaSetup.qrAlt': '用验证器应用扫描的二维码',
   'mfaSetup.orType': '或将此设置密钥输入应用：',
   'mfaSetup.enter': '然后输入应用显示的 6 位数字',
@@ -911,7 +911,7 @@ export const zh: Record<MessageKey, string> = {
   'cap.dismiss': '忽略',
   'cap.noShop': '未读取到商家',
   'cap.settings.title': '智能记账（Android）',
-  'cap.settings.sub': '让 VinExpenses 识别你选定应用（如电子钱包和银行）发来的付款通知，并提示你记录。只会在这部手机上保留金额、商家和日期，直到你添加为止。一次性验证码、登录提醒和广告会被忽略，通知内容不会被保存或发送。',
+  'cap.settings.sub': '让 ManaDuit 识别你选定应用（如电子钱包和银行）发来的付款通知，并提示你记录。只会在这部手机上保留金额、商家和日期，直到你添加为止。一次性验证码、登录提醒和广告会被忽略，通知内容不会被保存或发送。',
   'cap.status.on': '已开启：可以读取付款通知。',
   'cap.status.off': '未开启：请允许通知访问权限以开启。',
   'cap.open': '打开通知访问设置',
@@ -1224,5 +1224,5 @@ export const zh: Record<MessageKey, string> = {
 
   'public.privacy': '隐私政策',
   'public.terms': '使用条款',
-  'public.welcome': '关于 VinExpenses',
+  'public.welcome': '关于 ManaDuit',
 };

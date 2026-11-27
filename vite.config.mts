@@ -157,8 +157,8 @@ export default defineConfig(({ mode }) => {
         injectRegister: false,
         registerType: 'prompt',
         manifest: {
-          name: 'VinExpenses',
-          short_name: 'VinExpenses',
+          name: 'ManaDuit',
+          short_name: 'ManaDuit',
           description: 'A simple, private expense tracker.',
           start_url: '/app/',
           scope: '/',
@@ -168,7 +168,7 @@ export default defineConfig(({ mode }) => {
           icons: [
             { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
             { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' },
-            { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+            { src: '/icons/icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
           ],
         },
         workbox: {

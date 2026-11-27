@@ -91,13 +91,13 @@ export async function handle(request: Request, connector: Connector = denoConnec
     if (typeof setup !== "string" && admin && (await takeQuota("feedback-notify", 50))) {
       await sendEmail(setup.mail, {
         to: admin,
-        subject: `VinExpenses feedback: ${TOPICS[topic]}`,
+        subject: `ManaDuit feedback: ${TOPICS[topic]}`,
         html: emailLayout({
           preheader: `New message from ${email}`, eyebrow: "Feedback", title: TOPICS[topic],
           body: `<p style="margin:0 0 14px">From <strong>${escapeHtml(email)}</strong>${user ? " (signed in)" : " (not signed in: the address is not verified)"}</p><p style="margin:0;white-space:pre-wrap">${escapeHtml(message)}</p>`,
-          footer: "Sent from the VinExpenses contact form. Open the admin screen to mark it resolved.",
+          footer: "Sent from the ManaDuit contact form. Open the admin screen to mark it resolved.",
         }),
-        text: `VinExpenses feedback: ${TOPICS[topic]}\nFrom: ${email}${user ? " (signed in)" : " (not signed in)"}\n\n${message}`,
+        text: `ManaDuit feedback: ${TOPICS[topic]}\nFrom: ${email}${user ? " (signed in)" : " (not signed in)"}\n\n${message}`,
         headers: { "Auto-Submitted": "auto-generated" },
       }, connector);
     }

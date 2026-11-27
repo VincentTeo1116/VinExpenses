@@ -308,7 +308,7 @@ test.describe('CSV (CS-01, HI-02)', () => {
     await seedRows(page, user.email, 'incomes', [{ amount: '1000.00', source: 'Bonus', created_at: isoDaysAgo(3) }]);
     await openAccount(page, 'Your data');
     const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Export everything (CSV)' }).click()]);
-    expect(download.suggestedFilename()).toMatch(/^vinexpenses-all-\d{4}-\d{2}-\d{2}\.csv$/);
+    expect(download.suggestedFilename()).toMatch(/^manaduit-all-\d{4}-\d{2}-\d{2}\.csv$/);
     const text = fs.readFileSync((await download.path()) as string, 'utf8');
     expect(text.startsWith('﻿"Date","Type","Merchant"')).toBe(true);
     expect(text).toContain(`"'=HYPERLINK(""http://x"")"`); // a spreadsheet would otherwise run it as a formula

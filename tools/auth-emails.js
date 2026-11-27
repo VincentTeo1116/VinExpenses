@@ -44,7 +44,7 @@ async function apply() {
         if (pass.length < 16) fail('SMTP_PASS must be the 16-letter Gmail app password (not your normal Gmail password).');
         Object.assign(settings, {
             smtp_host: 'smtp.gmail.com', smtp_port: '465', smtp_user: user, smtp_pass: pass,
-            smtp_admin_email: user, smtp_sender_name: 'VinExpenses',
+            smtp_admin_email: user, smtp_sender_name: 'ManaDuit',
         });
     }
 
@@ -58,7 +58,7 @@ async function apply() {
         fail(`Supabase refused the update (status ${response.status}). ${detail}`);
     }
     console.log(`✔ ${templates.length} email templates and subjects updated on project ${ref}.`);
-    console.log(user ? '✔ Sign-in emails are now sent through Gmail SMTP as "VinExpenses".'
+    console.log(user ? '✔ Sign-in emails are now sent through Gmail SMTP as "ManaDuit".'
         : 'ℹ SMTP was not changed. Set SMTP_USER and SMTP_PASS and run "apply" again to send these emails through Gmail.');
     console.log('Test it: sign up in the app with an address that is not a member of your Supabase team.');
 }

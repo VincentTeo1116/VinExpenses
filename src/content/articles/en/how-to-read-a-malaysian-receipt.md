@@ -1,5 +1,5 @@
 ---
-title: How to Read a Malaysian Receipt, Line by Line | VinExpenses
+title: How to Read a Malaysian Receipt, Line by Line | ManaDuit
 description: Subtotal, service charge, SST, rounding and total. What each line on a Malaysian receipt means, and five quick checks that catch mistakes.
 short: Reading a receipt
 checked: 2026-11-26
@@ -53,7 +53,7 @@ Keep a photo of any receipt you may need later: warranty items, anything for a c
 
 ## Where an app helps
 
-Typing every receipt is what makes people give up. VinExpenses can read the total, shop and date from a photo or a PDF of a receipt, and it marks where it found each one on the picture. You always check the amount before saving. It is a beta, so please look at what it fills in.
+Typing every receipt is what makes people give up. ManaDuit can read the total, shop and date from a photo or a PDF of a receipt, and it marks where it found each one on the picture. You always check the amount before saving. It is a beta, so please look at what it fills in.
 
 *General information. Receipts differ from shop to shop.*
 

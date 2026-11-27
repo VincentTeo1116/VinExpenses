@@ -608,7 +608,7 @@ test('month tabs: older months keep the tab, other languages work, and empty sta
     db.budgets.length = 0;
     const none = await views.buildView({ userId: A, lang: 'en', now: KL_NOW, view: 'b', offset: 0, labels: labelsOf });
     assert.deepEqual([none.kind, none.png], ['text', undefined]);
-    assert.match(none.text, /No budgets yet\. Set one in VinExpenses/);
+    assert.match(none.text, /No budgets yet\. Set one in ManaDuit/);
     for (const view of ['m', 'y']) {
         const quiet = await views.buildView({ userId: A, lang: 'en', now: KL_NOW, view, offset: 8, labels: labelsOf }); // March 2026: no entries
         assert.deepEqual([quiet.kind, quiet.hasData], ['text', false], `${view}: a month with nothing in it`);

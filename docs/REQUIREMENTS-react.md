@@ -1,4 +1,4 @@
-# VinExpenses v5 (React) — Software Requirements Specification
+# ManaDuit v5 (React) — Software Requirements Specification
 
 Status: APPROVED DECISIONS (v1.1) · Date: 23 Nov 2026 · Owner: Vincent Teo
 Priority key: **M** = must (launch), **S** = should (soon after), **C** = could (later). Every requirement has an ID and a one-line acceptance test (AT).
@@ -7,7 +7,7 @@ Priority key: **M** = must (launch), **S** = should (soon after), **C** = could 
 
 ## 1. Purpose and scope
 
-**Purpose.** Rebuild the VinExpenses front end in **React + TypeScript** with no loss of function, a stronger security posture, a modular codebase, and the same Supabase back end. The product stays a free, mobile-first personal expense tracker for Malaysia (MYR), installable as a PWA, later wrapped for Android and iPhone.
+**Purpose.** Rebuild the ManaDuit front end in **React + TypeScript** with no loss of function, a stronger security posture, a modular codebase, and the same Supabase back end. The product stays a free, mobile-first personal expense tracker for Malaysia (MYR), installable as a PWA, later wrapped for Android and iPhone.
 
 **In scope.** Web app (React), public pages, PWA, Cloudflare Pages hosting, changes to the Supabase Edge Functions only where needed, automated tests, migration plan.
 
@@ -64,7 +64,7 @@ Priority key: **M** = must (launch), **S** = should (soon after), **C** = could 
 | AU-08 | M | Same generic message for wrong email or wrong password (no account enumeration) | Responses identical |
 | AU-09 | M | **Forgot password**: code to email → new password (strong, not the old one) → all sessions signed out; admin blocks survive a reset | Old password rejected |
 | AU-10 | M | **Google sign-in**; first-time Google users set display name and a strong password before using the app | App is unreachable until set |
-| AU-11 | M | Optional **authenticator (TOTP)**: setup with QR + typed secret (account name "VinExpenses"), 6-digit confirm, **8 one-time recovery codes** shown once with copy/save | Recovery code works once |
+| AU-11 | M | Optional **authenticator (TOTP)**: setup with QR + typed secret (account name "ManaDuit"), 6-digit confirm, **8 one-time recovery codes** shown once with copy/save | Recovery code works once |
 | AU-12 | M | With the authenticator on: sign-in asks for the 6-digit code; the **database refuses password-only sessions** (restrictive RLS `mfa_ok()`); a recovery code + password turns it off | A password-only token reads no rows |
 | AU-13 | M | Turning the authenticator off needs the password | Wrong password refused |
 | AU-14 | M | Optional **Cloudflare Turnstile** on sign-in, sign-up, resend, forgot, contact; fails closed with a retry link | Missing token → clear message |

@@ -208,7 +208,7 @@ test('monthly report: Telegram is the default when linked, email is used otherwi
     const out = await res.json();
     assert.deepEqual([out.sent, out.failed, out.byChannel], [3, 0, { telegram: 2, email: 1 }]);
     assert.deepEqual(ctx.tg.sent.map((m) => m.chatId).sort(), [11, 33]);
-    assert.match(ctx.tg.sent[0].html, /Your VinExpenses report for October 2026/);
+    assert.match(ctx.tg.sent[0].html, /Your ManaDuit report for October 2026/);
     assert.deepEqual(smtp.transcript.filter((l) => l.startsWith('RCPT')), ['RCPT TO:<ben@example.com>']);
     const row = (id) => ctx.db.monthly_report_preferences.find((r) => r.user_id === id);
     assert.deepEqual([row(ctx.amy.id).last_status, row(ctx.amy.id).last_channel], ['sent', 'telegram']);

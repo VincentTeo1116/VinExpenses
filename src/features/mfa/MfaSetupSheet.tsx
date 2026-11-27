@@ -56,7 +56,7 @@ function MfaSetupBody({ open, mode = 'setup', onClose }: Props) {
       // An unfinished setup from an earlier try is cleared first, so half-made factors never pile up
       const listed = await client.auth.mfa.listFactors();
       for (const factor of listed.data?.all ?? []) if (factor.status === 'unverified') await client.auth.mfa.unenroll({ factorId: factor.id });
-      const { data, error } = await client.auth.mfa.enroll({ factorType: 'totp', friendlyName: 'VinExpenses', issuer: 'VinExpenses' });
+      const { data, error } = await client.auth.mfa.enroll({ factorType: 'totp', friendlyName: 'ManaDuit', issuer: 'ManaDuit' });
       if (error || !data) throw error ?? new Error('enroll failed');
       factorId.current = data.id;
       setQr(safeQr(data.totp.qr_code));

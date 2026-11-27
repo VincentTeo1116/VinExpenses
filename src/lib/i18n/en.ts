@@ -1,6 +1,6 @@
 // English is the source of truth. Malay and Chinese must have exactly the same keys and {placeholders} (tested).
 export const en = {
-  'app.name': 'VinExpenses',
+  'app.name': 'ManaDuit',
   'app.tagline': 'Know where every ringgit goes.',
 
   'nav.home': 'Home',
@@ -30,7 +30,7 @@ export const en = {
   'state.offline': 'You are offline. Changes you make are kept on this device and sent when you reconnect.',
   'state.updateReady': 'A new version is ready.',
   'state.updateNow': 'Update now',
-  'state.installed': 'VinExpenses can now work offline.',
+  'state.installed': 'ManaDuit can now work offline.',
 
   'error.title': 'Something went wrong',
   'error.body': 'The screen could not be shown. Your data is safe. Please try again.',
@@ -49,7 +49,7 @@ export const en = {
   'notfound.back': 'Go back',
   'notfound.home': 'Go to the app',
 
-  'frame.blocked': 'For your safety, VinExpenses does not open inside another website.',
+  'frame.blocked': 'For your safety, ManaDuit does not open inside another website.',
 
   'screen.home.title': 'Home',
   'screen.history.title': 'History',
@@ -57,7 +57,7 @@ export const en = {
   'screen.account.title': 'Account',
   'screen.admin.title': 'Admin',
   'screen.soon.title': '{screen} is being rebuilt',
-  'screen.soon.body': 'This screen arrives in a later step of the rebuild. Your current VinExpenses keeps working in the meantime.',
+  'screen.soon.body': 'This screen arrives in a later step of the rebuild. Your current ManaDuit keeps working in the meantime.',
 
 
   'lang.label': 'Language',
@@ -202,7 +202,7 @@ export const en = {
 
   // ---- authenticator setup and recovery codes ----
   'mfaSetup.title': 'Set up two-step verification',
-  'mfaSetup.scan': 'Scan this QR code with an authenticator app such as Google Authenticator, Microsoft Authenticator or Authy. The account will be named “VinExpenses”.',
+  'mfaSetup.scan': 'Scan this QR code with an authenticator app such as Google Authenticator, Microsoft Authenticator or Authy. The account will be named “ManaDuit”.',
   'mfaSetup.qrAlt': 'QR code to scan with your authenticator app',
   'mfaSetup.orType': 'Or type this setup key into the app:',
   'mfaSetup.enter': 'Then enter the 6 digits it shows',
@@ -256,7 +256,7 @@ export const en = {
 
   'public.privacy': 'Privacy Policy',
   'public.terms': 'Terms of Use',
-  'public.welcome': 'About VinExpenses',
+  'public.welcome': 'About ManaDuit',
 } as const;
 
 import type { enDash } from './enDash';

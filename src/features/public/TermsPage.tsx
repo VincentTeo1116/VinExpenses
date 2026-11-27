@@ -10,7 +10,7 @@ export function TermsPage() {
       title="Terms of Use"
       updated="Effective 24 November 2026"
       intro={
-        <>These terms are an agreement between you and Vincent Teo, an individual in Malaysia ("I", "me"), who runs VinExpenses ("the app"). By creating an account or using the app you agree to them. If you do not agree, please do not use the app.</>
+        <>These terms are an agreement between you and Vincent Teo, an individual in Malaysia ("I", "me"), who runs ManaDuit (formerly VinExpenses; "the app"). By creating an account or using the app you agree to them. If you do not agree, please do not use the app.</>
       }
       summary={[
         <>The app is free and provided as it is, by one person, without a guarantee that it is always available or free of mistakes.</>,
@@ -76,7 +76,7 @@ export function TermsPage() {
         <p>To the fullest extent the law allows, I am not liable for any indirect or consequential loss, or for loss of money, profit, data or opportunity, that arises from using or being unable to use the app, including decisions made using its figures or a reminder that did not arrive. Because the app is free, my total liability to you for any claim is limited to RM 100. Nothing in these terms removes rights that the law does not allow to be removed, including under Malaysia's consumer protection laws.</p>
       </LegalSection>
       <LegalSection id="ip" title="11. The app itself">
-        <p>The app's design, text and code belong to me or are used under licence from their authors. You receive a personal, non-transferable permission to use the app for your own finances. This does not give you rights to the name "VinExpenses" or its logo.</p>
+        <p>The app's design, text and code belong to me or are used under licence from their authors. You receive a personal, non-transferable permission to use the app for your own finances. This does not give you rights to the name "ManaDuit" or its logo.</p>
       </LegalSection>
       <LegalSection id="changes" title="12. Changes to these terms">
         <p>If these terms change in a way that matters, the new date will be shown at the top and a notice will be shown in the app or sent by email before the change takes effect. Continuing to use the app after that means you accept the new terms.</p>

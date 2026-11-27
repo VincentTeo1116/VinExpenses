@@ -66,7 +66,7 @@ export function PublicLayout({ children, nav }: { children: ReactNode; nav?: Rea
         <div className={styles.wrap}>
           <Link to="/" className={styles.brand}>
             <img src="/icons/icon-192.png" alt="" width={34} height={34} />
-            <span>VinExpenses</span>
+            <span>ManaDuit</span>
           </Link>
           <nav className={styles.nav} aria-label={ui.site}>
             {nav}
@@ -85,7 +85,7 @@ export function PublicLayout({ children, nav }: { children: ReactNode; nav?: Rea
             <div className={styles.about}>
               <Link to="/" className={styles.footBrand}>
                 <img src="/icons/icon-192.png" alt="" width={36} height={36} />
-                <span>VinExpenses</span>
+                <span>ManaDuit</span>
               </Link>
               <p className={styles.tagline}>{ui.footer.tagline}</p>
               <AuthorCredit variant="card" />
@@ -114,7 +114,7 @@ export function PublicLayout({ children, nav }: { children: ReactNode; nav?: Rea
             </nav>
           </div>
           <div className={styles.bottom}>
-            <span>© 2026 VinExpenses</span>
+            <span>© 2026 ManaDuit ({ui.footer.formerly})</span>
             <span>{ui.footer.note}</span>
           </div>
         </div>

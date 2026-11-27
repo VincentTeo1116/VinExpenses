@@ -71,7 +71,7 @@ test('singleLine removes every kind of line break', async () => {
 test('loadMailConfig: Gmail defaults, password spaces removed, unsafe settings refused', async () => {
     const { loadMailConfig } = await mod('mailer');
     const cfg = loadMailConfig((n) => ({ SMTP_USER: 'Sender@Gmail.com', SMTP_PASS: 'abcd efgh ijkl mnop' })[n]);
-    assert.deepEqual(cfg, { host: 'smtp.gmail.com', port: 465, user: 'sender@gmail.com', pass: 'abcdefghijklmnop', fromName: 'VinExpenses' });
+    assert.deepEqual(cfg, { host: 'smtp.gmail.com', port: 465, user: 'sender@gmail.com', pass: 'abcdefghijklmnop', fromName: 'ManaDuit' });
     const bad = (env) => loadMailConfig((n) => env[n]);
     assert.match(bad({}), /SMTP_USER/);
     assert.match(bad({ SMTP_USER: 'a@gmail.com' }), /SMTP_PASS/);
@@ -104,14 +104,14 @@ test('prepareMail rejects header injection and unsupported headers', async () =>
 test('buildMime: correct headers, base64 parts that decode back, non-ASCII safe', async () => {
     const { buildMime, encodeHeaderText } = await mod('smtp');
     const raw = buildMime({
-        fromAddress: 'sender@gmail.com', fromName: 'VinExpenses', to: 'person@example.com',
+        fromAddress: 'sender@gmail.com', fromName: 'ManaDuit', to: 'person@example.com',
         subject: 'Laporan Oktober – RM 1,234.50 ✅', text: 'Hello é你好', html: '<p>Hello</p>',
         headers: { 'List-Unsubscribe': '<https://x.supabase.co/functions/v1/email-action?a=unsub&t=abc>' },
         now: new Date(Date.UTC(2026, 10, 1, 1, 2, 3)),
     });
     assert.ok(!/(^|[^\r])\n/.test(raw), 'every line break is CRLF');
     const { headers, parts } = parseMessage(raw);
-    assert.equal(headers.from, '"VinExpenses" <sender@gmail.com>');
+    assert.equal(headers.from, '"ManaDuit" <sender@gmail.com>');
     assert.equal(headers.to, '<person@example.com>');
     assert.equal(headers['mime-version'], '1.0');
     assert.match(headers.date, /^Sun, 01 Nov 2026 01:02:03 \+0000$/);
@@ -145,7 +145,7 @@ test('dotStuff doubles a dot at the start of any line, and nothing else', async 
 
 // The SMTP conversation Section
 const account = { host: 'smtp.gmail.com', port: 465, user: 'sender@gmail.com', pass: 'abcdefghijklmnop' };
-const message = { fromAddress: 'sender@gmail.com', fromName: 'VinExpenses', to: 'person@example.com', subject: 'Hello', text: 'Body', html: '<b>Body</b>' };
+const message = { fromAddress: 'sender@gmail.com', fromName: 'ManaDuit', to: 'person@example.com', subject: 'Hello', text: 'Body', html: '<b>Body</b>' };
 
 test('smtp: a full successful delivery, step by step', async () => {
     const { sendSmtp } = await mod('smtp');
@@ -237,7 +237,7 @@ test('smtp: refuses other ports, bad hosts, bad credentials and unsafe messages 
 
 test('sendEmail: wraps the conversation and gives a hint instead of server text', async () => {
     const { sendEmail } = await mod('mailer');
-    const cfg = { host: 'smtp.gmail.com', port: 465, user: 'sender@gmail.com', pass: 'abcdefghijklmnop', fromName: 'VinExpenses' };
+    const cfg = { host: 'smtp.gmail.com', port: 465, user: 'sender@gmail.com', pass: 'abcdefghijklmnop', fromName: 'ManaDuit' };
     const mail = { to: 'Person@Example.com', subject: 'Hi', html: '<p>x</p>', text: 'x' };
     assert.deepEqual(await sendEmail(cfg, mail, fakeSmtp().connector), { ok: true });
     const bad = await sendEmail(cfg, mail, fakeSmtp({ reply: { auth: '535 5.7.8 nope' } }).connector);

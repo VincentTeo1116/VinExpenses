@@ -1,5 +1,5 @@
 ---
-title: SST vs Caj Perkhidmatan: Kenapa Bil Restoran Lebih Mahal | VinExpenses
+title: SST vs Caj Perkhidmatan: Kenapa Bil Restoran Lebih Mahal | ManaDuit
 description: Menu tulis RM21. Bil tulis RM24.35. Apa itu caj perkhidmatan 10%, SST 6% dan penggenapan 5 sen, dan cara semak bil anda sendiri.
 short: SST vs caj perkhidmatan
 checked: 2026-11-26
@@ -61,7 +61,7 @@ Jadi RM24.36 menjadi RM24.35. Jumlah yang berakhir dengan 0 atau 5 kekal sama. N
 3. Ambil 6% daripada jumlah kecil (tidak termasuk caj perkhidmatan). Sama dengan SST?
 4. Tambah semuanya. Jumlah akhir sepatutnya dalam lingkungan 2 sen daripada yang anda bayar.
 
-Anda juga boleh taip nombor ke dalam [kalkulator bil](/ms/bill-calculator). Aplikasi pengimbas juga boleh buat pengiraan ini untuk anda. VinExpenses membaca jumlah, kedai dan tarikh daripada gambar resit dan menunjukkan di mana ia jumpa setiap satu, jadi anda boleh semak sebelum simpan.
+Anda juga boleh taip nombor ke dalam [kalkulator bil](/ms/bill-calculator). Aplikasi pengimbas juga boleh buat pengiraan ini untuk anda. ManaDuit membaca jumlah, kedai dan tarikh daripada gambar resit dan menunjukkan di mana ia jumpa setiap satu, jadi anda boleh semak sebelum simpan.
 
 *Maklumat am, bukan nasihat cukai.*
 

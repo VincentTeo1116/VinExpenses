@@ -1,5 +1,5 @@
 ---
-title: Flat Rate vs Reducing Balance: What's the Real Difference? | VinExpenses
+title: Flat Rate vs Reducing Balance: What's the Real Difference? | ManaDuit
 description: A 3% flat rate is not a 3% loan. See how flat and reducing-balance rates differ, in ringgit, and how to compare two loan offers fairly.
 short: Flat vs reducing balance
 checked: 2026-11-26
@@ -54,4 +54,4 @@ You can try this yourself in the [loan calculator](/loan-calculator). Switch "Th
 
 *These are estimates for explanation, not financial advice. Your bank's offer and its own figures are what count.*
 
-**Sources:** worked examples calculated with the same maths as the VinExpenses loan calculator. Law change: Paultan (16 March 2026), The Star (31 May 2026).
+**Sources:** worked examples calculated with the same maths as the ManaDuit loan calculator. Law change: Paultan (16 March 2026), The Star (31 May 2026).

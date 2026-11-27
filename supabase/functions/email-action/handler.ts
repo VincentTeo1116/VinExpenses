@@ -40,7 +40,7 @@ async function doUnsubscribe(secret: string, token: string): Promise<Outcome> {
     { method: "PATCH", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ enabled: false }) },
   );
   if (!update.ok) return { ok: false, message: "Something went wrong. Try again in a minute." };
-  return { ok: true, message: "You are unsubscribed. No more VinExpenses reports will be sent to this address." };
+  return { ok: true, message: "You are unsubscribed. No more ManaDuit reports will be sent to this address." };
 }
 
 function plain(status: number, text: string): Response {

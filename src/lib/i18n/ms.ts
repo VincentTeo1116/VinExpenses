@@ -1,7 +1,7 @@
 import type { MessageKey } from './en';
 
 export const ms: Record<MessageKey, string> = {
-  'app.name': 'VinExpenses',
+  'app.name': 'ManaDuit',
   'app.tagline': 'Tahu ke mana setiap ringgit pergi.',
 
   'nav.home': 'Utama',
@@ -31,7 +31,7 @@ export const ms: Record<MessageKey, string> = {
   'state.offline': 'Anda di luar talian. Perubahan disimpan pada peranti ini dan dihantar apabila anda bersambung semula.',
   'state.updateReady': 'Versi baharu sudah sedia.',
   'state.updateNow': 'Kemas kini sekarang',
-  'state.installed': 'VinExpenses kini boleh berfungsi tanpa talian.',
+  'state.installed': 'ManaDuit kini boleh berfungsi tanpa talian.',
 
   'error.title': 'Sesuatu tidak kena',
   'error.body': 'Skrin tidak dapat dipaparkan. Data anda selamat. Sila cuba lagi.',
@@ -50,7 +50,7 @@ export const ms: Record<MessageKey, string> = {
   'notfound.back': 'Kembali',
   'notfound.home': 'Pergi ke aplikasi',
 
-  'frame.blocked': 'Demi keselamatan anda, VinExpenses tidak dibuka di dalam laman web lain.',
+  'frame.blocked': 'Demi keselamatan anda, ManaDuit tidak dibuka di dalam laman web lain.',
 
   'screen.home.title': 'Utama',
   'screen.history.title': 'Sejarah',
@@ -58,7 +58,7 @@ export const ms: Record<MessageKey, string> = {
   'screen.account.title': 'Akaun',
   'screen.admin.title': 'Admin',
   'screen.soon.title': '{screen} sedang dibina semula',
-  'screen.soon.body': 'Skrin ini akan hadir pada langkah pembinaan semula yang seterusnya. VinExpenses semasa anda terus berfungsi buat masa ini.',
+  'screen.soon.body': 'Skrin ini akan hadir pada langkah pembinaan semula yang seterusnya. ManaDuit semasa anda terus berfungsi buat masa ini.',
 
   'add.title': 'Tambah transaksi',
   'add.soon': 'Menambah perbelanjaan dan pendapatan akan hadir pada langkah seterusnya.',
@@ -202,7 +202,7 @@ export const ms: Record<MessageKey, string> = {
   'setup.sameName': 'Pilih kata laluan yang berbeza.',
 
   'mfaSetup.title': 'Sediakan pengesahan dua langkah',
-  'mfaSetup.scan': 'Imbas kod QR ini dengan aplikasi pengesah seperti Google Authenticator, Microsoft Authenticator atau Authy. Akaun akan dinamakan “VinExpenses”.',
+  'mfaSetup.scan': 'Imbas kod QR ini dengan aplikasi pengesah seperti Google Authenticator, Microsoft Authenticator atau Authy. Akaun akan dinamakan “ManaDuit”.',
   'mfaSetup.qrAlt': 'Kod QR untuk diimbas dengan aplikasi pengesah anda',
   'mfaSetup.orType': 'Atau taip kunci penyediaan ini ke dalam aplikasi:',
   'mfaSetup.enter': 'Kemudian masukkan 6 digit yang dipaparkan',
@@ -911,7 +911,7 @@ export const ms: Record<MessageKey, string> = {
   'cap.dismiss': 'Abaikan',
   'cap.noShop': 'Kedai tidak dibaca',
   'cap.settings.title': 'Tangkapan pintar (Android)',
-  'cap.settings.sub': 'Membolehkan VinExpenses mengesan pemberitahuan bayaran daripada aplikasi pilihan, seperti e-dompet dan bank anda, dan menawarkan untuk merekodkannya. Hanya jumlah, kedai dan tarikh disimpan, di telefon ini, sehingga anda menambahnya. Kod sekali guna, amaran log masuk dan iklan diabaikan, dan teks pemberitahuan tidak pernah disimpan atau dihantar.',
+  'cap.settings.sub': 'Membolehkan ManaDuit mengesan pemberitahuan bayaran daripada aplikasi pilihan, seperti e-dompet dan bank anda, dan menawarkan untuk merekodkannya. Hanya jumlah, kedai dan tarikh disimpan, di telefon ini, sehingga anda menambahnya. Kod sekali guna, amaran log masuk dan iklan diabaikan, dan teks pemberitahuan tidak pernah disimpan atau dihantar.',
   'cap.status.on': 'Hidup: pemberitahuan bayaran boleh dibaca.',
   'cap.status.off': 'Mati: benarkan akses pemberitahuan untuk menghidupkannya.',
   'cap.open': 'Buka tetapan akses pemberitahuan',
@@ -1224,5 +1224,5 @@ export const ms: Record<MessageKey, string> = {
 
   'public.privacy': 'Dasar Privasi',
   'public.terms': 'Terma Penggunaan',
-  'public.welcome': 'Tentang VinExpenses',
+  'public.welcome': 'Tentang ManaDuit',
 };

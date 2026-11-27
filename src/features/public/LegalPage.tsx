@@ -29,7 +29,7 @@ interface Props {
 }
 
 export function LegalPage({ title, updated, intro, summary, sections, other, children }: Props) {
-  usePageMeta(`${title} · VinExpenses`, title === 'Privacy Policy' ? 'How VinExpenses collects, uses, shares and protects your personal data, and the choices you have.' : 'The terms for using VinExpenses: your account, your data, estimates not advice, and acceptable use.');
+  usePageMeta(`${title} · ManaDuit`, title === 'Privacy Policy' ? 'How ManaDuit collects, uses, shares and protects your personal data, and the choices you have.' : 'The terms for using ManaDuit: your account, your data, estimates not advice, and acceptable use.');
   const [active, setActive] = useState('');
   const [top, setTop] = useState(false);
 

@@ -1,4 +1,4 @@
--- VinExpenses database schema. Run it in the Supabase SQL Editor; it is safe to run again.
+-- ManaDuit database schema. Run it in the Supabase SQL Editor; it is safe to run again.
 
 create table if not exists public.expenses (
   id uuid primary key default gen_random_uuid(),

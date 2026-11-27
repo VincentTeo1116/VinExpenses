@@ -18,7 +18,7 @@ function framed(): boolean {
 const container = document.getElementById('root');
 if (container) {
   if (framed()) {
-    container.textContent = 'For your safety, VinExpenses does not open inside another website.';
+    container.textContent = 'For your safety, ManaDuit does not open inside another website.';
     try {
       if (window.top) window.top.location.href = window.self.location.href;
     } catch {

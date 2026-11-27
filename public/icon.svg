@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="ManaDuit: a coin with eyes peeking over its edge">
+  <rect width="512" height="512" rx="112" fill="#4f46e5"/>
+  <clipPath id="shape"><rect width="512" height="512" rx="112"/></clipPath><circle cx="420" cy="100" r="150" fill="#6366f1" opacity="0.35" clip-path="url(#shape)"/>
+  <!-- the eyes, drawn first so the coin hides their lower half -->
+  <ellipse cx="198" cy="118" rx="42" ry="50" fill="#ffffff"/>
+  <ellipse cx="314" cy="118" rx="42" ry="50" fill="#ffffff"/>
+  <circle cx="212" cy="112" r="19" fill="#1e1b4b"/>
+  <circle cx="328" cy="112" r="19" fill="#1e1b4b"/>
+  <circle cx="218" cy="105" r="6" fill="#ffffff"/>
+  <circle cx="334" cy="105" r="6" fill="#ffffff"/>
+  <!-- the coin -->
+  <circle cx="256" cy="322" r="182" fill="#d97706"/>
+  <circle cx="256" cy="316" r="182" fill="#fbbf24"/>
+  <circle cx="256" cy="316" r="140" fill="#fcd34d" stroke="#d97706" stroke-width="14"/>
+  <path d="M168 250 A110 110 0 0 1 250 196" fill="none" stroke="#fff7d6" stroke-width="14" stroke-linecap="round" opacity="0.85"/>
+  <!-- "Mana?": a bold question mark -->
+  <path d="M212 280 C212 238 300 238 300 290 C300 322 256 326 256 362" fill="none" stroke="#b45309" stroke-width="30" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="256" cy="410" r="19" fill="#b45309"/>
+</svg>

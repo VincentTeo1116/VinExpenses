@@ -1,4 +1,4 @@
-# VinExpenses v5 (React): design note
+# ManaDuit v5 (React): design note
 
 Status: Phase 0 (foundation) built and verified. Later phases add screens on top of this foundation.
 Requirements: `docs/REQUIREMENTS-react.md` (IDs such as AU-04, PF-03). Decisions D-1 … D-17 are fixed there.

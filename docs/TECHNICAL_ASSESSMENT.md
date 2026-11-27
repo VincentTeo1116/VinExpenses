@@ -1,4 +1,4 @@
-# Technical Assessment: VinExpenses v5 (React + TypeScript)
+# Technical Assessment: ManaDuit v5 (React + TypeScript)
 
 Assessment date: 2026-11-24. Scope: this repository: the React app (`src/`), the Mini App and email-link pages built from it, the build and hosting rules (`vite.config.mts`, `scripts/`, `public/`), and how the app calls the Supabase back end. Method follows the earlier assessments (STRIDE, OWASP Top 10, privacy and data flow, PWA caching, performance, code quality, scorecard).
 

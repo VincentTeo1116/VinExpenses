@@ -44,11 +44,11 @@ const escape = (text: string) => text.replace(/&/g, '&amp;').replace(/"/g, '&quo
 
 /** Tags for the page shell. Social apps read these without running any script, so they are written into the HTML itself. */
 export function seoTags(siteUrl: string, image = '/landing/dashboard-light.webp'): string {
-  const title = 'VinExpenses: track spending, budgets, deposits and loans';
+  const title = 'ManaDuit: track spending, budgets, deposits and loans';
   const description = 'A free expense tracker for Malaysia: scan receipts, set budgets, plan fixed deposits and loans, and get reminders. No ads, and your records stay private.';
   const tags = [
     `<meta property="og:type" content="website" />`,
-    `<meta property="og:site_name" content="VinExpenses" />`,
+    `<meta property="og:site_name" content="ManaDuit" />`,
     `<meta property="og:title" content="${escape(title)}" />`,
     `<meta property="og:description" content="${escape(description)}" />`,
     `<meta name="twitter:card" content="summary_large_image" />`,

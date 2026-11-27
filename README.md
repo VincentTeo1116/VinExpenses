@@ -1,6 +1,6 @@
 # Smart Expense Tracker
 
-> **VinExpenses v5: React + TypeScript.** The repository root is the React app (`src/`); it also builds the Telegram Mini App (`/miniapp/`) and the email-link page (`/email-action.html`). The previous plain-JS site is kept in **`legacy/`** as a backup and still deploys to GitHub Pages until the single switch (`docs/CUTOVER.md`). The Supabase back end (`supabase/`, `supabase-schema.sql`) is shared by both.
+> **ManaDuit v5: React + TypeScript.** The repository root is the React app (`src/`); it also builds the Telegram Mini App (`/miniapp/`) and the email-link page (`/email-action.html`). The previous plain-JS site is kept in **`legacy/`** as a backup and still deploys to GitHub Pages until the single switch (`docs/CUTOVER.md`). The Supabase back end (`supabase/`, `supabase-schema.sql`) is shared by both.
 >
 > Start with: `docs/REQUIREMENTS-react.md` (what it must do) · `docs/DESIGN.md` · `docs/TRACEABILITY.md` (every requirement → code → test) · `docs/VERIFICATION.md` (what was tested, what was not, bugs found) · `docs/FALLBACKS.md` · `docs/DEPLOY-CLOUDFLARE.md` · `docs/CUTOVER.md`.
 >
@@ -398,7 +398,7 @@ To register an administrator by hand instead: run
 Use `cron.job_run_details` in the SQL Editor to inspect scheduled runs. See
 [SECURITY.md](SECURITY.md) for how the email system is protected.
 
-## 4a. Sign-in emails through Gmail, with the VinExpenses look
+## 4a. Sign-in emails through Gmail, with the ManaDuit look
 
 Sign-up confirmation, password reset and the other sign-in emails are sent by Supabase Auth, not by the
 functions. Two things make them yours: Supabase must send them through your Gmail, and it must use the styled
@@ -484,7 +484,7 @@ it; a correction is remembered for next time.
 | `/week` | **Bars** for the week (biggest day in orange, today marked, days to come faded), a day-by-day table, last-week comparison, budgets that need attention, and a 📋 Details button. |
 | `/today` | Today's total by category, plus your streak. |
 | `/top` | Top categories and places in **aligned tables**. |
-| **Buttons under every report** | `📅 Today · 📊 Week · 🗓 Month · 🏆 Top`; for the month also the tabs; `◀ Earlier / Later ▶` to page back (the tab and month are kept); `🔗 Open VinExpenses`. The report updates **in place**. |
+| **Buttons under every report** | `📅 Today · 📊 Week · 🗓 Month · 🏆 Top`; for the month also the tabs; `◀ Earlier / Later ▶` to page back (the tab and month are kept); `🔗 Open ManaDuit`. The report updates **in place**. |
 | The Monday **weekly summary** | The same week chart, with the buttons continuing from last week. |
 
 Charts are drawn by the bot itself (no chart service, nothing to pay, your numbers never leave your server). The pictures
@@ -504,7 +504,7 @@ After updating, run `node tools/set-telegram-webhook.js` again to add `/week` to
 | **➕ Add** shows **🔁 Repeat last** and your usual expenses (same place and amount logged at least twice) | One tap for the things you buy every day. |
 | Receipt photos use **one live message**: "Reading…" turns into the result | No pile of messages. |
 | Small **pop-ups** ("Moved to Food ✓", "Undone ✓") and a "typing…" indicator | Feedback for every tap. |
-| **⚙️ Settings**: language, weekly summary on/off, disconnect, and **🔗 Open VinExpenses** | Everything in one place (the open button needs the `SITE_URL` secret). |
+| **⚙️ Settings**: language, weekly summary on/off, disconnect, and **🔗 Open ManaDuit** | Everything in one place (the open button needs the `SITE_URL` secret). |
 
 If Telegram ever refuses the pretty formatting, the same message is sent as plain text, so nothing is lost. If a
 nice-to-have (reaction, chips, favourites, menu) is unavailable, the expense is still saved and the card still appears.

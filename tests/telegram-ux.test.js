@@ -438,11 +438,11 @@ test('settings: junk and stranger presses are ignored', async () => {
     assert.equal(JSON.stringify(db.telegram_links), before);
 });
 
-test('open button: "Open VinExpenses" appears on reports and settings only when SITE_URL is a clean https address', async () => {
+test('open button: "Open ManaDuit" appears on reports and settings only when SITE_URL is a clean https address', async () => {
     const withSite = await linked({ SITE_URL: 'https://me.github.io/VinExpenses/' });
     await deliver(withSite.tg, message(CHAT_A, '/month'));
     const openButtons = (m) => (m.buttons ?? []).flat().filter((b) => b.url);
-    assert.deepEqual(openButtons(withSite.tg.last()), [{ text: '🔗 Open VinExpenses', url: 'https://me.github.io/VinExpenses' }]);
+    assert.deepEqual(openButtons(withSite.tg.last()), [{ text: '🔗 Open ManaDuit', url: 'https://me.github.io/VinExpenses' }]);
     await deliver(withSite.tg, message(CHAT_A, '/today'));
     assert.equal(openButtons(withSite.tg.last()).length, 1);
     await deliver(withSite.tg, message(CHAT_A, '/top'));

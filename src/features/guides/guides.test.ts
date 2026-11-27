@@ -84,7 +84,7 @@ describe.each(LANGS)('calculator pages (%s)', (lang) => {
 describe.each(LANGS)('articles (%s)', (lang) => {
   it.each(ARTICLES)('%s is complete, short enough, and points only to pages that exist', (slug) => {
     const article = load(lang, slug);
-    expect(article.title).toContain('VinExpenses');
+    expect(article.title).toContain('ManaDuit');
     expect(article.description.length).toBeGreaterThan(30);
     expect(article.description.length, 'search results cut a long description').toBeLessThanOrEqual(lang === 'zh' ? 90 : 165);
     expect(article.title.length, 'search results cut a long title').toBeLessThanOrEqual(lang === 'zh' ? 45 : 80);
