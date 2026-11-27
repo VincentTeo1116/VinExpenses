@@ -94,7 +94,7 @@
   font-size: clamp(2rem, 9vw, 3rem);
   font-weight: 800;
   letter-spacing: -0.03em;
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: proportional-nums;
   overflow-wrap: anywhere;
 }
 .h2 {
@@ -369,7 +369,7 @@ button.catRow:hover {
 }
 .overviewBar strong {
   font-size: var(--fs-xl);
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: proportional-nums;
 }
 .search {
   min-height: var(--tap);

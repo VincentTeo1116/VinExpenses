@@ -165,6 +165,7 @@ test.describe('donut and month bars (DB-05, DB-06)', () => {
       await openHome(page);
       const centre = page.getByTestId('donut-centre');
       await expect(centre).toContainText('RM 100.00');
+      await centre.scrollIntoViewIfNeeded(); // the Split a receipt card above it can push the ring below the visible screen
       const box = (await page.getByTestId('donut-centre').boundingBox())!;
       // food is 75% of the ring, starting at the top and going clockwise, so the right-hand side of the ring is food
       await page.touchscreen.tap(box.x + box.width / 2 + (70 / 200) * box.width, box.y + box.height / 2);

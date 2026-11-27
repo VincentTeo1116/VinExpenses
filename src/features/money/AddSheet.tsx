@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent 
 import { Controller, useForm, useWatch } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import { zodResolver } from '@hookform/resolvers/zod';
+import '@/lib/zodSetup'; // zod must be set up (no eval) before any schema below is made
 import { z } from 'zod';
 import { Button } from '@/components/Button';
 import { ChipGroup } from '@/components/ChipGroup';
@@ -29,6 +30,7 @@ import { budgetFor, crossedLimit, findDuplicate, inMonth, sumCents } from './cal
 import { INCOME_SOURCES } from './taxonomy';
 import { useMoney, type AddRequest } from './MoneyContext';
 import type { Expense, Income, Kind } from './types';
+import { SplitCard } from '@/features/split/SplitCard';
 import styles from './AddSheet.module.css';
 
 const AMOUNT = /^\d{1,9}(\.\d{1,2})?$/;
@@ -365,9 +367,7 @@ function AddBody({ request, onClose }: { request: AddRequest; onClose: () => voi
                 <p id="scan-hint" className={styles.scanHint} hidden={!scanInfo}>
                   {t('scan.hint')}
                 </p>
-                <button type="button" className={styles.splitLink} data-testid="split-link" onClick={() => sheetRef.current?.close(() => navigate('/app/split'))}>
-                  {t('split.link')}
-                </button>
+                <SplitCard variant="sheet" onOpen={() => sheetRef.current?.close(() => navigate('/app/split'))} />
                 <ScanChooser
                   open={chooser}
                   onClose={() => setChooser(false)}

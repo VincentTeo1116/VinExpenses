@@ -80,7 +80,7 @@
   font-weight: 800;
   letter-spacing: -0.03em;
   line-height: 1.15;
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: proportional-nums;
   overflow-wrap: anywhere;
 }
 .overviewMeta {

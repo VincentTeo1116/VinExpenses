@@ -1,0 +1,158 @@
+/* home card */
+.wrap {
+  position: relative;
+}
+.card {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+  padding: var(--s-4) var(--s-5);
+  padding-inline-end: calc(var(--s-5) + 28px);
+  border-radius: var(--r-xl);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  color: var(--text);
+  text-decoration: none;
+}
+.card:hover {
+  border-color: var(--primary);
+}
+.card:active {
+  transform: scale(0.995);
+}
+.art {
+  flex: none;
+  width: 72px;
+  height: auto;
+}
+.paper {
+  fill: var(--surface-2);
+  stroke: var(--border);
+  stroke-width: 1.5;
+}
+.box,
+.boxOn {
+  fill: none;
+  stroke: var(--primary);
+  stroke-width: 2;
+}
+.boxOn {
+  fill: color-mix(in srgb, var(--brand) 18%, transparent);
+}
+.tick {
+  fill: none;
+  stroke: var(--primary);
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.bar {
+  fill: color-mix(in srgb, var(--muted) 38%, transparent);
+}
+.share {
+  fill: var(--brand);
+}
+.text {
+  display: grid;
+  gap: var(--s-1);
+  min-width: 0;
+}
+.title {
+  font-size: var(--fs-lg);
+  line-height: 1.3;
+}
+.body {
+  color: var(--muted);
+  font-size: var(--fs-sm);
+}
+.cta {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+  color: var(--primary);
+  font-weight: 700;
+  font-size: var(--fs-sm);
+}
+.chevron {
+  display: inline-flex;
+  transform: rotate(180deg);
+}
+.card:hover .cta .chevron {
+  transform: rotate(180deg) translateX(-3px);
+}
+.dismiss {
+  position: absolute;
+  top: var(--s-2);
+  inset-inline-end: var(--s-2);
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  color: var(--muted);
+}
+.dismiss:hover {
+  background: color-mix(in srgb, var(--muted) 14%, transparent);
+  color: var(--text);
+}
+
+/* the ticks draw themselves once; people who ask for less motion see them already drawn */
+@media (prefers-reduced-motion: no-preference) {
+  .tick {
+    stroke-dasharray: 14;
+    animation: draw 0.5s ease-out 0.35s both;
+  }
+  .tick[data-row='2'] {
+    animation-delay: 0.65s;
+  }
+  .card:hover .cta .chevron {
+    transition: transform 0.15s ease-out;
+  }
+}
+@keyframes draw {
+  from {
+    stroke-dashoffset: 14;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@media (max-width: 420px) {
+  .art {
+    width: 56px;
+  }
+  .card {
+    gap: var(--s-3);
+    padding: var(--s-3) var(--s-4);
+    padding-inline-end: calc(var(--s-4) + 24px);
+  }
+}
+
+/* the compact card inside the Add sheet */
+.sheetCard {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  width: 100%;
+  min-height: var(--tap);
+  padding: var(--s-2) var(--s-3);
+  border-radius: var(--r-md);
+  border: 1px dashed var(--border);
+  background: transparent;
+  color: var(--text);
+  text-align: start;
+}
+.sheetCard:hover {
+  border-color: var(--primary);
+  background: color-mix(in srgb, var(--brand) 6%, transparent);
+}
+.sheetText {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+}
+.sheetText small {
+  color: var(--muted);
+}

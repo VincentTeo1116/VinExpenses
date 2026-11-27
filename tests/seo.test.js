@@ -79,7 +79,16 @@ test('the built robots.txt and sitemap exist', opts, () => {
 test('every app address also exists as a real copy of the page, so hosts without rewrite rules (Workers assets) answer them', opts, () => {
     const index = fs.readFileSync(path.join(dist, 'index.html'));
     const paths = ['app', 'app/history', 'app/plan', 'app/account', 'app/admin', 'app/report', 'auth', 'auth/setup', 'welcome', 'privacy', 'terms'];
-    for (const p of paths) assert.ok(fs.readFileSync(path.join(dist, `${p}.html`)).equals(index), `${p}.html`);
+    const OWN = ['privacy', 'terms']; // these two are listed in the sitemap, so they name their own address as canonical; the rest is the same page
+    const plain = (buffer) => buffer.toString('utf8').replace(/<link rel="canonical" href="[^"]*" \/>/, '').replace(/<meta property="og:url" content="[^"]*" \/>/, '');
+    for (const p of paths) {
+      const page = fs.readFileSync(path.join(dist, `${p}.html`));
+      if (OWN.includes(p)) {
+        assert.equal(plain(page), plain(index), `${p}.html differs from the page in more than its address`);
+        assert.match(page.toString('utf8'), new RegExp(`<link rel="canonical" href="http://127\\.0\\.0\\.1:4173/${p}" />`), `${p}.html canonical`);
+        assert.match(page.toString('utf8'), new RegExp(`<meta property="og:url" content="http://127\\.0\\.0\\.1:4173/${p}" />`), `${p}.html og:url`);
+      } else assert.ok(page.equals(index), `${p}.html`);
+    }
     assert.ok(!fs.existsSync(path.join(dist, 'nothing-here.html')));
     assert.ok(fs.existsSync(path.join(dist, '404.html')));
 });

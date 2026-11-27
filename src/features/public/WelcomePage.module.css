@@ -293,7 +293,7 @@
   font-size: clamp(1.8rem, 5vw, 2.6rem);
   font-weight: 800;
   letter-spacing: -0.03em;
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: proportional-nums;
   background: linear-gradient(135deg, var(--brand), var(--brand-end));
   -webkit-background-clip: text;
   background-clip: text;

@@ -396,7 +396,7 @@
   font-size: clamp(2.2rem, 7vw, 3.1rem);
   letter-spacing: -0.035em;
   line-height: 1.05;
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: proportional-nums;
   overflow-wrap: anywhere;
 }
 .split {

@@ -28,7 +28,7 @@
   line-height: 1.2;
   font-weight: 800;
   letter-spacing: -0.02em;
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: proportional-nums;
 }
 .centre span {
   font-size: var(--fs-sm);
@@ -254,14 +254,14 @@
 }
 @media (prefers-color-scheme: dark) {
   .tip {
-    background: #e8ebf5;
-    color: #0f172a;
+    background: #e9ecf1;
+    color: #0e1116;
   }
   .tip::after {
-    border-top-color: #e8ebf5;
+    border-top-color: #e9ecf1;
   }
   .tipDotSpent {
-    background: #4f46e5;
+    background: var(--brand);
   }
   .tipDotIncome {
     background: #059669;

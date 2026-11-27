@@ -18,6 +18,7 @@ import { useMoney } from '@/features/money/MoneyContext';
 import type { Expense, Income } from '@/features/money/types';
 import { ReminderList, ReminderPopup, useReminderList } from '@/features/finance/Reminders';
 import { CaptureBanner } from '@/features/capture/CaptureInbox';
+import { SplitCard } from '@/features/split/SplitCard';
 import { Donut, TrendBars } from './charts';
 import { categoryBreakdown, compareWithLastMonth, forecastMonth, frequentMerchants, headline, insights, safeToSpend, shiftMonth, spendingPatterns, trend } from './summary';
 import styles from './DashboardPage.module.css';
@@ -377,6 +378,8 @@ export function DashboardPage({ quiet = false }: { quiet?: boolean } = {}) {
               ))}
             </div>
           ) : null}
+
+          <SplitCard variant="home" />
 
           <div className={styles.grid2}>
             <section className={styles.card} aria-labelledby="dash-cat">

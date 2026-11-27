@@ -75,6 +75,16 @@ function appPagesPlugin(siteUrl: string): Plugin {
         mkdirSync(dirname(file), { recursive: true });
         writeFileSync(file, shell);
       }
+      // privacy and terms are listed in the sitemap, so their own HTML must name their own address as canonical (the home page copy says "/")
+      if (siteUrl) {
+        for (const slug of ['privacy', 'terms']) {
+          const own = shell
+            .toString('utf8')
+            .replace(/<link rel="canonical" href="[^"]*" \/>/, `<link rel="canonical" href="${siteUrl}/${slug}" />`)
+            .replace(/<meta property="og:url" content="[^"]*" \/>/, `<meta property="og:url" content="${siteUrl}/${slug}" />`);
+          writeFileSync(join(dir, `${slug}.html`), own);
+        }
+      }
       // the public guides, in every language, get their own title, address, language tags, share image and readable text in the HTML itself
       const shareImage = (lang: string, slug: string) => (existsSync(resolve('public/share', lang, `${slug}.jpg`)) ? `/share/${lang}/${slug}.jpg` : undefined);
       for (const page of guidePages(shell.toString('utf8'), siteUrl, resolve('src/content/articles'), shareImage)) {

@@ -43,6 +43,9 @@ supabase/functions/**/.env
 # ---- Real receipts (private data, never commit; test fixtures are anonymized .txt) ----
 *.pdf
 /receipts/
+# private data for the local accuracy check (see src/features/split/accuracy.local.test.ts) and any API key files
+/.private/
+*.env
 
 # ---- Local browser-test scaffolding ----
 test.html

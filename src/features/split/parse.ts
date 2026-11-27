@@ -12,7 +12,7 @@ export interface ParsedReceipt {
 }
 
 const CONFUSED: Record<string, string> = { O: '0', o: '0', I: '1', l: '1', '|': '1', S: '5', s: '5', B: '8', Z: '2' };
-const AMOUNT = /([-=—–]\s?)?(?:RM|MYR)?\s?(\(?)(\d{1,3}(?:,\d{3})+|\d+)\.(\d{2})(?!\d)(?!\.\d)(\)?)\s?(-|CR)?/gi;
+const AMOUNT = /(?<![A-WYZa-wyz0-9])([-=—–]\s?)?(?:RM|MYR)?\s?(\(?)(\d{1,3}(?:,\d{3})+|\d+)\.(\d{2})(?!\d)(?!\.\d)(\)?)\s?(-|CR)?/gi;
 
 /** "3.5O" is 3.50 and "1O.5O" is 10.50: only a short token that is mostly digits, and only the letters that look like digits. */
 export function fixAmountToken(token: string): { value: string; changed: boolean } {
@@ -29,13 +29,28 @@ const PAYMENT = /\b(cash|tunai|tender(?:ed)?|change|baki|kembali|visa|master ?ca
 const SAVING = /saving|saved|you ?save|jimat|节省|已省/i;
 const QTY_TOTAL = /\b(total )?(qty|quantity|items?|bil\.? ?item)\b|数量|件数/i;
 const ROUNDING = /rounding|round ?adj|penggenapan|pelarasan|凑整|四舍五入/i;
-const SUBTOTAL = /sub ?-? ?total|jumlah kecil|jumlah sebelum|小计/i;
+const SUBTOTAL = /sub ?-? ?total|jumlah kecil|jumlah sebelum|小计|菜品总计|total ?sales(?! ?incl)|\(\s*ex[a-z.]*\s*tax\s*\)/i;
 const SST = /service ?tax|\bsst\b|sales ?tax|\bgst\b|\btax\b|cukai|税/i;
 const SERVICE = /service ?(charge|chg)|\bsvc\b|\bs\/c\b|caj ?perkhidmatan|服务费/i;
-const TOTAL = /\b(grand ?total|net+t? ?total|total ?(due|payable|amount)?|amount ?(due|payable)|jumlah( ?bayaran| ?besar)?|jumlah)\b|合计|总计|总额|应付/i;
+const TOTAL = /\b(grand ?total|net+t? ?total|total ?(due|payable|amount)?|amount ?(due|payable)|jumlah( ?bayaran| ?besar)?|jumlah)\b|合计|总计|总额|总数|应付/i;
 const DISCOUNT = /disc(ount)?|diskaun|potongan|promo|voucher|member|rebate|offer|off\b|减|折|优惠/i;
 const BILL_LEVEL = /voucher|member|bill|promo ?code|total disc|e-?coupon|coupon/i;
 const PERCENT = /(\d{1,3}(?:\.\d{1,2})?)\s*%/;
+
+// dates and clock times are not money: "2026.08.27" must not become an item of 8.27
+const STAMPS = [/\b\d{1,2}[:.]\d{2}\s?[ap]m\b/gi, /\b\d{4}[./-]\d{1,2}[./-]\d{1,2}\b/g, /\b\d{1,2}[./-]\d{1,2}[./-]\d{2,4}\b/g, /\b\d{1,2}[:.]\d{2}[:.]\d{2}\b/g, /\b\d{1,2}:\d{2}\b(?:\s?[ap]m\b)?/gi];
+
+/** Takes dates and times out of a row and puts right a decimal point read as a comma ("95,00") or split by a space ("4. 00"); each repair is reported. */
+export function tidyRow(original: string, repaired: { row: string; from: string; to: string }[] = []): string {
+  let row = original;
+  for (const stamp of STAMPS) row = row.replace(stamp, ' ');
+  const mend = (m: string, a: string, b: string) => {
+    repaired.push({ row: original, from: m, to: `${a}.${b}` });
+    return `${a}.${b}`;
+  };
+  row = row.replace(/(\d+)\. (\d{2})(?!\d)/g, mend).replace(/(\d+),(\d{2})(?!\d)/g, mend);
+  return row.replace(/ {2,}/g, ' ').trim();
+}
 
 interface Money {
   cents: number;
@@ -102,7 +117,7 @@ export function parseReceipt(text: string): ParsedReceipt {
   rows.forEach((original, index) => {
     if (phase === 'end') return;
     // put right letters that are plainly digits inside an amount
-    const row = original
+    const row = tidyRow(original, repaired)
       .split(' ')
       .map((token) => {
         const fixed = fixAmountToken(token);
@@ -139,18 +154,23 @@ export function parseReceipt(text: string): ParsedReceipt {
       return void ignored.push({ row: original, why: 'header' });
     }
     const amount = money[money.length - 1] as Money;
-    const perUnit = /^\W*\(?\s*(\d+\.\d{2})\s*\/\s*[A-Za-z0-9]{1,4}\s*\)?\W*$/.exec(row.replace(/[A-Za-z]{3,}/g, ''));
+    const perUnit = /^\W*\(?\s*(\d+\.\d{2})\s*\/\s*[A-Za-z0-9]{1,4}\s*\)?\W*$/.exec(row.replace(/[A-Za-z]{3,}|[一-鿿]+/g, ''));
     if (perUnit && lastItem && phase === 'items') {
       lastItem.unitCents = Math.round(Number(perUnit[1]) * 100);
       return;
     }
     // "+ extra cheese 2.00" under an item: an add-on, counted in the item's own amount unless the audit shows it is extra
-    if (/^\s*\+/.test(row) && lastItem && phase === 'items' && !DISCOUNT.test(label)) {
+    if ((/^\s*\+/.test(row) || /\+\s*(?:RM|MYR)?\s*\d+\.\d{2}\s*$/.test(row)) && lastItem && phase === 'items' && !DISCOUNT.test(label)) {
       lastItem.addonCents = (lastItem.addonCents ?? 0) + amount.cents;
       return;
     }
 
     // the totals block
+    if (ROUNDING.test(label) && amount.cents >= 200 && bill.totalCents == null) {
+      phase = 'totals';
+      bill.totalCents = amount.cents;
+      return;
+    }
     if (ROUNDING.test(label)) {
       phase = 'totals';
       roundingAmount = amount.negative ? -amount.cents : amount.cents;
@@ -158,9 +178,19 @@ export function parseReceipt(text: string): ParsedReceipt {
       bill.roundingCents = roundingAmount;
       return;
     }
+    if (/^\W*amount\W*$/i.test(label) && bill.lines.length === 0 && bill.totalCents == null) {
+      bill.totalCents = amount.cents;
+      return;
+    }
     if (SUBTOTAL.test(label)) {
       phase = 'totals';
       bill.subtotalCents = amount.cents;
+      return;
+    }
+    // "Total Sales INCL SVC TAX" is the total with the charges inside it, not a service charge or a tax
+    if (((/total/.test(lower) && /incl/.test(lower)) || /总数|总计|合计|总额|应付/.test(label)) && !DISCOUNT.test(label)) {
+      if (bill.lines.length > 0) phase = 'totals';
+      bill.totalCents = amount.cents;
       return;
     }
     if (SST.test(label) && !/total/.test(lower)) {
@@ -176,13 +206,21 @@ export function parseReceipt(text: string): ParsedReceipt {
       return;
     }
     if (TOTAL.test(label) && !DISCOUNT.test(label)) {
-      phase = 'totals';
+      if (bill.lines.length > 0) phase = 'totals';
       bill.totalCents = amount.cents;
       return;
     }
 
     // a discount: on the item above, or on the whole bill
     if (DISCOUNT.test(label) || (amount.negative && label.length < 3)) {
+      if (money.length >= 2 && lastItem && phase === 'items') {
+        const pct = (money[0] as Money).cents / 100;
+        if (pct > 0 && pct < 100 && amount.cents < lastItem.grossCents && Math.abs(percentOf(lastItem.grossCents, pct) - (lastItem.grossCents - amount.cents)) <= 2) {
+          lastItem.discountCents += lastItem.grossCents - amount.cents;
+          lastItem.discountPercent = pct;
+          return;
+        }
+      }
       // "30% off" whose amount is exactly 30% of the item above belongs to that item, whatever the row is called
       const matchesItem = Boolean(percent && lastItem && phase === 'items' && Math.abs(percentOf(lastItem.grossCents, Number(percent[1])) - amount.cents) <= 1);
       const bigger = (BILL_LEVEL.test(label) && !matchesItem) || phase === 'totals' || !lastItem;
@@ -212,6 +250,18 @@ export function parseReceipt(text: string): ParsedReceipt {
     bill.lines.push(line);
     lastItem = line;
   });
+
+  if (bill.lines.length === 0 && bill.totalCents == null) {
+    for (const row of rows) {
+      const found = moneyIn(row);
+      if (found.length !== 1) continue;
+      const rest = labelOf(row, found).replace(/[\s:()-]/g, '');
+      if (rest === '' || /^amount$/i.test(rest) || /^(jumlah|total)$/i.test(rest)) {
+        bill.totalCents = (found[0] as Money).cents;
+        break;
+      }
+    }
+  }
 
   // a printed rounding such as "0.01" has no sign: the one that makes the parts add up is the right one
   if (bill.roundingCents != null && roundingSign === 'unknown' && bill.totalCents != null) {

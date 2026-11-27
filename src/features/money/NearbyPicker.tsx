@@ -2,6 +2,7 @@
 // straight from the device to two public map services (the free ones refuse server addresses); only if neither can be reached does it go
 // through the signed-in "nearby-place" function. The person picks a place (or searches the list); nothing is filled in by itself.
 import { useEffect, useId, useState } from 'react';
+import '@/lib/zodSetup'; // zod must be set up (no eval) before any schema below is made
 import { z } from 'zod';
 import { Icon } from '@/components/Icon';
 import { useAuth } from '@/app/AuthProvider';

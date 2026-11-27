@@ -322,3 +322,86 @@ describe('SP-14 the four areas: shop, date, items, total', () => {
     expect(readReceipt('Nasi 12.00\nTotal 12.00').regions).toEqual({});
   });
 });
+
+describe('SP-05 dates, comma decimals and more subtotal wordings', () => {
+  it('a date or a clock time in a header row is not an item', () => {
+    const r = parseReceipt('Printed On: 2026.08.27 13:43:51\nReceipt Date: 2026.11.25 19:28.29\nNasi 12.00\nTotal 12.00');
+    expect(r.bill.lines.map((l) => l.grossCents)).toEqual([1200]);
+  });
+  it('a decimal point read as a comma or split by a space is put right and reported', () => {
+    const r = parseReceipt('Nasi 12.00\nSub Total (Ex) : 12. 00\nNet Total 12,00');
+    expect(r.bill.subtotalCents).toBe(1200);
+    expect(r.bill.totalCents).toBe(1200);
+    expect(r.repaired.map((x) => x.to).sort()).toEqual(['12.00', '12.00']);
+  });
+  it('a thousands comma is left alone', () => {
+    expect(parseReceipt('Set meal 1,250.00\nTotal 1,250.00').bill.totalCents).toBe(125000);
+  });
+  it('"Total Sales (Exc. Tax)" is the subtotal and a mangled "(Exe. Tax)" still is', () => {
+    expect(parseReceipt('Nasi 12.00\nTotal Sales (Exc. Tax) RM 12.00\nSST (6%) RM 0.72\nTOTAL RM 12.72').bill.subtotalCents).toBe(1200);
+    expect(parseReceipt('Nasi 12.00\nles (Exe. Tax) RM 12.00\nTOTAL RM 12.00').bill.subtotalCents).toBe(1200);
+  });
+  it('"Total Sales INCL SVC TAX" is still the total, not a subtotal', () => {
+    const r = parseReceipt('Beans 5.04\nSub-total 5.04\nTotal Sales INCL SVC TAX 5.04');
+    expect(r.bill.subtotalCents).toBe(504);
+    expect(r.bill.totalCents).toBe(504);
+  });
+});
+
+describe('SP-05 clock times, glued amounts, rounding rows and price-after-discount rows', () => {
+  it('a clock time with am or pm is not an item, however its dot was read', () => {
+    expect(parseReceipt('Date 13/10/2026 12.26PM\nNasi 12.00\nTotal 12.00').bill.lines.map((l) => l.grossCents)).toEqual([1200]);
+  });
+  it('a number stuck to letters (an address) is not an amount', () => {
+    expect(parseReceipt('N0.19,JALAN JURU U1/20\nNasi 12.00\nTotal 12.00').bill.lines.map((l) => l.grossCents)).toEqual([1200]);
+  });
+  it('an amount after an x still counts: "2x12.00"', () => {
+    expect(parseReceipt('Teh 2x3.00\nTotal 6.00').bill.lines.map((l) => l.grossCents)).toEqual([300]);
+  });
+  it('a big amount on a "Rounding" row is the total, a small one is the rounding', () => {
+    const big = parseReceipt('Shirt 29.00\nJeans 69.00\nRounding 98.00');
+    expect(big.bill.totalCents).toBe(9800);
+    expect(big.bill.roundingCents).toBeNull();
+    expect(parseReceipt('Nasi 12.01\nRounding -0.01\nTotal 12.00').bill.roundingCents).toBe(-1);
+  });
+  it('"Dis off %: 60.61  39.00" lowers the item from 99.00 to 39.00', () => {
+    const r = parseReceipt('Jacket 99.00\nDis off %: 60.61 39.00\nSub Total: 39.00\nTotal: 39.00');
+    expect(r.bill.lines).toHaveLength(1);
+    expect(r.bill.lines[0]).toMatchObject({ grossCents: 9900, discountCents: 6000 });
+    expect(audit(r.bill).status).toBe('verified');
+  });
+});
+
+describe('SP-05 payment confirmations and Chinese total words', () => {
+  it('an amount alone on a row, or after "Amount", is the total of a payment screen', () => {
+    expect(parseReceipt('Payment successful\n-RM163.92\nTransaction Type Payment').bill.totalCents).toBe(16392);
+    expect(parseReceipt('Date/Time : 3-Sep-2026\nAmount : MYR 30.80\nPayment Method : Credit Card').bill.totalCents).toBe(3080);
+  });
+  it('a receipt with items keeps its own total rules', () => {
+    expect(parseReceipt('Nasi 12.00\nTotal 12.00').bill.totalCents).toBe(1200);
+  });
+  it('总数 and 总计 are totals', () => {
+    expect(parseReceipt('1x Soup 24.90\n总数 (含 GST) RM 24.90').bill.totalCents).toBe(2490);
+  });
+});
+
+describe('SP-05 delivery-app totals, add-ons after words, and unit prices beside Chinese', () => {
+  it('a total printed above the items does not end the items', () => {
+    const r = parseReceipt('总数 (含 GST) RM 50.30\n1x Soup 24.90\n1x Dry 25.90\n3x Rice 10.50\n小计 RM 61.30\n优惠券: syok - RM 11.00\n总数 (含 GST) RM 50.30');
+    expect(r.bill.lines.map((l) => l.grossCents)).toEqual([2490, 2590, 1050]);
+    expect(r.bill.subtotalCents).toBe(6130);
+    expect(r.bill.totalCents).toBe(5030);
+    expect(audit(r.bill).status).toBe('verified');
+  });
+  it('"Cold 冷 +1.00" and "Add Noodle 加面 +2.00" belong to the item above', () => {
+    const r = parseReceipt('Pasta 虾酱 18.90\n(16.90/ea)\nAdd Noodle 加面 +2.00\nCham 4.20\nCold 冷 +1.00\nTotal 23.10');
+    expect(r.bill.lines).toHaveLength(2);
+    expect(r.bill.lines[0]?.addonCents).toBe(200);
+    expect(r.bill.lines[1]?.addonCents).toBe(100);
+  });
+  it('a unit price in brackets beside Chinese words is not an item', () => {
+    const r = parseReceipt('Pasta 18.90\n虾酱炸鸡意大利面 (16.90/ea)\nTotal 18.90');
+    expect(r.bill.lines).toHaveLength(1);
+    expect(r.bill.lines[0]?.unitCents).toBe(1690);
+  });
+});

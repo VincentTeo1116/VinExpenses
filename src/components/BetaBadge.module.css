@@ -1,0 +1,17 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  padding: 1px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--warning);
+  background: color-mix(in srgb, var(--warning) 16%, transparent);
+  color: var(--text);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  line-height: 1.5;
+  vertical-align: middle;
+  text-transform: uppercase;
+  white-space: nowrap;
+}

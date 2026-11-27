@@ -1,7 +1,8 @@
 // The frame around every signed-in screen: a sticky sidebar from 1024px up, a tab bar with a big + button below that.
-import { Suspense, useEffect } from 'react';
+import { Suspense, useEffect, useRef } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { Icon, type IconName } from '@/components/Icon';
+import { BetaBadge } from '@/components/BetaBadge';
 import { useMoney } from '@/features/money/MoneyContext';
 import { useAuth } from '@/app/AuthProvider';
 import { OfflineBanner } from '@/components/OfflineBanner';
@@ -11,6 +12,7 @@ import { useAdminStatus } from '@/features/admin/useAdmin';
 import { applyTheme, readTheme } from '@/features/account/theme';
 import { DESKTOP, useMediaQuery } from '@/lib/useMediaQuery';
 import { TourHost } from '@/features/tour/Tour';
+import { useTabIndicator } from './useTabIndicator';
 import styles from './AppShell.module.css';
 
 interface NavItem {
@@ -18,6 +20,8 @@ interface NavItem {
   end?: boolean;
   icon: IconName;
   label: MessageKey;
+  /** Shows a BETA pill. */
+  beta?: boolean;
 }
 
 const NAV: NavItem[] = [
@@ -31,7 +35,9 @@ const NAV: NavItem[] = [
 const tourName = (to: string) => (to === '/app/history' ? 'history' : to === '/app/plan' ? 'plan' : undefined);
 
 // the sidebar keeps Account in the user card at its bottom instead
-const SIDE = NAV.filter((item) => item.to !== '/app/account');
+// and it adds the split-the-bill page, which is a beta feature and has no tab on a phone (the home card and the Add sheet lead there)
+const SPLIT_ITEM: NavItem = { to: '/app/split', icon: 'receipt', label: 'nav.split', beta: true };
+const SIDE = [...NAV.filter((item) => item.to !== '/app/account'), SPLIT_ITEM];
 
 // shown only to the administrator (the server checks the role again on every admin action)
 const ADMIN_ITEM: NavItem = { to: '/app/admin', icon: 'shield', label: 'nav.admin' };
@@ -40,6 +46,7 @@ const TITLES: Record<string, MessageKey> = {
   '/app': 'screen.home.title',
   '/app/history': 'screen.history.title',
   '/app/plan': 'screen.plan.title',
+  '/app/split': 'split.title',
   '/app/account': 'screen.account.title',
   '/app/admin': 'screen.admin.title',
   '/app/report': 'report.open',
@@ -69,6 +76,9 @@ export function AppShell() {
     document.title = `${key ? t(key) : t('app.name')} · ${t('app.name')}`;
   }, [path, t]);
 
+  const barRef = useRef<HTMLElement>(null);
+  const pillRef = useRef<HTMLSpanElement>(null);
+  useTabIndicator(barRef, pillRef, path);
   const half = Math.ceil(NAV.length / 2);
   const link = (item: NavItem) => (
     <NavLink key={item.to} to={item.to} end={item.end} state={{ from: path }} data-tour={tourName(item.to)} className={({ isActive }) => `${styles.tab} ${isActive ? styles.active : ''}`}>
@@ -100,6 +110,7 @@ export function AppShell() {
             <NavLink key={item.to} to={item.to} end={item.end} data-tour={tourName(item.to)} className={({ isActive }) => `${styles.sideLink} ${isActive ? styles.active : ''}`}>
               <Icon name={item.icon} size={20} />
               <span>{t(item.label)}</span>
+              {item.beta ? <BetaBadge /> : null}
             </NavLink>
           ))}
         </nav>
@@ -131,7 +142,8 @@ export function AppShell() {
 
       <TourHost />
 
-      <nav aria-label={t('nav.main')} className={styles.tabbar}>
+      <nav ref={barRef} aria-label={t('nav.main')} className={styles.tabbar}>
+        <span ref={pillRef} className={styles.indicator} aria-hidden="true" data-hidden="" data-testid="tab-indicator" />
         {NAV.slice(0, half).map(link)}
         <button type="button" className={styles.fab} onClick={() => openAdd()} aria-label={t('nav.add')} data-tour="add">
           <Icon name="plus" size={26} />

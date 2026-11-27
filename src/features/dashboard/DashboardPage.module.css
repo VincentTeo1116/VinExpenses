@@ -133,7 +133,7 @@
   font-weight: 800;
   letter-spacing: -0.03em;
   line-height: 1.1;
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: proportional-nums;
   overflow-wrap: anywhere;
 }
 .heroBar {
@@ -191,7 +191,7 @@
 }
 .safe strong {
   font-size: var(--fs-xl);
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: proportional-nums;
 }
 .safeBad {
   background: rgba(127, 29, 29, 0.35);

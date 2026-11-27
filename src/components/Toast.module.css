@@ -51,9 +51,9 @@
 @keyframes collapse { from { grid-template-rows: 1fr; } to { grid-template-rows: 0fr; } }
 @media (min-width: 1024px) { .host { bottom: 28px; } }
 @media (prefers-color-scheme: dark) {
-  .toast { background: #e8ebf5; color: #0f172a; border-color: rgba(15, 23, 42, 0.08); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5), 0 2px 6px rgba(0, 0, 0, 0.35); }
-  .action { background: rgba(15, 23, 42, 0.08); }
-  .action:hover { background: rgba(15, 23, 42, 0.16); }
+  .toast { background: #e9ecf1; color: #0e1116; border-color: rgba(14, 17, 22, 0.08); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5), 0 2px 6px rgba(0, 0, 0, 0.35); }
+  .action { background: rgba(14, 17, 22, 0.08); }
+  .action:hover { background: rgba(14, 17, 22, 0.16); }
 }
 
 /* ---- the dot: pops in, sends out one soft ring, and (for success) draws its tick ---- */

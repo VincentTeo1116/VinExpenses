@@ -2,6 +2,7 @@
 import { useMemo, useState, type FormEvent } from 'react';
 import { Controller, useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import '@/lib/zodSetup'; // zod must be set up (no eval) before any schema below is made
 import { z } from 'zod';
 import { Button } from '@/components/Button';
 import { CatIcon } from '@/components/CatIcon';

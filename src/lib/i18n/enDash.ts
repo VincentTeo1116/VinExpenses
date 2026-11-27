@@ -920,5 +920,13 @@ export const enDash = {
   'split.photo.area.date': 'Date',
   'split.photo.area.items': 'Items',
   'split.photo.area.total': 'Total',
+  'beta.label': 'Beta',
+  'nav.split': 'Split a bill',
+  'split.card.title': 'Split a receipt',
+  'split.card.body': 'Scan it, tick what you had, and get your share.',
+  'split.card.cta': 'Start splitting',
+  'split.card.hide': 'Hide this card',
+  'split.card.hidden': 'Hidden. You can still find it in the + menu.',
+  'split.beta': 'Beta: we read most receipts, but please check each row. The status below tells you whether the bill adds up.',
   'split.privacy': 'The photo is read by the receipt reader and is not kept. Nothing from this page is saved until you add the expense.',
 } as const;

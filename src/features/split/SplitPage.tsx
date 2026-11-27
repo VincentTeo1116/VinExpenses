@@ -2,6 +2,7 @@
 import { useMemo, useRef, useState, type ChangeEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/app/AuthProvider';
+import { BetaBadge } from '@/components/BetaBadge';
 import { Button } from '@/components/Button';
 import { Icon } from '@/components/Icon';
 import { Notice } from '@/components/Notice';
@@ -154,8 +155,11 @@ export function SplitPage() {
       <Link to="/app" className={styles.back}>
         <Icon name="back" size={18} /> {t('split.back')}
       </Link>
-      <h1 className={styles.h1}>{t('split.title')}</h1>
+      <h1 className={styles.h1}>
+        {t('split.title')} <BetaBadge />
+      </h1>
       <p className={styles.intro}>{t('split.intro')}</p>
+      <Notice kind="info">{t('split.beta')}</Notice>
 
       <div className={styles.sources}>
         <input ref={fileInput} type="file" accept="image/jpeg,image/png,image/webp,application/pdf" className={styles.hidden} tabIndex={-1} aria-hidden="true" data-testid="split-file" onChange={onFile} />
