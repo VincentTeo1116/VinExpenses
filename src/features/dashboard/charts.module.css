@@ -253,19 +253,33 @@
   }
 }
 @media (prefers-color-scheme: dark) {
-  .tip {
+  :global(:root:not([data-mode='light'])) .tip {
     background: #e9ecf1;
     color: #0e1116;
   }
-  .tip::after {
+  :global(:root:not([data-mode='light'])) .tip::after {
     border-top-color: #e9ecf1;
   }
-  .tipDotSpent {
+  :global(:root:not([data-mode='light'])) .tipDotSpent {
     background: var(--brand);
   }
-  .tipDotIncome {
+  :global(:root:not([data-mode='light'])) .tipDotIncome {
     background: #059669;
   }
+}
+/* Account > Appearance > Dark on a device set to light: the same look */
+:global(:root[data-mode='dark']) .tip {
+  background: #e9ecf1;
+  color: #0e1116;
+}
+:global(:root[data-mode='dark']) .tip::after {
+  border-top-color: #e9ecf1;
+}
+:global(:root[data-mode='dark']) .tipDotSpent {
+  background: var(--brand);
+}
+:global(:root[data-mode='dark']) .tipDotIncome {
+  background: #059669;
 }
 @media (prefers-reduced-motion: reduce) {
   .centre,

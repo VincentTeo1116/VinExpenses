@@ -9,7 +9,7 @@ import { OfflineBanner } from '@/components/OfflineBanner';
 import { ErrorBoundary } from '@/app/ErrorBoundary';
 import { useI18n, type MessageKey } from '@/lib/i18n';
 import { useAdminStatus } from '@/features/admin/useAdmin';
-import { applyTheme, readTheme } from '@/features/account/theme';
+import { applyMode, applyTheme, readMode, readTheme } from '@/features/account/theme';
 import { DESKTOP, useMediaQuery } from '@/lib/useMediaQuery';
 import { TourHost } from '@/features/tour/Tour';
 import { AnnouncementHost } from '@/features/announce/AnnouncementHost';
@@ -64,7 +64,11 @@ export function AppShell() {
   const userId = session?.user?.id;
   useEffect(() => {
     applyTheme(readTheme(userId));
-    return () => applyTheme('blue');
+    applyMode(readMode(userId));
+    return () => {
+      applyTheme('blue');
+      applyMode('auto'); // the public pages and the sign-in page keep following the device
+    };
   }, [userId]);
   const path = location.pathname.replace(/\/+$/, '') || '/app';
   // On a phone or tablet Account is a pop-up over Home, so Home keeps its own screen (no rebuild, no replayed animations) when it opens and closes

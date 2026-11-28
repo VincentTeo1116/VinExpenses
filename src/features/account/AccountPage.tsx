@@ -17,7 +17,8 @@ import { ContactSheet } from '@/features/contact/LazyContactSheet';
 import { MfaSetupSheet } from '@/features/mfa/MfaSetupSheet';
 import { useAuth } from '@/app/AuthProvider';
 import { useI18n, type MessageKey } from '@/lib/i18n';
-import { applyTheme, readTheme, saveTheme, THEMES, type Theme } from './theme';
+import { applyMode, applyTheme, readMode, readTheme, saveMode, saveTheme, THEMES, type Mode, type Theme } from './theme';
+import { AppearancePicker } from './AppearancePicker';
 import { gate } from '@/features/auth/gate';
 import { replyText } from '@/features/auth/replyText';
 import { changePasswordSchema, disableMfaSchema } from '@/features/auth/schemas';
@@ -59,6 +60,7 @@ export function AccountPage() {
   const [section, setSection] = useState<Section | null>(null);
   const [confirmOut, setConfirmOut] = useState(false);
   const [theme, setThemeState] = useState<Theme>(() => readTheme(session?.user?.id));
+  const [mode, setModeState] = useState<Mode>(() => readMode(session?.user?.id));
   const { isAdmin } = useAdminStatus();
   const desktop = useMediaQuery(DESKTOP);
   const [current, setCurrent] = useState('acc-profile');
@@ -82,6 +84,11 @@ export function AccountPage() {
     setThemeState(next);
     saveTheme(user?.id, next);
     applyTheme(next);
+  };
+  const pickMode = (next: Mode) => {
+    setModeState(next);
+    saveMode(user?.id, next);
+    applyMode(next);
   };
 
   // on a computer the side menu follows the reading position: the last card whose top has passed the upper part of the window
@@ -145,6 +152,7 @@ export function AccountPage() {
               ))}
             </div>
           </fieldset>
+          <AppearancePicker mode={mode} onPick={pickMode} />
         </PreferencesCard>
 
         <SecurityCard />

@@ -105,7 +105,7 @@ test('the sitemap is plain, indented XML listing the public pages, and the brows
   expect(res.headers()['content-security-policy']).toBeUndefined();
   const xml = await res.text();
   expect(xml).toMatch(/^<\?xml version="1.0" encoding="UTF-8"\?>\n<urlset xmlns="http:\/\/www.sitemaps.org\/schemas\/sitemap\/0.9">\n {2}<url>\n {4}<loc>/);
-  expect([...xml.matchAll(/<loc>(.*?)<\/loc>/g)].map((m) => new URL(m[1] as string).pathname)).toEqual(['/', ...GUIDE_PATHS, '/privacy', '/terms']);
+  expect([...xml.matchAll(/<loc>(.*?)<\/loc>/g)].map((m) => new URL(m[1] as string).pathname)).toEqual(['/', ...GUIDE_PATHS, '/privacy', '/terms', '/install']);
   const problems: string[] = [];
   page.on('console', (m) => { if (m.type() === 'error') problems.push(m.text()); });
   await page.goto('/sitemap.xml');

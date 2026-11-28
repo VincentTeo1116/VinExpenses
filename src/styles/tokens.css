@@ -72,8 +72,12 @@
   --z-announce: 5000; /* the announcement pop-up: above toasts, the tour and every other pop-up */
 }
 
+/* Account > Appearance > Light on a device set to dark: use the light palette and light form controls */
+:root[data-mode='light'] {
+  color-scheme: light;
+}
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-mode='light']) {
     color-scheme: dark;
     /* Graphite, not navy: surfaces step up in lightness (page, card, raised) with a fine border, the accent is one calm cobalt,
        and the only glow is a faint accent wash at the top. Each colour theme below tints these greys toward its own accent. */
@@ -109,6 +113,42 @@
     --ambient-c: rgba(63, 110, 235, 0.04);
   }
 }
+/* Account > Appearance > Dark: the same palette whatever the device says. Keep it identical to the block above (tokens.test.ts checks). */
+:root[data-mode='dark'] {
+  color-scheme: dark;
+  /* Graphite, not navy: surfaces step up in lightness (page, card, raised) with a fine border, the accent is one calm cobalt,
+     and the only glow is a faint accent wash at the top. Each colour theme below tints these greys toward its own accent. */
+  --brand: #2956d9;
+  --brand-600: #2148b8;
+  --brand-end: #3367ec;
+  --primary: #8fb1ff;
+  --primary-soft: rgba(143, 177, 255, 0.14);
+  --bg: #0e1116;
+  --surface: #161b22;
+  --surface-2: #1e252e;
+  --border: #2b333d;
+  --text: #e9ecf1;
+  --muted: #98a2b0;
+  --success: #34d399;
+  --success-text: #34d399;
+  --success-soft: rgba(52, 211, 153, 0.14);
+  --danger: #f87171;
+  --danger-text: #fca5a5;
+  --danger-solid: #b91c1c;
+  --danger-soft: rgba(248, 113, 113, 0.14);
+  --warning: #fbbf24;
+  --warning-soft: rgba(251, 191, 36, 0.14);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 24px 60px rgba(0, 0, 0, 0.6);
+  --glass-sheet: rgba(22, 27, 34, 0.97);
+  --glass-edge: rgba(255, 255, 255, 0.08);
+  --glass-rim: rgba(255, 255, 255, 0.12);
+  --bar-shadow: 0 12px 30px rgba(0, 0, 0, 0.4);
+  --ambient-a: rgba(63, 110, 235, 0.1);
+  --ambient-b: transparent;
+  --ambient-c: rgba(63, 110, 235, 0.04);
+}
 
 /* Colour themes (Account > Colour theme). Blue is the base above; light and dark still follow the device. */
 :root[data-theme='pink'] {
@@ -133,7 +173,7 @@
   --primary-soft: rgba(4, 120, 87, 0.12);
 }
 @media (prefers-color-scheme: dark) {
-  :root[data-theme='pink'] {
+  :root:not([data-mode='light'])[data-theme='pink'] {
     --brand: #b5266f;
     --brand-600: #951d5a;
     --brand-end: #c43581;
@@ -149,7 +189,7 @@
     --ambient-a: rgba(196, 53, 129, 0.09);
     --ambient-c: rgba(196, 53, 129, 0.035);
   }
-  :root[data-theme='orange'] {
+  :root:not([data-mode='light'])[data-theme='orange'] {
     --brand: #c2410c;
     --brand-600: #9a3412;
     --brand-end: #c94a0d;
@@ -165,7 +205,7 @@
     --ambient-a: rgba(201, 74, 13, 0.08);
     --ambient-c: rgba(201, 74, 13, 0.03);
   }
-  :root[data-theme='green'] {
+  :root:not([data-mode='light'])[data-theme='green'] {
     --brand: #0a7a56;
     --brand-600: #065f46;
     --brand-end: #0c8260;
@@ -181,4 +221,53 @@
     --ambient-a: rgba(12, 130, 96, 0.09);
     --ambient-c: rgba(12, 130, 96, 0.035);
   }
+}
+/* Account > Appearance > Dark: the same palette whatever the device says. Keep it identical to the block above (tokens.test.ts checks). */
+:root[data-mode='dark'][data-theme='pink'] {
+  --brand: #b5266f;
+  --brand-600: #951d5a;
+  --brand-end: #c43581;
+  --primary: #f4a6cb;
+  --primary-soft: rgba(244, 166, 203, 0.15);
+  --bg: #130f13;
+  --surface: #1b161b;
+  --surface-2: #251e25;
+  --border: #352b35;
+  --text: #f1eaef;
+  --muted: #ad9fab;
+  --glass-sheet: rgba(27, 22, 27, 0.97);
+  --ambient-a: rgba(196, 53, 129, 0.09);
+  --ambient-c: rgba(196, 53, 129, 0.035);
+}
+:root[data-mode='dark'][data-theme='orange'] {
+  --brand: #c2410c;
+  --brand-600: #9a3412;
+  --brand-end: #c94a0d;
+  --primary: #ffb97a;
+  --primary-soft: rgba(255, 185, 122, 0.15);
+  --bg: #14110d;
+  --surface: #1d1914;
+  --surface-2: #27211a;
+  --border: #382f24;
+  --text: #f2ede6;
+  --muted: #b3a798;
+  --glass-sheet: rgba(29, 25, 20, 0.97);
+  --ambient-a: rgba(201, 74, 13, 0.08);
+  --ambient-c: rgba(201, 74, 13, 0.03);
+}
+:root[data-mode='dark'][data-theme='green'] {
+  --brand: #0a7a56;
+  --brand-600: #065f46;
+  --brand-end: #0c8260;
+  --primary: #7fe3b8;
+  --primary-soft: rgba(127, 227, 184, 0.15);
+  --bg: #0d1210;
+  --surface: #151b18;
+  --surface-2: #1d2622;
+  --border: #2a3631;
+  --text: #e7eee9;
+  --muted: #9bada2;
+  --glass-sheet: rgba(21, 27, 24, 0.97);
+  --ambient-a: rgba(12, 130, 96, 0.09);
+  --ambient-c: rgba(12, 130, 96, 0.035);
 }

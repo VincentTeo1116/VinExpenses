@@ -110,6 +110,7 @@ Tests: `src/**/*.test.ts(x)` (unit/component, Vitest) · `e2e/*.spec.ts` (browse
 | PU-04 email action page | Verified | `email-action.html`, `src/email-action/main.ts` | `emailaction.spec.ts` |
 | PU-05 hide built files from direct typing | **Not built** | | optional (Should); cosmetic |
 | PU-06 install page: steps for Android, iPhone and computer; one-tap button only when the browser offers it; shows "installed" inside the app; honest offline note | Verified in the browser (axe light and dark, three device tabs, simulated install offer); **the real install dialog was not run on a phone** | `features/public/InstallPage.tsx`, `app/install.ts` | `install.spec.ts` |
+| AC-07 appearance: Auto / Light / Dark slider under the colour theme; Light and Dark override the device inside the signed-in app only, remembered per device and account, work with every colour theme | Verified in the browser (forced dark on a light device and the reverse, all four colour themes, keyboard, axe light and dark, three languages); **not run on a real phone** | `features/account/AppearancePicker.tsx`, `theme.ts`, `styles/tokens.css` | `appearance.spec.ts`, `tokens.test.ts` |
 | PF-01 PWA | Partly | `vite-plugin-pwa`, `pwa.ts` | `fallback.spec.ts`; **install and update prompts were not run on a real device** |
 | PF-02 light/dark, reduced motion, MYR, date format | Verified | `tokens.css`, `format` | every a11y scan runs in both themes |
 | PF-03 sheets, toasts, stacking | Verified | `Sheet`, `sheetStack`, `Toast` | `Sheet.test.tsx`, `a11y.spec.ts` |
