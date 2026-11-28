@@ -73,7 +73,7 @@ export function WelcomePage() {
                 See what it does
               </a>
             </div>
-            <p className={styles.note}>Works in your browser on phone and computer. Add it to your home screen to use it like an app.</p>
+            <p className={styles.note}>Works in your browser on phone and computer. <Link to="/install">Add it to your home screen</Link> to use it like an app, even offline.</p>
             <StoreBadges />
           </div>
           <div className={styles.stage}>

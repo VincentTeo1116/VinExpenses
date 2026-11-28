@@ -20,15 +20,15 @@ test('only a plain web address is accepted as the site address', async () => {
 test('robots.txt allows the public pages, keeps the private ones out, and names the sitemap only when the address is known', async () => {
     const { robotsTxt } = await load();
     const withSite = robotsTxt('https://vin.pages.dev');
-    for (const line of ['Allow: /$', 'Allow: /privacy$', 'Allow: /terms$', 'Allow: /fd-calculator$', 'Allow: /loan-calculator$', 'Allow: /bill-calculator$', 'Allow: /ms/fd-calculator$', 'Allow: /zh/how-to-read-a-malaysian-receipt$', 'Disallow: /app/', 'Disallow: /auth', 'Disallow: /miniapp/', 'Disallow: /email-action.html', 'Sitemap: https://vin.pages.dev/sitemap.xml']) assert.ok(withSite.includes(line), line);
+    for (const line of ['Allow: /$', 'Allow: /privacy$', 'Allow: /terms$', 'Allow: /install$', 'Allow: /fd-calculator$', 'Allow: /loan-calculator$', 'Allow: /bill-calculator$', 'Allow: /ms/fd-calculator$', 'Allow: /zh/how-to-read-a-malaysian-receipt$', 'Disallow: /app/', 'Disallow: /auth', 'Disallow: /miniapp/', 'Disallow: /email-action.html', 'Sitemap: https://vin.pages.dev/sitemap.xml']) assert.ok(withSite.includes(line), line);
     assert.ok(!robotsTxt('').includes('Sitemap:'));
 });
 
-test('the sitemap lists exactly the public pages: the welcome page, every guide in every language, privacy and terms', async () => {
+test('the sitemap lists exactly the public pages: the welcome page, every guide in every language, privacy, terms and install', async () => {
     const { sitemapXml } = await load();
     const { GUIDE_PATHS } = await registry();
     const xml = sitemapXml('https://vin.pages.dev', '2026-11-24');
-    assert.deepEqual([...xml.matchAll(/<loc>(.*?)<\/loc>/g)].map((m) => m[1]), ['https://vin.pages.dev/', ...GUIDE_PATHS.map((p) => `https://vin.pages.dev${p}`), 'https://vin.pages.dev/privacy', 'https://vin.pages.dev/terms']);
+    assert.deepEqual([...xml.matchAll(/<loc>(.*?)<\/loc>/g)].map((m) => m[1]), ['https://vin.pages.dev/', ...GUIDE_PATHS.map((p) => `https://vin.pages.dev${p}`), 'https://vin.pages.dev/privacy', 'https://vin.pages.dev/terms', 'https://vin.pages.dev/install']);
     assert.equal(GUIDE_PATHS.length, 21);
     assert.ok(!/\/app|\/auth/.test(xml));
 });
@@ -43,7 +43,7 @@ test('the sitemap is readable, indented XML with a change hint for each public p
     const xml = sitemapXml('https://vin.pages.dev', '2026-11-24');
     assert.ok(xml.startsWith('<?xml version="1.0" encoding="UTF-8"?>' + String.fromCharCode(10) + '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' + String.fromCharCode(10) + '  <url>' + String.fromCharCode(10)));
     assert.ok(xml.includes(['  <url>', '    <loc>https://vin.pages.dev/</loc>', '    <lastmod>2026-11-24</lastmod>', '    <changefreq>weekly</changefreq>', '    <priority>1.0</priority>', '  </url>'].join(String.fromCharCode(10))));
-    assert.equal([...xml.matchAll(/<url>/g)].length, 24);
+    assert.equal([...xml.matchAll(/<url>/g)].length, 25);
     assert.ok(!xml.includes('xml-stylesheet'), 'XSLT is gone from browsers, so no stylesheet is linked');
 });
 
@@ -78,8 +78,8 @@ test('the built robots.txt and sitemap exist', opts, () => {
 
 test('every app address also exists as a real copy of the page, so hosts without rewrite rules (Workers assets) answer them', opts, () => {
     const index = fs.readFileSync(path.join(dist, 'index.html'));
-    const paths = ['app', 'app/history', 'app/plan', 'app/account', 'app/admin', 'app/report', 'auth', 'auth/setup', 'welcome', 'privacy', 'terms'];
-    const OWN = ['privacy', 'terms']; // these two are listed in the sitemap, so they name their own address as canonical; the rest is the same page
+    const paths = ['app', 'app/history', 'app/plan', 'app/account', 'app/admin', 'app/report', 'auth', 'auth/setup', 'welcome', 'privacy', 'terms', 'install'];
+    const OWN = ['privacy', 'terms', 'install']; // these two are listed in the sitemap, so they name their own address as canonical; the rest is the same page
     const plain = (buffer) => buffer.toString('utf8').replace(/<link rel="canonical" href="[^"]*" \/>/, '').replace(/<meta property="og:url" content="[^"]*" \/>/, '');
     for (const p of paths) {
       const page = fs.readFileSync(path.join(dist, `${p}.html`));

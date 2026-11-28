@@ -4,6 +4,9 @@ import '@/styles/tokens.css';
 import '@/styles/base.css';
 import { App } from '@/app/App';
 import { registerServiceWorker } from '@/app/pwa';
+import { listenForInstall } from '@/app/install';
+
+listenForInstall();
 
 // SEC: clickjacking guard. The headers already forbid framing; this covers hosts that cannot send them.
 // A page inside another site shows nothing but a short notice and never renders the app.

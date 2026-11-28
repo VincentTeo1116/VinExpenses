@@ -49,7 +49,7 @@ test('the headers file forbids framing everywhere except the Mini App, which onl
 
 test('every app address is a real page in the build, and no rewrite rule exists (a rewrite to /index.html is turned into a redirect to / on Cloudflare)', opts, () => {
     assert.ok(!fs.existsSync(path.join(dist, '_redirects')), 'there must be no _redirects file');
-    const pages = ['app', 'app/history', 'app/plan', 'app/account', 'app/admin', 'app/report', 'auth', 'auth/setup', 'welcome', 'privacy', 'terms'];
+    const pages = ['app', 'app/history', 'app/plan', 'app/account', 'app/admin', 'app/report', 'auth', 'auth/setup', 'welcome', 'privacy', 'terms', 'install'];
     for (const page of pages) assert.ok(fs.existsSync(path.join(dist, page + '.html')), page + '.html is missing from the build');
     for (const page of ['app/nope', 'history', 'plan', 'account']) assert.ok(!fs.existsSync(path.join(dist, page + '.html')), page + '.html must not exist (it would not be a 404)');
 });

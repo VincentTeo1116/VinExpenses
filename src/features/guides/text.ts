@@ -25,7 +25,7 @@ export interface UiText {
   checked: (date: string) => string;
   articleCta: { title: string; text: string };
   site: string;
-  footer: { aria: string; tagline: string; note: string; brand: string; formerly: string; calculators: string; guides: string; legal: string; about: string; contact: string; privacy: string; terms: string };
+  footer: { aria: string; tagline: string; note: string; brand: string; formerly: string; calculators: string; guides: string; legal: string; about: string; install: string; contact: string; privacy: string; terms: string };
   names: Record<string, string>;
   consent: { aria: string; text: string; details: string; yes: string; no: string };
   calc: CalcText;
@@ -49,7 +49,7 @@ const en: UiText = {
   checked: (date) => `Last checked ${date}`,
   articleCta: { title: 'Try ManaDuit', text: 'A free expense tracker for Malaysia. Scan receipts, set budgets and keep track of your deposits and loans. No ads.' },
   site: 'Site',
-  footer: { aria: 'Footer', tagline: 'A free expense tracker for Malaysia. No ads, and your records stay private.', note: 'Calculators give estimates, not financial advice.', brand: 'ManaDuit', formerly: 'formerly VinExpenses', calculators: 'Calculators', guides: 'Guides', legal: 'Legal', about: 'About', contact: 'Contact', privacy: 'Privacy Policy', terms: 'Terms of Use' },
+  footer: { aria: 'Footer', tagline: 'A free expense tracker for Malaysia. No ads, and your records stay private.', note: 'Calculators give estimates, not financial advice.', brand: 'ManaDuit', formerly: 'formerly VinExpenses', calculators: 'Calculators', guides: 'Guides', legal: 'Legal', about: 'About', install: 'Install the app', contact: 'Contact', privacy: 'Privacy Policy', terms: 'Terms of Use' },
   names: { 'fd-calculator': 'FD calculator', 'loan-calculator': 'Loan calculator', 'bill-calculator': 'Bill calculator', 'flat-rate-vs-reducing-balance': 'Flat vs reducing balance', 'sst-vs-service-charge': 'SST vs service charge', 'is-fd-interest-taxable': 'Is FD interest taxable?', 'how-to-read-a-malaysian-receipt': 'Reading a receipt' },
   consent: { aria: 'Analytics choice', text: 'May I count visits to these public pages with Google Analytics? It is never used inside the app, and there are no ads.', details: 'Details', yes: 'Yes, that is fine', no: 'No thanks' },
   calc: {
@@ -77,7 +77,7 @@ const ms: UiText = {
   checked: (date) => `Disemak kali terakhir ${date}`,
   articleCta: { title: 'Cuba ManaDuit', text: 'Penjejak perbelanjaan percuma untuk Malaysia. Imbas resit, tetapkan bajet dan jejak deposit serta pinjaman anda. Tiada iklan.' },
   site: 'Laman',
-  footer: { aria: 'Pautan bawah', tagline: 'Penjejak perbelanjaan percuma untuk Malaysia. Tiada iklan, dan rekod anda kekal peribadi.', note: 'Kalkulator memberi anggaran, bukan nasihat kewangan.', brand: 'ManaDuit', formerly: 'sebelum ini VinExpenses', calculators: 'Kalkulator', guides: 'Panduan', legal: 'Perundangan', about: 'Tentang', contact: 'Hubungi', privacy: 'Dasar Privasi', terms: 'Terma Penggunaan' },
+  footer: { aria: 'Pautan bawah', tagline: 'Penjejak perbelanjaan percuma untuk Malaysia. Tiada iklan, dan rekod anda kekal peribadi.', note: 'Kalkulator memberi anggaran, bukan nasihat kewangan.', brand: 'ManaDuit', formerly: 'sebelum ini VinExpenses', calculators: 'Kalkulator', guides: 'Panduan', legal: 'Perundangan', about: 'Tentang', install: 'Pasang aplikasi', contact: 'Hubungi', privacy: 'Dasar Privasi', terms: 'Terma Penggunaan' },
   names: { 'fd-calculator': 'Kalkulator FD', 'loan-calculator': 'Kalkulator pinjaman', 'bill-calculator': 'Kalkulator bil', 'flat-rate-vs-reducing-balance': 'Kadar rata vs baki berkurangan', 'sst-vs-service-charge': 'SST vs caj perkhidmatan', 'is-fd-interest-taxable': 'Faedah FD dan cukai', 'how-to-read-a-malaysian-receipt': 'Baca resit' },
   consent: { aria: 'Pilihan analitik', text: 'Boleh saya kira lawatan ke halaman awam ini dengan Google Analytics? Ia tidak pernah digunakan dalam aplikasi, dan tiada iklan.', details: 'Butiran', yes: 'Ya, boleh', no: 'Tidak, terima kasih' },
   calc: {
@@ -105,7 +105,7 @@ const zh: UiText = {
   checked: (date) => `最后核对：${date}`,
   articleCta: { title: '试试 ManaDuit', text: '马来西亚专用的免费记账工具。扫描收据、设预算，追踪你的定存和贷款。没有广告。' },
   site: '网站',
-  footer: { aria: '页脚', tagline: '马来西亚专用的免费记账工具。没有广告，你的记录保持私密。', note: '计算器只提供估算，不是理财建议。', brand: 'ManaDuit', formerly: '前称 VinExpenses', calculators: '计算器', guides: '指南', legal: '法律条款', about: '关于', contact: '联系', privacy: '隐私政策', terms: '使用条款' },
+  footer: { aria: '页脚', tagline: '马来西亚专用的免费记账工具。没有广告，你的记录保持私密。', note: '计算器只提供估算，不是理财建议。', brand: 'ManaDuit', formerly: '前称 VinExpenses', calculators: '计算器', guides: '指南', legal: '法律条款', about: '关于', install: '安装应用', contact: '联系', privacy: '隐私政策', terms: '使用条款' },
   names: { 'fd-calculator': '定存计算器', 'loan-calculator': '贷款计算器', 'bill-calculator': '账单计算器', 'flat-rate-vs-reducing-balance': '固定利率 vs 递减余额', 'sst-vs-service-charge': 'SST vs 服务费', 'is-fd-interest-taxable': '定存利息要缴税吗', 'how-to-read-a-malaysian-receipt': '看懂收据' },
   consent: { aria: '分析选项', text: '我可以用 Google Analytics 统计这些公开页面的访问次数吗？应用内部从不使用它，也没有广告。', details: '详情', yes: '好的，可以', no: '不用了，谢谢' },
   calc: {

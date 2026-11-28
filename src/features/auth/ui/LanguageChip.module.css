@@ -1,0 +1,46 @@
+.chip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: var(--tap);
+  padding: 0 12px;
+  border: 1.5px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: var(--fs-sm);
+  font-weight: 750;
+  transition: border-color 160ms var(--ease);
+}
+.chip:hover,
+.chip:focus-within {
+  border-color: var(--primary);
+}
+.chip:focus-within {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+.chip svg {
+  color: var(--muted);
+  flex: none;
+}
+.code {
+  min-width: 1.6em;
+  text-align: center;
+}
+/* invisible, but it is the real control: it covers the whole chip so a tap anywhere opens the list */
+.select {
+  position: absolute;
+  inset: -2px; /* covers the border too, so the tap target is the full chip height */
+  width: calc(100% + 4px);
+  height: calc(100% + 4px);
+  opacity: 0;
+  cursor: pointer;
+  font-size: 16px; /* stops iPhone from zooming the page when the list opens */
+}
+@media (prefers-reduced-motion: reduce) {
+  .chip {
+    transition: none;
+  }
+}

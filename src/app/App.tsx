@@ -25,6 +25,7 @@ const ReportPage = lazy(() => import('@/features/report/ReportPage').then((m) =>
 const WelcomePage = lazy(() => import('@/features/public/WelcomePage').then((m) => ({ default: m.WelcomePage })));
 const GuideRoute = lazy(() => import('@/features/guides/GuideRoute').then((m) => ({ default: m.GuideRoute })));
 const PrivacyPage = lazy(() => import('@/features/public/PrivacyPage').then((m) => ({ default: m.PrivacyPage })));
+const InstallPage = lazy(() => import('@/features/public/InstallPage').then((m) => ({ default: m.InstallPage })));
 const TermsPage = lazy(() => import('@/features/public/TermsPage').then((m) => ({ default: m.TermsPage })));
 const AdminPage = lazy(() => import('@/features/admin/AdminPage').then((m) => ({ default: m.AdminPage })));
 const AccountPage = lazy(() => import('@/features/account/AccountPage').then((m) => ({ default: m.AccountPage })));
@@ -57,9 +58,11 @@ export function AppRoutes() {
       {LANGS.flatMap((lang) => ALL_SLUGS.map((slug) => <Route key={pathFor(lang, slug)} path={pathFor(lang, slug)} element={<GuideRoute lang={lang} slug={slug} />} />))}
       <Route path="/privacy" element={<PrivacyPage />} />
       <Route path="/terms" element={<TermsPage />} />
+      <Route path="/install" element={<InstallPage />} />
       <Route path="/welcome.html" element={<Navigate to="/welcome" replace />} />
       <Route path="/privacy.html" element={<Navigate to="/privacy" replace />} />
       <Route path="/terms.html" element={<Navigate to="/terms" replace />} />
+      <Route path="/install.html" element={<Navigate to="/install" replace />} />
       <Route path="/auth" element={<AuthPage />} />
       <Route path="/auth/setup" element={<SetupPage />} />
       <Route path="/app" element={<ProtectedRoute />}>

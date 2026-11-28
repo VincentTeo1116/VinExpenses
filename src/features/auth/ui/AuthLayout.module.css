@@ -29,6 +29,15 @@
   border-radius: var(--r-xl);
   box-shadow: var(--shadow-md);
 }
+.top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+}
+.top > :last-child {
+  margin-left: auto;
+}
 .mobileBrand {
   display: flex;
   align-items: center;
@@ -64,12 +73,6 @@
   font-size: var(--fs-sm);
   color: var(--muted);
   text-align: center;
-}
-.lang {
-  width: 100%;
-  max-width: 440px;
-  display: flex;
-  justify-content: center;
 }
 
 @media (min-width: 900px) {

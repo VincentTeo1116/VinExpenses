@@ -2,7 +2,7 @@
 // the app, the sign-in page, the Mini App and the email page may not (they also carry a no-index header, see headers.mts).
 import { ALL_SLUGS, ARTICLES, GUIDE_PATHS, LANGS, pathFor } from '../src/features/guides/registry.ts';
 
-export const PUBLIC_PATHS: readonly string[] = ['/', ...GUIDE_PATHS, '/privacy', '/terms'];
+export const PUBLIC_PATHS: readonly string[] = ['/', ...GUIDE_PATHS, '/privacy', '/terms', '/install'];
 export const PRIVATE_PATHS = ['/app/', '/auth', '/miniapp/', '/email-action.html'] as const;
 
 /** The site's address without a trailing slash, or '' when it is not set (or not a plain http(s) address). */
@@ -26,6 +26,7 @@ const PAGE_HINTS: Record<string, { changefreq: string; priority: string }> = {
   '/': { changefreq: 'weekly', priority: '1.0' },
   '/privacy': { changefreq: 'monthly', priority: '0.5' },
   '/terms': { changefreq: 'monthly', priority: '0.5' },
+  '/install': { changefreq: 'monthly', priority: '0.6' },
 };
 for (const lang of LANGS) {
   for (const slug of ALL_SLUGS) PAGE_HINTS[pathFor(lang, slug)] = { changefreq: 'monthly', priority: (ARTICLES as readonly string[]).includes(slug) ? '0.7' : '0.8' };

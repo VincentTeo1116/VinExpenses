@@ -75,9 +75,9 @@ function appPagesPlugin(siteUrl: string): Plugin {
         mkdirSync(dirname(file), { recursive: true });
         writeFileSync(file, shell);
       }
-      // privacy and terms are listed in the sitemap, so their own HTML must name their own address as canonical (the home page copy says "/")
+      // privacy, terms and install are listed in the sitemap, so their own HTML must name their own address as canonical (the home page copy says "/")
       if (siteUrl) {
-        for (const slug of ['privacy', 'terms']) {
+        for (const slug of ['privacy', 'terms', 'install']) {
           const own = shell
             .toString('utf8')
             .replace(/<link rel="canonical" href="[^"]*" \/>/, `<link rel="canonical" href="${siteUrl}/${slug}" />`)

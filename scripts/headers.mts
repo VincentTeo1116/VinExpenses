@@ -70,7 +70,7 @@ export function headersFile(csp: string, miniCsp = ''): string {
   Content-Security-Policy: default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; connect-src 'self'
   Cache-Control: public, max-age=86400
 
-# The app and its sign-in are private: search engines must not list them (the welcome, privacy and terms pages may be listed)
+# The app and its sign-in are private: search engines must not list them (the welcome, install, privacy and terms pages may be listed)
 /app
   X-Robots-Tag: noindex, nofollow
 /app/*

@@ -46,7 +46,7 @@ export function PublicLayout({ children, nav }: { children: ReactNode; nav?: Rea
   const lang = usePageLang();
   const ui = useUi();
   const groups: { title: string; links: ({ label: string; to: string } | { label: string; href: string })[] }[] = [
-    { title: ui.footer.brand, links: [{ label: ui.footer.about, to: '/' }, { label: ui.openApp, to: '/app' }, { label: ui.footer.contact, href: 'mailto:teovincentkq1611@gmail.com' }] },
+    { title: ui.footer.brand, links: [{ label: ui.footer.about, to: '/' }, { label: ui.openApp, to: '/app' }, { label: ui.footer.install, to: '/install' }, { label: ui.footer.contact, href: 'mailto:teovincentkq1611@gmail.com' }] },
     { title: ui.footer.calculators, links: CALCULATORS.map((slug) => ({ label: ui.names[slug] ?? slug, to: pathFor(lang, slug) })) },
     { title: ui.footer.guides, links: ARTICLES.map((slug) => ({ label: ui.names[slug] ?? slug, to: pathFor(lang, slug) })) },
     { title: ui.footer.legal, links: [{ label: ui.footer.privacy, to: '/privacy' }, { label: ui.footer.terms, to: '/terms' }] },

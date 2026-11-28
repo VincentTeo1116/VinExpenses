@@ -2,8 +2,8 @@
 import { useLayoutEffect, useRef, type ReactNode } from 'react';
 import { prefersReducedMotion } from '@/lib/motion';
 import { Icon, type IconName } from '@/components/Icon';
-import { LanguageSelect } from '@/components/LanguageSelect';
 import { useI18n, type MessageKey } from '@/lib/i18n';
+import { LanguageChip } from './LanguageChip';
 import styles from './AuthLayout.module.css';
 
 const POINTS: { icon: IconName; text: MessageKey }[] = [
@@ -50,9 +50,12 @@ export function AuthLayout({ title, subtitle, children, footer }: { title: strin
       </aside>
       <main className={styles.main} id="main" tabIndex={-1}>
         <div className={styles.card}>
-          <div className={styles.mobileBrand}>
-            <img src="/icons/icon-192.png" alt="" width={40} height={40} />
-            <span>{t('app.name')}</span>
+          <div className={styles.top}>
+            <div className={styles.mobileBrand}>
+              <img src="/icons/icon-192.png" alt="" width={40} height={40} />
+              <span>{t('app.name')}</span>
+            </div>
+            <LanguageChip />
           </div>
           <h1 className={styles.title}>{title}</h1>
           {subtitle ? <p className={styles.subtitle}>{subtitle}</p> : null}
@@ -62,9 +65,6 @@ export function AuthLayout({ title, subtitle, children, footer }: { title: strin
           </div>
           </div>
           {footer ? <div className={styles.footer}>{footer}</div> : null}
-        </div>
-        <div className={styles.lang}>
-          <LanguageSelect />
         </div>
       </main>
     </div>
